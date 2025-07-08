@@ -1,0 +1,39 @@
+// 📁 backend/models/Booking.js
+import mongoose from "mongoose";
+
+const bookingSchema = new mongoose.Schema(
+  {
+    roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room", index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    checkIn: Date,
+    checkOut: Date,
+    // ❌ Removed durationHours – can be computed via checkOut - checkIn
+    foodPlan: {
+      type: String,
+      enum: ["None", "Breakfast", "Half Board", "Full Board", "À la carte"],
+      default: "None",
+    },
+    specialMealRequests: String,
+    selectedMeals: [
+      {
+        name: String,
+        price: Number,
+        description: String,
+        scheduledTime: Date,
+      },
+    ],
+    totalPrice: Number,
+    status: {
+      type: String,
+      enum: ["Pending", "Confirmed", "Cancelled"],
+      default: "Pending",
+      index: true,
+    },
+    cancelledAt: Date,
+    confirmedAt: Date,
+  },
+  { timestamps: true }
+);
+
+const Booking = mongoose.model("Booking", bookingSchema);
+export default Booking;

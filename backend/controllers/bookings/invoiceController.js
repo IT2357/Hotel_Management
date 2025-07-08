@@ -1,0 +1,1 @@
+// Placeholder for backend/controllers/bookings/invoiceController.js

@@ -1,0 +1,1 @@
+// Placeholder for backend/services/booking/availabilityService.js
