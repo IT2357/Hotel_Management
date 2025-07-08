@@ -1,0 +1,20 @@
+{
+  "name": "hotel_management",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "description": "Hotel management fullstack project",
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install-all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "start": "concurrently \"npm run start --prefix backend\" \"npm run preview --prefix frontend\"",
+    "build": "npm run build --prefix frontend"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
