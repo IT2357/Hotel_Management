@@ -1,9 +1,8 @@
-//src/pages/auth/LoginPage.jsx
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from '../../components/auth/AuthForm';
 import useAuth from '../../hooks/useAuth';
+import getDashboardPath from '../../utils/GetDashboardPath';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -34,23 +33,9 @@ export default function LoginPage() {
   const handleSubmit = async (data) => {
     setLoading(true);
     try {
-      const user = await login(data); // login must return the user object
-  
-      // Ensure storage is complete
-      if (user && user.role) {
-        switch (user.role) {
-          case "admin":
-            navigate("/admin/dashboard");
-            break;
-          case "manager":
-            navigate("/manager/dashboard");
-            break;
-          case "staff":
-            navigate("/staff/dashboard");
-            break;
-          default:
-            navigate("/guest/dashboard");
-        }
+      const user = await login(data); // login returns user object
+      if (user?.role) {
+        navigate(getDashboardPath(user.role));
       } else {
         console.warn("Login succeeded but user role not found.");
       }
@@ -60,8 +45,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-  
-  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

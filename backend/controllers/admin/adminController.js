@@ -5,6 +5,7 @@ import AdminProfile from "../../models/profiles/AdminProfile.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import ManagerProfile from "../../models/profiles/ManagerProfile.js";
 import { sendEmail } from "../../services/notification/emailService.js";
+import crypto from "crypto";
 
 // Create user with privileged role
 export const createPrivilegedUser = async (req, res) => {
@@ -192,20 +193,26 @@ export const approveUser = async (req, res) => {
 export const createInvitation = async (req, res) => {
   try {
     const { email, role, expiresInHours = 24 } = req.body;
+    console.log("📨 Incoming invitation:", { email, role, expiresInHours });
+
     const token = crypto.randomBytes(32).toString("hex");
+    console.log("🔑 Generated token:", token);
 
     const invitation = new Invitation({
       email,
       role,
       token,
-      createdBy: req.user._id,
+      createdBy: req.user?._id,
       expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000),
     });
 
+    console.log("📦 Saving invitation...");
     await invitation.save();
+    console.log("✅ Invitation saved");
 
-    // Send invitation email
-    const inviteUrl = `${process.env.FRONTEND_URL}/register?token=${token}`;
+    const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${token}`;
+    console.log("📧 Sending email to:", email);
+
     await sendEmail({
       to: email,
       subject: "You're Invited to Join Our System",
@@ -217,11 +224,14 @@ export const createInvitation = async (req, res) => {
       `,
     });
 
+    console.log("✅ Email sent");
+
     res.status(201).json({
       success: true,
       message: "Invitation sent",
     });
   } catch (error) {
+    console.error("❌ Error creating invitation:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create invitation",
@@ -229,23 +239,75 @@ export const createInvitation = async (req, res) => {
   }
 };
 
-// Get Active Invitations
-export const getInvitations = async (req, res) => {
+// 🔄 Update Invitation
+export const updateInvitation = async (req, res) => {
   try {
-    const invitations = await Invitation.find({
-      expiresAt: { $gt: new Date() },
-      used: false,
+    const { id } = req.params;
+    const updates = req.body;
+
+    const invitation = await Invitation.findByIdAndUpdate(id, updates, {
+      new: true,
     });
 
-    res.json({
-      success: true,
-      data: invitations,
-    });
+    if (!invitation) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invitation not found" });
+    }
+
+    res.json({ success: true, data: invitation });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to get invitations",
-    });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to update invitation" });
+  }
+};
+
+// ❌ Delete Invitation
+export const deleteInvitation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Invitation.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invitation not found" });
+    }
+
+    res.json({ success: true, message: "Invitation deleted" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to delete invitation" });
+  }
+};
+
+// 🔍 Filter Invitations
+export const getInvitations = async (req, res) => {
+  try {
+    const { status, email } = req.query;
+    const query = {};
+
+    if (status === "active") {
+      query.used = false;
+      query.expiresAt = { $gt: new Date() };
+    } else if (status === "expired") {
+      query.expiresAt = { $lt: new Date() };
+    } else if (status === "used") {
+      query.used = true;
+    }
+
+    if (email) {
+      query.email = { $regex: email, $options: "i" };
+    }
+
+    const invitations = await Invitation.find(query);
+    res.json({ success: true, data: invitations });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to get invitations" });
   }
 };
 

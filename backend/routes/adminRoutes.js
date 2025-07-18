@@ -4,6 +4,8 @@ import {
   createPrivilegedUser,
   createInvitation,
   getInvitations,
+  updateInvitation,
+  deleteInvitation,
   approveUser,
   getPendingApprovals,
   getUsers,
@@ -26,8 +28,12 @@ router.use(authenticateToken, checkApprovedAdmin);
 
 // User management routes
 router.post("/users", checkPermissions(["create-user"]), createPrivilegedUser);
+
 router.post("/invitations", createInvitation);
 router.get("/invitations", getInvitations);
+router.put("/invitations/:id", updateInvitation);
+router.delete("/invitations/:id", deleteInvitation);
+
 router.get("/users", checkPermissions(["view-users"]), getUsers);
 router.put(
   "/users/:userId/role",

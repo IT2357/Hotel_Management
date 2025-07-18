@@ -1,7 +1,7 @@
-// 📁 src/hooks/useAuth.js
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
+import getDashboardPath from "../utils/GetDashboardPath";
 
 export default function useAuth() {
   const [user, setUser] = useState(() => {
@@ -21,21 +21,6 @@ export default function useAuth() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const getDashboardPath = (role) => {
-    switch (role) {
-      case "admin":
-        return "/admin/dashboard";
-      case "manager":
-        return "/manager/dashboard";
-      case "staff":
-        return "/staff/dashboard";
-      case "guest":
-        return "/guest/dashboard";
-      default:
-        return "/";
-    }
-  };
-
   const login = async (credentials) => {
     setLoading(true);
     try {
@@ -46,8 +31,7 @@ export default function useAuth() {
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
 
-      const redirectPath = getDashboardPath(user.role);
-      navigate(redirectPath);
+      navigate(getDashboardPath(user.role));
       return user;
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
@@ -63,10 +47,9 @@ export default function useAuth() {
       const res = await authService.register(userData);
       const { userId, email } = res.data.data;
 
-      const basicUser = { _id: userId, email, role: "guest" }; // Include role for consistency
+      const basicUser = { _id: userId, email, role: "guest" };
       localStorage.setItem("user", JSON.stringify(basicUser));
       setUser(basicUser);
-      console.log("Registered user stored:", basicUser); // Debugging
 
       navigate("/verify-email", {
         state: { email, userId },
@@ -83,16 +66,14 @@ export default function useAuth() {
   const verifyEmail = async (data) => {
     try {
       const res = await authService.verifyEmail(data);
-      const verifiedUser = res.data.data.user; // Adjust based on actual response structure
+      const verifiedUser = res.data.data.user;
       const token = res.data.data.token;
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(verifiedUser));
       setUser(verifiedUser);
-      console.log("Verified user:", verifiedUser); // Debugging
 
-      const redirectPath = getDashboardPath(verifiedUser.role);
-      navigate(redirectPath);
+      navigate(getDashboardPath(verifiedUser.role));
     } catch (err) {
       setError(err.response?.data?.message || "Email verification failed");
       throw err;
@@ -118,7 +99,6 @@ export default function useAuth() {
   const checkAuth = async () => {
     const token = localStorage.getItem("token");
     if (!token || token === "undefined") {
-      console.warn("No valid token found. Skipping auth check.");
       setLoading(false);
       return;
     }
@@ -129,7 +109,6 @@ export default function useAuth() {
       setUser(res.data.data.user);
       localStorage.setItem("user", JSON.stringify(res.data.data.user));
     } catch (err) {
-      console.error("Auth check failed:", err.response?.data || err.message);
       if (err.response?.status === 401) {
         logout();
       } else {
@@ -149,12 +128,9 @@ export default function useAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-    console.log("Initial token:", token, "Initial user:", storedUser);
     if (token && token !== "undefined" && token !== "null") {
       checkAuth();
     } else {
-      console.log("No token yet — likely pre-verification");
       setLoading(false);
     }
   }, []);

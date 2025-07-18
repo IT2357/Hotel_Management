@@ -14,7 +14,8 @@ import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
-// import StaffPortalPage from './pages/StaffPortalPage.jsx';
+import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
+import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 // import UserManagementPage from './pages/UserManagementPage.jsx';
 
@@ -66,13 +67,14 @@ const App = () => {
             }
           />
           <Route
-            path="/invite/:token"
+            path="/invite"
             element={
               <RedirectIfAuthenticated>
                 <InviteRegisterPage />
               </RedirectIfAuthenticated>
             }
           />
+
 
           {/* 🔐 Protected Routes */}
           <Route 
@@ -84,6 +86,15 @@ const App = () => {
             } 
           />
 
+          <Route
+            path="/staff/dashboard"
+            element={
+              <ProtectedRoute roles={['staff']}>
+                <StaffDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* 🏢 Admin Routes */}
             <Route 
               path="/admin/dashboard" 
@@ -93,6 +104,16 @@ const App = () => {
                 </ProtectedRoute>
               } 
             />
+
+            <Route 
+              path="/admin/invitations" 
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <AdminInvitationPage />
+                </ProtectedRoute>
+              } 
+            />
+
           <Route
             path="/logout"
             element={

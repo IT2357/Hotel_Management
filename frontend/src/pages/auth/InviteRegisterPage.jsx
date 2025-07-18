@@ -1,14 +1,14 @@
-//src/pages/auth/InviteRegisterPage.jsx
-
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthForm from '../../components/auth/AuthForm';
 import RoleBadge from '../../components/auth/RoleBadge';
 import useAuth from '../../hooks/useAuth';
-import api from '../../services/authService';
+import authService from '../../services/authService';
+import getDashboardPath from '../../utils/GetDashboardPath';
 
 export default function InviteRegisterPage() {
-  const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
   const [inviteData, setInviteData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,26 +16,74 @@ export default function InviteRegisterPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!token) {
+      setError("Missing invitation token.");
+      setLoading(false);
+      return;
+    }
+
     const checkInvite = async () => {
       try {
-        const response = await api.get(`/auth/check-invitation?token=${token}`);
-        setInviteData(response.data.data);
+        const response = await authService.checkInvitation(token);
+        setInviteData(response.data.invitation);
       } catch (err) {
-        setError(err.response?.data?.message || 'Invalid invitation');
+        setError(err.response?.data?.error || 'Invalid or expired invitation token.');
       } finally {
         setLoading(false);
       }
     };
+
     checkInvite();
   }, [token]);
 
+  const handleSubmit = async (data) => {
+    try {
+      await authService.registerWithInvite({
+        name: data.name,
+        password: data.password,
+        token,
+      });
+
+      const user = await login({ email: inviteData.email, password: data.password });
+      navigate(getDashboardPath(user.role));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-600">
+        <p>Validating your invitation...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 text-center px-4">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Oops!</h2>
+          <p>{error}</p>
+          <p className="mt-4 text-sm text-gray-500">Please contact your administrator for a new invitation.</p>
+        </div>
+      </div>
+    );
+  }
+
   const fields = [
-    { name: 'name', label: 'Full Name', validation: { required: 'Name is required' } },
+    {
+      name: 'name',
+      label: 'Full Name',
+      validation: { required: 'Name is required' }
+    },
     {
       name: 'email',
-      label: 'Email',
+      label: 'Email (assigned by admin)',
       type: 'email',
-      readOnly: true
+      readOnly: true,
+      defaultValue: inviteData.email,
+      validation: { required: true }
     },
     {
       name: 'password',
@@ -51,19 +99,6 @@ export default function InviteRegisterPage() {
     }
   ];
 
-  const handleSubmit = async (data) => {
-    try {
-      await api.post('/auth/register-with-invite', { ...data, token });
-      await login({ email: data.email, password: data.password });
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div className="text-center py-10 text-red-500">{error}</div>;
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -76,9 +111,7 @@ export default function InviteRegisterPage() {
           </div>
         </div>
         <AuthForm
-          fields={fields.map(field => 
-            field.name === 'email' ? { ...field, defaultValue: inviteData.email } : field
-          )}
+          fields={fields}
           onSubmit={handleSubmit}
           submitText="Complete Registration"
         />

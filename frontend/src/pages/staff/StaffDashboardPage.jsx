@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import useAuth from "../../hooks/useAuth";
 
-export default function AdminDashboardPage() {
+export default function StaffDashboardPage() {
   const { user } = useContext(AuthContext);
   const { logout } = useAuth();
 
@@ -11,7 +11,7 @@ export default function AdminDashboardPage() {
       <header className="bg-white shadow">
         <div className="mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-indigo-600">
-            Admin Dashboard
+            Staff Dashboard
           </h1>
           <button
             onClick={logout}
@@ -25,13 +25,19 @@ export default function AdminDashboardPage() {
       <div className="flex">
         <aside className="w-64 bg-white border-r h-screen px-6 py-8">
           <nav className="space-y-4">
-            {["dashboard", "users", "bookings", "rooms", "reports", "settings", "invitations"].map((item) => (
+            {[
+              { label: "Dashboard", path: "/staff-portal" },
+              { label: "My Bookings", path: "/staff/bookings" },
+              { label: "Room Status", path: "/staff/rooms" },
+              { label: "Guest Check-ins", path: "/staff/checkins" },
+              { label: "Support Requests", path: "/staff/support" }
+            ].map(({ label, path }) => (
               <a
-                key={item}
-                href={`/admin/${item}`}
+                key={label}
+                href={path}
                 className="block text-lg font-medium text-gray-700 hover:text-indigo-600 transition duration-200"
               >
-                {item.charAt(0).toUpperCase() + item.slice(1)}
+                {label}
               </a>
             ))}
           </nav>
@@ -43,9 +49,21 @@ export default function AdminDashboardPage() {
           </h2>
           <div className="grid grid-cols-3 gap-6">
             {[
-              { title: "Users", to: "/admin/users", description: "Manage accounts." },
-              { title: "Bookings", to: "/admin/bookings", description: "Handle reservations." },
-              { title: "Reports", to: "/admin/reports", description: "Analyze performance." }
+              {
+                title: "My Bookings",
+                to: "/staff/bookings",
+                description: "View and manage your assigned bookings."
+              },
+              {
+                title: "Room Status",
+                to: "/staff/rooms",
+                description: "Check availability and maintenance status."
+              },
+              {
+                title: "Support Requests",
+                to: "/staff/support",
+                description: "Respond to guest issues and internal tasks."
+              }
             ].map(({ title, description, to }) => (
               <DashboardCard key={title} title={title} description={description} to={to} />
             ))}

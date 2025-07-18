@@ -122,9 +122,11 @@ export const checkInvitation = async (req, res) => {
     }
 
     res.status(200).json({
-      message: "Invitation is valid",
-      email: invitation.email,
-      role: invitation.role,
+      invitation: {
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+      },
     });
   } catch (err) {
     console.error("Error checking invitation:", err);
@@ -167,6 +169,7 @@ export const registerWithInvitation = async (req, res) => {
       name,
       email: invitation.email,
       password: hashedPassword,
+      emailVerified: true,
       role: invitation.role,
       isApproved: true,
       approvedBy: invitation.createdBy,
