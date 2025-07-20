@@ -1,7 +1,7 @@
 //src/pages/auth/RegisterPage.jsx
 
 import { Link, useNavigate } from 'react-router-dom';
-import AuthForm from '../../components/auth/AuthForm';
+import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
 
 export default function RegisterPage() {

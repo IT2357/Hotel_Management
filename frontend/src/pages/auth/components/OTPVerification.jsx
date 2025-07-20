@@ -1,4 +1,4 @@
-// 📁 src/components/auth/OTPVerification.jsx
+//src/pages/auth/components/OTPVerification.jsx
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 

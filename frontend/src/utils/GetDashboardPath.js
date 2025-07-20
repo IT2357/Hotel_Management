@@ -1,3 +1,5 @@
+//src/utils/getDashboardPath
+
 const getDashboardPath = (role) => {
   switch (role) {
     case "admin":

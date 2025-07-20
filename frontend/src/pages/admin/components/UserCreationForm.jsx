@@ -1,9 +1,9 @@
-//src/components/auth/UserCreationForm.jsx
+//src/pages/admin/components/UserCreationForm.jsx
 
 import { useState } from 'react';
 import AuthForm from '../../auth/components/AuthForm';
 import RoleBadge from '../../auth/components/RoleBadge';
-import api from '../../services/adminService';
+import api from '../../../services/adminService';
 
 export default function UserCreationForm({ onSuccess }) {
   const [loading, setLoading] = useState(false);

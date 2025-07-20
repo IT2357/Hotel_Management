@@ -1,6 +1,9 @@
+//src/pages/auth/
+
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthForm from '../../components/auth/AuthForm';
+import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
 import getDashboardPath from '../../utils/GetDashboardPath';
 

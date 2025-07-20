@@ -1,7 +1,9 @@
+//src/pages/auth/InviteRegisterPage.jsx
+
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import AuthForm from '../../components/auth/AuthForm';
-import RoleBadge from '../../components/auth/RoleBadge';
+import AuthForm from './components/AuthForm';
+import RoleBadge from './components/RoleBadge';
 import useAuth from '../../hooks/useAuth';
 import authService from '../../services/authService';
 import getDashboardPath from '../../utils/GetDashboardPath';

@@ -1,4 +1,4 @@
-//src/components/auth/PasswordStrength.jsx
+//src/pages/auth/components/PasswordStrength.jsx
 
 export default function PasswordStrength({ password }) {
     const getStrength = (pass) => {

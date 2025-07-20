@@ -1,3 +1,5 @@
+//src/pages/auth/components/AuthForm.jsx
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import PasswordStrength from './PasswordStrength';

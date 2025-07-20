@@ -7,15 +7,16 @@ import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
 import OTPVerificationPage from './pages/auth/OTPVerificationPage';
-import ForgotPasswordPage from './pages//auth/ForgotPasswordPage.jsx';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage'
-import LogoutHandler from "./pages/auth/LogoutHandler.jsx";
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
+import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 // import UserManagementPage from './pages/UserManagementPage.jsx';
 
@@ -75,15 +76,14 @@ const App = () => {
             }
           />
 
-
           {/* 🔐 Protected Routes */}
-          <Route 
-            path="/guest/dashboard" 
+          <Route
+            path="/guest/dashboard"
             element={
               <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
               </ProtectedRoute>
-            } 
+            }
           />
 
           <Route
@@ -96,23 +96,27 @@ const App = () => {
           />
 
           {/* 🏢 Admin Routes */}
-            <Route 
-              path="/admin/dashboard" 
-              element={
-                <ProtectedRoute roles={['admin']}>
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
                   <AdminDashboardPage />
-                </ProtectedRoute>
-              } 
-            />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
-            <Route 
-              path="/admin/invitations" 
-              element={
-                <ProtectedRoute roles={['admin']}>
+          <Route
+            path="/admin/invitations"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
                   <AdminInvitationPage />
-                </ProtectedRoute>
-              } 
-            />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/logout"
@@ -129,10 +133,6 @@ const App = () => {
             <Route path="/staff-portal" element={<StaffPortalPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute roles={['manager', 'admin']} />}>
-            <Route path="/manager-dashboard" element={<ManagerDashboardPage />} />
-          </Route>
-
           // 🛡️ Admin-Specific Routes
           <Route 
             element={
@@ -144,48 +144,6 @@ const App = () => {
           >
             <Route path="/admin/users" element={<UserManagementPage />} />
           </Route>
-
-          
-          <Route 
-            path="/admin/users" 
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <ManageUsersPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/bookings" 
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <ManageBookingsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/rooms" 
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <ManageRoomsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/reports" 
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <ReportsPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/settings" 
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <AdminSettingsPage />
-              </ProtectedRoute>
-            } 
-          />
 
           */}
 

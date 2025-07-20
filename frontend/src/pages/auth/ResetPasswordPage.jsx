@@ -1,3 +1,5 @@
+//src/pages/auth/ResetPasswordPage.jsx
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams, useNavigate } from 'react-router-dom';

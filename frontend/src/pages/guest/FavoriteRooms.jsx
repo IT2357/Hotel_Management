@@ -1,0 +1,1 @@
+//src/pages/guest/FavoriteRooms.jsx

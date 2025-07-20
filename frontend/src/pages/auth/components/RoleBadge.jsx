@@ -1,4 +1,4 @@
-// src/components/auth/RoleBadge.jsx
+//src/pages/auth/components/RoleBadge.jsx
 
 import React from 'react';
 

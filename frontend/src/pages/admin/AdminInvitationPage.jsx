@@ -1,6 +1,9 @@
+//src/pages/admin/AdminInvitationPage.jsx
+
 import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import adminService from "../../services/adminService";
+import EditInvitationModal from "./components/EditInvitationModal";
 
 export default function AdminInvitationPage() {
   const { user } = useContext(AuthContext);
@@ -229,88 +232,24 @@ export default function AdminInvitationPage() {
       </main>
 
       {/* Modal for Editing Invitation */}
-      {modalOpen && editingInvitation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md space-y-4">
-            <h2 className="text-xl font-semibold">Edit Invitation</h2>
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  type="email"
-                  value={editingInvitation.email}
-                  onChange={(e) =>
-                    setEditingInvitation({ ...editingInvitation, email: e.target.value })
-                  }
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Role</label>
-                <select
-                value={editingInvitation.role}
-                onChange={(e) =>
-                  setEditingInvitation({ ...editingInvitation, role: e.target.value })
-                }
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-              >
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Used</label>
-              <select
-                value={editingInvitation.used ? "true" : "false"}
-                onChange={(e) =>
-                  setEditingInvitation({
-                    ...editingInvitation,
-                    used: e.target.value === "true",
-                  })
-                }
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-              >
-                <option value="false">Not Used</option>
-                <option value="true">Used</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Expires At</label>
-              <input
-                type="datetime-local"
-                value={new Date(editingInvitation.expiresAt).toISOString().slice(0, 16)}
-                onChange={(e) =>
-                  setEditingInvitation({
-                    ...editingInvitation,
-                    expiresAt: new Date(e.target.value),
-                  })
-                }
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setModalOpen(false);
-                  setEditingInvitation(null);
-                }}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    )}
+      <EditInvitationModal
+        isOpen={modalOpen}
+        invitation={editingInvitation}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingInvitation(null);
+        }}
+        onUpdate={async (updatedData) => {
+          try {
+            await adminService.updateInvitation(updatedData._id, updatedData);
+            setModalOpen(false);
+            setEditingInvitation(null);
+            fetchInvitations();
+          } catch (err) {
+            console.error("Update failed:", err);
+          }
+        }}
+      />
   </div>
 );
 }

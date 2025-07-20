@@ -1,4 +1,5 @@
-//src/pages/UnauthorizedPage.jsx
+//src/pages/auth/UnauthorizedPage.jsx
+
 import { useLocation, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 

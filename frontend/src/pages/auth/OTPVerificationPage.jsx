@@ -1,6 +1,6 @@
-// 📁 src/pages/auth/OTPVerificationPage.jsx
+//src/pages/auth/OTPVerificationPage.jsx
 import { useNavigate, useLocation } from 'react-router-dom';
-import OTPVerification from '../../components/auth/OTPVerification';
+import OTPVerification from './components/OTPVerification';
 import useAuth from '../../hooks/useAuth';
 
 const getParsedUser = () => {
