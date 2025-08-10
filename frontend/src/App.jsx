@@ -15,6 +15,7 @@ import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
+import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
@@ -113,6 +114,17 @@ const App = () => {
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminInvitationPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminNotificationPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }

@@ -1,16 +1,16 @@
-// src/components/ui/Input.jsx
+// src/components/ui/Textarea.jsx
 import React from "react";
 
-export default function Input({
+export default function Textarea({
   label,
   id,
-  type = "text",
   value,
   onChange,
   placeholder = "",
   className = "",
   required = false,
   disabled = false,
+  rows = 3,
   ...props
 }) {
   return (
@@ -20,9 +20,9 @@ export default function Input({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-      <input
+      <textarea
         id={id}
-        type={type}
+        rows={rows}
         value={value}
         onChange={onChange}
         placeholder={placeholder}

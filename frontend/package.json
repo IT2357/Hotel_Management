@@ -12,11 +12,14 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.10.0",
+    "classnames": "^2.5.1",
+    "date-fns": "^4.1.0",
     "hotel_management": "file:..",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
     "react-router-dom": "^7.6.3",
+    "react-toastify": "^11.0.5",
     "tailwindcss": "^4.1.11"
   },
   "devDependencies": {

@@ -1,6 +1,9 @@
 // 📁 backend/routes/adminRoutes.js
 import express from "express";
 import {
+  getAllNotifications,
+  sendAdminNotification,
+  getNotificationStats,
   createPrivilegedUser,
   createInvitation,
   getInvitations,
@@ -13,49 +16,80 @@ import {
   deactivateUser,
 } from "../controllers/admin/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
-import {
-  checkApprovedAdmin,
-  checkPermissions,
-} from "../middleware/roleAuth.js";
+import { authorizeRoles } from "../middleware/roleAuth.js";
 
 const router = express.Router();
 
-// All admin routes require:
-// 1. Valid token
-// 2. Admin role
-// 3. Approved admin status
-router.use(authenticateToken, checkApprovedAdmin);
+// 🔒 Global middleware for admin routes - only approved admins
+router.use(authenticateToken, authorizeRoles({ roles: ["admin"] }));
 
-// User management routes
-router.post("/users", checkPermissions(["create-user"]), createPrivilegedUser);
+// 📣 Notification management routes
+router.get(
+  "/notifications/admin",
+  authorizeRoles({ permissions: ["notifications:read"] }),
+  getAllNotifications
+);
+router.post(
+  "/notifications/send",
+  authorizeRoles({ permissions: ["notifications:create"] }),
+  sendAdminNotification
+);
+router.get(
+  "/notifications/stats",
+  authorizeRoles({ permissions: ["notifications:read"] }),
+  getNotificationStats
+);
 
-router.post("/invitations", createInvitation);
-router.get("/invitations", getInvitations);
-router.put("/invitations/:id", updateInvitation);
-router.delete("/invitations/:id", deleteInvitation);
-
-router.get("/users", checkPermissions(["view-users"]), getUsers);
+// 👥 User management routes
+router.post(
+  "/users",
+  authorizeRoles({ permissions: ["users:create"] }),
+  createPrivilegedUser
+);
+router.get("/users", authorizeRoles({ permissions: ["users:read"] }), getUsers);
 router.put(
   "/users/:userId/role",
-  checkPermissions(["assign-roles"]),
+  authorizeRoles({ permissions: ["users:update"] }),
   updateUserRole
 );
 router.put(
   "/users/:userId/deactivate",
-  checkPermissions(["deactivate-users"]),
+  authorizeRoles({ permissions: ["users:update"] }),
   deactivateUser
 );
 
-// Approval system routes
+// ✅ Approval system routes
 router.get(
   "/approvals",
-  checkPermissions(["approve-users"]),
+  authorizeRoles({ permissions: ["users:update"] }),
   getPendingApprovals
 );
 router.put(
   "/approvals/:userId",
-  checkPermissions(["approve-users"]),
+  authorizeRoles({ permissions: ["users:update"] }),
   approveUser
+);
+
+// ✉️ Invitation management routes
+router.get(
+  "/invitations",
+  authorizeRoles({ permissions: ["invitations:read"] }),
+  getInvitations
+);
+router.post(
+  "/invitations",
+  authorizeRoles({ permissions: ["invitations:create"] }),
+  createInvitation
+);
+router.put(
+  "/invitations/:id",
+  authorizeRoles({ permissions: ["invitations:update"] }),
+  updateInvitation
+);
+router.delete(
+  "/invitations/:id",
+  authorizeRoles({ permissions: ["invitations:delete"] }),
+  deleteInvitation
 );
 
 export default router;

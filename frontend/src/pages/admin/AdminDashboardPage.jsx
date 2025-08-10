@@ -1,5 +1,4 @@
-//src/pages/admin/AdminDashboardPage.jsx
-
+// src/pages/admin/AdminDashboardPage.jsx
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { NavLink } from 'react-router-dom';
@@ -17,6 +16,7 @@ export default function AdminDashboardPage() {
           { title: "Users", to: "/admin/users", description: "Manage user accounts and permissions." },
           { title: "Bookings", to: "/admin/bookings", description: "View and handle reservations." },
           { title: "Reports", to: "/admin/reports", description: "Analyze system performance and metrics." },
+          { title: "Notifications", to: "/admin/notifications", description: "Manage system notifications and alerts." },
         ].map(({ title, description, to }) => (
           <DashboardCard key={title} title={title} description={description} to={to} />
         ))}

@@ -1,94 +1,67 @@
 // 📁 backend/controllers/admin/adminController.js
-import User from "../../models/User.js";
-import Invitation from "../../models/Invitation.js";
-import AdminProfile from "../../models/profiles/AdminProfile.js";
-import StaffProfile from "../../models/profiles/StaffProfile.js";
-import ManagerProfile from "../../models/profiles/ManagerProfile.js";
-import { sendEmail } from "../../services/notification/emailService.js";
-import crypto from "crypto";
+import AdminService from "../../services/admin/adminService.js";
+import NotificationService from "../../services/notification/notificationService.js";
 
-// Create user with privileged role
+// Helper for consistent error responses
+const handleError = (res, error, defaultMessage = "Operation failed") => {
+  console.error(`${defaultMessage}:`, error);
+
+  const statusCode = error.message.includes("not found")
+    ? 404
+    : error.message.includes("already exists")
+    ? 400
+    : error.message.includes("Invalid")
+    ? 400
+    : error.message.includes("already approved")
+    ? 400
+    : 500;
+
+  res.status(statusCode).json({
+    success: false,
+    message: error.message || defaultMessage,
+  });
+};
+
+// Helper for success responses
+const sendSuccess = (
+  res,
+  data,
+  message = "Operation successful",
+  statusCode = 200
+) => {
+  res.status(statusCode).json({
+    success: true,
+    message,
+    data,
+  });
+};
+
+// Create privileged user
 export const createPrivilegedUser = async (req, res) => {
   try {
     const { name, email, password, phone, role, permissions } = req.body;
-    const requestingAdmin = req.user;
 
-    // Validate role
-    if (!["staff", "manager", "admin"].includes(role)) {
+    // Input validation
+    if (!name || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: "Invalid role for privileged user creation",
+        message: "Name, email, password, and role are required",
       });
     }
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists with this email",
-      });
-    }
-
-    // Create user (auto-approved since created by admin)
-    const user = new User({
+    const result = await AdminService.createPrivilegedUser({
       name,
       email,
-      password, // Password should be pre-hashed by the frontend or hashed here
+      password,
       phone,
       role,
-      isApproved: true,
-      approvedBy: requestingAdmin._id,
-      approvedAt: new Date(),
+      permissions,
+      requestingAdminId: req.user._id,
     });
 
-    await user.save();
-
-    // Create role-specific profile
-    switch (role) {
-      case "staff":
-        await StaffProfile.create({ userId: user._id, isActive: true });
-        break;
-      case "manager":
-        await ManagerProfile.create({ userId: user._id });
-        break;
-      case "admin":
-        await AdminProfile.create({
-          userId: user._id,
-          permissions: permissions || ["view-reports"],
-        });
-        break;
-    }
-
-    // Send welcome email with temporary password
-    await sendEmail({
-      to: email,
-      subject: "Your Hotel Management System Account",
-      html: `
-        <h2>Account Created</h2>
-        <p>Hi ${name},</p>
-        <p>An admin has created an account for you with ${role} privileges.</p>
-        <p>Please login using your email and the temporary password provided to you.</p>
-        <p>You'll be prompted to change your password on first login.</p>
-      `,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: `${role} user created successfully`,
-      data: {
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-      },
-    });
+    sendSuccess(res, result, result.message, 201);
   } catch (error) {
-    console.error("Create privileged user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create user",
-      error: error.message,
-    });
+    handleError(res, error, "Failed to create user");
   }
 };
 
@@ -96,253 +69,369 @@ export const createPrivilegedUser = async (req, res) => {
 export const approveUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { role, permissions } = req.body; // Optional role update during approval
-    const requestingAdmin = req.user;
+    const { role, permissions } = req.body;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    // Check if already approved
-    if (user.isApproved) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "User is already approved",
+        message: "User ID is required",
       });
     }
 
-    // Update role if provided (and different from current)
-    if (
-      role &&
-      role !== user.role &&
-      ["staff", "manager", "admin"].includes(role)
-    ) {
-      user.role = role;
-    }
+    const result = await AdminService.approveUser(
+      userId,
+      { role, permissions },
+      req.user._id
+    );
 
-    // Approve the user
-    user.isApproved = true;
-    user.approvedBy = requestingAdmin._id;
-    user.approvedAt = new Date();
-    await user.save();
-
-    // Create or update role-specific profile
-    if (user.role !== "guest") {
-      switch (user.role) {
-        case "staff":
-          await StaffProfile.findOneAndUpdate(
-            { userId: user._id },
-            { isActive: true },
-            { upsert: true, new: true }
-          );
-          break;
-        case "manager":
-          await ManagerProfile.findOneAndUpdate(
-            { userId: user._id },
-            {},
-            { upsert: true, new: true }
-          );
-          break;
-        case "admin":
-          await AdminProfile.findOneAndUpdate(
-            { userId: user._id },
-            { permissions: permissions || ["view-reports"] },
-            { upsert: true, new: true }
-          );
-          break;
-      }
-    }
-
-    // Send approval notification
-    await sendEmail({
-      to: user.email,
-      subject: "Your Account Has Been Approved",
-      html: `
-        <h2>Account Approved</h2>
-        <p>Hi ${user.name},</p>
-        <p>Your ${user.role} account has been approved by an administrator.</p>
-        <p>You can now login and access all features available to your role.</p>
-      `,
-    });
-
-    res.json({
-      success: true,
-      message: "User approved successfully",
-      data: {
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-        isApproved: user.isApproved,
-      },
-    });
+    sendSuccess(res, result, result.message);
   } catch (error) {
-    console.error("Approve user error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to approve user",
-      error: error.message,
-    });
+    handleError(res, error, "Failed to approve user");
   }
 };
 
-// Create Invitation
+// Create invitation
 export const createInvitation = async (req, res) => {
   try {
     const { email, role, expiresInHours = 24 } = req.body;
-    console.log("📨 Incoming invitation:", { email, role, expiresInHours });
 
-    const token = crypto.randomBytes(32).toString("hex");
-    console.log("🔑 Generated token:", token);
+    // Input validation
+    if (!email || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and role are required",
+      });
+    }
 
-    const invitation = new Invitation({
+    const result = await AdminService.createInvitation({
       email,
       role,
-      token,
-      createdBy: req.user?._id,
-      expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000),
+      expiresInHours,
+      createdBy: req.user._id,
     });
 
-    console.log("📦 Saving invitation...");
-    await invitation.save();
-    console.log("✅ Invitation saved");
-
-    const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${token}`;
-    console.log("📧 Sending email to:", email);
-
-    await sendEmail({
-      to: email,
-      subject: "You're Invited to Join Our System",
-      html: `
-        <h2>Join Our Team</h2>
-        <p>You've been invited as a ${role}.</p>
-        <a href="${inviteUrl}">Complete Registration</a>
-        <p>Link expires in ${expiresInHours} hours</p>
-      `,
-    });
-
-    console.log("✅ Email sent");
-
-    res.status(201).json({
-      success: true,
-      message: "Invitation sent",
-    });
+    sendSuccess(res, result, result.message, 201);
   } catch (error) {
-    console.error("❌ Error creating invitation:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create invitation",
-    });
+    handleError(res, error, "Failed to create invitation");
   }
 };
 
-// 🔄 Update Invitation
+// Get invitations
+export const getInvitations = async (req, res) => {
+  try {
+    const { status, email } = req.query;
+    const invitations = await AdminService.getInvitations({ status, email });
+    sendSuccess(res, invitations);
+  } catch (error) {
+    handleError(res, error, "Failed to get invitations");
+  }
+};
+
+// Update invitation
 export const updateInvitation = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    const invitation = await Invitation.findByIdAndUpdate(id, updates, {
-      new: true,
-    });
-
-    if (!invitation) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Invitation not found" });
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invitation ID is required",
+      });
     }
 
-    res.json({ success: true, data: invitation });
+    const invitation = await AdminService.updateInvitation(id, updates);
+    sendSuccess(res, invitation, "Invitation updated successfully");
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update invitation" });
+    handleError(res, error, "Failed to update invitation");
   }
 };
 
-// ❌ Delete Invitation
+// Delete invitation
 export const deleteInvitation = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Invitation.findByIdAndDelete(id);
 
-    if (!deleted) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Invitation not found" });
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invitation ID is required",
+      });
     }
 
-    res.json({ success: true, message: "Invitation deleted" });
+    const result = await AdminService.deleteInvitation(id);
+    res.status(204).json({
+      success: true,
+      message: result.message,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete invitation" });
-  }
-};
-
-// 🔍 Filter Invitations
-export const getInvitations = async (req, res) => {
-  try {
-    const { status, email } = req.query;
-    const query = {};
-
-    if (status === "active") {
-      query.used = false;
-      query.expiresAt = { $gt: new Date() };
-    } else if (status === "expired") {
-      query.expiresAt = { $lt: new Date() };
-    } else if (status === "used") {
-      query.used = true;
-    }
-
-    if (email) {
-      query.email = { $regex: email, $options: "i" };
-    }
-
-    const invitations = await Invitation.find(query);
-    res.json({ success: true, data: invitations });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to get invitations" });
+    handleError(res, error, "Failed to delete invitation");
   }
 };
 
 // Get pending approvals
 export const getPendingApprovals = async (req, res) => {
   try {
-    const pendingUsers = await User.find({
-      isApproved: false,
-      role: { $ne: "guest" },
-      emailVerified: true,
-    }).select("-password");
-
-    res.json({
-      success: true,
-      data: pendingUsers,
-    });
+    const pendingUsers = await AdminService.getPendingApprovals();
+    sendSuccess(res, pendingUsers);
   } catch (error) {
-    console.error("Get pending approvals error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get pending approvals",
-      error: error.message,
-    });
+    handleError(res, error, "Failed to get pending approvals");
   }
 };
 
-// Additional admin functions
+// Get all users with filtering and pagination
 export const getUsers = async (req, res) => {
-  // Implementation to get all users with filtering/pagination
+  try {
+    const { page, limit, role, isApproved, search } = req.query;
+
+    const result = await AdminService.getUsers({
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+      role,
+      isApproved: isApproved !== undefined ? isApproved === "true" : undefined,
+      search,
+    });
+
+    sendSuccess(res, result);
+  } catch (error) {
+    handleError(res, error, "Failed to get users");
+  }
 };
 
+// Update user role
 export const updateUserRole = async (req, res) => {
-  // Implementation to update user role
+  try {
+    const { userId } = req.params;
+    const { role, permissions } = req.body;
+
+    if (!userId || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID and role are required",
+      });
+    }
+
+    const result = await AdminService.updateUserRole(
+      userId,
+      role,
+      permissions,
+      req.user._id
+    );
+
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to update user role");
+  }
 };
 
+// Deactivate user
 export const deactivateUser = async (req, res) => {
-  // Implementation to deactivate user
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.deactivateUser(userId, reason);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to deactivate user");
+  }
+};
+
+// Reactivate user
+export const reactivateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.reactivateUser(userId);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to reactivate user");
+  }
+};
+
+// Get dashboard statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const stats = await AdminService.getDashboardStats();
+    sendSuccess(res, stats);
+  } catch (error) {
+    handleError(res, error, "Failed to get dashboard statistics");
+  }
+};
+
+// ===== NOTIFICATION MANAGEMENT METHODS =====
+
+// Send bulk admin notifications
+export const sendAdminNotification = async (req, res) => {
+  try {
+    const {
+      userIds,
+      title,
+      message,
+      channel = "inApp",
+      priority = "medium",
+    } = req.body;
+
+    // Input validation
+    if (!userIds || !title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "userIds, title, and message are required",
+      });
+    }
+
+    const result = await NotificationService.sendBulkNotifications({
+      userIds,
+      title,
+      message,
+      channel,
+      priority,
+      sentBy: req.user._id,
+    });
+
+    sendSuccess(res, result, `Sent ${result.sent} notifications`);
+  } catch (error) {
+    handleError(res, error, "Failed to send notifications");
+  }
+};
+
+// Get all notifications (admin view)
+export const getAllNotifications = async (req, res) => {
+  try {
+    const { page, limit, userType, channel, priority } = req.query;
+
+    const result = await NotificationService.getAdminNotifications({
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 50,
+      userType,
+      channel,
+      priority,
+    });
+
+    sendSuccess(res, result);
+  } catch (error) {
+    handleError(res, error, "Failed to get notifications");
+  }
+};
+
+// Get notification statistics
+export const getNotificationStats = async (req, res) => {
+  try {
+    const stats = await NotificationService.getNotificationStatistics();
+    sendSuccess(res, stats);
+  } catch (error) {
+    handleError(res, error, "Failed to get notification stats");
+  }
+};
+
+// Get notification templates
+export const getNotificationTemplates = async (req, res) => {
+  try {
+    const templates = await NotificationService.getNotificationTemplates();
+    sendSuccess(res, templates);
+  } catch (error) {
+    handleError(res, error, "Failed to get templates");
+  }
+};
+
+// Create notification template
+export const createNotificationTemplate = async (req, res) => {
+  try {
+    const templateData = req.body;
+
+    if (!templateData.type || !templateData.channel) {
+      return res.status(400).json({
+        success: false,
+        message: "Template type and channel are required",
+      });
+    }
+
+    const template = await NotificationService.createNotificationTemplate(
+      templateData
+    );
+    sendSuccess(res, template, "Template created successfully", 201);
+  } catch (error) {
+    handleError(res, error, "Failed to create template");
+  }
+};
+
+// Update notification template
+export const updateNotificationTemplate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Template ID is required",
+      });
+    }
+
+    const template = await NotificationService.updateNotificationTemplate(
+      id,
+      updates
+    );
+    sendSuccess(res, template, "Template updated successfully");
+  } catch (error) {
+    handleError(res, error, "Failed to update template");
+  }
+};
+
+// Delete notification template
+export const deleteNotificationTemplate = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Template ID is required",
+      });
+    }
+
+    const result = await NotificationService.deleteNotificationTemplate(id);
+    res.status(204).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to delete template");
+  }
+};
+
+export default {
+  createPrivilegedUser,
+  approveUser,
+  createInvitation,
+  getInvitations,
+  updateInvitation,
+  deleteInvitation,
+  getPendingApprovals,
+  getUsers,
+  updateUserRole,
+  deactivateUser,
+  reactivateUser,
+  getDashboardStats,
+  sendAdminNotification,
+  getAllNotifications,
+  getNotificationStats,
+  getNotificationTemplates,
+  createNotificationTemplate,
+  updateNotificationTemplate,
+  deleteNotificationTemplate,
 };

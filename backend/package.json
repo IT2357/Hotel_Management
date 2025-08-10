@@ -29,6 +29,10 @@
     "mongoose": "^8.16.2",
     "morgan": "^1.10.0",
     "nodemailer": "^7.0.5",
+    "passport": "^0.7.0",
+    "passport-apple": "^2.0.2",
+    "passport-google-oauth20": "^2.0.0",
+    "twilio": "^5.8.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
