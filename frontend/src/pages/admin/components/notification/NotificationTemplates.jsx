@@ -13,40 +13,22 @@ export default function NotificationTemplates() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
 
-  useEffect(() => {
-    const fetchTemplates = async () => {
-        try {
-          setIsLoading(true);
-          const res = await adminService.getTemplates();
-          const data = res?.data;
-      
-          const items = Array.isArray(data.templates)
-            ? data.templates
-            : Array.isArray(data)
-            ? data
-            : [];
-      
-          setTemplates(items);
-        } catch (error) {
-          toast.error(error.message);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-  }, []);
-
   const fetchTemplates = async () => {
     try {
       setIsLoading(true);
-      const data = await adminService.getTemplates();
-      setTemplates(data);
+      const res = await adminService.getTemplates();
+      const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setTemplates(items);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to fetch templates.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const handleCreate = async (templateData) => {
     try {

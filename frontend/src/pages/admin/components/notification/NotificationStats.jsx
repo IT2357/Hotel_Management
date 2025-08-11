@@ -10,11 +10,12 @@ export default function NotificationStats() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      setIsLoading(true);
       try {
         const res = await adminService.getNotificationStats();
-        setStats(res.data); // ✅ Make sure you're accessing res.data
+        setStats(res.data.data);
       } catch (error) {
-        toast.error(error.message);
+        toast.error(error?.message || "Failed to fetch notification stats.");
       } finally {
         setIsLoading(false);
       }
@@ -29,25 +30,25 @@ export default function NotificationStats() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatsCard
         title="Total Notifications"
-        value={stats.totalNotifications ?? 0}
-        trend={stats.notificationsTrend ?? null}
+        value={stats.total ?? 0}
+        trend={null}
       />
       <StatsCard
         title="Unread Notifications"
-        value={stats.unreadNotifications ?? 0}
-        trend={stats.unreadTrend ?? null}
+        value={stats.unread ?? 0}
+        trend={null}
         variant="warning"
       />
       <StatsCard
         title="Email Notifications"
-        value={stats.channels?.email ?? 0}
-        trend={stats.channelTrends?.email ?? null}
+        value={stats.byChannel?.email ?? 0}
+        trend={null}
         variant="info"
       />
       <StatsCard
-        title="System Notifications"
-        value={stats.types?.system ?? 0}
-        trend={stats.typeTrends?.system ?? null}
+        title="Task Assigned"
+        value={stats.byType?.task_assigned ?? 0}
+        trend={null}
         variant="success"
       />
     </div>

@@ -1,66 +1,18 @@
 // src/pages/admin/components/notification/NotificationList.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { format } from "date-fns";
 import Badge from "../../../../components/ui/Badge";
 import Button from "../../../../components/ui/Button";
 import Pagination from "../../../../components/ui/Pagination";
-import adminService from "../../../../services/adminService";
 
-export default function NotificationListWrapper() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    adminService
-      .getAdminNotifications()
-      .then((res) => {
-        const raw = res.data;
-  
-        // ✅ Extract the actual array
-        const items = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw.notifications)
-          ? raw.notifications
-          : [];
-  
-        setNotifications(items);
-      })
-      .catch((err) => {
-        console.error("❌ Failed to fetch notifications:", err);
-        setError("Unable to load notifications.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
-  
-
-  const handleDelete = (id) => {
-    adminService.adminDeleteNotification(id).then(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    });
-  };
-
-  const handleMarkAllRead = () => {
-    adminService.markAllAsRead().then(() => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    });
-  };
-
-  if (loading) return <p>Loading notifications...</p>;
-  if (error) return <p>{error}</p>;
-
-  return (
-    <NotificationList
-      notifications={notifications}
-      onDelete={handleDelete}
-      onMarkAllRead={handleMarkAllRead}
-    />
-  );
-}
-
-function NotificationList({ notifications, onDelete, onMarkAllRead }) {
+export default function NotificationListWrapper({
+  notifications = [], // Accept notifications as prop
+  totalPages = 1, // Accept totalPages as prop
+  onDelete,
+  onMarkAllRead,
+  onPageChange, // Accept page change handler
+  currentPage = 1, // Accept currentPage
+}) {
   if (!Array.isArray(notifications)) {
     console.error("Expected notifications to be an array but got:", notifications);
     return (
@@ -70,8 +22,28 @@ function NotificationList({ notifications, onDelete, onMarkAllRead }) {
     );
   }
 
+  return (
+    <NotificationList
+      notifications={notifications}
+      onDelete={onDelete}
+      onMarkAllRead={onMarkAllRead}
+      totalPages={totalPages}
+      currentPage={currentPage}
+      onPageChange={onPageChange}
+    />
+  );
+}
+
+function NotificationList({
+  notifications,
+  onDelete,
+  onMarkAllRead,
+  totalPages,
+  currentPage,
+  onPageChange,
+}) {
   const [selectedNotifications, setSelectedNotifications] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
   const itemsPerPage = 10;
 
   const toggleSelectAll = (e) => {
@@ -97,10 +69,14 @@ function NotificationList({ notifications, onDelete, onMarkAllRead }) {
     }
   };
 
-  const indexOfLastItem = currentPage * itemsPerPage;
+  // Use internal pagination if no external pagination is provided
+  const effectivePage = onPageChange ? currentPage : internalPage;
+  const setEffectivePage = onPageChange ? onPageChange : setInternalPage;
+
+  const indexOfLastItem = effectivePage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = notifications.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(notifications.length / itemsPerPage);
+  const effectiveTotalPages = totalPages || Math.ceil(notifications.length / itemsPerPage);
 
   return (
     <div className="space-y-4">
@@ -132,7 +108,6 @@ function NotificationList({ notifications, onDelete, onMarkAllRead }) {
           )}
         </div>
       </div>
-
       <div className="bg-white shadow overflow-hidden sm:rounded-md dark:bg-gray-800">
         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
           {currentItems.length > 0 ? (
@@ -152,12 +127,11 @@ function NotificationList({ notifications, onDelete, onMarkAllRead }) {
           )}
         </ul>
       </div>
-
       {notifications.length > itemsPerPage && (
         <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          currentPage={effectivePage}
+          totalPages={effectiveTotalPages}
+          onPageChange={(page) => setEffectivePage(page)}
           className="mt-4"
         />
       )}
@@ -167,7 +141,6 @@ function NotificationList({ notifications, onDelete, onMarkAllRead }) {
 
 function NotificationItem({ notification, isSelected, onToggleSelect, onDelete }) {
   const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <li className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
       <div className="px-6 py-4 flex items-center space-x-4">
@@ -195,7 +168,9 @@ function NotificationItem({ notification, isSelected, onToggleSelect, onDelete }
             </p>
             <div className="flex items-center space-x-2">
               <Badge
-                variant={notification.type === "system" ? "primary" : "success"}
+                variant={
+                  notification.type === "booking_confirmation" ? "primary" : "success"
+                }
               >
                 {notification.type}
               </Badge>
@@ -209,7 +184,7 @@ function NotificationItem({ notification, isSelected, onToggleSelect, onDelete }
               <p>{notification.message}</p>
               <div className="mt-3 flex justify-between items-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Recipient: {notification.recipient}
+                  Recipient: {notification.userEmail || "Unknown"}
                 </p>
                 <Button
                   size="sm"

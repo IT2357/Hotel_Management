@@ -17,7 +17,12 @@ export default function NotificationManagementPage() {
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [users, setUsers] = useState([]); // Initialize as empty array
+  const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const extractNotifications = useCallback((res) => {
     try {
@@ -46,14 +51,19 @@ export default function NotificationManagementPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await adminService.getAdminNotifications();
-      return extractNotifications(res);
+      const res = await adminService.getAdminNotifications({
+        page: currentPage,
+        limit: 10,
+      });
+      const extracted = extractNotifications(res);
+      setTotalPages(res.data?.data?.pagination?.pages || 1);
+      return extracted;
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
       toast.error(`Failed to load notifications: ${error.message}`);
       return [];
     }
-  }, [extractNotifications]);
+  }, [extractNotifications, currentPage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,12 +72,10 @@ export default function NotificationManagementPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-
         if (["all", "system", "user"].includes(activeTab)) {
           const extracted = await fetchNotifications();
           if (isMounted) setNotifications(extracted);
         }
-
         if (activeTab === "all") {
           try {
             const statsRes = await adminService.getNotificationStats({
@@ -82,17 +90,13 @@ export default function NotificationManagementPage() {
             }
           }
         }
-
         if (["preferences", "user-notifications"].includes(activeTab)) {
           try {
             const usersRes = await adminService.getUsers({
               signal: abortController.signal,
             });
-            // Ensure users is always an array
-            const fetchedUsers = Array.isArray(usersRes?.data?.data)
-              ? usersRes.data.data
-              : Array.isArray(usersRes?.data)
-              ? usersRes.data
+            const fetchedUsers = Array.isArray(usersRes?.data?.data?.users)
+              ? usersRes.data.data.users
               : [];
             if (isMounted) {
               setUsers(fetchedUsers);
@@ -100,9 +104,7 @@ export default function NotificationManagementPage() {
           } catch (error) {
             if (error.name !== "AbortError" && isMounted) {
               toast.error(`Failed to load users: ${error.message}`);
-            }
-            if (isMounted) {
-              setUsers([]); // Fallback to empty array on error
+              setUsers([]);
             }
           }
         }
@@ -112,12 +114,11 @@ export default function NotificationManagementPage() {
     };
 
     fetchData();
-
     return () => {
       isMounted = false;
       abortController.abort();
     };
-  }, [activeTab, fetchNotifications]);
+  }, [activeTab, currentPage, fetchNotifications]);
 
   const handleSendNotification = async (notificationData) => {
     try {
@@ -151,8 +152,7 @@ export default function NotificationManagementPage() {
     try {
       await adminService.markAllAsRead();
       toast.success("All notifications marked as read");
-      const updatedNotifications = await fetchNotifications();
-      setNotifications(updatedNotifications);
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (error) {
       toast.error(`Failed to mark notifications as read: ${error.message}`);
     }
@@ -178,21 +178,63 @@ export default function NotificationManagementPage() {
   };
 
   const filteredNotifications = useCallback(() => {
-    if (!Array.isArray(notifications)) return [];
-
-    switch (activeTab) {
-      case "system":
-        return notifications.filter((n) => n.type === "system");
-      case "user":
-        return notifications.filter((n) => n.type === "user");
-      case "user-notifications":
-        return selectedUser
-          ? notifications.filter((n) => n.userId === selectedUser)
-          : [];
-      default:
-        return notifications;
+    if (!Array.isArray(notifications)) {
+      console.log("Notifications is not an array:", notifications);
+      return [];
     }
-  }, [notifications, activeTab, selectedUser]);
+
+    let filtered = [...notifications];
+
+    // Filter by tab
+    if (activeTab === "system") {
+      filtered = filtered.filter((n) => n.type === "booking_confirmation");
+    } else if (activeTab === "user") {
+      filtered = filtered.filter((n) => n.type === "task_assigned");
+    } else if (activeTab === "user-notifications" && selectedUser) {
+      filtered = filtered.filter((n) => n.userId === selectedUser);
+    }
+
+    // Search filter
+    searchQuery.trim()
+    const query = searchQuery.toLowerCase();
+    filtered = filtered.filter((n) => {
+      const titleMatch = n.title?.toLowerCase()?.includes(query) || false;
+      const messageMatch = n.message?.toLowerCase()?.includes(query) || false;
+      const emailMatch = n.userEmail?.toLowerCase()?.includes(query) || false;
+      return titleMatch || messageMatch || emailMatch;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aValue = a[sortField] ?? "";
+      let bValue = b[sortField] ?? "";
+      if (sortField === "createdAt") {
+        aValue = a[sortField] ? new Date(a[sortField]).getTime() : 0;
+        bValue = b[sortField] ? new Date(b[sortField]).getTime() : 0;
+      }
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [notifications, activeTab, selectedUser, searchQuery, sortField, sortOrder]);
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); // Reset page on search
+  };
+
+  const handleSortChange = (field) => {
+    console.log("Sort Changed:", { field, currentSortField: sortField, currentSortOrder: sortOrder });
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+    setCurrentPage(1); // Reset page on sort
+  };
 
   const tabs = [
     "all",
@@ -223,8 +265,10 @@ export default function NotificationManagementPage() {
               <button
                 key={tab}
                 onClick={() => {
+                  console.log("Tab Clicked:", tab);
                   setSelectedUser(null);
                   setActiveTab(tab);
+                  setCurrentPage(1);
                 }}
                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab
@@ -247,13 +291,81 @@ export default function NotificationManagementPage() {
             </div>
           ) : (
             <>
-              {["all", "system", "user"].includes(activeTab) && (
+              {["all", "system", "user", "user-notifications"].includes(activeTab) && (
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search notifications..."
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700"
+                    />
+                    <div className="absolute left-3 top-2.5 text-gray-400">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Sort by:</span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleSortChange("createdAt")}
+                        className={`px-3 py-1 text-sm rounded ${
+                          sortField === "createdAt"
+                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        Date {sortField === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
+                      </button>
+                      <button
+                        onClick={() => handleSortChange("title")}
+                        className={`px-3 py-1 text-sm rounded ${
+                          sortField === "title"
+                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        Title {sortField === "title" && (sortOrder === "asc" ? "↑" : "↓")}
+                      </button>
+                      {activeTab !== "system" && (
+                        <button
+                          onClick={() => handleSortChange("userEmail")}
+                          className={`px-3 py-1 text-sm rounded ${
+                            sortField === "userEmail"
+                              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                        >
+                          User {sortField === "userEmail" && (sortOrder === "asc" ? "↑" : "↓")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {["all", "system", "user", "user-notifications"].includes(activeTab) && (
                 <NotificationList
+                  key={`${activeTab}-${searchQuery}-${selectedUser}-${sortField}-${sortOrder}`}
                   notifications={filteredNotifications()}
+                  totalPages={totalPages}
+                  currentPage={currentPage}
+                  onPageChange={(page) => setCurrentPage(page)}
                   onDelete={handleDeleteNotification}
-                  onMarkAllRead={
-                    activeTab === "all" ? handleMarkAllAsRead : undefined
-                  }
+                  onMarkAllRead={activeTab === "all" ? handleMarkAllAsRead : undefined}
                 />
               )}
               {activeTab === "templates" && (
@@ -265,7 +377,7 @@ export default function NotificationManagementPage() {
               )}
               {activeTab === "send" && (
                 <SendNotificationForm
-                  users={Array.isArray(users) ? users : []} // Ensure users is an array
+                  users={Array.isArray(users) ? users : []}
                   onSubmit={handleSendNotification}
                   templates={adminService.getTemplates}
                 />
@@ -278,7 +390,7 @@ export default function NotificationManagementPage() {
               )}
               {activeTab === "preferences" && (
                 <UserPreferencesManager
-                  users={Array.isArray(users) ? users : []} // Ensure users is an array
+                  users={Array.isArray(users) ? users : []}
                   onUpdatePreferences={adminService.updateUserPreferences}
                 />
               )}
@@ -287,7 +399,11 @@ export default function NotificationManagementPage() {
                   <h3 className="text-lg font-medium mb-4">User Notifications</h3>
                   <select
                     className="border rounded p-2 mb-4 w-full max-w-md dark:bg-gray-800 dark:border-gray-700"
-                    onChange={(e) => setSelectedUser(e.target.value)}
+                    onChange={(e) => {
+                      console.log("Selected User:", e.target.value);
+                      setSelectedUser(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     value={selectedUser || ""}
                   >
                     <option value="">Select a user</option>
@@ -303,6 +419,9 @@ export default function NotificationManagementPage() {
                   </select>
                   <NotificationList
                     notifications={filteredNotifications()}
+                    totalPages={totalPages}
+                    currentPage={currentPage}
+                    onPageChange={(page) => setCurrentPage(page)}
                     onDelete={handleDeleteNotification}
                   />
                 </div>
