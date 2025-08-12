@@ -3,6 +3,7 @@ import Notification from "../../models/Notification.js";
 import NotificationPreferences from "../../models/NotificationPreferences.js";
 import NotificationTemplate from "../../models/NotificationTemplate.js";
 import { User } from "../../models/User.js";
+import StaffProfile from "../../models/profiles/StaffProfile.js";
 import EmailService from "./emailService.js";
 import { sendSMS } from "./smsService.js";
 
@@ -34,19 +35,40 @@ class NotificationService {
     expiryDate,
   }) {
     try {
+      // Validate user exists
+      const user = await User.findById(userId).select("role");
+      if (!user) {
+        throw new Error("User not found");
+      }
+      if (user.role !== userType) {
+        throw new Error(
+          `User role (${user.role}) does not match userType (${userType})`
+        );
+      }
+
       // Get user preferences
       const preferences = await NotificationPreferences.getOrCreate(
         userId,
         userType
       );
-
-      // Check if notification type is enabled for this channel
       const typePreferences = preferences.preferences.get(type);
       if (!typePreferences || !typePreferences[channel]) {
         console.log(
           `Notification ${type} not enabled for user ${userId} on channel ${channel}`
         );
         return null;
+      }
+
+      // Add department to metadata for staff
+      let updatedMetadata = { ...metadata };
+      if (userType === "staff") {
+        const staffProfile = await StaffProfile.findOne({ userId }).select(
+          "department"
+        );
+        if (!staffProfile) {
+          throw new Error("Staff profile not found");
+        }
+        updatedMetadata.department = staffProfile.department;
       }
 
       // Create notification record
@@ -58,12 +80,11 @@ class NotificationService {
         message,
         channel,
         priority,
-        metadata,
+        metadata: updatedMetadata,
         actionUrl,
         expiryDate,
         status: "pending",
       });
-
       await notification.save();
 
       // Send via appropriate channel
@@ -87,7 +108,6 @@ class NotificationService {
           }
           break;
         case "inApp":
-          // In-app notifications are stored in DB only
           notification.status = "sent";
           await notification.save();
           break;
@@ -97,7 +117,6 @@ class NotificationService {
           await notification.save();
           break;
       }
-
       return notification;
     } catch (error) {
       console.error("Error sending notification:", error);
@@ -117,12 +136,18 @@ class NotificationService {
     if (!Array.isArray(userIds)) {
       throw new Error("userIds must be an array");
     }
-
     const notifications = await Promise.all(
       userIds.map(async (userId) => {
         try {
+          // Fetch user to determine userType
+          const user = await User.findById(userId).select("role");
+          if (!user) {
+            console.error(`User not found: ${userId}`);
+            return null;
+          }
           return await this.sendNotification({
             userId,
+            userType: user.role, // Dynamically set userType
             type: "admin_message",
             title,
             message,
@@ -139,10 +164,7 @@ class NotificationService {
         }
       })
     );
-
-    // Filter out null results (failed notifications)
     const successfulNotifications = notifications.filter(Boolean);
-
     return {
       total: userIds.length,
       sent: successfulNotifications.length,
@@ -177,6 +199,89 @@ class NotificationService {
     });
   }
 
+  // Get staff notifications
+  async getStaffNotifications(userId, options = {}) {
+    const {
+      limit = 20,
+      page = 1,
+      read,
+      channel,
+      priority,
+      type,
+      startDate,
+      endDate,
+    } = options;
+
+    // Validate user and get role
+    const user = await User.findById(userId).select("role");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Ensure user is staff
+    if (user.role !== "staff") {
+      throw new Error("Access restricted to staff users");
+    }
+
+    // Get staff profile for department info
+    const staffProfile = await StaffProfile.findOne({ userId }).select(
+      "department"
+    );
+    if (!staffProfile) {
+      throw new Error("Staff profile not found");
+    }
+
+    // Build base query
+    const query = {
+      userId,
+      userType: "staff",
+      deleted: false, // Exclude soft-deleted notifications
+      "metadata.department": staffProfile.department,
+      // Optional: Filter by department if you want department-specific notifications
+    };
+
+    // Apply additional filters
+    if (read !== undefined) query.isRead = read === "true";
+    if (channel) query.channel = channel;
+    if (priority) query.priority = priority;
+    if (type) query.type = type;
+
+    // Date filtering
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    } else if (startDate) {
+      query.createdAt = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      query.createdAt = { $lte: new Date(endDate) };
+    }
+
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select(
+        "type title message channel priority createdAt metadata isRead readAt"
+      ); // Added isRead and readAt
+
+    const total = await Notification.countDocuments(query);
+
+    return {
+      notifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+      userInfo: {
+        department: staffProfile.department, // Include department info in response
+      },
+    };
+  }
+
   // Get user notifications with filtering and pagination
   async getUserNotifications(userId, options = {}) {
     const {
@@ -190,7 +295,10 @@ class NotificationService {
       endDate,
     } = options;
 
-    const query = { userId };
+    const query = {
+      userId,
+      deleted: false, // Add this for consistency
+    };
 
     // Apply filters
     if (read !== undefined) query.isRead = read === "true";
@@ -211,7 +319,10 @@ class NotificationService {
     const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .select(
+        "type title message channel priority createdAt metadata isRead readAt"
+      ); // Consistent field selection
 
     const total = await Notification.countDocuments(query);
 

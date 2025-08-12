@@ -21,6 +21,7 @@ const notificationSchema = new mongoose.Schema(
         // Guest notifications
         "booking_confirmation",
         "payment_receipt",
+        "payment_failed",
         "checkin_reminder",
         "checkout_reminder",
         "food_order_confirmation",
@@ -49,6 +50,9 @@ const notificationSchema = new mongoose.Schema(
         "security_alert",
         "financial_alert",
         "audit_log",
+        "admin_activity",
+        // System notifications
+        "test_notification",
       ],
     },
     title: {
@@ -131,6 +135,12 @@ notificationSchema.index({ createdAt: -1 });
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ status: 1 });
 notificationSchema.index({ priority: 1 });
+notificationSchema.index({
+  userId: 1,
+  userType: 1,
+  "metadata.department": 1,
+  deleted: 1,
+});
 
 // Virtual for days since creation
 notificationSchema.virtual("daysOld").get(function () {

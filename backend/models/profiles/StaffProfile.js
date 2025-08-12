@@ -53,14 +53,7 @@ const staffProfileSchema = new mongoose.Schema(
     },
     department: {
       type: String,
-      enum: [
-        "Reception",
-        "Housekeeping",
-        "Kitchen",
-        "Maintenance",
-        "Security",
-        "Management",
-      ],
+      enum: ["Housekeeping", "Kitchen", "Maintenance", "Service"],
       required: true,
     },
     position: {

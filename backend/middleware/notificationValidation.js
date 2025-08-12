@@ -5,9 +5,19 @@ import { handleValidationErrors } from "./validation.js";
 // Validation for notification preferences
 export const validateNotificationPreferences = [
   body().isObject().withMessage("Preferences must be an object"),
-  body("email_enabled").optional().isBoolean(),
-  body("in_app_enabled").optional().isBoolean(),
-  body("sms_enabled").optional().isBoolean(),
+  // Validate the nested preference structure
+  body("*.email")
+    .optional()
+    .isBoolean()
+    .withMessage("Email preference must be boolean"),
+  body("*.inApp")
+    .optional()
+    .isBoolean()
+    .withMessage("InApp preference must be boolean"),
+  body("*.sms")
+    .optional()
+    .isBoolean()
+    .withMessage("SMS preference must be boolean"),
   handleValidationErrors,
 ];
 

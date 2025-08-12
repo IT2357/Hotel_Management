@@ -10,6 +10,7 @@ const notificationTemplateSchema = new mongoose.Schema(
         // Guest notifications
         "booking_confirmation",
         "payment_receipt",
+        "payment_failed",
         "checkin_reminder",
         "checkout_reminder",
         "food_order_confirmation",
@@ -38,6 +39,9 @@ const notificationTemplateSchema = new mongoose.Schema(
         "security_alert",
         "financial_alert",
         "audit_log",
+        "admin_activity",
+        // System notifications
+        "test_notification",
       ],
       index: true,
     },

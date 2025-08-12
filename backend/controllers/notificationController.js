@@ -431,7 +431,6 @@ export const getNotificationStats = async (req, res) => {
 // ==============================================
 // USER CONVENIENCE METHODS
 // ==============================================
-
 export const getMyNotifications = async (req, res) => {
   try {
     const options = {
@@ -445,10 +444,20 @@ export const getMyNotifications = async (req, res) => {
       endDate: req.query.endDate,
     };
 
-    const result = await NotificationService.getUserNotifications(
-      req.user._id,
-      options
-    );
+    // Use different service methods based on user role
+    let result;
+    if (req.user.role === "staff") {
+      result = await NotificationService.getStaffNotifications(
+        req.user._id,
+        options
+      );
+    } else {
+      result = await NotificationService.getUserNotifications(
+        req.user._id,
+        options
+      );
+    }
+
     sendSuccess(res, result);
   } catch (error) {
     handleError(res, error, "Failed to get your notifications");

@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import adminService from "../../services/adminService";
+import notificationService from "../../services/notificationService";
 import NotificationList from "./components/notification/NotificationList";
 import NotificationStats from "./components/notification/NotificationStats";
 import SendNotificationForm from "./components/notification/SendNotificationForm";
@@ -18,6 +19,7 @@ export default function NotificationManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -51,7 +53,7 @@ export default function NotificationManagementPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await adminService.getAdminNotifications({
+      const res = await notificationService.getAdminNotifications({
         page: currentPage,
         limit: 10,
       });
@@ -64,6 +66,18 @@ export default function NotificationManagementPage() {
       return [];
     }
   }, [extractNotifications, currentPage]);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await notificationService.getTemplates();
+      const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+      return items;
+    } catch (error) {
+      console.error("Failed to fetch templates:", error);
+      toast.error(`Failed to load templates: ${error.message}`);
+      return [];
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,7 +92,7 @@ export default function NotificationManagementPage() {
         }
         if (activeTab === "all") {
           try {
-            const statsRes = await adminService.getNotificationStats({
+            const statsRes = await notificationService.getNotificationStats({
               signal: abortController.signal,
             });
             if (isMounted) {
@@ -108,6 +122,32 @@ export default function NotificationManagementPage() {
             }
           }
         }
+        if (["send", "bulk-send", "templates"].includes(activeTab)) {
+          try {
+            const fetchedTemplates = await fetchTemplates();
+            if (isMounted) {
+              setTemplates(fetchedTemplates);
+            }
+          } catch (error) {
+            if (error.name !== "AbortError" && isMounted) {
+              toast.error(`Failed to load templates: ${error.message}`);
+              setTemplates([]);
+            }
+          }
+        }
+        if (["send", "bulk-send"].includes(activeTab)) {
+          try {
+            const fetchedTemplates = await fetchTemplates();
+            if (isMounted) {
+              setTemplates(fetchedTemplates);
+            }
+          } catch (error) {
+            if (error.name !== "AbortError" && isMounted) {
+              toast.error(`Failed to load templates: ${error.message}`);
+              setTemplates([]);
+            }
+          }
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -118,12 +158,12 @@ export default function NotificationManagementPage() {
       isMounted = false;
       abortController.abort();
     };
-  }, [activeTab, currentPage, fetchNotifications]);
+  }, [activeTab, currentPage, fetchNotifications, fetchTemplates]);
 
   const handleSendNotification = async (notificationData) => {
     try {
       setIsLoading(true);
-      await adminService.sendNotification(notificationData);
+      await notificationService.sendNotification(notificationData);
       toast.success("Notification sent successfully");
       const updatedNotifications = await fetchNotifications();
       setNotifications(updatedNotifications);
@@ -137,7 +177,7 @@ export default function NotificationManagementPage() {
   const handleSendBulkNotifications = async (bulkData) => {
     try {
       setIsLoading(true);
-      await adminService.sendBulkNotifications(bulkData);
+      await notificationService.sendBulkNotifications(bulkData);
       toast.success("Bulk notifications sent successfully");
       const updatedNotifications = await fetchNotifications();
       setNotifications(updatedNotifications);
@@ -150,7 +190,7 @@ export default function NotificationManagementPage() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await adminService.markAllAsRead();
+      await notificationService.markAllAsRead();
       toast.success("All notifications marked as read");
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (error) {
@@ -160,7 +200,7 @@ export default function NotificationManagementPage() {
 
   const handleDeleteNotification = async (id) => {
     try {
-      await adminService.adminDeleteNotification(id);
+      await notificationService.adminDeleteNotification(id);
       toast.success("Notification deleted successfully");
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch (error) {
@@ -170,8 +210,11 @@ export default function NotificationManagementPage() {
 
   const handleCreateTemplate = async (templateData) => {
     try {
-      await adminService.createTemplate(templateData);
+      await notificationService.createTemplate(templateData);
       toast.success("Template created successfully");
+      // Refresh templates
+      const fetchedTemplates = await fetchTemplates();
+      setTemplates(fetchedTemplates);
     } catch (error) {
       toast.error(`Failed to create template: ${error.message}`);
     }
@@ -370,28 +413,49 @@ export default function NotificationManagementPage() {
               )}
               {activeTab === "templates" && (
                 <NotificationTemplates
+                  templates={templates}
                   onCreate={handleCreateTemplate}
-                  onUpdate={adminService.updateTemplate}
-                  onDelete={adminService.deleteTemplate}
+                  onUpdate={async (id, templateData) => {
+                    try {
+                      await notificationService.updateTemplate(id, templateData);
+                      toast.success("Template updated successfully");
+                      // Refresh templates
+                      const fetchedTemplates = await fetchTemplates();
+                      setTemplates(fetchedTemplates);
+                    } catch (error) {
+                      toast.error(`Failed to update template: ${error.message}`);
+                    }
+                  }}
+                  onDelete={async (id) => {
+                    try {
+                      await notificationService.deleteTemplate(id);
+                      toast.success("Template deleted successfully");
+                      // Refresh templates
+                      const fetchedTemplates = await fetchTemplates();
+                      setTemplates(fetchedTemplates);
+                    } catch (error) {
+                      toast.error(`Failed to delete template: ${error.message}`);
+                    }
+                  }}
                 />
               )}
               {activeTab === "send" && (
                 <SendNotificationForm
                   users={Array.isArray(users) ? users : []}
                   onSubmit={handleSendNotification}
-                  templates={adminService.getTemplates}
+                  templates={templates}
                 />
               )}
               {activeTab === "bulk-send" && (
                 <SendBulkNotificationForm
                   onSubmit={handleSendBulkNotifications}
-                  templates={adminService.getTemplates}
+                  templates={templates}
                 />
               )}
               {activeTab === "preferences" && (
                 <UserPreferencesManager
                   users={Array.isArray(users) ? users : []}
-                  onUpdatePreferences={adminService.updateUserPreferences}
+                  onUpdatePreferences={notificationService.updateUserPreferences}
                 />
               )}
               {activeTab === "user-notifications" && (

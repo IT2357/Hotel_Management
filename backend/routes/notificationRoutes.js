@@ -36,6 +36,7 @@ const router = express.Router();
 // Middleware groups
 const auth = [authenticateToken];
 const admin = [...auth, authorizeRoles(["admin"])];
+const staff = [...auth, authorizeRoles(["staff"])];
 const withValidation = [
   ...auth,
   validateNotificationId,

@@ -59,6 +59,7 @@ function getDefaultPreferences(userType) {
     // Guest defaults
     booking_confirmation: { email: true, inApp: true, sms: false },
     payment_receipt: { email: true, inApp: true, sms: false },
+    payment_failed: { email: true, inApp: true, sms: true },
     checkin_reminder: { email: true, inApp: true, sms: true },
     checkout_reminder: { email: false, inApp: true, sms: false },
     food_order_confirmation: { email: false, inApp: true, sms: false },
@@ -93,7 +94,11 @@ function getDefaultPreferences(userType) {
     defaults.security_alert = { email: true, inApp: true, sms: true };
     defaults.financial_alert = { email: true, inApp: true, sms: true };
     defaults.audit_log = { email: false, inApp: true, sms: false };
+    defaults.admin_activity = { email: false, inApp: true, sms: false };
   }
+
+  // System notifications for testing (available to all)
+  defaults.test_notification = { email: false, inApp: true, sms: false };
 
   return defaults;
 }

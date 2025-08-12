@@ -29,6 +29,14 @@ const transporter = nodemailer.createTransport({
 class EmailService {
   // Base email sending method
   static async sendEmail({ to, subject, html, text }) {
+    if (!isEmailEnabled) {
+      throw new Error("Email service is disabled");
+    }
+
+    if (!transporter) {
+      throw new Error("Email transporter not configured");
+    }
+
     if (!to || !subject || (!html && !text)) {
       throw new Error("Missing required email parameters");
     }

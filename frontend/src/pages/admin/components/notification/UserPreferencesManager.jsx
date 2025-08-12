@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import adminService from "../../../../services/adminService";
+import notificationService from "../../../../services/notificationService";
 import Select from "../../../../components/ui/Select";
 import Button from "../../../../components/ui/Button";
 import Spinner from "../../../../components/ui/Spinner";
@@ -21,16 +22,15 @@ export default function UserPreferencesManager({ users, onUpdatePreferences }) {
   const fetchUserPreferences = async (userId) => {
     try {
       setIsLoading(true);
-      const data = await adminService.getUserPreferences(userId);
-      // Ensure preferences has a channels object
-      setPreferences({
-        channels: data?.channels || {
-          email: true,
-          sms: true,
-          push: true,
-          "in-app": true,
-        },
-      });
+      const response = await notificationService.getUserPreferences(userId);
+      const data = response.data;
+      
+      // Backend sends preferences as a Map structure, convert to flat structure
+      if (data?.preferences) {
+        setPreferences(data.preferences);
+      } else {
+        setPreferences(null);
+      }
     } catch (error) {
       toast.error(`Failed to load preferences: ${error.message}`);
       setPreferences(null);
@@ -39,11 +39,11 @@ export default function UserPreferencesManager({ users, onUpdatePreferences }) {
     }
   };
 
-  const handlePreferenceChange = (channel, value) => {
+  const handlePreferenceChange = (notificationType, channel, value) => {
     setPreferences({
       ...preferences,
-      channels: {
-        ...preferences?.channels,
+      [notificationType]: {
+        ...preferences?.[notificationType],
         [channel]: value,
       },
     });
@@ -56,7 +56,7 @@ export default function UserPreferencesManager({ users, onUpdatePreferences }) {
     }
     try {
       setIsLoading(true);
-      await adminService.updateUserPreferences(selectedUser, preferences);
+      await notificationService.updateUserPreferences(selectedUser, preferences);
       toast.success("Preferences updated successfully");
       if (onUpdatePreferences) onUpdatePreferences();
     } catch (error) {
@@ -85,22 +85,33 @@ export default function UserPreferencesManager({ users, onUpdatePreferences }) {
         )}
       </Select>
       {isLoading && <Spinner size="lg" />}
-      {preferences?.channels && !isLoading && (
+      {preferences && !isLoading && (
         <div className="space-y-4 p-4 border rounded-lg">
           <h3 className="text-lg font-medium">Notification Preferences</h3>
-          {Object.entries(preferences.channels).map(([channel, enabled]) => (
-            <div key={channel} className="flex items-center justify-between">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={enabled}
-                  onChange={(e) => handlePreferenceChange(channel, e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="capitalize">{channel}</span>
-              </label>
-            </div>
-          ))}
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {Object.entries(preferences).map(([notificationType, channels]) => (
+              <div key={notificationType} className="border-b pb-4 last:border-b-0">
+                <h4 className="font-medium text-sm mb-2 capitalize">
+                  {notificationType.replace(/_/g, " ")}
+                </h4>
+                <div className="grid grid-cols-2 gap-2 ml-4">
+                  {Object.entries(channels).map(([channel, enabled]) => (
+                    <label key={channel} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={(e) =>
+                          handlePreferenceChange(notificationType, channel, e.target.checked)
+                        }
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="capitalize text-sm">{channel}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="pt-4">
             <Button onClick={handleSave} disabled={isLoading || !selectedUser}>
               {isLoading ? <Spinner size="sm" /> : "Save Preferences"}
@@ -108,7 +119,7 @@ export default function UserPreferencesManager({ users, onUpdatePreferences }) {
           </div>
         </div>
       )}
-      {!isLoading && selectedUser && !preferences?.channels && (
+      {!isLoading && selectedUser && !preferences && (
         <p className="text-red-500">No preferences available for this user</p>
       )}
     </div>

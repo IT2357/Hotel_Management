@@ -327,7 +327,7 @@ eventBus.safeOn("security.alert", async (data) => {
   }
 });
 
-// From second file (direct DB insert)
+// From second file (use notification service)
 eventBus.safeOn("admin.activity", async (data) => {
   const { adminId, action, target, metadata } = data;
   const admins = await User.find({
@@ -336,7 +336,7 @@ eventBus.safeOn("admin.activity", async (data) => {
     _id: { $ne: adminId },
   });
   for (const admin of admins) {
-    await Notification.create({
+    await notificationService.sendNotification({
       userId: admin._id,
       userType: "admin",
       type: "admin_activity",
@@ -359,7 +359,7 @@ eventBus.safeOn("system.alert", async (data) => {
       ? "high"
       : "medium";
   for (const admin of admins) {
-    await Notification.create({
+    await notificationService.sendNotification({
       userId: admin._id,
       userType: "admin",
       type: "system_alert",
