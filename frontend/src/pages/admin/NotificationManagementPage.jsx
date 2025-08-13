@@ -4,12 +4,14 @@ import adminService from "../../services/adminService";
 import notificationService from "../../services/notificationService";
 import NotificationList from "./components/notification/NotificationList";
 import NotificationStats from "./components/notification/NotificationStats";
+import { toast } from "react-toastify";
+import Spinner from "../../components/ui/Spinner";
+
+// Import the enhanced components we just created
 import SendNotificationForm from "./components/notification/SendNotificationForm";
 import SendBulkNotificationForm from "./components/notification/SendBulkNotificationForm";
 import NotificationTemplates from "./components/notification/NotificationTemplates";
 import UserPreferencesManager from "./components/notification/UserPreferencesManager";
-import { toast } from "react-toastify";
-import Spinner from "../../components/ui/Spinner";
 
 export default function NotificationManagementPage() {
   const { user } = useContext(AuthContext);
@@ -19,6 +21,7 @@ export default function NotificationManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
+  const [staffProfiles, setStaffProfiles] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("createdAt");
@@ -67,10 +70,34 @@ export default function NotificationManagementPage() {
     }
   }, [extractNotifications, currentPage]);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const usersRes = await adminService.getUsers();
+      const fetchedUsers = Array.isArray(usersRes?.data?.data?.users)
+        ? usersRes.data.data.users
+        : [];
+      return fetchedUsers;
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast.error(`Failed to load users: ${error.message}`);
+      return [];
+    }
+  }, []);
+
+  const fetchStaffProfiles = useCallback(async () => {
+    try {
+      const response = await adminService.getStaffProfiles();
+      return response.data || [];
+    } catch (error) {
+      console.error("Failed to fetch staff profiles:", error);
+      return [];
+    }
+  }, []);
+
   const fetchTemplates = useCallback(async () => {
     try {
       const res = await notificationService.getTemplates();
-      const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+      const items = Array.isArray(res) ? res : [];
       return items;
     } catch (error) {
       console.error("Failed to fetch templates:", error);
@@ -86,10 +113,24 @@ export default function NotificationManagementPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        
+        // Always fetch users and staff profiles for forms
+        const [fetchedUsers, fetchedStaffProfiles] = await Promise.all([
+          fetchUsers(),
+          fetchStaffProfiles(),
+        ]);
+        
+        if (isMounted) {
+          setUsers(fetchedUsers);
+          setStaffProfiles(fetchedStaffProfiles);
+        }
+
+        // Fetch data based on active tab
         if (["all", "system", "user"].includes(activeTab)) {
           const extracted = await fetchNotifications();
           if (isMounted) setNotifications(extracted);
         }
+
         if (activeTab === "all") {
           try {
             const statsRes = await notificationService.getNotificationStats({
@@ -104,24 +145,7 @@ export default function NotificationManagementPage() {
             }
           }
         }
-        if (["preferences", "user-notifications"].includes(activeTab)) {
-          try {
-            const usersRes = await adminService.getUsers({
-              signal: abortController.signal,
-            });
-            const fetchedUsers = Array.isArray(usersRes?.data?.data?.users)
-              ? usersRes.data.data.users
-              : [];
-            if (isMounted) {
-              setUsers(fetchedUsers);
-            }
-          } catch (error) {
-            if (error.name !== "AbortError" && isMounted) {
-              toast.error(`Failed to load users: ${error.message}`);
-              setUsers([]);
-            }
-          }
-        }
+
         if (["send", "bulk-send", "templates"].includes(activeTab)) {
           try {
             const fetchedTemplates = await fetchTemplates();
@@ -135,19 +159,7 @@ export default function NotificationManagementPage() {
             }
           }
         }
-        if (["send", "bulk-send"].includes(activeTab)) {
-          try {
-            const fetchedTemplates = await fetchTemplates();
-            if (isMounted) {
-              setTemplates(fetchedTemplates);
-            }
-          } catch (error) {
-            if (error.name !== "AbortError" && isMounted) {
-              toast.error(`Failed to load templates: ${error.message}`);
-              setTemplates([]);
-            }
-          }
-        }
+
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -158,7 +170,7 @@ export default function NotificationManagementPage() {
       isMounted = false;
       abortController.abort();
     };
-  }, [activeTab, currentPage, fetchNotifications, fetchTemplates]);
+  }, [activeTab, currentPage, fetchNotifications, fetchTemplates, fetchUsers, fetchStaffProfiles]);
 
   const handleSendNotification = async (notificationData) => {
     try {
@@ -212,11 +224,32 @@ export default function NotificationManagementPage() {
     try {
       await notificationService.createTemplate(templateData);
       toast.success("Template created successfully");
-      // Refresh templates
       const fetchedTemplates = await fetchTemplates();
       setTemplates(fetchedTemplates);
     } catch (error) {
       toast.error(`Failed to create template: ${error.message}`);
+    }
+  };
+
+  const handleUpdateTemplate = async (id, templateData) => {
+    try {
+      await notificationService.updateTemplate(id, templateData);
+      toast.success("Template updated successfully");
+      const fetchedTemplates = await fetchTemplates();
+      setTemplates(fetchedTemplates);
+    } catch (error) {
+      toast.error(`Failed to update template: ${error.message}`);
+    }
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    try {
+      await notificationService.deleteTemplate(id);
+      toast.success("Template deleted successfully");
+      const fetchedTemplates = await fetchTemplates();
+      setTemplates(fetchedTemplates);
+    } catch (error) {
+      toast.error(`Failed to delete template: ${error.message}`);
     }
   };
 
@@ -238,14 +271,15 @@ export default function NotificationManagementPage() {
     }
 
     // Search filter
-    searchQuery.trim()
-    const query = searchQuery.toLowerCase();
-    filtered = filtered.filter((n) => {
-      const titleMatch = n.title?.toLowerCase()?.includes(query) || false;
-      const messageMatch = n.message?.toLowerCase()?.includes(query) || false;
-      const emailMatch = n.userEmail?.toLowerCase()?.includes(query) || false;
-      return titleMatch || messageMatch || emailMatch;
-    });
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((n) => {
+        const titleMatch = n.title?.toLowerCase()?.includes(query) || false;
+        const messageMatch = n.message?.toLowerCase()?.includes(query) || false;
+        const emailMatch = n.userEmail?.toLowerCase()?.includes(query) || false;
+        return titleMatch || messageMatch || emailMatch;
+      });
+    }
 
     // Sort
     filtered.sort((a, b) => {
@@ -265,18 +299,17 @@ export default function NotificationManagementPage() {
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset page on search
+    setCurrentPage(1);
   };
 
   const handleSortChange = (field) => {
-    console.log("Sort Changed:", { field, currentSortField: sortField, currentSortOrder: sortOrder });
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortOrder("desc");
     }
-    setCurrentPage(1); // Reset page on sort
+    setCurrentPage(1);
   };
 
   const tabs = [
@@ -300,7 +333,9 @@ export default function NotificationManagementPage() {
           Logged in as: <span className="font-medium">{user?.email}</span>
         </div>
       </div>
+      
       {activeTab === "all" && stats && <NotificationStats stats={stats} />}
+      
       <div className="mt-8">
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8 overflow-x-auto">
@@ -308,7 +343,6 @@ export default function NotificationManagementPage() {
               <button
                 key={tab}
                 onClick={() => {
-                  console.log("Tab Clicked:", tab);
                   setSelectedUser(null);
                   setActiveTab(tab);
                   setCurrentPage(1);
@@ -327,6 +361,7 @@ export default function NotificationManagementPage() {
             ))}
           </nav>
         </div>
+        
         <div className="mt-6">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
@@ -400,6 +435,7 @@ export default function NotificationManagementPage() {
                   </div>
                 </div>
               )}
+
               {["all", "system", "user", "user-notifications"].includes(activeTab) && (
                 <NotificationList
                   key={`${activeTab}-${searchQuery}-${selectedUser}-${sortField}-${sortOrder}`}
@@ -411,60 +447,52 @@ export default function NotificationManagementPage() {
                   onMarkAllRead={activeTab === "all" ? handleMarkAllAsRead : undefined}
                 />
               )}
+
               {activeTab === "templates" && (
                 <NotificationTemplates
                   templates={templates}
                   onCreate={handleCreateTemplate}
-                  onUpdate={async (id, templateData) => {
-                    try {
-                      await notificationService.updateTemplate(id, templateData);
-                      toast.success("Template updated successfully");
-                      // Refresh templates
-                      const fetchedTemplates = await fetchTemplates();
-                      setTemplates(fetchedTemplates);
-                    } catch (error) {
-                      toast.error(`Failed to update template: ${error.message}`);
-                    }
-                  }}
-                  onDelete={async (id) => {
-                    try {
-                      await notificationService.deleteTemplate(id);
-                      toast.success("Template deleted successfully");
-                      // Refresh templates
-                      const fetchedTemplates = await fetchTemplates();
-                      setTemplates(fetchedTemplates);
-                    } catch (error) {
-                      toast.error(`Failed to delete template: ${error.message}`);
-                    }
-                  }}
+                  onUpdate={handleUpdateTemplate}
+                  onDelete={handleDeleteTemplate}
+                  isLoading={isLoading}
                 />
               )}
+
               {activeTab === "send" && (
                 <SendNotificationForm
-                  users={Array.isArray(users) ? users : []}
+                  users={users}
                   onSubmit={handleSendNotification}
                   templates={templates}
+                  staffProfiles={staffProfiles}
                 />
               )}
+
               {activeTab === "bulk-send" && (
                 <SendBulkNotificationForm
                   onSubmit={handleSendBulkNotifications}
                   templates={templates}
+                  users={users}
+                  staffProfiles={staffProfiles}
                 />
               )}
+
               {activeTab === "preferences" && (
                 <UserPreferencesManager
-                  users={Array.isArray(users) ? users : []}
-                  onUpdatePreferences={notificationService.updateUserPreferences}
+                  users={users}
+                  staffProfiles={staffProfiles}
+                  onUpdatePreferences={() => {
+                    // Refresh data if needed
+                    toast.success("Preferences updated successfully");
+                  }}
                 />
               )}
+
               {activeTab === "user-notifications" && (
                 <div>
                   <h3 className="text-lg font-medium mb-4">User Notifications</h3>
                   <select
                     className="border rounded p-2 mb-4 w-full max-w-md dark:bg-gray-800 dark:border-gray-700"
                     onChange={(e) => {
-                      console.log("Selected User:", e.target.value);
                       setSelectedUser(e.target.value);
                       setCurrentPage(1);
                     }}
@@ -472,11 +500,18 @@ export default function NotificationManagementPage() {
                   >
                     <option value="">Select a user</option>
                     {Array.isArray(users) && users.length > 0 ? (
-                      users.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.email} ({user.name})
-                        </option>
-                      ))
+                      users.map((user) => {
+                        const staffProfile = user.role === "staff" 
+                          ? staffProfiles.find(profile => profile.userId === (user.id || user._id))
+                          : null;
+                        
+                        return (
+                          <option key={user.id || user._id} value={user.id || user._id}>
+                            {user.email} ({user.name || "No Name"}) - {user.role}
+                            {staffProfile?.department && ` - ${staffProfile.department}`}
+                          </option>
+                        );
+                      })
                     ) : (
                       <option disabled>No users available</option>
                     )}

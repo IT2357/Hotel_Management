@@ -10,6 +10,16 @@ const adminService = {
   deactivateUser: (userId) => api.put(`/admin/users/${userId}/deactivate`),
   getPendingApprovals: () => api.get("/admin/approvals"),
   approveUser: (userId) => api.put(`/admin/approvals/${userId}`),
+  // frontend/src/services/adminService.js
+  async getStaffProfiles() {
+    try {
+      const response = await api.get("/admin/staff-profiles");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch staff profiles:", error);
+      throw error;
+    }
+  },
 
   // Invitation management
   sendInvitation: (data) => api.post("/admin/invitations", data),

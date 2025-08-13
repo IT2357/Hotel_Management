@@ -17,11 +17,44 @@ import {
 } from "../controllers/admin/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
+import StaffProfile from "../models/profiles/StaffProfile.js";
 
 const router = express.Router();
 
 // 🔒 Global middleware for admin routes - only approved admins
 router.use(authenticateToken, authorizeRoles({ roles: ["admin"] }));
+
+router.get(
+  "/staff-profiles",
+  authenticateToken,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      const staffProfiles = await StaffProfile.find({ isActive: true })
+        .populate("userId", "name email phone role")
+        .select("userId department position isActive");
+
+      res.json({
+        success: true,
+        data: staffProfiles.map((profile) => ({
+          userId: profile.userId._id,
+          userEmail: profile.userId.email,
+          userName: profile.userId.name,
+          userRole: profile.userId.role,
+          department: profile.department,
+          position: profile.position,
+          isActive: profile.isActive,
+        })),
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch staff profiles",
+        error: error.message,
+      });
+    }
+  }
+);
 
 // 📣 Notification management routes
 router.get(

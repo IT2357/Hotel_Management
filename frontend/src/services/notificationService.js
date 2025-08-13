@@ -4,110 +4,211 @@ import api from "./api";
 class NotificationService {
   // User notification operations
   async getMyNotifications(params = {}) {
-    const response = await api.get("/notifications/my", { params });
-    return response.data;
+    try {
+      const response = await api.get("/notifications/my", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get my notifications:", error);
+      throw error;
+    }
   }
 
   async getMyPreferences() {
-    const response = await api.get("/notifications/my/preferences");
-    return response.data;
+    try {
+      const response = await api.get("/notifications/my/preferences");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get my preferences:", error);
+      throw error;
+    }
   }
 
   async updateMyPreferences(preferences) {
-    const response = await api.put(
-      "/notifications/my/preferences",
-      preferences
-    );
-    return response.data;
+    try {
+      const response = await api.put(
+        "/notifications/my/preferences",
+        preferences
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update my preferences:", error);
+      throw error;
+    }
   }
 
   async markAsRead(notificationId) {
-    const response = await api.patch(`/notifications/${notificationId}/read`);
-    return response.data;
+    try {
+      const response = await api.patch(`/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+      throw error;
+    }
   }
 
   async markAllAsRead() {
-    const response = await api.patch("/notifications/read-all");
-    return response.data;
+    try {
+      const response = await api.patch("/notifications/read-all");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+      throw error;
+    }
   }
 
   async getUnreadCount() {
-    const response = await api.get("/notifications/unread-count");
-    return response.data;
+    try {
+      const response = await api.get("/notifications/unread-count");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get unread count:", error);
+      throw error;
+    }
   }
 
   async deleteNotification(notificationId) {
-    const response = await api.delete(`/notifications/${notificationId}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/notifications/${notificationId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+      throw error;
+    }
   }
 
   // Admin-only operations
   async sendNotification(data) {
-    const response = await api.post("/notifications/send", data);
-    return response.data;
+    try {
+      const response = await api.post("/notifications/send", data);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to send notification:", error);
+      throw error;
+    }
   }
 
   async sendBulkNotifications(data) {
-    const response = await api.post("/notifications/send/bulk", data);
-    return response.data;
+    try {
+      const response = await api.post("/notifications/send/bulk", data);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to send bulk notifications:", error);
+      throw error;
+    }
   }
 
   async getAdminNotifications(params = {}) {
-    const response = await api.get("/notifications/admin", { params });
-    return response.data;
+    try {
+      const response = await api.get("/notifications/admin", { params });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get admin notifications:", error);
+      throw error;
+    }
   }
 
   async getNotificationStats() {
-    const response = await api.get("/notifications/stats");
-    return response.data;
+    try {
+      const response = await api.get("/notifications/stats");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get notification stats:", error);
+      throw error;
+    }
   }
 
   async getUserNotifications(userId, params = {}) {
-    const response = await api.get(`/notifications/user/${userId}`, { params });
-    return response.data;
+    try {
+      const response = await api.get(`/notifications/user/${userId}`, {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get user notifications:", error);
+      throw error;
+    }
   }
 
   async adminDeleteNotification(notificationId) {
-    const response = await api.delete(`/notifications/admin/${notificationId}`);
-    return response.data;
+    try {
+      const response = await api.delete(
+        `/notifications/admin/${notificationId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to admin delete notification:", error);
+      throw error;
+    }
   }
 
   // Template management (admin-only)
   async getTemplates(params = {}) {
-    const response = await api.get("/notifications/templates", { params });
-    return response.data?.data || [];
+    try {
+      const response = await api.get("/notifications/templates", { params });
+      return response.data?.data || response.data || [];
+    } catch (error) {
+      console.error("Failed to get templates:", error);
+      throw error;
+    }
   }
 
   async createTemplate(templateData) {
-    const response = await api.post("/notifications/templates", templateData);
-    return response.data;
+    try {
+      const response = await api.post("/notifications/templates", templateData);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to create template:", error);
+      throw error;
+    }
   }
 
   async updateTemplate(templateId, templateData) {
-    const response = await api.put(
-      `/notifications/templates/${templateId}`,
-      templateData
-    );
-    return response.data;
+    try {
+      const response = await api.put(
+        `/notifications/templates/${templateId}`,
+        templateData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update template:", error);
+      throw error;
+    }
   }
 
   async deleteTemplate(templateId) {
-    const response = await api.delete(`/notifications/templates/${templateId}`);
-    return response.data;
+    try {
+      const response = await api.delete(
+        `/notifications/templates/${templateId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to delete template:", error);
+      throw error;
+    }
   }
 
   // User preference management (admin-only)
   async getUserPreferences(userId) {
-    const response = await api.get(`/notifications/preferences/${userId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/notifications/preferences/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get user preferences:", error);
+      throw error;
+    }
   }
 
   async updateUserPreferences(userId, preferences) {
-    const response = await api.put(
-      `/notifications/preferences/${userId}`,
-      preferences
-    );
-    return response.data;
+    try {
+      const response = await api.put(
+        `/notifications/preferences/${userId}`,
+        preferences
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update user preferences:", error);
+      throw error;
+    }
   }
 }
 
