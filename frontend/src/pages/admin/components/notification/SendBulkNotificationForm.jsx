@@ -177,7 +177,8 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
         specificUsers: [],
       });
     } catch (error) {
-      toast.error(`Failed to send bulk notifications: ${error.message}`);
+      console.error("Bulk send error:", error);
+      toast.error(`Failed to send bulk notifications: ${error.response?.data?.message || error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -271,20 +272,136 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
           {formData.userGroup === "specific_users" && (
             <div className="mt-4">
               <label className="block text-sm font-medium mb-2">Select Users</label>
-              <div className="max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2">
-                {users.map(user => (
-                  <label key={user.id || user._id} className="flex items-center space-x-2 py-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.specificUsers.includes(user.id || user._id)}
-                      onChange={() => handleMultiSelectChange("specificUsers", user.id || user._id)}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
+              
+              {/* Search for users */}
+              {/* Search and Filters */}
+              <div className="mb-3 space-y-2">
+                <input
+                  type="text"
+                  placeholder="Search users by name or email..."
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                  onChange={(e) => {
+                    const query = e.target.value.toLowerCase();
+                    setSearchQuery(query);
+                    setCurrentPage(1); // Reset to first page when searching
+                  }}
+                />
+                
+                {/* Role Filter */}
+                <select
+                  value={roleFilter}
+                  onChange={(e) => {
+                    setRoleFilter(e.target.value);
+                    setCurrentPage(1); // Reset to first page when filtering
+                  }}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="guest">Guest</option>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+                
+                {/* Department Filter (for staff) */}
+                {roleFilter === "staff" && (
+                  <select
+                    value={departmentFilter}
+                    onChange={(e) => {
+                      setDepartmentFilter(e.target.value);
+                      setCurrentPage(1); // Reset to first page when filtering
+                    }}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="all">All Departments</option>
+                    {departments.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              
+              {/* Users List with Pagination */}
+              <div className="max-h-60 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2">
+                <div className="mb-2 flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {formData.specificUsers.length} of {filteredUsers.length} users selected
+                  </span>
+                  <div className="space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        specificUsers: filteredUsers.map(user => user.id || user._id)
+                      })}
+                      className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        specificUsers: []
+                      })}
+                      className="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Users List */}
+                {paginatedUsers.map(user => {
+                  const staffProfile = staffProfiles.find(profile =>
+                    profile.userId === (user.id || user._id)
+                  );
+                  
+                  return (
+                    <label key={user.id || user._id} className="flex items-center space-x-2 py-2 px-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded">
+                      <input
+                        type="checkbox"
+                        checked={formData.specificUsers.includes(user.id || user._id)}
+                        onChange={() => handleMultiSelectChange("specificUsers", user.id || user._id)}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">
+                          {user.name || "No Name"}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {user.email} - {user.role}
+                          {user.role === "staff" && staffProfile?.department &&
+                            ` - ${staffProfile.department}`
+                          }
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
                     <span className="text-sm">
-                      {user.name || "No Name"} ({user.email}) - {user.role}
+                      Page {currentPage} of {totalPages}
                     </span>
-                  </label>
-                ))}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm rounded bg-gray-100 dark:bg-gray-700 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -363,9 +480,9 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
             onChange={handleChange}
           >
             <option value="low">Low</option>
-            <option value="normal">Normal</option>
+            <option value="medium">Medium</option>
             <option value="high">High</option>
-            <option value="urgent">Urgent</option>
+            <option value="critical">Critical</option>
           </Select>
         </div>
 

@@ -28,6 +28,7 @@ import {
   deleteTemplate,
   deleteMyNotification,
   adminDeleteNotification,
+  getNotificationMetadata,
   getNotificationStats,
 } from "../controllers/notificationController.js";
 
@@ -77,6 +78,7 @@ router.delete(
 );
 
 // ===================== TEMPLATE OPERATIONS =====================
+router.get("/metadata", admin, getNotificationMetadata);
 router.get("/templates", admin, getTemplates);
 router.post("/templates", admin, createTemplate);
 router.put("/templates/:id", admin, updateTemplate);

@@ -36,23 +36,34 @@ export default function UserPreferencesManager({
 
   // Default preferences based on user role
   const getDefaultPreferences = (userRole) => {
-    const defaults = {
-      // Guest notifications
-      booking_confirmation: { email: true, inApp: true, sms: false },
-      payment_receipt: { email: true, inApp: true, sms: false },
-      payment_failed: { email: true, inApp: true, sms: true },
-      checkin_reminder: { email: true, inApp: true, sms: true },
-      checkout_reminder: { email: false, inApp: true, sms: false },
-      food_order_confirmation: { email: false, inApp: true, sms: false },
-      food_order_ready: { email: false, inApp: true, sms: false },
-      service_request_update: { email: false, inApp: true, sms: false },
-      cancellation_confirmation: { email: true, inApp: true, sms: false },
-      refund_update: { email: true, inApp: true, sms: false },
-      review_request: { email: true, inApp: true, sms: false },
+    // Base preferences that apply to all users
+    const basePreferences = {
+      test_notification: { email: false, inApp: true, sms: false },
+      admin_message: { email: true, inApp: true, sms: false },
     };
 
-    if (userRole === "staff" || userRole === "manager") {
-      Object.assign(defaults, {
+    // Guest-specific preferences
+    if (userRole === "guest") {
+      return {
+        ...basePreferences,
+        booking_confirmation: { email: true, inApp: true, sms: false },
+        payment_receipt: { email: true, inApp: true, sms: false },
+        payment_failed: { email: true, inApp: true, sms: true },
+        checkin_reminder: { email: true, inApp: true, sms: true },
+        checkout_reminder: { email: false, inApp: true, sms: false },
+        food_order_confirmation: { email: false, inApp: true, sms: false },
+        food_order_ready: { email: false, inApp: true, sms: false },
+        service_request_update: { email: false, inApp: true, sms: false },
+        cancellation_confirmation: { email: true, inApp: true, sms: false },
+        refund_update: { email: true, inApp: true, sms: false },
+        review_request: { email: true, inApp: true, sms: false },
+      };
+    }
+
+    // Staff-specific preferences
+    if (userRole === "staff") {
+      return {
+        ...basePreferences,
         task_assigned: { email: true, inApp: true, sms: true },
         task_reminder: { email: false, inApp: true, sms: true },
         task_overdue: { email: true, inApp: true, sms: true },
@@ -61,34 +72,48 @@ export default function UserPreferencesManager({
         shift_change: { email: true, inApp: true, sms: true },
         manager_message: { email: true, inApp: true, sms: true },
         emergency_alert: { email: true, inApp: true, sms: true },
-      });
+      };
     }
 
-    if (userRole === "manager" || userRole === "admin") {
-      Object.assign(defaults, {
+    // Manager-specific preferences
+    if (userRole === "manager") {
+      return {
+        ...basePreferences,
+        task_assigned: { email: true, inApp: true, sms: true },
+        task_reminder: { email: false, inApp: true, sms: true },
+        task_overdue: { email: true, inApp: true, sms: true },
+        shift_scheduled: { email: true, inApp: true, sms: true },
+        shift_reminder: { email: false, inApp: true, sms: true },
+        shift_change: { email: true, inApp: true, sms: true },
+        manager_message: { email: true, inApp: true, sms: true },
+        emergency_alert: { email: true, inApp: true, sms: true },
         staff_alert: { email: true, inApp: true, sms: true },
         guest_complaint: { email: true, inApp: true, sms: true },
         system_alert: { email: true, inApp: true, sms: true },
         inventory_alert: { email: true, inApp: true, sms: false },
         high_occupancy_alert: { email: true, inApp: true, sms: true },
-      });
+      };
     }
 
+    // Admin-specific preferences
     if (userRole === "admin") {
-      Object.assign(defaults, {
+      return {
+        ...basePreferences,
         system_error: { email: true, inApp: true, sms: true },
         security_alert: { email: true, inApp: true, sms: true },
         financial_alert: { email: true, inApp: true, sms: true },
         audit_log: { email: false, inApp: true, sms: false },
         admin_activity: { email: false, inApp: true, sms: false },
-      });
+        staff_alert: { email: true, inApp: true, sms: true },
+        guest_complaint: { email: true, inApp: true, sms: true },
+        system_alert: { email: true, inApp: true, sms: true },
+        inventory_alert: { email: true, inApp: true, sms: false },
+        high_occupancy_alert: { email: true, inApp: true, sms: true },
+      };
     }
 
-    // System notifications for all users
-    defaults.test_notification = { email: false, inApp: true, sms: false };
-    defaults.admin_message = { email: true, inApp: true, sms: false };
-
-    return defaults;
+    // Fallback for unknown roles
+    return basePreferences;
   };
 
   // Fetch user preferences
@@ -105,8 +130,7 @@ export default function UserPreferencesManager({
       if (!response.ok) {
         throw new Error('Failed to fetch preferences');
       }
-
-      const data = await response;
+      const data = await response.json();
       
       if (data.success && data.data?.preferences) {
         const prefs = data.data.preferences;
@@ -148,8 +172,10 @@ export default function UserPreferencesManager({
         body: JSON.stringify(preferences),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update preferences');
+        throw new Error(data.message || 'Failed to update preferences');
       }
 
       toast.success("Preferences updated successfully");
@@ -160,6 +186,7 @@ export default function UserPreferencesManager({
         onUpdatePreferences();
       }
     } catch (error) {
+      console.error("Save preferences error:", error);
       toast.error(`Failed to update preferences: ${error.message}`);
     } finally {
       setIsSaving(false);
@@ -251,44 +278,66 @@ export default function UserPreferencesManager({
 
   // Group notification types by category
   const notificationCategories = useMemo(() => {
-    if (!preferences) return {};
-
-    const categories = {
-      "Guest Services": [
-        "booking_confirmation", "payment_receipt", "payment_failed", 
-        "checkin_reminder", "checkout_reminder", "food_order_confirmation",
-        "food_order_ready", "service_request_update", "cancellation_confirmation",
-        "refund_update", "review_request"
-      ],
-      "Staff Operations": [
-        "task_assigned", "task_reminder", "task_overdue", 
-        "shift_scheduled", "shift_reminder", "shift_change",
-        "manager_message", "emergency_alert"
-      ],
-      "Management": [
-        "staff_alert", "guest_complaint", "system_alert", 
-        "inventory_alert", "high_occupancy_alert"
-      ],
-      "Administration": [
-        "system_error", "security_alert", "financial_alert", 
-        "audit_log", "admin_activity"
-      ],
-      "System": [
-        "admin_message", "test_notification"
-      ]
+    if (!preferences || !selectedUserInfo) return {};
+  
+    const baseCategories = {
+      "System": ["admin_message", "test_notification"]
     };
-
-    // Filter categories based on available preferences
-    const filtered = {};
-    Object.entries(categories).forEach(([category, types]) => {
-      const availableTypes = types.filter(type => preferences[type]);
-      if (availableTypes.length > 0) {
-        filtered[category] = availableTypes;
-      }
-    });
-
-    return filtered;
-  }, [preferences]);
+  
+    if (selectedUserInfo.role === "guest") {
+      return {
+        ...baseCategories,
+        "Guest Services": [
+          "booking_confirmation", "payment_receipt", "payment_failed", 
+          "checkin_reminder", "checkout_reminder", "food_order_confirmation",
+          "food_order_ready", "service_request_update", "cancellation_confirmation",
+          "refund_update", "review_request"
+        ]
+      };
+    }
+  
+    if (selectedUserInfo.role === "staff") {
+      return {
+        ...baseCategories,
+        "Staff Operations": [
+          "task_assigned", "task_reminder", "task_overdue", 
+          "shift_scheduled", "shift_reminder", "shift_change",
+          "manager_message", "emergency_alert"
+        ]
+      };
+    }
+  
+    if (selectedUserInfo.role === "manager") {
+      return {
+        ...baseCategories,
+        "Staff Operations": [
+          "task_assigned", "task_reminder", "task_overdue", 
+          "shift_scheduled", "shift_reminder", "shift_change",
+          "manager_message", "emergency_alert"
+        ],
+        "Management": [
+          "staff_alert", "guest_complaint", "system_alert", 
+          "inventory_alert", "high_occupancy_alert"
+        ]
+      };
+    }
+  
+    if (selectedUserInfo.role === "admin") {
+      return {
+        ...baseCategories,
+        "Administration": [
+          "system_error", "security_alert", "financial_alert", 
+          "audit_log", "admin_activity"
+        ],
+        "Management": [
+          "staff_alert", "guest_complaint", "system_alert", 
+          "inventory_alert", "high_occupancy_alert"
+        ]
+      };
+    }
+  
+    return baseCategories;
+  }, [preferences, selectedUserInfo]);
 
   return (
     <div className="space-y-6">

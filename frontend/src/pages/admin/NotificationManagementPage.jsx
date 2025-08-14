@@ -516,13 +516,15 @@ export default function NotificationManagementPage() {
                       <option disabled>No users available</option>
                     )}
                   </select>
-                  <NotificationList
-                    notifications={filteredNotifications()}
-                    totalPages={totalPages}
-                    currentPage={currentPage}
-                    onPageChange={(page) => setCurrentPage(page)}
-                    onDelete={handleDeleteNotification}
-                  />
+                  {selectedUser && (
+                    <NotificationList
+                      notifications={filteredNotifications()}
+                      totalPages={totalPages}
+                      currentPage={currentPage}
+                      onPageChange={(page) => setCurrentPage(page)}
+                      onDelete={handleDeleteNotification}
+                    />
+                  )}
                 </div>
               )}
             </>

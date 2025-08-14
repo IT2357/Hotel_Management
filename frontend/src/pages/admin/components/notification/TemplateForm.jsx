@@ -1,34 +1,57 @@
 // src/components/admin/components/notification/TemplateForm.jsx
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import Input from "../../../../components/ui/Input";
 import Select from "../../../../components/ui/Select";
 import Textarea from "../../../../components/ui/Textarea";
 import Button from "../../../../components/ui/Button";
 
-export default function TemplateForm({
-  template = null,
-  onSubmit,
-  onCancel,
-}) {
+export default function TemplateForm({ template = null, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
     subject: "",
     body: "",
-    type: "system",
-    channel: "email",
+    type: "",
+    channel: "",
     isActive: true,
+    variables: [],
   });
+
+  const [metadata, setMetadata] = useState({ types: [], channels: [] });
+  const [loadingMeta, setLoadingMeta] = useState(true);
+
+  useEffect(() => {
+    axios.get("/api/notifications/metadata")
+      .then(res => {
+        if (res.data.success) {
+          setMetadata({
+            types: res.data.types,
+            channels: res.data.channels,
+          });
+
+          setFormData(prev => ({
+            ...prev,
+            type: template?.type || res.data.types[0] || "",
+            channel: template?.channel || res.data.channels[0] || "",
+          }));
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load notification metadata:", err);
+      })
+      .finally(() => setLoadingMeta(false));
+  }, [template]);
 
   useEffect(() => {
     if (template) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: template.name || "",
         subject: template.subject || "",
         body: template.body || "",
-        type: template.type || "system",
-        channel: template.channel || "email",
         isActive: template.isActive !== undefined ? template.isActive : true,
-      });
+        variables: Array.isArray(template.variables) ? template.variables : [],
+      }));
     }
   }, [template]);
 
@@ -38,6 +61,15 @@ export default function TemplateForm({
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+  };
+
+  const handleVariablesChange = (e) => {
+    const raw = e.target.value;
+    const parsed = raw
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+    setFormData({ ...formData, variables: parsed });
   };
 
   const handleSubmit = (e) => {
@@ -56,14 +88,16 @@ export default function TemplateForm({
         required
       />
 
-      <Input
-        label="Subject"
-        id="subject"
-        name="subject"
-        value={formData.subject}
-        onChange={handleChange}
-        required
-      />
+      {formData.channel === "email" && (
+        <Input
+          label="Subject"
+          id="subject"
+          name="subject"
+          value={formData.subject}
+          onChange={handleChange}
+          required
+        />
+      )}
 
       <Textarea
         label="Body"
@@ -75,6 +109,14 @@ export default function TemplateForm({
         required
       />
 
+      <Input
+        label="Variables (comma-separated)"
+        id="variables"
+        name="variables"
+        value={formData.variables.join(", ")}
+        onChange={handleVariablesChange}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
           label="Type"
@@ -84,9 +126,15 @@ export default function TemplateForm({
           onChange={handleChange}
           required
         >
-          <option value="system">System</option>
-          <option value="alert">Alert</option>
-          <option value="promotional">Promotional</option>
+          {loadingMeta ? (
+            <option disabled>Loading...</option>
+          ) : (
+            metadata.types.map((type) => (
+              <option key={type} value={type}>
+                {type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </option>
+            ))
+          )}
         </Select>
 
         <Select
@@ -97,10 +145,15 @@ export default function TemplateForm({
           onChange={handleChange}
           required
         >
-          <option value="email">Email</option>
-          <option value="sms">SMS</option>
-          <option value="push">Push</option>
-          <option value="in-app">In-App</option>
+          {loadingMeta ? (
+            <option disabled>Loading...</option>
+          ) : (
+            metadata.channels.map((channel) => (
+              <option key={channel} value={channel}>
+                {channel === "inApp" ? "In-App" : channel.charAt(0).toUpperCase() + channel.slice(1)}
+              </option>
+            ))
+          )}
         </Select>
       </div>
 

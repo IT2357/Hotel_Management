@@ -6,6 +6,7 @@ import { User } from "../../models/User.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import EmailService from "./emailService.js";
 import { sendSMS } from "./smsService.js";
+import mongoose from "mongoose";
 
 class NotificationService {
   constructor() {
@@ -131,11 +132,13 @@ class NotificationService {
     message,
     channel = "inApp",
     priority = "medium",
+    type = "admin_message",
     sentBy,
   }) {
     if (!Array.isArray(userIds)) {
       throw new Error("userIds must be an array");
     }
+
     const notifications = await Promise.all(
       userIds.map(async (userId) => {
         try {
@@ -145,10 +148,11 @@ class NotificationService {
             console.error(`User not found: ${userId}`);
             return null;
           }
+
           return await this.sendNotification({
             userId,
-            userType: user.role, // Dynamically set userType
-            type: "admin_message",
+            userType: user.role, // Use the user's actual role
+            type,
             title,
             message,
             channel,
@@ -164,6 +168,7 @@ class NotificationService {
         }
       })
     );
+
     const successfulNotifications = notifications.filter(Boolean);
     return {
       total: userIds.length,
@@ -174,7 +179,7 @@ class NotificationService {
   }
 
   // Soft delete for regular users
-  static async softDeleteNotification(notificationId, userId) {
+  async softDeleteNotification(notificationId, userId) {
     return Notification.findOneAndUpdate(
       {
         _id: notificationId,
@@ -192,11 +197,17 @@ class NotificationService {
   }
 
   // Hard delete for admins
-  static async hardDeleteNotification(notificationId, adminId) {
-    // Admins can delete any notification
-    return Notification.findOneAndDelete({
-      _id: notificationId,
-    });
+  async hardDeleteNotification(notificationId, adminId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+        throw new Error("Invalid notification ID");
+      }
+      const result = await Notification.findByIdAndDelete(notificationId);
+      return result;
+    } catch (err) {
+      console.error("DB delete error:", err.stack || err);
+      throw err;
+    }
   }
 
   // Get staff notifications
@@ -503,14 +514,17 @@ class NotificationService {
   }
 
   async createNotificationTemplate(templateData) {
-    // Validate required fields
     if (
       !templateData.type ||
       !templateData.channel ||
-      !templateData.subject ||
+      (templateData.channel === "email" && !templateData.subject) ||
       !templateData.body
     ) {
       throw new Error("Missing required template fields");
+    }
+
+    if (!Array.isArray(templateData.variables)) {
+      throw new Error("Template variables must be an array");
     }
 
     const template = new NotificationTemplate(templateData);

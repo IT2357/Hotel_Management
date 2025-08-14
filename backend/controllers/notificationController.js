@@ -1,6 +1,6 @@
 // 📁 backend/controllers/notification/notificationController.js
 import NotificationService from "../services/notification/notificationService.js";
-
+import { getDefaultPreferences } from "../models/NotificationPreferences.js";
 // Helper for consistent error responses
 const handleError = (res, error, defaultMessage = "Operation failed") => {
   console.error(`${defaultMessage}:`, error);
@@ -31,68 +31,142 @@ const sendSuccess = (
   });
 };
 
+export const getNotificationMetadata = (req, res) => {
+  const roles = ["guest", "staff", "manager", "admin"];
+  const typeSet = new Set();
+
+  roles.forEach((role) => {
+    const prefs = getDefaultPreferences(role);
+    Object.keys(prefs).forEach((type) => typeSet.add(type));
+  });
+
+  const channels = ["email", "inApp", "sms", "push"];
+
+  res.json({
+    success: true,
+    types: Array.from(typeSet).sort(),
+    channels,
+  });
+};
 // ==============================================
 // NOTIFICATION OPERATIONS
 // ==============================================
 
 export const sendNotification = async (req, res) => {
   try {
-    const notificationData = req.body;
+    console.log("Send notification request body:", req.body); // Debug log
 
-    if (
-      !notificationData.userId ||
-      !notificationData.type ||
-      !notificationData.title ||
-      !notificationData.message
-    ) {
+    const { userId, userType, type, title, message, channel, priority } =
+      req.body;
+
+    // Enhanced validation
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "userId, type, title, and message are required",
+        message: "userId is required",
       });
     }
 
-    const notification = await NotificationService.sendNotification(
-      notificationData
-    );
-
-    if (!notification) {
-      return res.status(200).json({
-        success: true,
-        message: "Notification not sent due to user preferences",
-        data: null,
-      });
-    }
-
-    sendSuccess(res, notification, "Notification sent successfully", 201);
-  } catch (error) {
-    handleError(res, error, "Failed to send notification");
-  }
-};
-
-export const sendBulkNotifications = async (req, res) => {
-  try {
-    if (!req.body.userIds || !Array.isArray(req.body.userIds)) {
+    if (!userType) {
       return res.status(400).json({
         success: false,
-        message: "userIds array is required",
+        message: "userType is required",
       });
     }
 
-    if (!req.body.title || !req.body.message) {
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "type is required",
+      });
+    }
+
+    if (!title || !message) {
       return res.status(400).json({
         success: false,
         message: "title and message are required",
       });
     }
 
+    // Validate userType enum
+    const validUserTypes = ["guest", "staff", "manager", "admin"];
+    if (!validUserTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid userType. Must be one of: ${validUserTypes.join(
+          ", "
+        )}`,
+      });
+    }
+
+    const notification = await NotificationService.sendNotification({
+      userId,
+      userType,
+      type,
+      title,
+      message,
+      channel: channel || "inApp",
+      priority: priority || "medium",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Notification sent successfully",
+      data: notification,
+    });
+  } catch (error) {
+    console.error("Send notification error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send notification",
+    });
+  }
+};
+
+export const sendBulkNotifications = async (req, res) => {
+  try {
+    console.log("Bulk send request body:", req.body); // Debug log
+
+    const { userIds, title, message, type, channel, priority } = req.body;
+
+    // Enhanced validation
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "userIds array is required and cannot be empty",
+      });
+    }
+
+    if (!title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "title and message are required",
+      });
+    }
+
+    console.log(`Sending bulk notification to ${userIds.length} users`); // Debug log
+
     const result = await NotificationService.sendBulkNotifications({
-      ...req.body,
+      userIds,
+      title,
+      message,
+      type: type || "admin_message",
+      channel: channel || "inApp",
+      priority: priority || "medium",
       sentBy: req.user._id,
     });
 
-    sendSuccess(res, result, "Bulk notifications sent");
+    res.status(200).json({
+      success: true,
+      message: "Bulk notifications sent successfully",
+      data: result,
+    });
   } catch (error) {
-    handleError(res, error, "Failed to send bulk notifications");
+    console.error("Bulk send error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send bulk notifications",
+    });
   }
 };
 
@@ -245,7 +319,6 @@ export const updatePreferences = async (req, res) => {
 // ==============================================
 // TEMPLATE OPERATIONS (ADMIN ONLY)
 // ==============================================
-
 export const getTemplates = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -268,44 +341,87 @@ export const getTemplates = async (req, res) => {
 
 export const createTemplate = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can create templates",
-      });
-    }
+    console.log("Create template request body:", req.body); // Debug log
 
-    if (
-      !req.body.type ||
-      !req.body.channel ||
-      !req.body.subject ||
-      !req.body.body
-    ) {
+    const { name, subject, body, type, channel, isActive, variables } =
+      req.body;
+
+    // Enhanced validation
+    if (!name || typeof name !== "string" || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: "type, channel, subject and body are required",
+        message: "Template name is required and must be a non-empty string",
       });
     }
 
+    if (!subject || typeof subject !== "string" || !subject.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Template subject is required and must be a non-empty string",
+      });
+    }
+
+    if (!body || typeof body !== "string" || !body.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Template body is required and must be a non-empty string",
+      });
+    }
+
+    if (!type || !channel) {
+      return res.status(400).json({
+        success: false,
+        message: "Template type and channel are required",
+      });
+    }
+
+    const templateData = {
+      name: name.trim(),
+      subject: subject.trim(),
+      body: body.trim(),
+      type,
+      channel,
+      isActive: isActive !== undefined ? isActive : true,
+      variables: Array.isArray(variables) ? variables : [],
+    };
+
+    console.log("Creating template with data:", templateData); // Debug log
+
     const template = await NotificationService.createNotificationTemplate(
-      req.body
+      templateData
     );
-    sendSuccess(res, template, "Template created", 201);
+
+    res.status(201).json({
+      success: true,
+      message: "Template created successfully",
+      data: template,
+    });
   } catch (error) {
-    handleError(res, error, "Failed to create template");
+    console.error("Template creation error:", error);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A template with this type and channel combination already exists",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create template",
+    });
   }
 };
 
 export const updateTemplate = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admins can update templates",
-      });
-    }
+    console.log("Update template request body:", req.body); // Debug log
 
     const { id } = req.params;
+    const { name, subject, body, type, channel, isActive, variables } =
+      req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -314,13 +430,48 @@ export const updateTemplate = async (req, res) => {
       });
     }
 
+    // Build update object with only provided fields
+    const updateData = {};
+
+    if (name !== undefined)
+      updateData.name = typeof name === "string" ? name.trim() : name;
+    if (subject !== undefined)
+      updateData.subject =
+        typeof subject === "string" ? subject.trim() : subject;
+    if (body !== undefined)
+      updateData.body = typeof body === "string" ? body.trim() : body;
+    if (type !== undefined) updateData.type = type;
+    if (channel !== undefined) updateData.channel = channel;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (variables !== undefined)
+      updateData.variables = Array.isArray(variables) ? variables : [];
+
+    console.log("Updating template with data:", updateData); // Debug log
+
     const template = await NotificationService.updateNotificationTemplate(
       id,
-      req.body
+      updateData
     );
-    sendSuccess(res, template, "Template updated successfully");
+
+    res.status(200).json({
+      success: true,
+      message: "Template updated successfully",
+      data: template,
+    });
   } catch (error) {
-    handleError(res, error, "Failed to update template");
+    console.error("Template update error:", error);
+
+    if (error.message.includes("not found")) {
+      return res.status(404).json({
+        success: false,
+        message: "Template not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update template",
+    });
   }
 };
 
@@ -404,7 +555,12 @@ export const adminDeleteNotification = async (req, res) => {
 
     res.status(204).end();
   } catch (error) {
-    handleError(res, error, "Failed to permanently delete notification");
+    console.error("Delete error:", error.stack || error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to permanently delete notification",
+      error: error.message,
+    });
   }
 };
 

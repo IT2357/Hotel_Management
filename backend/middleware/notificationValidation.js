@@ -1,10 +1,12 @@
 // 📁 backend/middleware/notificationValidation.js
 import { body, param, query } from "express-validator";
 import { handleValidationErrors } from "./validation.js";
+import { getDefaultPreferences } from "../models/NotificationPreferences.js";
 
 // Validation for notification preferences
 export const validateNotificationPreferences = [
   body().isObject().withMessage("Preferences must be an object"),
+
   // Validate the nested preference structure
   body("*.email")
     .optional()
@@ -18,6 +20,35 @@ export const validateNotificationPreferences = [
     .optional()
     .isBoolean()
     .withMessage("SMS preference must be boolean"),
+
+  // Custom validator for allowed keys based on userType
+  body().custom((prefs, { req }) => {
+    const userType =
+      req.body.userType || req.query.userType || req.params.userType;
+    if (
+      !userType ||
+      !["guest", "staff", "manager", "admin"].includes(userType)
+    ) {
+      throw new Error("Missing or invalid userType for preference validation");
+    }
+
+    const allowedKeys = Object.keys(getDefaultPreferences(userType));
+    const incomingKeys = Object.keys(prefs);
+
+    const invalidKeys = incomingKeys.filter(
+      (key) => !allowedKeys.includes(key)
+    );
+    if (invalidKeys.length > 0) {
+      throw new Error(
+        `Invalid preference keys for userType "${userType}": ${invalidKeys.join(
+          ", "
+        )}`
+      );
+    }
+
+    return true;
+  }),
+
   handleValidationErrors,
 ];
 
