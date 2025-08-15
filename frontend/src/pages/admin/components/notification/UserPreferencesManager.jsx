@@ -163,7 +163,13 @@ export default function UserPreferencesManager({
 
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/notifications/preferences/${selectedUser}`, {
+      // Get user info to include userType
+      const user = users.find(u => (u.id || u._id) === selectedUser);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const response = await fetch(`/api/notifications/preferences/${selectedUser}?userType=${user.role}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

@@ -210,6 +210,17 @@ class NotificationService {
       throw error;
     }
   }
+
+  // Get notification metadata (types, channels, etc.)
+  async getNotificationMetadata() {
+    try {
+      const response = await api.get("/notifications/metadata");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to get notification metadata:", error);
+      throw error;
+    }
+  }
 }
 
 export default new NotificationService();

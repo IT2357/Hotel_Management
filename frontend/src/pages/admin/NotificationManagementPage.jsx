@@ -6,16 +6,18 @@ import NotificationList from "./components/notification/NotificationList";
 import NotificationStats from "./components/notification/NotificationStats";
 import { toast } from "react-toastify";
 import Spinner from "../../components/ui/Spinner";
+import useDebounce from "../../hooks/useDebounce";
 
 // Import the enhanced components we just created
 import SendNotificationForm from "./components/notification/SendNotificationForm";
 import SendBulkNotificationForm from "./components/notification/SendBulkNotificationForm";
 import NotificationTemplates from "./components/notification/NotificationTemplates";
 import UserPreferencesManager from "./components/notification/UserPreferencesManager";
+import NotificationFilters from "./components/notification/NotificationFilters";
 
 export default function NotificationManagementPage() {
   const { user } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("overview");
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,10 +26,21 @@ export default function NotificationManagementPage() {
   const [staffProfiles, setStaffProfiles] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500); // Debounce search query
   const [sortField, setSortField] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  
+  // New filter states
+  const [filters, setFilters] = useState({
+    userType: "",
+    channel: "",
+    priority: "",
+    status: "",
+    type: "",
+    read: "",
+  });
 
   const extractNotifications = useCallback((res) => {
     try {
@@ -56,10 +69,16 @@ export default function NotificationManagementPage() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await notificationService.getAdminNotifications({
+      const params = {
         page: currentPage,
         limit: 10,
-      });
+        search: debouncedSearchQuery.trim() || undefined, // Use debounced search query
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== "")
+        ),
+      };
+      
+      const res = await notificationService.getAdminNotifications(params);
       const extracted = extractNotifications(res);
       setTotalPages(res.data?.data?.pagination?.pages || 1);
       return extracted;
@@ -68,7 +87,7 @@ export default function NotificationManagementPage() {
       toast.error(`Failed to load notifications: ${error.message}`);
       return [];
     }
-  }, [extractNotifications, currentPage]);
+  }, [extractNotifications, currentPage, searchQuery, filters]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -126,12 +145,12 @@ export default function NotificationManagementPage() {
         }
 
         // Fetch data based on active tab
-        if (["all", "system", "user"].includes(activeTab)) {
+        if (["overview", "notifications"].includes(activeTab)) {
           const extracted = await fetchNotifications();
           if (isMounted) setNotifications(extracted);
         }
 
-        if (activeTab === "all") {
+        if (activeTab === "overview") {
           try {
             const statsRes = await notificationService.getNotificationStats({
               signal: abortController.signal,
@@ -170,7 +189,7 @@ export default function NotificationManagementPage() {
       isMounted = false;
       abortController.abort();
     };
-  }, [activeTab, currentPage, fetchNotifications, fetchTemplates, fetchUsers, fetchStaffProfiles]);
+  }, [activeTab, currentPage, debouncedSearchQuery, filters, fetchNotifications, fetchTemplates, fetchUsers, fetchStaffProfiles]);
 
   const handleSendNotification = async (notificationData) => {
     try {
@@ -261,26 +280,6 @@ export default function NotificationManagementPage() {
 
     let filtered = [...notifications];
 
-    // Filter by tab
-    if (activeTab === "system") {
-      filtered = filtered.filter((n) => n.type === "booking_confirmation");
-    } else if (activeTab === "user") {
-      filtered = filtered.filter((n) => n.type === "task_assigned");
-    } else if (activeTab === "user-notifications" && selectedUser) {
-      filtered = filtered.filter((n) => n.userId === selectedUser);
-    }
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((n) => {
-        const titleMatch = n.title?.toLowerCase()?.includes(query) || false;
-        const messageMatch = n.message?.toLowerCase()?.includes(query) || false;
-        const emailMatch = n.userEmail?.toLowerCase()?.includes(query) || false;
-        return titleMatch || messageMatch || emailMatch;
-      });
-    }
-
     // Sort
     filtered.sort((a, b) => {
       let aValue = a[sortField] ?? "";
@@ -295,7 +294,7 @@ export default function NotificationManagementPage() {
     });
 
     return filtered;
-  }, [notifications, activeTab, selectedUser, searchQuery, sortField, sortOrder]);
+  }, [notifications, sortField, sortOrder]);
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -312,15 +311,34 @@ export default function NotificationManagementPage() {
     setCurrentPage(1);
   };
 
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      userType: "",
+      channel: "",
+      priority: "",
+      status: "",
+      type: "",
+      read: "",
+    });
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
+
   const tabs = [
-    "all",
-    "system",
-    "user",
+    "overview",
+    "notifications",
     "templates",
     "send",
     "bulk-send",
     "preferences",
-    "user-notifications",
   ];
 
   return (
@@ -334,7 +352,7 @@ export default function NotificationManagementPage() {
         </div>
       </div>
       
-      {activeTab === "all" && stats && <NotificationStats stats={stats} />}
+      {activeTab === "overview" && stats && <NotificationStats stats={stats} />}
       
       <div className="mt-8">
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -369,82 +387,30 @@ export default function NotificationManagementPage() {
             </div>
           ) : (
             <>
-              {["all", "system", "user", "user-notifications"].includes(activeTab) && (
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search notifications..."
-                      value={searchQuery}
-                      onChange={handleSearchChange}
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700"
-                    />
-                    <div className="absolute left-3 top-2.5 text-gray-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-600 dark:text-gray-300">Sort by:</span>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleSortChange("createdAt")}
-                        className={`px-3 py-1 text-sm rounded ${
-                          sortField === "createdAt"
-                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        Date {sortField === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
-                      </button>
-                      <button
-                        onClick={() => handleSortChange("title")}
-                        className={`px-3 py-1 text-sm rounded ${
-                          sortField === "title"
-                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        Title {sortField === "title" && (sortOrder === "asc" ? "↑" : "↓")}
-                      </button>
-                      {activeTab !== "system" && (
-                        <button
-                          onClick={() => handleSortChange("userEmail")}
-                          className={`px-3 py-1 text-sm rounded ${
-                            sortField === "userEmail"
-                              ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                          }`}
-                        >
-                          User {sortField === "userEmail" && (sortOrder === "asc" ? "↑" : "↓")}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+              {["overview", "notifications"].includes(activeTab) && (
+                <div className="mb-6">
+                  <NotificationFilters
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={clearFilters}
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    onSortChange={handleSortChange}
+                  />
                 </div>
               )}
 
-              {["all", "system", "user", "user-notifications"].includes(activeTab) && (
+              {["overview", "notifications"].includes(activeTab) && (
                 <NotificationList
-                  key={`${activeTab}-${searchQuery}-${selectedUser}-${sortField}-${sortOrder}`}
+                  key={`${activeTab}-${searchQuery}-${JSON.stringify(filters)}-${sortField}-${sortOrder}`}
                   notifications={filteredNotifications()}
                   totalPages={totalPages}
                   currentPage={currentPage}
                   onPageChange={(page) => setCurrentPage(page)}
                   onDelete={handleDeleteNotification}
-                  onMarkAllRead={activeTab === "all" ? handleMarkAllAsRead : undefined}
+                  onMarkAllRead={activeTab === "overview" ? handleMarkAllAsRead : undefined}
                 />
               )}
 
@@ -487,46 +453,6 @@ export default function NotificationManagementPage() {
                 />
               )}
 
-              {activeTab === "user-notifications" && (
-                <div>
-                  <h3 className="text-lg font-medium mb-4">User Notifications</h3>
-                  <select
-                    className="border rounded p-2 mb-4 w-full max-w-md dark:bg-gray-800 dark:border-gray-700"
-                    onChange={(e) => {
-                      setSelectedUser(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    value={selectedUser || ""}
-                  >
-                    <option value="">Select a user</option>
-                    {Array.isArray(users) && users.length > 0 ? (
-                      users.map((user) => {
-                        const staffProfile = user.role === "staff" 
-                          ? staffProfiles.find(profile => profile.userId === (user.id || user._id))
-                          : null;
-                        
-                        return (
-                          <option key={user.id || user._id} value={user.id || user._id}>
-                            {user.email} ({user.name || "No Name"}) - {user.role}
-                            {staffProfile?.department && ` - ${staffProfile.department}`}
-                          </option>
-                        );
-                      })
-                    ) : (
-                      <option disabled>No users available</option>
-                    )}
-                  </select>
-                  {selectedUser && (
-                    <NotificationList
-                      notifications={filteredNotifications()}
-                      totalPages={totalPages}
-                      currentPage={currentPage}
-                      onPageChange={(page) => setCurrentPage(page)}
-                      onDelete={handleDeleteNotification}
-                    />
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>

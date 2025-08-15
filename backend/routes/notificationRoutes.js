@@ -59,11 +59,7 @@ router.delete("/:id", [...auth, validateNotificationId], deleteMyNotification);
 
 // ===================== ADMIN NOTIFICATION OPERATIONS =====================
 router.post("/send", [...auth, validateNotificationSend], sendNotification);
-router.post(
-  "/send/bulk",
-  [...admin, validateNotificationSend],
-  sendBulkNotifications
-);
+router.post("/send/bulk", [...admin], sendBulkNotifications);
 router.get(
   "/admin",
   [...admin, validateNotificationQuery],

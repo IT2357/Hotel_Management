@@ -54,8 +54,14 @@ export const validateNotificationPreferences = [
 
 // Validation for sending notifications
 export const validateNotificationSend = [
-  body("userId").isMongoId().withMessage("Invalid user ID"),
+  body("userId").optional().isMongoId().withMessage("Invalid user ID"),
+  body("userIds").optional().isArray().withMessage("User IDs must be an array"),
+  body("userIds.*")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid user ID in array"),
   body("userType")
+    .optional()
     .isIn(["guest", "staff", "manager", "admin"])
     .withMessage("Invalid user type"),
   body("type").notEmpty().withMessage("Notification type is required"),
@@ -94,5 +100,10 @@ export const validateNotificationQuery = [
   query("type").optional().notEmpty(),
   query("startDate").optional().isISO8601(),
   query("endDate").optional().isISO8601(),
+  query("search").optional().isString().trim().escape(), // Add validation for search query
+  query("userType").optional().isIn(["guest", "staff", "manager", "admin"]), // Add validation for userType query
+  query("status")
+    .optional()
+    .isIn(["pending", "sent", "delivered", "failed", "read"]), // Add validation for status query
   handleValidationErrors,
 ];

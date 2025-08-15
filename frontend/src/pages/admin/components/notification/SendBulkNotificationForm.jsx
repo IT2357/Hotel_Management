@@ -5,14 +5,15 @@ import Select from "../../../../components/ui/Select";
 import Textarea from "../../../../components/ui/Textarea";
 import Button from "../../../../components/ui/Button";
 import Spinner from "../../../../components/ui/Spinner";
+import useDebounce from "../../../../hooks/useDebounce";
 
 export default function SendBulkNotificationForm({ onSubmit, templates, users = [], staffProfiles = [] }) {
   const [formData, setFormData] = useState({
-    type: "system",
-    channel: "email",
+    type: "admin_message",
+    channel: "inApp",
     title: "",
     message: "",
-    priority: "normal",
+    priority: "medium",
     userGroup: "all",
     specificRoles: [],
     specificDepartments: [],
@@ -20,6 +21,14 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  
+  // Missing state variables for user selection
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // Debounce search query
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 20;
 
   // Get unique departments from staff profiles (matching your enum)
   const departments = useMemo(() => {
@@ -30,6 +39,36 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
     return [...new Set(activeDepartments)].sort();
   }, [staffProfiles]);
 
+  // Filter users for specific users selection
+  const filteredUsers = useMemo(() => {
+    if (!Array.isArray(users)) return [];
+    
+    return users.filter(user => {
+      const nameMatch = user.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || false;
+      const emailMatch = user.email?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || false;
+      const searchMatch = debouncedSearchQuery === "" || nameMatch || emailMatch;
+      
+      const roleMatch = roleFilter === "all" || user.role === roleFilter;
+      
+      let departmentMatch = true;
+      if (roleFilter === "staff" && departmentFilter !== "all") {
+        const staffProfile = staffProfiles.find(profile =>
+          profile.userId === (user.id || user._id)
+        );
+        departmentMatch = staffProfile?.department === departmentFilter;
+      }
+      
+      return searchMatch && roleMatch && departmentMatch;
+    });
+  }, [users, staffProfiles, debouncedSearchQuery, roleFilter, departmentFilter]);
+
+  // Pagination for filtered users
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * usersPerPage;
+    return filteredUsers.slice(startIndex, startIndex + usersPerPage);
+  }, [filteredUsers, currentPage, usersPerPage]);
+
   // Calculate recipient count based on selection
   const recipientCount = useMemo(() => {
     if (!Array.isArray(users)) return 0;
@@ -39,7 +78,7 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
         return users.length;
       
       case "specific_roles":
-        return users.filter(user => 
+        return users.filter(user =>
           formData.specificRoles.includes(user.role)
         ).length;
       
@@ -47,7 +86,7 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
         if (formData.specificDepartments.length === 0) return 0;
         return users.filter(user => {
           if (user.role !== "staff") return false;
-          const staffProfile = staffProfiles.find(profile => 
+          const staffProfile = staffProfiles.find(profile =>
             profile.userId === (user.id || user._id)
           );
           return staffProfile && formData.specificDepartments.includes(staffProfile.department);
@@ -132,10 +171,10 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
     if (template) {
       setFormData({
         ...formData,
-        title: template.subject || "",
+        title: template.subject || template.body?.substring(0, 50) || "",
         message: template.body || "",
-        type: template.type || "system",
-        channel: template.channel || "email",
+        type: template.type || "admin_message",
+        channel: template.channel || "inApp",
       });
     }
   };
@@ -166,16 +205,20 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
       await onSubmit(bulkData);
       toast.success(`Bulk notifications sent to ${recipientCount} users`);
       setFormData({
-        type: "system",
-        channel: "email",
+        type: "admin_message",
+        channel: "inApp",
         title: "",
         message: "",
-        priority: "normal",
+        priority: "medium",
         userGroup: "all",
         specificRoles: [],
         specificDepartments: [],
         specificUsers: [],
       });
+      setSearchQuery("");
+      setRoleFilter("all");
+      setDepartmentFilter("all");
+      setCurrentPage(1);
     } catch (error) {
       console.error("Bulk send error:", error);
       toast.error(`Failed to send bulk notifications: ${error.response?.data?.message || error.message}`);
@@ -453,11 +496,11 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
             onChange={handleChange}
             required
           >
-            <option value="system">System</option>
-            <option value="alert">Alert</option>
-            <option value="promotional">Promotional</option>
             <option value="admin_message">Admin Message</option>
+            <option value="system_alert">System Alert</option>
             <option value="emergency_alert">Emergency Alert</option>
+            <option value="manager_message">Manager Message</option>
+            <option value="test_notification">Test Notification</option>
           </Select>
 
           <Select
@@ -509,17 +552,21 @@ export default function SendBulkNotificationForm({ onSubmit, templates, users = 
             variant="secondary"
             onClick={() => {
               setFormData({
-                type: "system",
-                channel: "email",
+                type: "admin_message",
+                channel: "inApp",
                 title: "",
                 message: "",
-                priority: "normal",
+                priority: "medium",
                 userGroup: "all",
                 specificRoles: [],
                 specificDepartments: [],
                 specificUsers: [],
               });
               setShowPreview(false);
+              setSearchQuery("");
+              setRoleFilter("all");
+              setDepartmentFilter("all");
+              setCurrentPage(1);
             }}
           >
             Clear

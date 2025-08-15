@@ -130,19 +130,6 @@ export const sendBulkNotifications = async (req, res) => {
     const { userIds, title, message, type, channel, priority } = req.body;
 
     // Enhanced validation
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "userIds array is required and cannot be empty",
-      });
-    }
-
-    if (!title || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "title and message are required",
-      });
-    }
 
     console.log(`Sending bulk notification to ${userIds.length} users`); // Debug log
 
