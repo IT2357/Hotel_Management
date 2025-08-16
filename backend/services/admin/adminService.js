@@ -378,6 +378,261 @@ class AdminService {
     };
   }
 
+  // Delete user account (permanent deletion)
+  async deleteUser(userId, reason, requestingAdminId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Prevent deletion of other admins or self
+    if (user.role === "admin") {
+      throw new Error("Cannot delete admin accounts");
+    }
+
+    if (userId === requestingAdminId.toString()) {
+      throw new Error("Cannot delete your own account");
+    }
+
+    // Log the deletion action
+    await this.logAdminActivity(requestingAdminId, "delete", "User", userId, {
+      description: `Deleted user ${user.email}`,
+      reason: reason || "No reason provided",
+      deletedUser: {
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      },
+    });
+
+    // Delete associated profile first
+    await this.deleteUserProfile(userId, user.role);
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    return {
+      userId,
+      email: user.email,
+      message: "User account deleted successfully",
+    };
+  }
+
+  // Delete user profile based on role
+  async deleteUserProfile(userId, role) {
+    switch (role) {
+      case "guest":
+        await GuestProfile.findOneAndDelete({ userId });
+        break;
+      case "staff":
+        await StaffProfile.findOneAndDelete({ userId });
+        break;
+      case "manager":
+        await ManagerProfile.findOneAndDelete({ userId });
+        break;
+      case "admin":
+        await AdminProfile.findOneAndDelete({ userId });
+        break;
+    }
+  }
+
+  // Get user details with profile
+  async getUserDetails(userId) {
+    const user = await User.findById(userId)
+      .select(
+        "-password -otp -passwordResetToken -passwordResetExpiry -tokenVersion"
+      )
+      .populate("approvedBy", "name email");
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get role-specific profile
+    let profile = null;
+    switch (user.role) {
+      case "guest":
+        profile = await GuestProfile.findOne({ userId }).select("-userId");
+        break;
+      case "staff":
+        profile = await StaffProfile.findOne({ userId }).select("-userId");
+        break;
+      case "manager":
+        profile = await ManagerProfile.findOne({ userId }).select("-userId");
+        break;
+      case "admin":
+        profile = await AdminProfile.findOne({ userId }).select("-userId");
+        break;
+    }
+
+    return {
+      user,
+      profile,
+    };
+  }
+
+  // Update user profile
+  async updateUserProfile(userId, updates, requestingAdminId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Update basic user fields
+    const allowedUserFields = ["name", "phone", "address"];
+    const userUpdates = {};
+    allowedUserFields.forEach((field) => {
+      if (updates[field] !== undefined) {
+        userUpdates[field] = updates[field];
+      }
+    });
+
+    if (Object.keys(userUpdates).length > 0) {
+      await User.findByIdAndUpdate(userId, userUpdates);
+    }
+
+    // Update role-specific profile
+    const profileUpdates = updates.profile || {};
+    if (Object.keys(profileUpdates).length > 0) {
+      await this.updateRoleSpecificProfile(userId, user.role, profileUpdates);
+    }
+
+    // Log the update action
+    await this.logAdminActivity(requestingAdminId, "update", "User", userId, {
+      description: `Updated user profile for ${user.email}`,
+      updates: { ...userUpdates, profile: profileUpdates },
+    });
+
+    return {
+      userId,
+      message: "User profile updated successfully",
+    };
+  }
+
+  // Update role-specific profile
+  async updateRoleSpecificProfile(userId, role, updates) {
+    switch (role) {
+      case "guest":
+        await GuestProfile.findOneAndUpdate({ userId }, updates);
+        break;
+      case "staff":
+        await StaffProfile.findOneAndUpdate({ userId }, updates);
+        break;
+      case "manager":
+        await ManagerProfile.findOneAndUpdate({ userId }, updates);
+        break;
+      case "admin":
+        await AdminProfile.findOneAndUpdate({ userId }, updates);
+        break;
+    }
+  }
+
+  // Get user activity logs
+  async getUserActivityLogs(userId, { page = 1, limit = 20 }) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get login history from user
+    const loginHistory = user.loginHistory
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice((page - 1) * limit, page * limit);
+
+    // Get admin actions related to this user
+    const adminProfile = await AdminProfile.findOne({ userId }).select(
+      "activityLogs"
+    );
+    const adminLogs =
+      adminProfile?.activityLogs
+        .filter((log) => log.entityId.toString() === userId)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 10) || [];
+
+    return {
+      loginHistory,
+      adminActions: adminLogs,
+      pagination: {
+        page,
+        limit,
+        total: user.loginHistory.length,
+        pages: Math.ceil(user.loginHistory.length / limit),
+      },
+    };
+  }
+
+  // Reset user password (admin action)
+  async resetUserPassword(
+    userId,
+    temporaryPassword,
+    requirePasswordChange,
+    requestingAdminId
+  ) {
+    const user = await User.findById(userId).select("+tokenVersion");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Generate temporary password if not provided
+    const newPassword = temporaryPassword || this.generateTemporaryPassword();
+
+    // Update password
+    user.password = newPassword; // Pre-save hook will hash it
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate existing sessions
+
+    if (requirePasswordChange) {
+      user.mustChangePassword = true;
+    }
+
+    await user.save();
+
+    // Log the action
+    await this.logAdminActivity(requestingAdminId, "update", "User", userId, {
+      description: `Reset password for user ${user.email}`,
+      requirePasswordChange,
+    });
+
+    return {
+      userId,
+      temporaryPassword: newPassword,
+      message: "Password reset successfully",
+    };
+  }
+
+  // Generate temporary password
+  generateTemporaryPassword() {
+    const length = 12;
+    const charset =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  }
+
+  // Log admin activity
+  async logAdminActivity(adminId, action, entityType, entityId, details = {}) {
+    try {
+      const adminProfile = await AdminProfile.findOne({ userId: adminId });
+      if (adminProfile) {
+        adminProfile.activityLogs.push({
+          action,
+          entityType,
+          entityId,
+          description: details.description || `${action} ${entityType}`,
+          ipAddress: details.ipAddress || "Unknown",
+          userAgent: details.userAgent || "Unknown",
+          timestamp: new Date(),
+        });
+        await adminProfile.save();
+      }
+    } catch (error) {
+      console.error("Failed to log admin activity:", error);
+      // Don't throw - logging failure shouldn't break the main operation
+    }
+  }
+
   // Get admin dashboard statistics
   async getDashboardStats() {
     const [

@@ -14,6 +14,12 @@ import {
   getUsers,
   updateUserRole,
   deactivateUser,
+  reactivateUser,
+  deleteUser,
+  getUserDetails,
+  updateUserProfile,
+  getUserActivityLogs,
+  resetUserPassword,
 } from "../controllers/admin/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
@@ -89,6 +95,36 @@ router.put(
   "/users/:userId/deactivate",
   authorizeRoles({ permissions: ["users:update"] }),
   deactivateUser
+);
+router.put(
+  "/users/:userId/reactivate",
+  authorizeRoles({ permissions: ["users:update"] }),
+  reactivateUser
+);
+router.delete(
+  "/users/:userId",
+  authorizeRoles({ permissions: ["users:delete"] }),
+  deleteUser
+);
+router.get(
+  "/users/:userId/details",
+  authorizeRoles({ permissions: ["users:read"] }),
+  getUserDetails
+);
+router.put(
+  "/users/:userId/profile",
+  authorizeRoles({ permissions: ["users:update"] }),
+  updateUserProfile
+);
+router.get(
+  "/users/:userId/activity",
+  authorizeRoles({ permissions: ["users:read"] }),
+  getUserActivityLogs
+);
+router.put(
+  "/users/:userId/reset-password",
+  authorizeRoles({ permissions: ["users:update"] }),
+  resetUserPassword
 );
 
 // ✅ Approval system routes

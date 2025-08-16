@@ -41,13 +41,32 @@ class AuthService {
           preferences: { preferredLanguage: "en" },
         });
       case "staff":
-        return await StaffProfile.create({ userId, isActive: true });
+        return await StaffProfile.create({
+          userId,
+          isActive: true,
+          department: "Service", // Default department
+          position: "Staff Member", // Default position
+        });
       case "manager":
-        return await ManagerProfile.create({ userId });
+        return await ManagerProfile.create({
+          userId,
+          departments: ["FrontDesk"], // Default department
+          permissions: {
+            canApproveLeave: false,
+            canAuthorizePayments: false,
+            canManageInventory: false,
+            canOverridePricing: false,
+            canViewFinancials: false,
+          },
+        });
       case "admin":
         return await AdminProfile.create({
           userId,
-          permissions: permissions || ["view-reports"],
+          permissions: permissions || [
+            { module: "users", actions: ["read", "create", "update"] },
+            { module: "reports", actions: ["read"] },
+          ],
+          accessLevel: "Limited",
         });
       default:
         throw new Error(`Invalid role: ${role}`);

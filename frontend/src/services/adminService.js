@@ -3,13 +3,24 @@ import api from "./api";
 
 const adminService = {
   // User management
-  getUsers: () => api.get("/admin/users"),
+  getUsers: (params) => api.get("/admin/users", { params }),
   createPrivilegedUser: (data) => api.post("/admin/users", data),
-  updateUserRole: (userId, role) =>
-    api.put(`/admin/users/${userId}/role`, { role }),
-  deactivateUser: (userId) => api.put(`/admin/users/${userId}/deactivate`),
+  updateUserRole: (userId, data) =>
+    api.put(`/admin/users/${userId}/role`, data),
+  deactivateUser: (userId, data) =>
+    api.put(`/admin/users/${userId}/deactivate`, data),
+  reactivateUser: (userId) => api.put(`/admin/users/${userId}/reactivate`),
+  deleteUser: (userId, data) => api.delete(`/admin/users/${userId}`, { data }),
+  getUserDetails: (userId) => api.get(`/admin/users/${userId}/details`),
+  updateUserProfile: (userId, data) =>
+    api.put(`/admin/users/${userId}/profile`, data),
+  getUserActivity: (userId, params) =>
+    api.get(`/admin/users/${userId}/activity`, { params }),
+  resetUserPassword: (userId, data) =>
+    api.put(`/admin/users/${userId}/reset-password`, data),
   getPendingApprovals: () => api.get("/admin/approvals"),
-  approveUser: (userId) => api.put(`/admin/approvals/${userId}`),
+  approveUser: (userId, data) => api.put(`/admin/approvals/${userId}`, data),
+  getDashboardStats: () => api.get("/admin/dashboard/stats"),
   // frontend/src/services/adminService.js
   async getStaffProfiles() {
     try {

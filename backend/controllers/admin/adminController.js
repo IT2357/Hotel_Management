@@ -263,6 +263,124 @@ export const reactivateUser = async (req, res) => {
   }
 };
 
+// Delete user account (with strong confirmation)
+export const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { confirmationText, reason } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    if (confirmationText !== "DELETE") {
+      return res.status(400).json({
+        success: false,
+        message: "Confirmation text must be exactly 'DELETE'",
+      });
+    }
+
+    const result = await AdminService.deleteUser(userId, reason, req.user._id);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to delete user");
+  }
+};
+
+// Get user details with profile
+export const getUserDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.getUserDetails(userId);
+    sendSuccess(res, result);
+  } catch (error) {
+    handleError(res, error, "Failed to get user details");
+  }
+};
+
+// Update user profile
+export const updateUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const updates = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.updateUserProfile(
+      userId,
+      updates,
+      req.user._id
+    );
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to update user profile");
+  }
+};
+
+// Get user activity logs
+export const getUserActivityLogs = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page, limit } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.getUserActivityLogs(userId, {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+    });
+    sendSuccess(res, result);
+  } catch (error) {
+    handleError(res, error, "Failed to get user activity logs");
+  }
+};
+
+// Reset user password (admin action)
+export const resetUserPassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { temporaryPassword, requirePasswordChange = true } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const result = await AdminService.resetUserPassword(
+      userId,
+      temporaryPassword,
+      requirePasswordChange,
+      req.user._id
+    );
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to reset user password");
+  }
+};
+
 // Get dashboard statistics
 export const getDashboardStats = async (req, res) => {
   try {
@@ -426,6 +544,11 @@ export default {
   updateUserRole,
   deactivateUser,
   reactivateUser,
+  deleteUser,
+  getUserDetails,
+  updateUserProfile,
+  getUserActivityLogs,
+  resetUserPassword,
   getDashboardStats,
   sendAdminNotification,
   getAllNotifications,

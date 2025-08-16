@@ -16,6 +16,14 @@ const NotificationDropdown = () => {
     fetchNotifications,
   } = useNotifications();
 
+  // Debug logging
+  console.log('NotificationDropdown state:', {
+    notifications,
+    unreadCount,
+    loading,
+    notificationsLength: notifications?.length
+  });
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {

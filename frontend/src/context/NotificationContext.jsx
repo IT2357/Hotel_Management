@@ -57,7 +57,9 @@ function notificationReducer(state, action) {
     case ActionTypes.REMOVE_NOTIFICATION:
       return {
         ...state,
-        notifications: state.notifications.filter(notification => notification.id !== action.payload),
+        notifications: state.notifications.filter(notification =>
+          notification.id !== action.payload && notification._id !== action.payload
+        ),
         unreadCount: Math.max(0, state.unreadCount - 1),
       };
 
@@ -71,7 +73,7 @@ function notificationReducer(state, action) {
       return {
         ...state,
         notifications: state.notifications.map(notification =>
-          notification.id === action.payload
+          (notification.id === action.payload || notification._id === action.payload)
             ? { ...notification, isRead: true, readAt: new Date().toISOString() }
             : notification
         ),
@@ -108,9 +110,24 @@ export const NotificationProvider = ({ children }) => {
   const fetchNotifications = useCallback(async (params = {}) => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
-      const data = await notificationService.getMyNotifications(params);
-      dispatch({ type: ActionTypes.SET_NOTIFICATIONS, payload: data.notifications || [] });
+      const response = await notificationService.getMyNotifications(params);
+      console.log('Fetched notifications response:', response); // Debug log
+      
+      // Handle different response structures
+      let notifications = [];
+      if (response.data && response.data.notifications) {
+        notifications = response.data.notifications;
+      } else if (response.notifications) {
+        notifications = response.notifications;
+      } else if (Array.isArray(response.data)) {
+        notifications = response.data;
+      } else if (Array.isArray(response)) {
+        notifications = response;
+      }
+      
+      dispatch({ type: ActionTypes.SET_NOTIFICATIONS, payload: notifications });
     } catch (error) {
+      console.error('Fetch notifications error:', error);
       dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
       toast.error(`Failed to fetch notifications: ${error.message}`);
     }
@@ -119,8 +136,18 @@ export const NotificationProvider = ({ children }) => {
   // Fetch unread count
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const data = await notificationService.getUnreadCount();
-      dispatch({ type: ActionTypes.SET_UNREAD_COUNT, payload: data.count || 0 });
+      const response = await notificationService.getUnreadCount();
+      console.log('Unread count response:', response); // Debug log
+      
+      // Handle different response structures
+      let count = 0;
+      if (response.data && typeof response.data.count === 'number') {
+        count = response.data.count;
+      } else if (typeof response.count === 'number') {
+        count = response.count;
+      }
+      
+      dispatch({ type: ActionTypes.SET_UNREAD_COUNT, payload: count });
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
     }
