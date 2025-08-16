@@ -2,29 +2,60 @@
 import nodemailer from "nodemailer";
 import { User } from "../../models/User.js";
 
-// Validate required environment variables
-const requiredEnvVars = [
-  "SMTP_HOST",
-  "SMTP_PORT",
-  "SMTP_USER",
-  "SMTP_PASS",
-  "SMTP_FROM",
-];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required email configuration: ${envVar}`);
-  }
-}
+// Check if email service is enabled
+const isEmailEnabled = process.env.EMAIL_ENABLED === "true";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT, 10),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Initialize transporter only if email is enabled and all required vars are present
+let transporter = null;
+
+if (isEmailEnabled) {
+  // Validate required environment variables
+  const requiredEnvVars = [
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_PASS",
+    "SMTP_FROM",
+  ];
+
+  const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
+  if (missingVars.length > 0) {
+    console.error(
+      `❌ Missing required email configuration: ${missingVars.join(", ")}`
+    );
+    console.warn(
+      "⚠️ Email service will be disabled due to missing configuration"
+    );
+  } else {
+    try {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT, 10),
+        secure: process.env.SMTP_SECURE === "true",
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      // Verify connection configuration
+      transporter.verify((error, success) => {
+        if (error) {
+          console.error("❌ SMTP connection verification failed:", error);
+          transporter = null;
+        } else {
+          console.log("✅ SMTP server is ready to send emails");
+        }
+      });
+    } catch (error) {
+      console.error("❌ Failed to create email transporter:", error);
+      transporter = null;
+    }
+  }
+} else {
+  console.log("📧 Email service is disabled (EMAIL_ENABLED=false)");
+}
 
 class EmailService {
   // Base email sending method

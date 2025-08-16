@@ -89,34 +89,54 @@ class NotificationService {
       await notification.save();
 
       // Send via appropriate channel
-      switch (channel) {
-        case "email":
-          if (this.emailEnabled) {
-            await this.sendEmailNotification(notification);
-          } else {
-            notification.status = "failed";
-            notification.error = "Email service is disabled";
+      try {
+        switch (channel) {
+          case "email":
+            if (this.emailEnabled) {
+              await this.sendEmailNotification(notification);
+            } else {
+              notification.status = "failed";
+              notification.error = "Email service is disabled";
+              await notification.save();
+            }
+            break;
+          case "sms":
+            if (this.smsEnabled) {
+              await this.sendSmsNotification(notification);
+            } else {
+              notification.status = "failed";
+              notification.error = "SMS service is disabled";
+              await notification.save();
+            }
+            break;
+          case "inApp":
+            notification.status = "sent";
             await notification.save();
-          }
-          break;
-        case "sms":
-          if (this.smsEnabled) {
-            await this.sendSmsNotification(notification);
-          } else {
-            notification.status = "failed";
-            notification.error = "SMS service is disabled";
+            break;
+          case "push":
+            // For now, mark as sent. Push notifications would need additional implementation
+            notification.status = "sent";
+            notification.metadata = {
+              ...notification.metadata,
+              pushNotImplemented: true,
+            };
             await notification.save();
-          }
-          break;
-        case "inApp":
-          notification.status = "sent";
-          await notification.save();
-          break;
-        default:
-          notification.status = "failed";
-          notification.error = "Invalid channel";
-          await notification.save();
-          break;
+            break;
+          default:
+            notification.status = "failed";
+            notification.error = `Invalid channel: ${channel}`;
+            await notification.save();
+            break;
+        }
+      } catch (channelError) {
+        console.error(
+          `Error sending notification via ${channel}:`,
+          channelError
+        );
+        notification.status = "failed";
+        notification.error = channelError.message;
+        await notification.save();
+        throw channelError;
       }
       return notification;
     } catch (error) {

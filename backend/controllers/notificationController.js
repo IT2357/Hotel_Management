@@ -130,16 +130,60 @@ export const sendBulkNotifications = async (req, res) => {
     const { userIds, title, message, type, channel, priority } = req.body;
 
     // Enhanced validation
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "userIds array is required and must not be empty",
+      });
+    }
 
-    console.log(`Sending bulk notification to ${userIds.length} users`); // Debug log
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "title is required and must be a non-empty string",
+      });
+    }
+
+    if (!message || typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "message is required and must be a non-empty string",
+      });
+    }
+
+    // Validate channel
+    const validChannels = ["email", "inApp", "sms", "push"];
+    const selectedChannel = channel || "inApp";
+    if (!validChannels.includes(selectedChannel)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid channel. Must be one of: ${validChannels.join(", ")}`,
+      });
+    }
+
+    // Validate priority
+    const validPriorities = ["low", "medium", "high", "critical"];
+    const selectedPriority = priority || "medium";
+    if (!validPriorities.includes(selectedPriority)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid priority. Must be one of: ${validPriorities.join(
+          ", "
+        )}`,
+      });
+    }
+
+    console.log(
+      `Sending bulk notification to ${userIds.length} users via ${selectedChannel}`
+    ); // Debug log
 
     const result = await NotificationService.sendBulkNotifications({
       userIds,
-      title,
-      message,
+      title: title.trim(),
+      message: message.trim(),
       type: type || "admin_message",
-      channel: channel || "inApp",
-      priority: priority || "medium",
+      channel: selectedChannel,
+      priority: selectedPriority,
       sentBy: req.user._id,
     });
 

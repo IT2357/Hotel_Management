@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import Logo from '../../assets/images/adminLogo.jpg';
+import NotificationDropdown from '../../components/common/NotificationDropdown';
 
 const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const [showSearch, setShowSearch] = useState(false);
@@ -73,13 +74,7 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
 
         {/* Right: Notifications & profile */}
         <div className="flex items-center gap-2 relative flex-shrink-0">
-          <button className="relative text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M15 17h5l-1.405-1.405C18.525 14.632 18 13.38 18 12V8a6 6 0 00-5-5.917V2a1 1 0 10-2 0v.083A6 6 0 006 8v4c0 1.38-.525 2.632-1.595 3.595L3 17h5m4 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full animate-ping"></span>
-          </button>
+          <NotificationDropdown />
 
           <div className="relative">
             <button

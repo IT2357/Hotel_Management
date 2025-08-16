@@ -193,11 +193,27 @@ export const NotificationProvider = ({ children }) => {
     dispatch({ type: ActionTypes.CLEAR_ERROR });
   }, []);
 
-  // Initialize data on mount
+  // Initialize data on mount and set up polling
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
     fetchPreferences();
+
+    // Set up real-time polling every 30 seconds for unread count
+    const unreadCountInterval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+
+    // Set up polling every 60 seconds for new notifications
+    const notificationsInterval = setInterval(() => {
+      fetchNotifications({ limit: 20 }); // Get latest 20 notifications
+    }, 60000);
+
+    // Cleanup intervals on unmount
+    return () => {
+      clearInterval(unreadCountInterval);
+      clearInterval(notificationsInterval);
+    };
   }, [fetchNotifications, fetchUnreadCount, fetchPreferences]);
 
   const value = {
