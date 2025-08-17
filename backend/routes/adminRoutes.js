@@ -125,4 +125,36 @@ router.delete(
   deleteInvitation
 );
 
+// 🛍️ Refund management routes
+router.get(
+  "/refunds/pending",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  getPendingRefunds
+);
+router.get(
+  "/refunds/:id",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  getRefundDetails
+);
+router.post(
+  "/refunds/:id/approve",
+  authorizeRoles({ permissions: ["refunds:approve"] }),
+  approveRefund
+);
+router.post(
+  "/refunds/:id/deny",
+  authorizeRoles({ permissions: ["refunds:deny"] }),
+  denyRefund
+);
+router.post(
+  "/refunds/:id/request-info",
+  authorizeRoles({ permissions: ["refunds:request-info"] }),
+  requestMoreInfo
+);
+router.post(
+  "/payment-gateway/refund",
+  authorizeRoles({ permissions: ["refunds:process"] }),
+  processRefund
+);
+
 export default router;

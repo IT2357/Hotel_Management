@@ -412,6 +412,123 @@ class AdminService {
       recentRegistrations,
     };
   }
+
+  // Refund Management Methods
+
+  async getPendingRefunds() {
+    const pendingRefunds = await RefundRequest.find({ status: "pending" })
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber")
+      .sort({ createdAt: -1 });
+
+    return pendingRefunds;
+  }
+
+  async getRefundDetails(refundId) {
+    const refund = await RefundRequest.findById(refundId)
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber");
+
+    if (!refund) {
+      throw new Error("Refund not found");
+    }
+
+    return refund;
+  }
+
+  async approveRefund(refundId, requestingAdminId) {
+    const refund = await RefundRequest.findById(refundId);
+
+    if (!refund) {
+      throw new Error("Refund not found");
+    }
+
+    if (refund.status !== "pending") {
+      throw new Error("Refund is not pending");
+    }
+
+    refund.status = "approved";
+    refund.approvedBy = requestingAdminId;
+    refund.approvedAt = new Date();
+
+    await refund.save();
+
+    return refund;
+  }
+
+  async denyRefund(refundId, reason, requestingAdminId) {
+    const refund = await RefundRequest.findById(refundId);
+
+    if (!refund) {
+      throw new Error("Refund not found");
+    }
+
+    if (refund.status !== "pending") {
+      throw new Error("Refund is not pending");
+    }
+
+    refund.status = "denied";
+    refund.denialReason = reason;
+    refund.deniedBy = requestingAdminId;
+    refund.deniedAt = new Date();
+
+    await refund.save();
+
+    return refund;
+  }
+
+  async requestMoreInfo(refundId, infoRequested, requestingAdminId) {
+    const refund = await RefundRequest.findById(refundId);
+
+    if (!refund) {
+      throw new Error("Refund not found");
+    }
+
+    if (refund.status !== "pending") {
+      throw new Error("Refund is not pending");
+    }
+
+    refund.status = "info_requested";
+    refund.infoRequested = infoRequested;
+    refund.infoRequestedBy = requestingAdminId;
+    refund.infoRequestedAt = new Date();
+
+    await refund.save();
+
+    return refund;
+  }
+
+  async processRefund(refundId, paymentGatewayRef) {
+    const refund = await RefundRequest.findById(refundId);
+
+    if (!refund) {
+      throw new Error("Refund not found");
+    }
+
+    if (refund.status !== "approved") {
+      throw new Error("Refund is not approved");
+    }
+
+    // Placeholder for payment gateway integration
+    // This should be replaced with actual payment gateway processing logic
+    // For now, we'll simulate a successful refund
+    const refundProcessed = true;
+
+    if (refundProcessed) {
+      refund.status = "processed";
+      refund.paymentGatewayRef = paymentGatewayRef;
+      refund.processedAt = new Date();
+    } else {
+      refund.status = "failed";
+      refund.failureReason = "Payment gateway processing failed";
+    }
+
+    await refund.save();
+
+    return refund;
+  }
 }
 
 export default new AdminService();
