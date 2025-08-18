@@ -5,7 +5,14 @@ import Invitation from "../../models/Invitation.js";
 import AdminProfile from "../../models/profiles/AdminProfile.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import ManagerProfile from "../../models/profiles/ManagerProfile.js";
+import RefundRequest from "../../models/RefundRequest.js";
 import EmailService from "../notification/emailService.js";
+import RefundNotificationService from "../notification/refundNotificationService.js";
+import PaymentService from "../payment/paymentService.js";
+import logger from "../../utils/logger.js";
+import Booking from "../../models/Booking.js";
+import Room from "../../models/Room.js";
+import Invoice from "../../models/Invoice.js";
 
 class AdminService {
   // Create privileged user
@@ -439,7 +446,10 @@ class AdminService {
   }
 
   async approveRefund(refundId, requestingAdminId) {
-    const refund = await RefundRequest.findById(refundId);
+    const refund = await RefundRequest.findById(refundId)
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber");
 
     if (!refund) {
       throw new Error("Refund not found");
@@ -455,11 +465,32 @@ class AdminService {
 
     await refund.save();
 
+    // Send approval notification
+    try {
+      const approver = await User.findById(requestingAdminId).select(
+        "name email"
+      );
+      await RefundNotificationService.sendRefundApproved(
+        refund.guestId,
+        refund,
+        approver
+      );
+    } catch (notificationError) {
+      logger.error("Failed to send refund approval notification", {
+        refundId,
+        error: notificationError.message,
+      });
+      // Don't fail the approval if notification fails
+    }
+
     return refund;
   }
 
   async denyRefund(refundId, reason, requestingAdminId) {
-    const refund = await RefundRequest.findById(refundId);
+    const refund = await RefundRequest.findById(refundId)
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber");
 
     if (!refund) {
       throw new Error("Refund not found");
@@ -476,11 +507,32 @@ class AdminService {
 
     await refund.save();
 
+    // Send denial notification
+    try {
+      const denier = await User.findById(requestingAdminId).select(
+        "name email"
+      );
+      await RefundNotificationService.sendRefundDenied(
+        refund.guestId,
+        refund,
+        denier
+      );
+    } catch (notificationError) {
+      logger.error("Failed to send refund denial notification", {
+        refundId,
+        error: notificationError.message,
+      });
+      // Don't fail the denial if notification fails
+    }
+
     return refund;
   }
 
   async requestMoreInfo(refundId, infoRequested, requestingAdminId) {
-    const refund = await RefundRequest.findById(refundId);
+    const refund = await RefundRequest.findById(refundId)
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber");
 
     if (!refund) {
       throw new Error("Refund not found");
@@ -497,11 +549,28 @@ class AdminService {
 
     await refund.save();
 
+    // Send info request notification
+    try {
+      await RefundNotificationService.sendRefundInfoRequested(
+        refund.guestId,
+        refund
+      );
+    } catch (notificationError) {
+      logger.error("Failed to send refund info request notification", {
+        refundId,
+        error: notificationError.message,
+      });
+      // Don't fail the request if notification fails
+    }
+
     return refund;
   }
 
-  async processRefund(refundId, paymentGatewayRef) {
-    const refund = await RefundRequest.findById(refundId);
+  async processRefund(refundId, originalPaymentId) {
+    const refund = await RefundRequest.findById(refundId)
+      .populate("bookingId", "bookingNumber")
+      .populate("guestId", "name email")
+      .populate("invoiceId", "invoiceNumber totalAmount");
 
     if (!refund) {
       throw new Error("Refund not found");
@@ -511,21 +580,160 @@ class AdminService {
       throw new Error("Refund is not approved");
     }
 
-    // Placeholder for payment gateway integration
-    // This should be replaced with actual payment gateway processing logic
-    // For now, we'll simulate a successful refund
-    const refundProcessed = true;
+    try {
+      logger.info("Processing refund through PayHere", {
+        refundId,
+        amount: refund.amount,
+        originalPaymentId,
+      });
 
-    if (refundProcessed) {
-      refund.status = "processed";
-      refund.paymentGatewayRef = paymentGatewayRef;
-      refund.processedAt = new Date();
-    } else {
+      // Validate refund eligibility
+      const eligibilityCheck = PaymentService.validateRefundEligibility({
+        paymentDate: refund.invoiceId?.createdAt || refund.createdAt,
+        paymentStatus: "completed",
+        amount: refund.invoiceId?.totalAmount || refund.amount,
+        refundAmount: refund.amount,
+      });
+
+      if (!eligibilityCheck.isEligible) {
+        refund.status = "failed";
+        refund.failureReason = eligibilityCheck.errors.join(", ");
+        await refund.save();
+
+        logger.error("Refund eligibility check failed", {
+          refundId,
+          errors: eligibilityCheck.errors,
+        });
+
+        throw new Error(
+          `Refund not eligible: ${eligibilityCheck.errors.join(", ")}`
+        );
+      }
+
+      // Process refund through PayHere
+      const paymentResult = await PaymentService.processRefund({
+        originalPaymentId: originalPaymentId || refund.paymentGatewayRef,
+        refundAmount: refund.amount,
+        refundReason: refund.reason,
+        refundReference: `REF_${refund._id}_${Date.now()}`,
+        currency: refund.currency || "LKR",
+      });
+
+      if (paymentResult.success) {
+        // Update refund record with successful processing
+        refund.status = "processed";
+        refund.paymentGatewayRef = paymentResult.refundId;
+        refund.processedAt = new Date();
+        refund.gatewayResponse = paymentResult.gatewayResponse;
+
+        logger.info("Refund processed successfully", {
+          refundId,
+          paymentGatewayRef: paymentResult.refundId,
+          amount: refund.amount,
+        });
+
+        // Send notification to guest about successful refund
+        try {
+          await EmailService.sendRefundProcessedEmail(refund.guestId, {
+            refundId: refund._id,
+            amount: refund.amount,
+            currency: refund.currency || "LKR",
+            bookingNumber: refund.bookingId?.bookingNumber,
+            processedAt: refund.processedAt,
+            estimatedArrival: "3-5 business days",
+          });
+        } catch (emailError) {
+          logger.error("Failed to send refund processed email", {
+            refundId,
+            error: emailError.message,
+          });
+          // Don't fail the refund process if email fails
+        }
+      } else {
+        // Update refund record with failure
+        refund.status = "failed";
+        refund.failureReason =
+          paymentResult.error || "Payment gateway processing failed";
+        refund.gatewayResponse = paymentResult.gatewayResponse;
+
+        logger.error("Refund processing failed", {
+          refundId,
+          error: paymentResult.error,
+          errorCode: paymentResult.errorCode,
+        });
+
+        // Send notification to admin about failed refund
+        try {
+          await EmailService.sendRefundFailedNotification({
+            refundId: refund._id,
+            amount: refund.amount,
+            error: paymentResult.error,
+            bookingNumber: refund.bookingId?.bookingNumber,
+            guestEmail: refund.guestId?.email,
+          });
+        } catch (emailError) {
+          logger.error("Failed to send refund failed notification", {
+            refundId,
+            error: emailError.message,
+          });
+        }
+      }
+
+      await refund.save();
+      return refund;
+    } catch (error) {
+      // Handle unexpected errors
       refund.status = "failed";
-      refund.failureReason = "Payment gateway processing failed";
+      refund.failureReason =
+        error.message || "Unexpected error during refund processing";
+      await refund.save();
+
+      logger.error("Unexpected error during refund processing", {
+        refundId,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw error;
+    }
+  }
+
+  // Add method to check refund status
+  async checkRefundStatus(refundId) {
+    const refund = await RefundRequest.findById(refundId);
+
+    if (!refund) {
+      throw new Error("Refund not found");
     }
 
-    await refund.save();
+    if (refund.status === "processed" && refund.paymentGatewayRef) {
+      try {
+        const statusResult = await PaymentService.checkRefundStatus(
+          refund.paymentGatewayRef
+        );
+
+        if (statusResult.success) {
+          // Update local status if needed
+          if (statusResult.status !== refund.status) {
+            refund.status = statusResult.status;
+            refund.gatewayResponse = statusResult.gatewayResponse;
+            await refund.save();
+          }
+        }
+
+        return {
+          ...refund.toObject(),
+          gatewayStatus: statusResult,
+        };
+      } catch (error) {
+        logger.error("Failed to check refund status with PayHere", {
+          refundId,
+          error: error.message,
+        });
+
+        return refund;
+      }
+    }
 
     return refund;
   }

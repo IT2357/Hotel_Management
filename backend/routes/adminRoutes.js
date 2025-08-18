@@ -14,9 +14,17 @@ import {
   getUsers,
   updateUserRole,
   deactivateUser,
+  getPendingRefunds,
+  getRefundDetails,
+  approveRefund,
+  denyRefund,
+  requestMoreInfo,
+  processRefund,
+  checkRefundStatus,
 } from "../controllers/admin/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
+import { refundOperationMiddleware } from "../middleware/refundValidation.js";
 import StaffProfile from "../models/profiles/StaffProfile.js";
 
 const router = express.Router();
@@ -138,23 +146,32 @@ router.get(
 );
 router.post(
   "/refunds/:id/approve",
-  authorizeRoles({ permissions: ["refunds:approve"] }),
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("approve"),
   approveRefund
 );
 router.post(
   "/refunds/:id/deny",
-  authorizeRoles({ permissions: ["refunds:deny"] }),
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("deny"),
   denyRefund
 );
 router.post(
   "/refunds/:id/request-info",
-  authorizeRoles({ permissions: ["refunds:request-info"] }),
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  ...refundOperationMiddleware("request-info"),
   requestMoreInfo
 );
 router.post(
-  "/payment-gateway/refund",
-  authorizeRoles({ permissions: ["refunds:process"] }),
+  "/refunds/:id/process",
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("process"),
   processRefund
+);
+router.get(
+  "/refunds/:id/status",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  checkRefundStatus
 );
 
 export default router;

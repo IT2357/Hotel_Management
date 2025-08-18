@@ -12,6 +12,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     { label: 'Invitations', to: '/admin/invitations' },
     { label: 'Users', to: '/admin/users' },
     { label: 'Bookings', to: '/admin/bookings' },
+    { label: 'Refunds', to: '/admin/refunds' },
     { label: 'Reports', to: '/admin/reports' },
     { label: 'Settings', to: '/admin/settings' }
   ];

@@ -33,6 +33,7 @@
     "passport-apple": "^2.0.2",
     "passport-google-oauth20": "^2.0.0",
     "twilio": "^5.8.0",
+    "winston": "^3.17.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

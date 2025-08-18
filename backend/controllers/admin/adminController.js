@@ -414,34 +414,6 @@ export const deleteNotificationTemplate = async (req, res) => {
   }
 };
 
-export default {
-  createPrivilegedUser,
-  approveUser,
-  createInvitation,
-  getInvitations,
-  updateInvitation,
-  deleteInvitation,
-  getPendingApprovals,
-  getUsers,
-  updateUserRole,
-  deactivateUser,
-  reactivateUser,
-  getDashboardStats,
-  sendAdminNotification,
-  getAllNotifications,
-  getNotificationStats,
-  getNotificationTemplates,
-  createNotificationTemplate,
-  updateNotificationTemplate,
-  deleteNotificationTemplate,
-  getPendingRefunds,
-  getRefundDetails,
-  approveRefund,
-  denyRefund,
-  requestMoreInfo,
-  processRefund,
-};
-
 // Get all pending refund requests
 export const getPendingRefunds = async (req, res) => {
   try {
@@ -536,6 +508,7 @@ export const requestMoreInfo = async (req, res) => {
 export const processRefund = async (req, res) => {
   try {
     const { id } = req.params;
+    const { originalPaymentId } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -544,9 +517,57 @@ export const processRefund = async (req, res) => {
       });
     }
 
-    const result = await AdminService.processRefund(id, req.user._id);
-    sendSuccess(res, result, result.message);
+    const result = await AdminService.processRefund(id, originalPaymentId);
+    sendSuccess(res, result, "Refund processed successfully");
   } catch (error) {
     handleError(res, error, "Failed to process refund");
   }
+};
+
+// Check refund status
+export const checkRefundStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID is required",
+      });
+    }
+
+    const result = await AdminService.checkRefundStatus(id);
+    sendSuccess(res, result, "Refund status retrieved successfully");
+  } catch (error) {
+    handleError(res, error, "Failed to check refund status");
+  }
+};
+
+export default {
+  createPrivilegedUser,
+  approveUser,
+  createInvitation,
+  getInvitations,
+  updateInvitation,
+  deleteInvitation,
+  getPendingApprovals,
+  getUsers,
+  updateUserRole,
+  deactivateUser,
+  reactivateUser,
+  getDashboardStats,
+  sendAdminNotification,
+  getAllNotifications,
+  getNotificationStats,
+  getNotificationTemplates,
+  createNotificationTemplate,
+  updateNotificationTemplate,
+  deleteNotificationTemplate,
+  getPendingRefunds,
+  getRefundDetails,
+  approveRefund,
+  denyRefund,
+  requestMoreInfo,
+  processRefund,
+  checkRefundStatus,
 };

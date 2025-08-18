@@ -1,28 +1,73 @@
-// 📁 backend/models/RefundRequest.js
 import mongoose from "mongoose";
 
 const refundRequestSchema = new mongoose.Schema(
   {
-    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" },
-    guestId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
-    amount: Number,
-    reason: String,
-    evidence: String, // For attaching documents or evidence
-    paymentGatewayRef: String, // For storing payment gateway reference
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      required: true,
+    },
+    guestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      required: true,
+    },
+
+    amount: { type: Number, required: true },
+    currency: { type: String, default: "LKR" },
+
+    reason: { type: String },
+    evidence: [
+      {
+        type: {
+          type: String,
+          enum: ["receipt", "email", "document", "photo", "other"],
+        },
+        description: { type: String },
+        fileUrl: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+    paymentGatewayRef: { type: String },
+
     status: {
       type: String,
       enum: [
-        "Pending",
-        "Approved",
-        "Denied",
-        "Processing",
-        "Failed",
-        "Pending - Awaiting Info",
+        "pending",
+        "approved",
+        "denied",
+        "processed",
+        "failed",
+        "info_requested",
       ],
-      default: "Pending",
+      default: "pending",
+      required: true,
     },
-    processedAt: Date,
+
+    // Approval tracking
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    approvedAt: { type: Date },
+
+    // Denial tracking
+    deniedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    deniedAt: { type: Date },
+    denialReason: { type: String },
+
+    // Info request tracking
+    infoRequested: { type: String },
+    infoRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    infoRequestedAt: { type: Date },
+
+    // Refund processing
+    processedAt: { type: Date },
+    failureReason: { type: String },
+    gatewayResponse: { type: mongoose.Schema.Types.Mixed },
+
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
