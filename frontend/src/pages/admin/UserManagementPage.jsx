@@ -18,7 +18,7 @@ export default function UserManagementPage() {
     page: 1,
     limit: 20,
     role: '',
-    isApproved: '',
+    isApproved: 'all', // Default to showing all users
     search: ''
   });
   const [pagination, setPagination] = useState({});
@@ -52,9 +52,18 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await adminService.getUsers(filters);
-      setUsers(response.data.data.users);
-      setPagination(response.data.data.pagination);
+      // Convert string filters to proper types
+      const apiFilters = {
+        ...filters,
+        role: filters.role || undefined,
+        isApproved: filters.isApproved === '' ? undefined :
+                   filters.isApproved === 'all' ? undefined :
+                   filters.isApproved === 'true',
+        search: filters.search || undefined
+      };
+      const response = await adminService.getUsers(apiFilters);
+      setUsers(response.data.data.users || []);
+      setPagination(response.data.data.pagination || {});
     } catch (error) {
       console.error('Failed to fetch users:', error);
     } finally {
@@ -81,7 +90,7 @@ export default function UserManagementPage() {
     } else if (activeTab === 'pending') {
       fetchPendingApprovals();
     }
-  }, [activeTab, filters]);
+  }, [activeTab, filters.page, filters.limit, filters.role, filters.isApproved, filters.search]);
 
   const handleUserAction = async (action, userId, data = {}) => {
     try {
@@ -254,7 +263,7 @@ export default function UserManagementPage() {
                   value={filters.isApproved}
                   onChange={(e) => setFilters({...filters, isApproved: e.target.value, page: 1})}
                 >
-                  <option value="">All Status</option>
+                  <option value="all">All Status</option>
                   <option value="true">Approved</option>
                   <option value="false">Pending</option>
                 </Select>
@@ -545,7 +554,28 @@ function UsersList({
 
 // Delete User Modal Component
 function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, setReason, onClose, onDelete }) {
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [deleteReasonConfirmed, setDeleteReasonConfirmed] = useState(false);
+
   const handleDelete = () => {
+    if (deleteStep === 1) {
+      if (!deleteReason) {
+        alert('Please provide a reason for deletion');
+        return;
+      }
+      setDeleteStep(2);
+      return;
+    }
+    
+    if (deleteStep === 2) {
+      if (!deleteReasonConfirmed) {
+        alert('Please confirm you understand this action is permanent');
+        return;
+      }
+      setDeleteStep(3);
+      return;
+    }
+
     if (confirmation !== 'DELETE') {
       alert('Please type "DELETE" to confirm');
       return;
@@ -575,40 +605,75 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Reason for deletion (optional):
-          </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md"
-            rows="3"
-            placeholder="Provide a reason for this deletion..."
-          />
-        </div>
+        {deleteStep === 1 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Reason for deletion (required):
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md"
+              rows="3"
+              placeholder="Provide a detailed reason for this deletion..."
+              required
+            />
+          </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Type "DELETE" to confirm:
-          </label>
-          <Input
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            placeholder="DELETE"
-          />
-        </div>
+        {deleteStep === 2 && (
+          <div className="bg-yellow-50 p-4 rounded-md">
+            <div className="flex items-start">
+              <input
+                type="checkbox"
+                id="confirmReason"
+                checked={deleteReasonConfirmed}
+                onChange={(e) => setDeleteReasonConfirmed(e.target.checked)}
+                className="mt-1 mr-2"
+              />
+              <label htmlFor="confirmReason" className="text-yellow-800">
+                I understand this action is permanent and cannot be undone.
+                The user account and all associated data will be permanently deleted.
+              </label>
+            </div>
+          </div>
+        )}
+
+        {deleteStep === 3 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type "DELETE" to confirm:
+            </label>
+            <Input
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              placeholder="DELETE"
+            />
+          </div>
+        )}
 
         <div className="flex justify-end space-x-3">
+          {deleteStep > 1 && (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteStep(deleteStep - 1)}
+            >
+              Back
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
             variant="danger"
             onClick={handleDelete}
-            disabled={confirmation !== 'DELETE'}
+            disabled={
+              (deleteStep === 1 && !reason) ||
+              (deleteStep === 2 && !deleteReasonConfirmed) ||
+              (deleteStep === 3 && confirmation !== 'DELETE')
+            }
           >
-            Delete Account
+            {deleteStep < 3 ? 'Continue' : 'Delete Account'}
           </Button>
         </div>
       </div>
@@ -618,7 +683,7 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
 
 // User Details Modal Component
 function UserDetailsModal({ isOpen, user, onClose }) {
-  if (!user) return null;
+  if (!user || !user.user) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="User Details">
@@ -628,7 +693,7 @@ function UserDetailsModal({ isOpen, user, onClose }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-gray-500">Name</p>
-              <p className="text-sm text-gray-900">{user.user.name}</p>
+              <p className="text-sm text-gray-900">{user.user?.name || 'N/A'}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500">Email</p>

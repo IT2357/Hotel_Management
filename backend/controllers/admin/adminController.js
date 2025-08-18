@@ -184,12 +184,19 @@ export const getUsers = async (req, res) => {
   try {
     const { page, limit, role, isApproved, search } = req.query;
 
+    // Convert isApproved to boolean only if it's "true" or "false"
+    let approvalFilter;
+    if (isApproved === "true") approvalFilter = true;
+    else if (isApproved === "false") approvalFilter = false;
+    // Otherwise leave undefined to show all users
+
     const result = await AdminService.getUsers({
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 20,
       role,
-      isApproved: isApproved !== undefined ? isApproved === "true" : undefined,
+      isApproved: approvalFilter,
       search,
+      requestingAdminId: req.user._id,
     });
 
     sendSuccess(res, result);

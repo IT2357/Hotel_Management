@@ -5,6 +5,7 @@ import Invitation from "../../models/Invitation.js";
 import AdminProfile from "../../models/profiles/AdminProfile.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import ManagerProfile from "../../models/profiles/ManagerProfile.js";
+import GuestProfile from "../../models/profiles/GuestProfile.js";
 import EmailService from "../notification/emailService.js";
 
 class AdminService {
@@ -253,7 +254,7 @@ class AdminService {
 
     // Build query filters
     if (role) query.role = role;
-    if (isApproved !== undefined) query.isApproved = isApproved;
+    if (typeof isApproved === "boolean") query.isApproved = isApproved;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },

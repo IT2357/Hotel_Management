@@ -9,8 +9,9 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
 
   const links = [
     { label: 'Dashboard', to: '/admin/dashboard' },
+    { label: 'User Management', to: '/admin/users' },
     { label: 'Invitations', to: '/admin/invitations' },
-    { label: 'Users', to: '/admin/users' },
+    { label: 'Notifications', to: '/admin/notifications' },
     { label: 'Bookings', to: '/admin/bookings' },
     { label: 'Reports', to: '/admin/reports' },
     { label: 'Settings', to: '/admin/settings' }
