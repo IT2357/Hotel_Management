@@ -539,6 +539,135 @@ export const deleteNotificationTemplate = async (req, res) => {
   }
 };
 
+// Get all pending refund requests
+export const getPendingRefunds = async (req, res) => {
+  try {
+    const refunds = await AdminService.getPendingRefunds();
+    sendSuccess(res, refunds);
+  } catch (error) {
+    handleError(res, error, "Failed to get pending refunds");
+  }
+};
+
+// Get specific refund details
+export const getRefundDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID is required",
+      });
+    }
+
+    const refund = await AdminService.getRefundDetails(id);
+    sendSuccess(res, refund);
+  } catch (error) {
+    handleError(res, error, "Failed to get refund details");
+  }
+};
+
+// Approve refund
+export const approveRefund = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID is required",
+      });
+    }
+
+    const result = await AdminService.approveRefund(id, req.user._id);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to approve refund");
+  }
+};
+
+// Deny refund with reason
+export const denyRefund = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!id || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID and reason are required",
+      });
+    }
+
+    const result = await AdminService.denyRefund(id, reason, req.user._id);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to deny refund");
+  }
+};
+
+// Request more information
+export const requestMoreInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+
+    if (!id || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID and message are required",
+      });
+    }
+
+    const result = await AdminService.requestMoreInfo(
+      id,
+      message,
+      req.user._id
+    );
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to request more information");
+  }
+};
+
+// Process refund
+export const processRefund = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { originalPaymentId } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID is required",
+      });
+    }
+
+    const result = await AdminService.processRefund(id, originalPaymentId);
+    sendSuccess(res, result, "Refund processed successfully");
+  } catch (error) {
+    handleError(res, error, "Failed to process refund");
+  }
+};
+
+// Check refund status
+export const checkRefundStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund ID is required",
+      });
+    }
+
+    const result = await AdminService.checkRefundStatus(id);
+    sendSuccess(res, result, "Refund status retrieved successfully");
+  } catch (error) {
+    handleError(res, error, "Failed to check refund status");
+  }
+};
+
 export default {
   createPrivilegedUser,
   approveUser,
@@ -564,4 +693,11 @@ export default {
   createNotificationTemplate,
   updateNotificationTemplate,
   deleteNotificationTemplate,
+  getPendingRefunds,
+  getRefundDetails,
+  approveRefund,
+  denyRefund,
+  requestMoreInfo,
+  processRefund,
+  checkRefundStatus,
 };

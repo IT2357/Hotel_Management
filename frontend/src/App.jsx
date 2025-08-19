@@ -20,6 +20,7 @@ import UserManagementPage from './pages/admin/UserManagementPage.jsx';
 import AdminReportsPage from './pages/admin/AdminReportsPage.jsx';
 import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
+import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
@@ -172,6 +173,17 @@ const App = () => {
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminSettingsPage />
+                  </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/refunds"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminRefundManagementPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }

@@ -17,7 +17,12 @@ const notificationTemplateSchema = new mongoose.Schema(
         "food_order_ready",
         "service_request_update",
         "cancellation_confirmation",
-        "refund_update",
+        "refund_request_submitted",
+        "refund_approved",
+        "refund_denied",
+        "refund_processed",
+        "refund_failed",
+        "refund_info_requested",
         "review_request",
         // Staff notifications
         "task_assigned",

@@ -20,9 +20,17 @@ import {
   updateUserProfile,
   getUserActivityLogs,
   resetUserPassword,
+  getPendingRefunds,
+  getRefundDetails,
+  approveRefund,
+  denyRefund,
+  requestMoreInfo,
+  processRefund,
+  checkRefundStatus,
 } from "../controllers/admin/adminController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
+import { refundOperationMiddleware } from "../middleware/refundValidation.js";
 import StaffProfile from "../models/profiles/StaffProfile.js";
 
 const router = express.Router();
@@ -159,6 +167,47 @@ router.delete(
   "/invitations/:id",
   authorizeRoles({ permissions: ["invitations:delete"] }),
   deleteInvitation
+);
+
+// 🛍️ Refund management routes
+router.get(
+  "/refunds/pending",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  getPendingRefunds
+);
+router.get(
+  "/refunds/:id",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  getRefundDetails
+);
+router.post(
+  "/refunds/:id/approve",
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("approve"),
+  approveRefund
+);
+router.post(
+  "/refunds/:id/deny",
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("deny"),
+  denyRefund
+);
+router.post(
+  "/refunds/:id/request-info",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  ...refundOperationMiddleware("request-info"),
+  requestMoreInfo
+);
+router.post(
+  "/refunds/:id/process",
+  authorizeRoles({ permissions: ["refunds:update"] }),
+  ...refundOperationMiddleware("process"),
+  processRefund
+);
+router.get(
+  "/refunds/:id/status",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  checkRefundStatus
 );
 
 export default router;

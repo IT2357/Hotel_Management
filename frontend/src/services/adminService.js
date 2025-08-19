@@ -37,6 +37,20 @@ const adminService = {
   getInvitations: (data) => api.get("/admin/invitations", data),
   updateInvitation: (id, data) => api.put(`/admin/invitations/${id}`, data),
   deleteInvitation: (id) => api.delete(`/admin/invitations/${id}`),
+
+  // Refund management
+  getPendingRefunds: () => api.get("/admin/refunds/pending"),
+  getRefundDetails: (id) => api.get(`/admin/refunds/${id}`),
+  approveRefund: (id) => api.post(`/admin/refunds/${id}/approve`),
+  denyRefund: (id, reason) => api.post(`/admin/refunds/${id}/deny`, { reason }),
+  requestMoreInfo: (id, message) =>
+    api.post(`/admin/refunds/${id}/request-info`, { message }),
+  processRefund: (id, originalPaymentId) =>
+    api.post(`/admin/payment-gateway/refund`, {
+      id,
+      originalPaymentId,
+    }),
+  checkRefundStatus: (id) => api.get(`/admin/refunds/${id}/status`),
 };
 
 export default adminService;
