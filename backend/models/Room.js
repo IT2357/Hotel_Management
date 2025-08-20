@@ -288,8 +288,8 @@ const roomSchema = new mongoose.Schema(
 );
 
 // Indexes
-roomSchema.index({ roomNumber: 1 }, { unique: true });
-roomSchema.index({ status: 1 });
+// roomSchema.index({ roomNumber: 1 }, { unique: true });
+// roomSchema.index({ status: 1 });
 roomSchema.index({ type: 1 });
 roomSchema.index({ floor: 1 });
 roomSchema.index({ "availability.startDate": 1, "availability.endDate": 1 });
