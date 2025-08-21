@@ -41,28 +41,48 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (credentials) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
+    setState(prev => ({ ...prev, error: null }));
+  
     try {
       const res = await authService.login(credentials);
       const { user, token } = res.data.data;
-
+  
+      if (!user.emailVerified) {
+        // Create minimal user object for unverified user
+        const basicUser = { _id: user._id, email: user.email, role: "guest" };
+        localStorage.setItem("user", JSON.stringify(basicUser));
+        setState(prev => ({ ...prev, user: basicUser, loading: false }));
+        navigate("/verify-email", { state: { email: user.email, userId: user._id } });
+        return basicUser; // Return basic user object
+      }
+  
+      // Handle verified user
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-      
       setState(prev => ({ ...prev, user, loading: false }));
       navigate(getDashboardPath(user.role));
-      
-      return user;
+      return { success: true, user }; // Return success status
     } catch (err) {
-      const error = err.response?.data?.message || "Login failed";
-      setState(prev => ({ ...prev, error, loading: false }));
-      throw error;
+      const errorMessage = err.response?.data?.message || "Login failed";
+      const requiresVerification = err.response?.data?.requiresVerification;
+  
+      if (requiresVerification) {
+        // Handle unverified user in error case
+        const user = err.response?.data?.data?.user || credentials;
+        const basicUser = { _id: user._id, email: user.email, role: "guest" };
+        localStorage.setItem("user", JSON.stringify(basicUser));
+        setState(prev => ({ ...prev, user: basicUser, loading: false }));
+        navigate("/verify-email", { state: { email: user.email, userId: user._id } });
+        return basicUser; // Return basic user object
+      }
+  
+      setState(prev => ({ ...prev, error: errorMessage, loading: false }));
+      throw err; // Throw for other errors
     }
   };
 
   const register = async (userData) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState(prev => ({ ...prev, error: null }));
     
     try {
       const res = await authService.register(userData);
@@ -77,7 +97,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       const error = err.response?.data?.message || "Registration failed";
       setState(prev => ({ ...prev, error, loading: false }));
-      throw error;
+      throw err; // Throw original error object
     }
   };
 

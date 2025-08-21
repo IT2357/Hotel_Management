@@ -198,96 +198,78 @@ class AuthService {
     if (!user) {
       throw new Error("Invalid email or password");
     }
-
-    // Check if social login account
     if (user.authProviders.length > 0) {
       throw new Error(
         "This account uses social login. Please use Google or Apple."
       );
     }
-
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new Error("Invalid email or password");
     }
-
-    // Check email verification
     if (!user.emailVerified) {
       const otpCode = this.generateOTP();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-      user.otp = { code: otpCode, expiresAt: otpExpiry };
+      user.otpCode = otpCode; // Use otpCode
+      user.otpExpiresAt = otpExpiry; // Use otpExpiresAt
       await user.save();
-
       await EmailService.sendVerificationEmail(user, otpCode);
-
       throw new Error(
-        "Please verify your email address. A new verification code has been sent."
+        "Please verify your email address. A new verification code has been sent.",
+        {
+          cause: {
+            requiresVerification: true,
+            data: { user: { _id: user._id, email: user.email } },
+          },
+        }
       );
     }
-
-    // Check approval for non-guest users
     if (user.role !== "guest" && !user.isApproved) {
       throw new Error("Your account is pending admin approval");
     }
-
-    // Check if account is active
     if (!user.isActive) {
       throw new Error(
         "Your account has been deactivated. Please contact support."
       );
     }
-
-    // Update login info
     user.lastLogin = new Date();
     user.loginHistory.push({
       ipAddress: ipAddress || "Unknown",
       device: userAgent || "Unknown",
     });
     await user.save();
-
-    // Generate token
     const token = this.generateToken(user);
-
-    // Clean sensitive data
     user.password = undefined;
     user.tokenVersion = undefined;
-
     return { user, token };
   }
 
   // Verify email with OTP
   async verifyEmail(userId, otp) {
-    const user = await User.findById(userId).select("+otp +tokenVersion");
+    const user = await User.findById(userId).select(
+      "+otpCode +otpExpiresAt +tokenVersion"
+    );
     if (!user) {
       throw new Error("User not found");
     }
-
     if (user.emailVerified) {
       throw new Error("Email already verified");
     }
-
     if (
       !user.otpCode ||
-      user.otpCode !== otp ||
+      user.otpCode != String(otp) || // Convert otp to string for comparison
       user.otpExpiresAt < new Date()
     ) {
       throw new Error("Invalid or expired OTP");
     }
-
-    // Verify email
     user.emailVerified = true;
     user.otpCode = undefined;
     user.otpExpiresAt = undefined;
     await user.save();
-
-    // Notify admins if non-guest user
     if (user.role !== "guest") {
       await this.notifyAdminsAboutPendingApproval(user);
     }
-
     const token = this.generateToken(user);
-
     return {
       user: {
         _id: user._id,
@@ -307,24 +289,19 @@ class AuthService {
 
   // Resend OTP
   async resendOTP(userId) {
-    const user = await User.findById(userId).select("+otp");
+    const user = await User.findById(userId).select("+otpCode +otpExpiresAt");
     if (!user) {
       throw new Error("User not found");
     }
-
     if (user.emailVerified) {
       throw new Error("Email already verified");
     }
-
     const otpCode = this.generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.otpCode = otpCode;
     user.otpExpiresAt = otpExpiry;
-
     await user.save();
-
     await EmailService.sendVerificationEmail(user, otpCode);
-
     return { message: "Verification code sent successfully" };
   }
 

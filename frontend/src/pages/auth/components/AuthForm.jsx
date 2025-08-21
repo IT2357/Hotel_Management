@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import PasswordStrength from './PasswordStrength';
+import Alert from '../../../components/common/Alert';
 
 export default function AuthForm({
   fields,
@@ -11,19 +12,15 @@ export default function AuthForm({
   loading = false
 }) {
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
-  const [serverError, setServerError] = useState('');
+  const [serverError, setServerError] = useState(null);
 
   const handleFormSubmit = async (data) => {
-    try {
-      setServerError('');
-      await onSubmit(data);
-    } catch (error) {
-      setServerError(error.response?.data?.message || 'An error occurred');
-    }
+    setServerError(null);
+    await onSubmit(data);
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {fields
         .filter((field) => field.type !== 'hidden')
         .map((field) => (
@@ -36,7 +33,7 @@ export default function AuthForm({
                 <input
                   type="password"
                   {...register(field.name, field.validation)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 <PasswordStrength password={watch(field.name)} />
               </>
@@ -44,7 +41,7 @@ export default function AuthForm({
               <input
                 type={field.type || 'text'}
                 {...register(field.name, field.validation)}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm ${
+                className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
                   field.readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
                 }`}
                 readOnly={field.readOnly}
@@ -68,14 +65,11 @@ export default function AuthForm({
           />
         ))}
 
-      {serverError && (
-        <div className="text-red-500 text-sm">{serverError}</div>
-      )}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         {loading ? 'Processing...' : submitText}
       </button>

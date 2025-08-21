@@ -116,6 +116,7 @@ export const login = async (req, res) => {
         success: false,
         message: error.message,
         requiresVerification: true,
+        data: error.cause?.data,
       });
     }
 
