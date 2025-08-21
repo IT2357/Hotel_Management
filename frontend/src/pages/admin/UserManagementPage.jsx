@@ -106,13 +106,12 @@ export default function UserManagementPage() {
           response = await adminService.reactivateUser(userId);
           break;
         case 'delete':
-          response = await adminService.deleteUser(userId, data);
-          break;
+          response = await adminService.deleteUser(userId, { reason: data.reason, confirmationText: data.confirmationText });          break;
         case 'updateRole':
           response = await adminService.updateUserRole(userId, data);
           break;
         case 'resetPassword':
-          response = await adminService.resetUserPassword(userId, data);
+          response = await adminService.resetUserPassword(userId, data.temporaryPassword, data.requirePasswordChange, user._id);
           break;
         case 'updateProfile':
           response = await adminService.updateUserProfile(userId, data);
@@ -328,8 +327,8 @@ export default function UserManagementPage() {
           setDeleteReason('');
         }}
         onDelete={() => handleUserAction('delete', selectedUser._id, {
-          confirmationText: deleteConfirmation,
-          reason: deleteReason
+          reason: deleteReason,
+          confirmationText: deleteConfirmation.trim()
         })}
       />
 
@@ -559,7 +558,7 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
 
   const handleDelete = () => {
     if (deleteStep === 1) {
-      if (!deleteReason) {
+      if (!reason) {
         alert('Please provide a reason for deletion');
         return;
       }
@@ -580,7 +579,12 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
       alert('Please type "DELETE" to confirm');
       return;
     }
-    onDelete();
+    try {
+      onDelete();
+    } catch (error) {
+      console.error("Error during user deletion:", error);
+      alert(error?.response?.data?.message || "Failed to delete user. See console for details.");
+    }
   };
 
   return (
@@ -780,12 +784,17 @@ function PasswordResetModal({ isOpen, user, onClose, onReset }) {
   const [requireChange, setRequireChange] = useState(true);
 
   const handleReset = () => {
-    onReset({
-      temporaryPassword: tempPassword || undefined,
-      requirePasswordChange: requireChange
-    });
-    setTempPassword('');
-    setRequireChange(true);
+    try {
+      onReset({
+        temporaryPassword: tempPassword || undefined,
+        requirePasswordChange: requireChange
+      });
+      setTempPassword('');
+      setRequireChange(true);
+    } catch (error) {
+      console.error("Error during password reset:", error);
+      alert("Failed to reset password. See console for details.");
+    }
   };
 
   if (!user) return null;

@@ -193,8 +193,16 @@ class AuthService {
   // Login user
   async login({ email, password, ipAddress, userAgent }) {
     const user = await User.findOne({ email }).select(
-      "+password +tokenVersion"
+      "+password +tokenVersion +passwordResetPending"
     );
+
+    if (!user) {
+      throw new Error("Invalid email or password");
+    }
+
+    if (user.passwordResetPending) {
+      throw new Error("Password reset is pending. Please reset your password.");
+    }
     if (!user) {
       throw new Error("Invalid email or password");
     }
@@ -344,7 +352,19 @@ class AuthService {
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpiry: { $gt: Date.now() },
-    }).select("+passwordResetToken +passwordResetExpiry +tokenVersion");
+    }).select(
+      "+passwordResetToken +passwordResetExpiry +tokenVersion +passwordResetPending"
+    );
+
+    if (!user) {
+      throw new Error("Invalid or expired reset token");
+    }
+
+    // Set passwordResetPending to true
+    user.passwordResetPending = true;
+    await user.save();
+
+    return { message: "Password reset link sent to your email" };
 
     if (!user) {
       throw new Error("Invalid or expired reset token");
@@ -354,6 +374,7 @@ class AuthService {
     user.password = newPassword; // Pre-save hook hashes
     user.passwordResetToken = undefined;
     user.passwordResetExpiry = undefined;
+    user.passwordResetPending = false; // Set passwordResetPending to false
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 

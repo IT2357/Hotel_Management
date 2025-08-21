@@ -47,6 +47,12 @@ export function AuthProvider({ children }) {
       const res = await authService.login(credentials);
       const { user, token } = res.data.data;
   
+      if (user.passwordResetPending) {
+        // Prevent login if password reset is pending
+        setState(prev => ({ ...prev, error: "Password reset is pending. Please reset your password.", loading: false }));
+        return;
+      }
+  
       if (!user.emailVerified) {
         // Create minimal user object for unverified user
         const basicUser = { _id: user._id, email: user.email, role: "guest" };

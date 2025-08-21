@@ -275,7 +275,7 @@ export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { confirmationText, reason } = req.body;
-
+    console.log("Raw body:", req.body);
     if (!userId) {
       return res.status(400).json({
         success: false,

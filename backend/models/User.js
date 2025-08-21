@@ -74,6 +74,10 @@ const userSchema = new mongoose.Schema(
       inApp: { type: Boolean, default: true },
       sms: { type: Boolean, default: false },
     },
+    passwordResetPending: {
+      type: Boolean,
+      default: false,
+    },
     tokenVersion: {
       type: Number,
       default: 0,
