@@ -242,6 +242,21 @@ class EmailService {
     `;
     return this.sendEmail({ to: user.email, subject, html });
   }
+
+  static async sendAdminPasswordResetEmail(user, temporaryPassword) {
+    const subject = "Password Reset by Administrator - Hotel Management System";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #c0392b;">Password Reset Notification</h2>
+        <p>Dear ${user.name},</p>
+        <p>Your password has been reset by an administrator. Your temporary password is:</p>
+        <p style="font-size: 18px; font-weight: bold; color: #2c3e50;">${temporaryPassword}</p>
+        <p>Please <a href="${process.env.APP_URL}/login" style="color: #2980b9;">log in</a> and change your password immediately to ensure account security.</p>
+        <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
+      </div>
+    `;
+    return this.sendEmail({ to: user.email, subject, html });
+  }
 }
 
 export default EmailService;

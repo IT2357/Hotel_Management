@@ -18,6 +18,8 @@ const adminService = {
     api.get(`/admin/users/${userId}/activity`, { params }),
   resetUserPassword: (userId, data) =>
     api.put(`/admin/users/${userId}/reset-password`, data),
+  updateUserPassword: (userId, data) =>
+    api.post(`/users/${userId}/update-password`, data),
   getPendingApprovals: () => api.get("/admin/approvals"),
   approveUser: (userId, data) => api.put(`/admin/approvals/${userId}`, data),
   getDashboardStats: () => api.get("/admin/dashboard/stats"),

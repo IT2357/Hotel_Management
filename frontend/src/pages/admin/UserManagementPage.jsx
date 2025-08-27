@@ -1,3 +1,4 @@
+// frontend/src/pages/UserManagementPage.js
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
@@ -18,20 +19,16 @@ export default function UserManagementPage() {
     page: 1,
     limit: 20,
     role: '',
-    isApproved: 'all', // Default to showing all users
-    search: ''
+    isApproved: 'all',
+    search: '',
   });
   const [pagination, setPagination] = useState({});
-  
-  // Modals and selected user
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
-  
-  // Form states
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [editFormData, setEditFormData] = useState({});
@@ -40,32 +37,32 @@ export default function UserManagementPage() {
     email: '',
     password: '',
     phone: '',
-    role: 'staff'
+    role: 'staff',
   });
 
   const tabs = [
     { id: 'users', label: 'All Users', icon: '👥' },
     { id: 'pending', label: 'Pending Approval', icon: '⏳' },
-    { id: 'create', label: 'Create User', icon: '➕' }
+    { id: 'create', label: 'Create User', icon: '➕' },
   ];
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Convert string filters to proper types
       const apiFilters = {
         ...filters,
         role: filters.role || undefined,
         isApproved: filters.isApproved === '' ? undefined :
-                   filters.isApproved === 'all' ? undefined :
-                   filters.isApproved === 'true',
-        search: filters.search || undefined
+                    filters.isApproved === 'all' ? undefined :
+                    filters.isApproved === 'true',
+        search: filters.search || undefined,
       };
       const response = await adminService.getUsers(apiFilters);
       setUsers(response.data.data.users || []);
       setPagination(response.data.data.pagination || {});
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      alert(error.response?.data?.message || 'Failed to fetch users.');
     } finally {
       setLoading(false);
     }
@@ -79,6 +76,7 @@ export default function UserManagementPage() {
       setPagination({});
     } catch (error) {
       console.error('Failed to fetch pending approvals:', error);
+      alert(error.response?.data?.message || 'Failed to fetch pending approvals.');
     } finally {
       setLoading(false);
     }
@@ -106,36 +104,37 @@ export default function UserManagementPage() {
           response = await adminService.reactivateUser(userId);
           break;
         case 'delete':
-          response = await adminService.deleteUser(userId, { reason: data.reason, confirmationText: data.confirmationText });          break;
+          response = await adminService.deleteUser(userId, { reason: data.reason, confirmationText: data.confirmationText });
+          break;
         case 'updateRole':
           response = await adminService.updateUserRole(userId, data);
           break;
         case 'resetPassword':
-          response = await adminService.resetUserPassword(userId, data.temporaryPassword, data.requirePasswordChange, user._id);
+          response = await adminService.resetUserPassword(userId, {
+            temporaryPassword: data.temporaryPassword,
+            requirePasswordChange: data.requirePasswordChange,
+            adminId: user._id,
+          });
           break;
         case 'updateProfile':
           response = await adminService.updateUserProfile(userId, data);
           break;
       }
-      
-      // Refresh the user list
       if (activeTab === 'users') {
         fetchUsers();
       } else if (activeTab === 'pending') {
         fetchPendingApprovals();
       }
-      
-      // Close modals
       setShowDeleteModal(false);
       setShowEditModal(false);
       setShowPasswordResetModal(false);
       setSelectedUser(null);
       setDeleteConfirmation('');
       setDeleteReason('');
-      
       return response;
     } catch (error) {
       console.error(`Failed to ${action} user:`, error);
+      alert(error.response?.data?.message || `Failed to ${action} user.`);
       throw error;
     }
   };
@@ -149,12 +148,13 @@ export default function UserManagementPage() {
         email: '',
         password: '',
         phone: '',
-        role: 'staff'
+        role: 'staff',
       });
       setActiveTab('users');
       fetchUsers();
     } catch (error) {
       console.error('Failed to create user:', error);
+      alert(error.response?.data?.message || 'Failed to create user.');
     }
   };
 
@@ -165,6 +165,7 @@ export default function UserManagementPage() {
       setShowDetailsModal(true);
     } catch (error) {
       console.error('Failed to fetch user details:', error);
+      alert(error.response?.data?.message || 'Failed to fetch user details.');
     }
   };
 
@@ -174,7 +175,7 @@ export default function UserManagementPage() {
       name: user.name,
       phone: user.phone || '',
       address: user.address || {},
-      profile: {}
+      profile: {},
     });
     setShowEditModal(true);
   };
@@ -184,18 +185,20 @@ export default function UserManagementPage() {
       guest: 'bg-gray-100 text-gray-800',
       staff: 'bg-blue-100 text-blue-800',
       manager: 'bg-purple-100 text-purple-800',
-      admin: 'bg-red-100 text-red-800'
+      admin: 'bg-red-100 text-red-800',
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusColor = (user) => {
+    if (!user.isActive && user.passwordResetPending) return 'bg-orange-100 text-orange-800';
     if (!user.isActive) return 'bg-red-100 text-red-800';
     if (!user.isApproved && user.role !== 'guest') return 'bg-yellow-100 text-yellow-800';
     return 'bg-green-100 text-green-800';
   };
 
   const getStatusText = (user) => {
+    if (!user.isActive && user.passwordResetPending) return 'Password Reset Pending';
     if (!user.isActive) return 'Inactive';
     if (!user.isApproved && user.role !== 'guest') return 'Pending';
     return 'Active';
@@ -209,9 +212,7 @@ export default function UserManagementPage() {
           <p className="text-gray-600 mt-1">Manage users, roles, and permissions</p>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto p-6">
-        {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => (
@@ -230,27 +231,24 @@ export default function UserManagementPage() {
             ))}
           </nav>
         </div>
-
-        {/* Content based on active tab */}
         {activeTab === 'create' ? (
-          <CreateUserForm 
+          <CreateUserForm
             formData={createFormData}
             setFormData={setCreateFormData}
             onSubmit={handleCreateUser}
           />
         ) : (
           <>
-            {/* Filters */}
             <div className="bg-white p-4 rounded-lg shadow mb-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Input
                   placeholder="Search users..."
                   value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value, page: 1})}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
                 />
                 <Select
                   value={filters.role}
-                  onChange={(e) => setFilters({...filters, role: e.target.value, page: 1})}
+                  onChange={(e) => setFilters({ ...filters, role: e.target.value, page: 1 })}
                 >
                   <option value="">All Roles</option>
                   <option value="guest">Guest</option>
@@ -260,7 +258,7 @@ export default function UserManagementPage() {
                 </Select>
                 <Select
                   value={filters.isApproved}
-                  onChange={(e) => setFilters({...filters, isApproved: e.target.value, page: 1})}
+                  onChange={(e) => setFilters({ ...filters, isApproved: e.target.value, page: 1 })}
                 >
                   <option value="all">All Status</option>
                   <option value="true">Approved</option>
@@ -271,14 +269,12 @@ export default function UserManagementPage() {
                 </Button>
               </div>
             </div>
-
-            {/* Users List */}
             {loading ? (
               <div className="flex justify-center py-8">
                 <Spinner size="lg" />
               </div>
             ) : (
-              <UsersList 
+              <UsersList
                 users={users}
                 onViewDetails={openDetailsModal}
                 onEdit={openEditModal}
@@ -297,22 +293,18 @@ export default function UserManagementPage() {
                 isPending={activeTab === 'pending'}
               />
             )}
-
-            {/* Pagination */}
             {pagination.pages > 1 && (
               <div className="mt-6">
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.pages}
-                  onPageChange={(page) => setFilters({...filters, page})}
+                  onPageChange={(page) => setFilters({ ...filters, page })}
                 />
               </div>
             )}
           </>
         )}
       </main>
-
-      {/* Modals */}
       <DeleteUserModal
         isOpen={showDeleteModal}
         user={selectedUser}
@@ -328,10 +320,9 @@ export default function UserManagementPage() {
         }}
         onDelete={() => handleUserAction('delete', selectedUser._id, {
           reason: deleteReason,
-          confirmationText: deleteConfirmation.trim()
+          confirmationText: deleteConfirmation.trim(),
         })}
       />
-
       <UserDetailsModal
         isOpen={showDetailsModal}
         user={selectedUser}
@@ -340,7 +331,6 @@ export default function UserManagementPage() {
           setSelectedUser(null);
         }}
       />
-
       <EditUserModal
         isOpen={showEditModal}
         user={selectedUser}
@@ -353,7 +343,6 @@ export default function UserManagementPage() {
         }}
         onSave={() => handleUserAction('updateProfile', selectedUser._id, editFormData)}
       />
-
       <PasswordResetModal
         isOpen={showPasswordResetModal}
         user={selectedUser}
@@ -367,7 +356,6 @@ export default function UserManagementPage() {
   );
 }
 
-// Create User Form Component
 function CreateUserForm({ formData, setFormData, onSubmit }) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -378,31 +366,31 @@ function CreateUserForm({ formData, setFormData, onSubmit }) {
             label="Full Name"
             required
             value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
           <Input
             label="Email"
             type="email"
             required
             value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           />
           <Input
             label="Password"
             type="password"
             required
             value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           />
           <Input
             label="Phone"
             value={formData.phone}
-            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           />
           <Select
             label="Role"
             value={formData.role}
-            onChange={(e) => setFormData({...formData, role: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
           >
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>
@@ -417,18 +405,17 @@ function CreateUserForm({ formData, setFormData, onSubmit }) {
   );
 }
 
-// Users List Component
-function UsersList({ 
-  users, 
-  onViewDetails, 
-  onEdit, 
-  onDelete, 
-  onAction, 
+function UsersList({
+  users,
+  onViewDetails,
+  onEdit,
+  onDelete,
+  onAction,
   onResetPassword,
-  getRoleColor, 
-  getStatusColor, 
+  getRoleColor,
+  getStatusColor,
   getStatusText,
-  isPending 
+  isPending,
 }) {
   if (users.length === 0) {
     return (
@@ -437,7 +424,6 @@ function UsersList({
       </div>
     );
   }
-
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <table className="min-w-full divide-y divide-gray-200">
@@ -551,7 +537,6 @@ function UsersList({
   );
 }
 
-// Delete User Modal Component
 function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, setReason, onClose, onDelete }) {
   const [deleteStep, setDeleteStep] = useState(1);
   const [deleteReasonConfirmed, setDeleteReasonConfirmed] = useState(false);
@@ -565,7 +550,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
       setDeleteStep(2);
       return;
     }
-    
     if (deleteStep === 2) {
       if (!deleteReasonConfirmed) {
         alert('Please confirm you understand this action is permanent');
@@ -574,7 +558,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
       setDeleteStep(3);
       return;
     }
-
     if (confirmation !== 'DELETE') {
       alert('Please type "DELETE" to confirm');
       return;
@@ -583,7 +566,7 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
       onDelete();
     } catch (error) {
       console.error("Error during user deletion:", error);
-      alert(error?.response?.data?.message || "Failed to delete user. See console for details.");
+      alert(error?.response?.data?.message || "Failed to delete user.");
     }
   };
 
@@ -595,7 +578,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             ⚠️ <strong>Warning:</strong> This action is permanent and cannot be undone.
           </p>
         </div>
-        
         {user && (
           <div>
             <p className="text-gray-700">
@@ -608,7 +590,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             </div>
           </div>
         )}
-
         {deleteStep === 1 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -624,7 +605,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             />
           </div>
         )}
-
         {deleteStep === 2 && (
           <div className="bg-yellow-50 p-4 rounded-md">
             <div className="flex items-start">
@@ -642,7 +622,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             </div>
           </div>
         )}
-
         {deleteStep === 3 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -655,7 +634,6 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             />
           </div>
         )}
-
         <div className="flex justify-end space-x-3">
           {deleteStep > 1 && (
             <Button
@@ -685,10 +663,8 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
   );
 }
 
-// User Details Modal Component
 function UserDetailsModal({ isOpen, user, onClose }) {
   if (!user || !user.user) return null;
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="User Details">
       <div className="space-y-6">
@@ -714,7 +690,7 @@ function UserDetailsModal({ isOpen, user, onClose }) {
             <div>
               <p className="text-sm font-medium text-gray-500">Status</p>
               <p className="text-sm text-gray-900">
-                {user.user.isActive ? 'Active' : 'Inactive'}
+                {user.user.isActive ? 'Active' : user.user.passwordResetPending ? 'Password Reset Pending' : 'Inactive'}
               </p>
             </div>
             <div>
@@ -725,7 +701,6 @@ function UserDetailsModal({ isOpen, user, onClose }) {
             </div>
           </div>
         </div>
-
         {user.profile && (
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-3">Profile Information</h3>
@@ -734,7 +709,6 @@ function UserDetailsModal({ isOpen, user, onClose }) {
             </pre>
           </div>
         )}
-
         <div className="flex justify-end">
           <Button onClick={onClose}>Close</Button>
         </div>
@@ -743,28 +717,24 @@ function UserDetailsModal({ isOpen, user, onClose }) {
   );
 }
 
-// Edit User Modal Component
 function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave }) {
   const handleSave = () => {
     onSave();
   };
-
   if (!user) return null;
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit User">
       <div className="space-y-4">
         <Input
           label="Name"
           value={formData.name || ''}
-          onChange={(e) => setFormData({...formData, name: e.target.value})}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         />
         <Input
           label="Phone"
           value={formData.phone || ''}
-          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
         />
-        
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose}>
             Cancel
@@ -778,7 +748,6 @@ function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave })
   );
 }
 
-// Password Reset Modal Component
 function PasswordResetModal({ isOpen, user, onClose, onReset }) {
   const [tempPassword, setTempPassword] = useState('');
   const [requireChange, setRequireChange] = useState(true);
@@ -787,25 +756,23 @@ function PasswordResetModal({ isOpen, user, onClose, onReset }) {
     try {
       onReset({
         temporaryPassword: tempPassword || undefined,
-        requirePasswordChange: requireChange
+        requirePasswordChange: requireChange,
       });
       setTempPassword('');
       setRequireChange(true);
     } catch (error) {
       console.error("Error during password reset:", error);
-      alert("Failed to reset password. See console for details.");
+      alert(error.response?.data?.message || "Failed to reset password.");
     }
   };
 
   if (!user) return null;
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Reset User Password">
       <div className="space-y-4">
         <p className="text-gray-700">
           Reset password for: <strong>{user.name}</strong> ({user.email})
         </p>
-        
         <Input
           label="Temporary Password (leave empty to generate)"
           type="password"
@@ -813,7 +780,6 @@ function PasswordResetModal({ isOpen, user, onClose, onReset }) {
           onChange={(e) => setTempPassword(e.target.value)}
           placeholder="Leave empty to auto-generate"
         />
-        
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -825,7 +791,6 @@ function PasswordResetModal({ isOpen, user, onClose, onReset }) {
             Require password change on next login
           </label>
         </div>
-
         <div className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose}>
             Cancel

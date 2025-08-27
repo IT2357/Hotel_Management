@@ -580,21 +580,31 @@ class AdminService {
     if (!user) {
       throw new Error("User not found");
     }
-
-    // Generate temporary password if not provided
-    const newPassword = temporaryPassword || this.generateTemporaryPassword();
-
-    // Update password
-    user.password = newPassword; // Pre-save hook will hash it
-    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate existing sessions
-
-    if (requirePasswordChange) {
-      user.mustChangePassword = true;
+    if (user.authProviders.length > 0) {
+      throw new Error(
+        "This account uses social login and cannot be reset by admin."
+      );
     }
 
+    const newPassword = temporaryPassword || this.generateTemporaryPassword();
+    console.log("🔐 New password:", newPassword);
+    user.password = newPassword; // Pre-save hook will hash it
+    user.isActive = true; // Keep account active so user can login
+    user.passwordResetPending = true; // Force user to change password on next login
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate sessions
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiry = undefined;
     await user.save();
 
-    // Log the action
+    try {
+      await EmailService.sendAdminPasswordResetEmail(user, newPassword);
+    } catch (emailError) {
+      logger.error("Failed to send admin password reset email", {
+        userId,
+        error: emailError.message,
+      });
+    }
+
     await this.logAdminActivity(requestingAdminId, "update", "User", userId, {
       description: `Reset password for user ${user.email}`,
       requirePasswordChange,
@@ -617,6 +627,22 @@ class AdminService {
       password += charset.charAt(Math.floor(Math.random() * charset.length));
     }
     return password;
+  }
+
+  async updateUserPassword(userId, newPassword) {
+    const user = await User.findById(userId).select("+tokenVersion");
+    if (!user) {
+      throw new Error("User not found");
+    }
+    user.password = newPassword; // Pre-save hook will hash it
+    user.isActive = true; // Reactivate account
+    user.passwordResetPending = false; // Clear flag
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate sessions
+    await user.save();
+    return {
+      userId,
+      message: "Password updated successfully",
+    };
   }
 
   // Log admin activity

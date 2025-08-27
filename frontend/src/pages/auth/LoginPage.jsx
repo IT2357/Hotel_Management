@@ -1,16 +1,12 @@
-//src/pages/auth/
-
-
+// src/pages/auth/LoginPage.js
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
-import getDashboardPath from '../../utils/GetDashboardPath';
 import Alert from '../../components/common/Alert';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
@@ -23,38 +19,31 @@ export default function LoginPage() {
         required: 'Email is required',
         pattern: {
           value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-          message: 'Invalid email address'
-        }
-      }
+          message: 'Invalid email address',
+        },
+      },
     },
     {
       name: 'password',
       label: 'Password',
       type: 'password',
-      validation: { required: 'Password is required' }
-    }
+      validation: { required: 'Password is required' },
+    },
   ];
 
   const handleSubmit = async (data) => {
     setLoading(true);
     setAlert(null);
-    console.log('🔐 LoginPage handleSubmit called with:', data);
+    
     try {
-      const result = await login(data); // login now returns an object
-      console.log('🔐 Login result:', result);
-
-      if (result.requiresVerification) {
-        navigate('/verify-email', { state: { email: result.user.email, userId: result.user._id, error: result.error } });
-      } else if (result.success && result.user?.role) {
-        navigate(getDashboardPath(result.user.role));
-      } else {
-        console.warn("Login succeeded but user role not found or unexpected result:", result);
-        setAlert({ type: 'error', message: 'Login failed. Please try again.' });
-      }
+      await login(data);
+      // After successful login, the ProtectedRoute will handle all redirects
+      // The user will be automatically redirected based on their status
     } catch (err) {
-      console.log('🔐 LoginPage error caught:', err);
-      const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
-      console.log('🔐 Setting alert with message:', errorMessage);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        'Login failed. Please check your credentials or try again later.';
       setAlert({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
@@ -72,12 +61,22 @@ export default function LoginPage() {
             Sign in to continue to your account
           </p>
         </div>
+        
+        {alert && (
+          <Alert
+            type={alert.type}
+            message={alert.message}
+            onClose={() => setAlert(null)}
+          />
+        )}
+        
         <AuthForm
           fields={fields}
           onSubmit={handleSubmit}
           submitText="Sign In"
           loading={loading}
         />
+        
         <div className="flex items-center justify-between text-sm">
           <Link
             to="/forgot-password"
@@ -93,13 +92,6 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
-      {alert && (
-        <Alert
-          type={alert.type}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
     </div>
   );
 }

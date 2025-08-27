@@ -20,6 +20,7 @@ import {
   updateUserProfile,
   getUserActivityLogs,
   resetUserPassword,
+  updateUserPassword,
   getPendingRefunds,
   getRefundDetails,
   approveRefund,
@@ -133,6 +134,11 @@ router.put(
   "/users/:userId/reset-password",
   authorizeRoles({ permissions: ["users:update"] }),
   resetUserPassword
+);
+router.post(
+  "/users/:userId/update-password",
+  authorizeRoles({ permissions: ["users:update"] }),
+  updateUserPassword
 );
 
 // ✅ Approval system routes

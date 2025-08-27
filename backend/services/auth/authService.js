@@ -9,6 +9,7 @@ import StaffProfile from "../../models/profiles/StaffProfile.js";
 import ManagerProfile from "../../models/profiles/ManagerProfile.js";
 import AdminProfile from "../../models/profiles/AdminProfile.js";
 import EmailService from "../notification/emailService.js";
+import logger from "../../utils/logger.js";
 
 class AuthService {
   // Generate JWT Token with tokenVersion
@@ -191,65 +192,242 @@ class AuthService {
   }
 
   // Login user
+  // async login({ email, password, ipAddress, userAgent }) {
+  //   const user = await User.findOne({ email }).select(
+  //     "+password +tokenVersion +passwordResetPending +isActive"
+  //   );
+  //   if (!user) {
+  //     throw new Error("Invalid email or password");
+  //   }
+  //   if (user.authProviders.length > 0) {
+  //     throw new Error(
+  //       "This account uses social login. Please use Google or Apple."
+  //     );
+  //   }
+  //   // Allow login for password reset pending users
+  //   if (user.passwordResetPending && !user.isActive) {
+  //     const isPasswordValid = await bcrypt.compare(password, user.password);
+  //     if (!isPasswordValid) {
+  //       throw new Error("Invalid email or password");
+  //     }
+  //     user.lastLogin = new Date();
+  //     user.loginHistory.push({
+  //       ipAddress: ipAddress || "Unknown",
+  //       device: userAgent || "Unknown",
+  //     });
+  //     await user.save();
+  //     const token = this.generateToken(user);
+  //     return {
+  //       user: {
+  //         _id: user._id,
+  //         email: user.email,
+  //         name: user.name,
+  //         role: user.role,
+  //         isActive: user.isActive,
+  //         passwordResetPending: user.passwordResetPending,
+  //         isApproved: user.isApproved,
+  //         emailVerified: user.emailVerified,
+  //       },
+  //       token,
+  //     };
+  //   }
+  //   const isPasswordValid = await bcrypt.compare(password, user.password);
+  //   if (!isPasswordValid) {
+  //     throw new Error("Invalid email or password");
+  //   }
+  //   if (!user.emailVerified) {
+  //     const otpCode = this.generateOTP();
+  //     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+  //     user.otpCode = otpCode;
+  //     user.otpExpiresAt = otpExpiry;
+  //     await user.save();
+  //     await EmailService.sendVerificationEmail(user, otpCode);
+  //     throw new Error(
+  //       "Please verify your email address. A new verification code has been sent.",
+  //       {
+  //         cause: {
+  //           requiresVerification: true,
+  //           data: { user: { _id: user._id, email: user.email } },
+  //         },
+  //       }
+  //     );
+  //   }
+  //   if (user.role !== "guest" && !user.isApproved) {
+  //     throw new Error("Your account is pending admin approval");
+  //   }
+  //   if (!user.isActive) {
+  //     throw new Error(
+  //       "Your account has been deactivated. Please contact support."
+  //     );
+  //   }
+  //   user.lastLogin = new Date();
+  //   user.loginHistory.push({
+  //     ipAddress: ipAddress || "Unknown",
+  //     device: userAgent || "Unknown",
+  //   });
+  //   await user.save();
+  //   const token = this.generateToken(user);
+  //   return {
+  //     user: {
+  //       _id: user._id,
+  //       email: user.email,
+  //       name: user.name,
+  //       role: user.role,
+  //       isActive: user.isActive,
+  //       passwordResetPending: user.passwordResetPending,
+  //       isApproved: user.isApproved,
+  //       emailVerified: user.emailVerified,
+  //     },
+  //     token,
+  //   };
+  // }
   async login({ email, password, ipAddress, userAgent }) {
-    const user = await User.findOne({ email }).select(
-      "+password +tokenVersion +passwordResetPending"
-    );
-
-    if (!user) {
-      throw new Error("Invalid email or password");
-    }
-
-    if (user.passwordResetPending) {
-      throw new Error("Password reset is pending. Please reset your password.");
-    }
-    if (!user) {
-      throw new Error("Invalid email or password");
-    }
-    if (user.authProviders.length > 0) {
-      throw new Error(
-        "This account uses social login. Please use Google or Apple."
-      );
-    }
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new Error("Invalid email or password");
-    }
-    if (!user.emailVerified) {
-      const otpCode = this.generateOTP();
-      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-      user.otpCode = otpCode; // Use otpCode
-      user.otpExpiresAt = otpExpiry; // Use otpExpiresAt
-      await user.save();
-      await EmailService.sendVerificationEmail(user, otpCode);
-      throw new Error(
-        "Please verify your email address. A new verification code has been sent.",
-        {
-          cause: {
-            requiresVerification: true,
-            data: { user: { _id: user._id, email: user.email } },
-          },
-        }
-      );
-    }
-    if (user.role !== "guest" && !user.isApproved) {
-      throw new Error("Your account is pending admin approval");
-    }
-    if (!user.isActive) {
-      throw new Error(
-        "Your account has been deactivated. Please contact support."
-      );
-    }
-    user.lastLogin = new Date();
-    user.loginHistory.push({
-      ipAddress: ipAddress || "Unknown",
-      device: userAgent || "Unknown",
+    console.log("🔐 Backend login called with:", {
+      email,
+      ipAddress,
+      userAgent,
     });
-    await user.save();
-    const token = this.generateToken(user);
-    user.password = undefined;
-    user.tokenVersion = undefined;
-    return { user, token };
+    try {
+      const user = await User.findOne({ email }).select(
+        "+password +tokenVersion +passwordResetPending +isActive"
+      );
+      if (!user) {
+        console.error("🔐 User not found for email:", email);
+        throw new Error("Invalid email or password");
+      }
+      console.log("🔐 Found user:", {
+        email: user.email,
+        isActive: user.isActive,
+        passwordResetPending: user.passwordResetPending,
+        emailVerified: user.emailVerified,
+        isApproved: user.isApproved,
+      });
+
+      if (user.authProviders.length > 0) {
+        console.error("🔐 Social login account:", email);
+        throw new Error(
+          "This account uses social login. Please use Google or Apple."
+        );
+      }
+
+      // Allow login for password reset pending users
+      if (user.passwordResetPending && !user.isActive) {
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          console.error("🔐 Invalid password for reset user:", email);
+          throw new Error("Invalid email or password");
+        }
+        try {
+          user.lastLogin = new Date();
+          user.loginHistory.push({
+            ipAddress: ipAddress || "Unknown",
+            device: userAgent || "Unknown",
+          });
+          await user.save();
+          console.log("🔐 Login history saved for reset user:", email);
+        } catch (error) {
+          console.error("🔐 Error saving login history for reset user:", {
+            error: error.message,
+            stack: error.stack,
+          });
+          logger.error("Error saving login history for reset user", {
+            email,
+            error,
+          });
+          throw new Error("Failed to update login history");
+        }
+        const token = this.generateToken(user);
+        console.log("🔐 Login successful for reset user:", email);
+        return {
+          user: {
+            _id: user._id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            isActive: user.isActive,
+            passwordResetPending: user.passwordResetPending,
+            isApproved: user.isApproved,
+            emailVerified: user.emailVerified,
+          },
+          token,
+        };
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        console.error("🔐 Invalid password for user:", email);
+        throw new Error("Invalid email or password");
+      }
+
+      if (!user.emailVerified) {
+        const otpCode = this.generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+        user.otpCode = otpCode;
+        user.otpExpiresAt = otpExpiry;
+        await user.save();
+        await EmailService.sendVerificationEmail(user, otpCode);
+        throw new Error(
+          "Please verify your email address. A new verification code has been sent.",
+          {
+            cause: {
+              requiresVerification: true,
+              data: { user: { _id: user._id, email: user.email } },
+            },
+          }
+        );
+      }
+
+      if (user.role !== "guest" && !user.isApproved) {
+        throw new Error("Your account is pending admin approval");
+      }
+
+      if (!user.isActive) {
+        throw new Error(
+          "Your account has been deactivated. Please contact support."
+        );
+      }
+
+      try {
+        user.lastLogin = new Date();
+        user.loginHistory.push({
+          ipAddress: ipAddress || "Unknown",
+          device: userAgent || "Unknown",
+        });
+        await user.save();
+        console.log("🔐 Login history saved for user:", email);
+      } catch (error) {
+        console.error("🔐 Error saving login history:", {
+          error: error.message,
+          stack: error.stack,
+        });
+        logger.error("Error saving login history", { email, error });
+        throw new Error("Failed to update login history");
+      }
+
+      const token = this.generateToken(user);
+      console.log("🔐 Login successful for user:", email);
+      return {
+        user: {
+          _id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
+          passwordResetPending: user.passwordResetPending,
+          isApproved: user.isApproved,
+          emailVerified: user.emailVerified,
+        },
+        token,
+      };
+    } catch (error) {
+      console.error("🔐 Login error:", {
+        message: error.message,
+        stack: error.stack,
+        email,
+      });
+      logger.error("Login error", { email, error });
+      throw error;
+    }
   }
 
   // Verify email with OTP
@@ -338,6 +516,7 @@ class AuthService {
 
     user.passwordResetToken = hashedToken;
     user.passwordResetExpiry = resetTokenExpiry;
+    user.passwordResetPending = true;
     await user.save();
 
     // Send reset email
@@ -360,25 +539,56 @@ class AuthService {
       throw new Error("Invalid or expired reset token");
     }
 
-    // Set passwordResetPending to true
-    user.passwordResetPending = true;
-    await user.save();
-
-    return { message: "Password reset link sent to your email" };
-
-    if (!user) {
-      throw new Error("Invalid or expired reset token");
-    }
-
     // Update password and invalidate token
     user.password = newPassword; // Pre-save hook hashes
     user.passwordResetToken = undefined;
     user.passwordResetExpiry = undefined;
-    user.passwordResetPending = false; // Set passwordResetPending to false
+    user.passwordResetPending = false;
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
-    return { message: "Password reset successful" };
+    return { message: "Password reset successfully" };
+  }
+
+  // Change password for logged-in users (including forced changes)
+  async changePasswordForUser(userId, currentPassword, newPassword) {
+    try {
+      const user = await User.findById(userId).select("+password");
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (user.authProviders.length > 0) {
+        throw new Error(
+          "This account uses social login. Please use Google or Apple to manage your account."
+        );
+      }
+
+      // For forced password changes (passwordResetPending), skip current password verification
+      if (!user.passwordResetPending) {
+        // Verify current password for voluntary changes
+        const isCurrentPasswordValid = await bcrypt.compare(
+          currentPassword,
+          user.password
+        );
+        if (!isCurrentPasswordValid) {
+          throw new Error("Current password is incorrect");
+        }
+      }
+
+      // Update password and clear flags
+      user.password = newPassword; // Pre-save hook hashes this
+      user.passwordResetPending = false; // Clear password reset requirement
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
+      await user.save();
+
+      logger.info(`Password changed for user ${userId}`);
+
+      return { message: "Password changed successfully" };
+    } catch (error) {
+      logger.error("Error changing password:", error);
+      throw error;
+    }
   }
 
   // Get current user with profile
@@ -444,36 +654,6 @@ class AuthService {
     user.tokenVersion = undefined;
 
     return user;
-  }
-
-  // Change password
-  async changePassword(userId, currentPassword, newPassword) {
-    const user = await User.findById(userId).select("+password +tokenVersion");
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    if (user.authProviders.length > 0) {
-      throw new Error(
-        "This account uses social login. Please use Google or Apple to manage your account."
-      );
-    }
-
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(
-      currentPassword,
-      user.password
-    );
-    if (!isCurrentPasswordValid) {
-      throw new Error("Current password is incorrect");
-    }
-
-    // Update password and increment token version
-    user.password = newPassword; // Pre-save hook hashes
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
-    await user.save();
-
-    return { message: "Password changed successfully" };
   }
 
   // Logout user

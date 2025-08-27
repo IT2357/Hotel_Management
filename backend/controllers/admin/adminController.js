@@ -388,6 +388,30 @@ export const resetUserPassword = async (req, res) => {
   }
 };
 
+export const updateUserPassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+    if (!userId || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID and new password are required",
+      });
+    }
+    // Verify user is updating their own password
+    if (userId !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized to update this user’s password",
+      });
+    }
+    const result = await AdminService.updateUserPassword(userId, newPassword);
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Failed to update user password");
+  }
+};
+
 // Get dashboard statistics
 export const getDashboardStats = async (req, res) => {
   try {

@@ -209,6 +209,29 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// Change password
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+
+    const result = await AuthService.changePasswordForUser(
+      req.user._id,
+      currentPassword,
+      newPassword
+    );
+    sendSuccess(res, result, result.message);
+  } catch (error) {
+    handleError(res, error, "Password change failed");
+  }
+};
+
 // Get current user
 export const getCurrentUser = async (req, res) => {
   try {
@@ -231,29 +254,6 @@ export const updateProfile = async (req, res) => {
     sendSuccess(res, { user }, "Profile updated successfully");
   } catch (error) {
     handleError(res, error, "Profile update failed");
-  }
-};
-
-// Change password
-export const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password and new password are required",
-      });
-    }
-
-    const result = await AuthService.changePassword(
-      req.user._id,
-      currentPassword,
-      newPassword
-    );
-    sendSuccess(res, result, result.message);
-  } catch (error) {
-    handleError(res, error, "Password change failed");
   }
 };
 

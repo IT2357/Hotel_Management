@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
-import ProtectedRoute from './components/shared/ProtectedRoute.jsx';
-import RedirectIfAuthenticated from './components/shared/RedirectIfAuthenticated.jsx';
+import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
@@ -51,9 +50,7 @@ const App = () => {
           <Route
             path="/verify-email"
             element={
-              <RedirectIfAuthenticated>
                 <OTPVerificationPage />
-              </RedirectIfAuthenticated>
             }
           />
           <Route

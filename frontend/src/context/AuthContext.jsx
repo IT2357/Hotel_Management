@@ -47,43 +47,44 @@ export function AuthProvider({ children }) {
       const res = await authService.login(credentials);
       const { user, token } = res.data.data;
   
-      if (user.passwordResetPending) {
-        // Prevent login if password reset is pending
-        setState(prev => ({ ...prev, error: "Password reset is pending. Please reset your password.", loading: false }));
-        return;
-      }
-  
-      if (!user.emailVerified) {
-        // Create minimal user object for unverified user
-        const basicUser = { _id: user._id, email: user.email, role: "guest" };
-        localStorage.setItem("user", JSON.stringify(basicUser));
-        setState(prev => ({ ...prev, user: basicUser, loading: false }));
-        navigate("/verify-email", { state: { email: user.email, userId: user._id } });
-        return basicUser; // Return basic user object
-      }
-  
-      // Handle verified user
+      // Store token and user data
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       setState(prev => ({ ...prev, user, loading: false }));
-      navigate(getDashboardPath(user.role));
-      return { success: true, user }; // Return success status
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || "Login failed";
-      const requiresVerification = err.response?.data?.requiresVerification;
+      
+      // Return the user object - let ProtectedRoute handle navigation
+      return user;
   
+    } catch (err) {
+      // Handle backend error structure with cause property
+      const backendError = err.response?.data;
+      const errorMessage = backendError?.message || "Login failed";
+      
+      // Check for verification requirement in cause property
+      const requiresVerification = backendError?.cause?.requiresVerification;
+      
       if (requiresVerification) {
-        // Handle unverified user in error case
-        const user = err.response?.data?.data?.user || credentials;
-        const basicUser = { _id: user._id, email: user.email, role: "guest" };
+        const userData = backendError?.cause?.data?.user || { 
+          _id: null, 
+          email: credentials.email 
+        };
+        const basicUser = { 
+          _id: userData._id, 
+          email: userData.email, 
+          role: "guest",
+          emailVerified: false 
+        };
         localStorage.setItem("user", JSON.stringify(basicUser));
         setState(prev => ({ ...prev, user: basicUser, loading: false }));
-        navigate("/verify-email", { state: { email: user.email, userId: user._id } });
-        return basicUser; // Return basic user object
+        navigate("/verify-email", {
+          state: { email: basicUser.email, userId: basicUser._id }
+        });        
+        return basicUser;
       }
   
+      // Handle other backend errors
       setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-      throw err; // Throw for other errors
+      throw err;
     }
   };
 
