@@ -53,6 +53,11 @@ const adminService = {
       originalPaymentId,
     }),
   checkRefundStatus: (id) => api.get(`/admin/refunds/${id}/status`),
+
+  // Admin Settings
+  getAdminSettings: () => api.get("/admin/settings"),
+  updateAdminSettings: (data) => api.put("/admin/settings", data),
+  testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
 };
 
 export default adminService;

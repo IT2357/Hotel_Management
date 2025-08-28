@@ -29,6 +29,11 @@ import {
   processRefund,
   checkRefundStatus,
 } from "../controllers/admin/adminController.js";
+import {
+  getAdminSettings,
+  updateAdminSettings,
+  testEmailConfig,
+} from "../controllers/admin/settingsController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
 import { refundOperationMiddleware } from "../middleware/refundValidation.js";
@@ -215,5 +220,18 @@ router.get(
   authorizeRoles({ permissions: ["refunds:read"] }),
   checkRefundStatus
 );
+
+// ⚙️ Admin Settings routes
+router.get(
+  "/settings",
+  authorizeRoles({ permissions: ["settings:read"] }),
+  getAdminSettings
+);
+router.put(
+  "/settings",
+  authorizeRoles({ permissions: ["settings:update"] }),
+  updateAdminSettings
+);
+router.post("/settings/test-email", testEmailConfig);
 
 export default router;
