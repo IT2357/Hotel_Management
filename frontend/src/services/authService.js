@@ -11,6 +11,10 @@ const authService = {
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (data) => api.post("/auth/reset-password", data),
   getCurrentUser: () => api.get("/auth/me"),
+  updateProfile: (profileData) => api.put("/auth/profile", profileData),
+  changePassword: (passwordData) =>
+    api.put("/auth/change-password", passwordData),
+  deleteProfile: () => api.delete("/auth/profile"),
   checkInvitation: (token) => api.get(`/auth/check-invitation?token=${token}`),
   registerWithInvite: (data) => api.post("/auth/register-with-invite", data),
 };

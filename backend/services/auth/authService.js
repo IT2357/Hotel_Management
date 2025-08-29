@@ -417,7 +417,7 @@ class AuthService {
         break;
     }
 
-    const user = await query;
+    const user = await query.exec();
     if (!user) {
       throw new Error("User not found");
     }
@@ -537,6 +537,35 @@ class AuthService {
       console.error("Failed to notify admins:", error);
       // Don't throw - this shouldn't fail the main operation
     }
+  }
+
+  // Delete user profile and associated data
+  async deleteProfile(userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Delete role-specific profile
+    switch (user.role) {
+      case "guest":
+        await GuestProfile.deleteOne({ userId });
+        break;
+      case "staff":
+        await StaffProfile.deleteOne({ userId });
+        break;
+      case "manager":
+        await ManagerProfile.deleteOne({ userId });
+        break;
+      case "admin":
+        await AdminProfile.deleteOne({ userId });
+        break;
+    }
+
+    // Delete user
+    await User.deleteOne({ _id: userId });
+
+    return { message: "User and associated profile deleted successfully" };
   }
 }
 

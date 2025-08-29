@@ -296,6 +296,15 @@ export const socialCallback = (req, res) => {
   }
 };
 
+export const deleteProfile = async (req, res) => {
+  try {
+    const result = await AuthService.deleteProfile(req.user._id);
+    sendSuccess(res, result, "Profile deleted successfully");
+  } catch (error) {
+    handleError(res, error, "Profile deletion failed");
+  }
+};
+
 export default {
   register,
   checkInvitation,
@@ -311,4 +320,5 @@ export default {
   logout,
   checkApprovalStatus,
   socialCallback,
+  deleteProfile,
 };
