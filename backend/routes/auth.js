@@ -15,7 +15,7 @@ import {
   logout,
   socialCallback,
 } from "../controllers/auth/authController.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 import {
   validateRegistration,
   validateLogin,
@@ -33,6 +33,7 @@ router.post("/verify-email", verifyEmail);
 router.post("/resend-otp", resendOTP);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/change-password", optionalAuth, changePassword);
 
 // Social login routes
 router.get(
@@ -57,7 +58,6 @@ router.post(
 // Protected routes
 router.get("/me", authenticateToken, getCurrentUser);
 router.put("/profile", authenticateToken, updateProfile);
-router.put("/change-password", authenticateToken, changePassword);
 router.post("/logout", authenticateToken, logout);
 
 // Example protected route with role & permission check:

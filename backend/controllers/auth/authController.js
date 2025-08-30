@@ -108,11 +108,31 @@ export const login = async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
 
-    sendSuccess(res, result, "Login successful");
+    return res.status(200).json({
+      success: true,
+      data: result,
+      message: "Login successful",
+    });
   } catch (error) {
-    // Handle special cases for login
+    console.error("🔐 Login controller error:", {
+      message: error.message,
+      stack: error.stack,
+      email: req.body.email,
+    });
+
+    // Handle password reset required
+    if (error.message === "Password change required") {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+        redirectTo: error.cause?.redirectTo,
+        data: error.cause?.data,
+      });
+    }
+
+    // Handle email verification required
     if (error.message.includes("verify your email")) {
-      return res.status(401).json({
+      return res.status(403).json({
         success: false,
         message: error.message,
         requiresVerification: true,
@@ -120,6 +140,7 @@ export const login = async (req, res) => {
       });
     }
 
+    // Handle pending admin approval
     if (error.message.includes("pending admin approval")) {
       return res.status(403).json({
         success: false,
@@ -128,7 +149,19 @@ export const login = async (req, res) => {
       });
     }
 
-    handleError(res, error, "Login failed");
+    // Handle invalid credentials
+    if (error.message === "Invalid email or password") {
+      return res.status(401).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // Generic error handling
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Login failed",
+    });
   }
 };
 
@@ -212,17 +245,15 @@ export const resetPassword = async (req, res) => {
 // Change password
 export const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Current password and new password are required",
+        message: "User ID, current password, and new password are required",
       });
     }
-
     const result = await AuthService.changePasswordForUser(
-      req.user._id,
+      userId, // Use userId from request body
       currentPassword,
       newPassword
     );
