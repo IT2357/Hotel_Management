@@ -289,7 +289,7 @@ class AuthService {
     });
     try {
       const user = await User.findOne({ email }).select(
-        "+password +tokenVersion +passwordResetPending +isActive"
+        "+password +tokenVersion +passwordResetPending +isActive +emailVerified +isApproved"
       );
       if (!user) {
         console.error("🔐 User not found for email:", email);
@@ -310,53 +310,21 @@ class AuthService {
         );
       }
 
-      // Allow login for password reset pending users
-      if (user.passwordResetPending && !user.isActive) {
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          console.error("🔐 Invalid password for reset user:", email);
-          throw new Error("Invalid email or password");
-        }
-        try {
-          user.lastLogin = new Date();
-          user.loginHistory.push({
-            ipAddress: ipAddress || "Unknown",
-            device: userAgent || "Unknown",
-          });
-          await user.save();
-          console.log("🔐 Login history saved for reset user:", email);
-        } catch (error) {
-          console.error("🔐 Error saving login history for reset user:", {
-            error: error.message,
-            stack: error.stack,
-          });
-          logger.error("Error saving login history for reset user", {
-            email,
-            error,
-          });
-          throw new Error("Failed to update login history");
-        }
-        const token = this.generateToken(user);
-        console.log("🔐 Login successful for reset user:", email);
-        return {
-          user: {
-            _id: user._id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            isActive: user.isActive,
-            passwordResetPending: user.passwordResetPending,
-            isApproved: user.isApproved,
-            emailVerified: user.emailVerified,
-          },
-          token,
-        };
-      }
-
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         console.error("🔐 Invalid password for user:", email);
         throw new Error("Invalid email or password");
+      }
+
+      // Check passwordResetPending before other validations
+      if (user.passwordResetPending) {
+        console.log("🔐 Password reset required for user:", email);
+        throw new Error("Password change required", {
+          cause: {
+            redirectTo: "/reset-password",
+            data: { user: { _id: user._id, email: user.email } },
+          },
+        });
       }
 
       if (!user.emailVerified) {
@@ -377,14 +345,16 @@ class AuthService {
         );
       }
 
-      if (user.role !== "guest" && !user.isApproved) {
-        throw new Error("Your account is pending admin approval");
-      }
-
       if (!user.isActive) {
+        console.error("🔐 Account deactivated for user:", email);
         throw new Error(
           "Your account has been deactivated. Please contact support."
         );
+      }
+
+      if (user.role !== "guest" && !user.isApproved) {
+        console.error("🔐 Account pending approval for user:", email);
+        throw new Error("Your account is pending admin approval");
       }
 
       try {
@@ -553,20 +523,21 @@ class AuthService {
   // Change password for logged-in users (including forced changes)
   async changePasswordForUser(userId, currentPassword, newPassword) {
     try {
-      const user = await User.findById(userId).select("+password");
+      const user = await User.findById(userId).select(
+        "+password +tokenVersion +passwordResetPending"
+      );
       if (!user) {
         throw new Error("User not found");
       }
-
       if (user.authProviders.length > 0) {
         throw new Error(
           "This account uses social login. Please use Google or Apple to manage your account."
         );
       }
-
-      // For forced password changes (passwordResetPending), skip current password verification
       if (!user.passwordResetPending) {
-        // Verify current password for voluntary changes
+        if (!currentPassword) {
+          throw new Error("Current password is required");
+        }
         const isCurrentPasswordValid = await bcrypt.compare(
           currentPassword,
           user.password
@@ -575,15 +546,14 @@ class AuthService {
           throw new Error("Current password is incorrect");
         }
       }
-
-      // Update password and clear flags
-      user.password = newPassword; // Pre-save hook hashes this
-      user.passwordResetPending = false; // Clear password reset requirement
+      if (newPassword.length < 8) {
+        throw new Error("New password must be at least 8 characters");
+      }
+      user.password = newPassword;
+      user.passwordResetPending = false;
       user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save();
-
       logger.info(`Password changed for user ${userId}`);
-
       return { message: "Password changed successfully" };
     } catch (error) {
       logger.error("Error changing password:", error);

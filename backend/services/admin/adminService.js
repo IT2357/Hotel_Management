@@ -576,11 +576,15 @@ class AdminService {
     requirePasswordChange,
     requestingAdminId
   ) {
-    const user = await User.findById(userId).select("+tokenVersion");
+    const user = await User.findById(userId).select(
+      "+isActive +tokenVersion +password"
+    );
+
     if (!user) {
       throw new Error("User not found");
     }
-    if (user.authProviders.length > 0) {
+
+    if (user.authProviders && user.authProviders.length > 0) {
       throw new Error(
         "This account uses social login and cannot be reset by admin."
       );
@@ -588,13 +592,21 @@ class AdminService {
 
     const newPassword = temporaryPassword || this.generateTemporaryPassword();
     console.log("🔐 New password:", newPassword);
-    user.password = newPassword; // Pre-save hook will hash it
-    user.isActive = true; // Keep account active so user can login
-    user.passwordResetPending = true; // Force user to change password on next login
-    user.tokenVersion = (user.tokenVersion || 0) + 1; // Invalidate sessions
+
+    user.password = newPassword;
+    user.markModified("password"); // Ensure pre-save hook triggers hashing
+
+    user.isActive = true;
+    user.passwordResetPending = requirePasswordChange;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     user.passwordResetToken = undefined;
     user.passwordResetExpiry = undefined;
-    await user.save();
+
+    try {
+      await user.save();
+    } catch (saveError) {
+      throw new Error("Failed to save updated user: " + saveError.message);
+    }
 
     try {
       await EmailService.sendAdminPasswordResetEmail(user, newPassword);
