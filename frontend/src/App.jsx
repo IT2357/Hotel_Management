@@ -12,7 +12,8 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import LogoutHandler from "./pages/auth/LogoutHandler.jsx";
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
-import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
+import GuestDashboardPage from './pages/guest/ValdorGuestDashboard.jsx';
+import GuestMenuPage from './pages/guest/GuestMenuPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
@@ -83,6 +84,12 @@ const App = () => {
               <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
               </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/menu" 
+            element={
+              <GuestMenuPage />
             } 
           />
 

@@ -27,12 +27,12 @@ export default function ValdorGuestDashboard() {
         </Link>
         <Link
           to="/menu"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-full shadow hover:bg-amber-700 transition-colors"
-          aria-label="Go to Menu"
-          title="Menu"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-105"
+          aria-label="View Our Menu"
+          title="View Our Menu"
         >
-          <span>🍽️</span>
-          <span className="hidden sm:inline font-semibold">Menu</span>
+          <span className="text-xl">🍽️</span>
+          <span className="font-bold text-lg">View Our Menu</span>
         </Link>
       </div>
       {/* Hero Section */}
