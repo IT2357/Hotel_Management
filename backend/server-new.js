@@ -22,88 +22,61 @@ app.set("trust proxy", 1);
 // Global middleware
 app.use(helmet());
 app.use(compression());
-app.use(morgan("combined"));
+app.use(morgan("dev"));
 
 // CORS configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://127.0.0.1:5175'
-].filter(Boolean);
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+  origin: [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5175'
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  exposedHeaders: ["Content-Range", "X-Content-Range"],
-  maxAge: 600, // 10 minutes
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  exposedHeaders: ["Content-Range", "X-Content-Range"]
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
-
-// Handle preflight requests
 app.options('*', cors(corsOptions));
 
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    success: false,
-    message: "Too many requests from this IP, please try again later",
-  },
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    message: "Too many authentication attempts, please try again later",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Apply rate limiting to API routes
+app.use("/api/", limiter);
 
-if (process.env.NODE_ENV === "production") {
-  app.use("/api/", limiter);
-  app.use("/api/auth/", authLimiter);
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-  app.use(mongoSanitize());
-  app.use(xss());
-  app.use(hpp());
-} else {
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-  // Optionally add logger, dev-specific middleware here
-}
+// Body parser, reading data from body into req.body
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(hpp());
+
+// Connect to MongoDB
 connectDB();
 
+// Simple route for health check
 app.get("/health", async (req, res) => {
   const dbHealth = await dbHealthCheck();
   res.status(dbHealth.status === "healthy" ? 200 : 503).json({
     success: dbHealth.status === "healthy",
     message: "Server health check",
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
+    environment: process.env.NODE_ENV || 'development',
     database: dbHealth,
   });
 });
@@ -114,15 +87,13 @@ app.use("/api/admin", adminRoutes);
 
 // API 404 Handler
 app.use("/api", (req, res) => {
-  console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     message: "API endpoint not found",
   });
 });
 
-// console.log("👀 Starting server.mjs...");
-
+// Root route
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -186,37 +157,26 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-  console.log(`
-🚀 Server running in ${
-    process.env.NODE_ENV || "development"
-  } mode on port ${PORT}
-📊 Health check: http://localhost:${PORT}/health
-🔐 Auth API: http://localhost:${PORT}/api/auth
-📚 Documentation: http://localhost:${PORT}/api/docs
-  `);
+  console.log(`\n🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
+  console.log(`📚 Documentation: http://localhost:${PORT}/api/docs\n`);
 });
 
-// Handle termination
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Promise Rejection:", err);
-  server.close(() => process.exit(1));
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  });
 });
 
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
   process.exit(1);
 });
-
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received. Shutting down gracefully...");
-  server.close(() => console.log("Process terminated"));
-});
-
-process.on("SIGINT", () => {
-  console.log("SIGINT received. Shutting down gracefully...");
-  server.close(() => console.log("Process terminated"));
-});
-
-export default app;
