@@ -10,7 +10,7 @@ const authService = {
   resendOTP: (data) => api.post("/auth/resend-otp", data),
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (data) => api.post("/auth/reset-password", data),
-  changePassword: (data) => api.put("/auth/change-password", data),
+  updateUserPassword: (data) => api.post("/auth/change-password", data),
   getCurrentUser: () => api.get("/auth/me"),
   checkInvitation: (token) => api.get(`/auth/check-invitation?token=${token}`),
   registerWithInvite: (data) => api.post("/auth/register-with-invite", data),

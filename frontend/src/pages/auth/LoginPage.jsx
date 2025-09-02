@@ -1,6 +1,6 @@
-// src/pages/auth/LoginPage.js
+// In src/pages/auth/LoginPage.js
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
 import Alert from '../../components/common/Alert';
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
 
   const fields = [
     {
@@ -34,17 +35,31 @@ export default function LoginPage() {
   const handleSubmit = async (data) => {
     setLoading(true);
     setAlert(null);
-    
     try {
       await login(data);
-      // After successful login, the ProtectedRoute will handle all redirects
-      // The user will be automatically redirected based on their status
     } catch (err) {
+      console.error('Login error:', {
+        message: err.message,
+        response: err.response?.data,
+        redirectTo: err.response?.data?.redirectTo,
+        userData: err.response?.data?.data?.user,
+      });
       const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        'Login failed. Please check your credentials or try again later.';
+        err.response?.data?.redirectTo === '/reset-password'
+          ? 'A password reset is required. Redirecting to reset page...'
+          : err.response?.data?.message ||
+            err.message ||
+            'Login failed. Please check your credentials or try again later.';
       setAlert({ type: 'error', message: errorMessage });
+      if (err.response?.data?.redirectTo === '/reset-password') {
+        navigate('/reset-password', {
+          state: {
+            userId: err.response?.data?.data?.user?._id,
+            email: err.response?.data?.data?.user?.email,
+          },
+          replace: true,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -61,7 +76,6 @@ export default function LoginPage() {
             Sign in to continue to your account
           </p>
         </div>
-        
         {alert && (
           <Alert
             type={alert.type}
@@ -69,14 +83,12 @@ export default function LoginPage() {
             onClose={() => setAlert(null)}
           />
         )}
-        
         <AuthForm
           fields={fields}
           onSubmit={handleSubmit}
           submitText="Sign In"
           loading={loading}
         />
-        
         <div className="flex items-center justify-between text-sm">
           <Link
             to="/forgot-password"

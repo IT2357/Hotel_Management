@@ -115,6 +115,9 @@ export default function UserManagementPage() {
             requirePasswordChange: data.requirePasswordChange,
             adminId: user._id,
           });
+          if (action === 'resetPassword') {
+            alert(`Password reset successful. Temporary password: ${response.data.temporaryPassword}`);
+          }
           break;
         case 'updateProfile':
           response = await adminService.updateUserProfile(userId, data);

@@ -1,4 +1,3 @@
-// frontend/src/components/ProtectedRoute.js
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import getDashboardPath from '../../utils/GetDashboardPath';
@@ -6,7 +5,7 @@ import getDashboardPath from '../../utils/GetDashboardPath';
 export function ProtectedRoute({ children, roles = [], permissions = [] }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  
+
   // Define public routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-email', '/reset-password'];
 
@@ -26,17 +25,27 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
 
   // If user is not authenticated and trying to access a protected route
   if (!user) {
-    // Allow access to public routes
     if (publicRoutes.includes(location.pathname)) {
+      console.log('Allowing access to public route:', location.pathname);
       return children;
     }
-    // Redirect to login for protected routes
+    console.log('Redirecting to /login', { from: location.pathname });
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  console.log("ProtectedRoute user:", user);
-  // If user exists, check their status
+
+  console.log('ProtectedRoute user:', {
+    userId: user._id,
+    email: user.email,
+    role: user.role,
+    passwordResetPending: user.passwordResetPending,
+    emailVerified: user.emailVerified,
+    isActive: user.isActive,
+    pathname: location.pathname,
+  });
+
   // Password reset pending - redirect to reset password
   if (user.passwordResetPending && location.pathname !== '/reset-password') {
+    console.log('Redirecting to /reset-password', { userId: user._id, email: user.email });
     return (
       <Navigate
         to="/reset-password"
@@ -48,6 +57,7 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
 
   // Email not verified - redirect to verify email
   if (!user.emailVerified && location.pathname !== '/verify-email') {
+    console.log('Redirecting to /verify-email', { userId: user._id, email: user.email });
     return (
       <Navigate
         to="/verify-email"
@@ -59,6 +69,7 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
 
   // Account not active - show error
   if (!user.isActive) {
+    console.log('Account deactivated', { userId: user._id, email: user.email });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="bg-white p-8 rounded-xl shadow-lg">
@@ -73,6 +84,7 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
 
   // Pending approval for non-guest roles
   if (user.role !== "guest" && !user.isApproved && location.pathname !== '/pending-approval') {
+    console.log('Redirecting to /pending-approval', { userId: user._id, role: user.role });
     return (
       <Navigate
         to="/pending-approval"
@@ -84,6 +96,7 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
 
   // Role-based access control
   if (roles.length && !roles.includes(user.role)) {
+    console.log('Unauthorized role', { userRole: user.role, requiredRoles: roles });
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -92,11 +105,13 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
     const userPerms = user.permissions || [];
     const hasAll = permissions.every((p) => userPerms.includes(p));
     if (!hasAll) {
+      console.log('Insufficient permissions', { userPerms, requiredPerms: permissions });
       return <Navigate to="/unauthorized" replace />;
     }
   }
 
   // If all checks pass, render the children
+  console.log('Allowing access to protected route:', location.pathname);
   return children;
 }
 
@@ -117,14 +132,19 @@ export function RedirectIfAuthenticated({ children }) {
     );
   }
 
-  // Only redirect if user is authenticated and email is verified
-  if (user && user.emailVerified && user.isActive) {
-    // Don't redirect if already on the dashboard
+  // Only redirect if user is authenticated, email is verified, active, and no password reset pending
+  if (user && user.emailVerified && user.isActive && !user.passwordResetPending) {
     const dashboardPath = getDashboardPath(user.role);
     if (location.pathname !== dashboardPath) {
+      console.log('Redirecting authenticated user to dashboard', {
+        userId: user._id,
+        dashboardPath,
+        pathname: location.pathname,
+      });
       return <Navigate to={dashboardPath} state={{ from: location }} replace />;
     }
   }
 
+  console.log('Allowing access to non-authenticated route:', location.pathname);
   return children;
 }

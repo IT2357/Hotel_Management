@@ -40,53 +40,104 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // const login = async (credentials) => {
+  //   setState(prev => ({ ...prev, error: null }));
+  
+  //   try {
+  //     const res = await authService.login(credentials);
+  //     const { user, token } = res.data.data;
+  
+  //     // Store token and user data
+  //     localStorage.setItem("token", token);
+  //     localStorage.setItem("user", JSON.stringify(user));
+  //     setState(prev => ({ ...prev, user, loading: false }));
+      
+  //     // Return the user object - let ProtectedRoute handle navigation
+  //     return user;
+  
+  //   } catch (err) {
+  //     // Handle backend error structure with cause property
+  //     const backendError = err.response?.data;
+  //     const requiresVerification = backendError?.requiresVerification;
+
+  //     if (requiresVerification) {
+  //       const userData = backendError?.data?.user || {
+  //         _id: null,
+  //         email: credentials.email
+  //       };
+  //       const basicUser = {
+  //         _id: userData._id,
+  //         email: userData.email,
+  //         role: "guest",
+  //         emailVerified: false
+  //       };
+  //       localStorage.setItem("user", JSON.stringify(basicUser));
+  //       setState(prev => ({ ...prev, user: basicUser, loading: false }));
+  //       navigate("/verify-email", {
+  //         state: { email: basicUser.email, userId: basicUser._id }
+  //       });        
+  //       return basicUser;
+  //     }
+  
+  //     // Handle other backend errors
+  //     setState(prev => ({ ...prev, error: errorMessage, loading: false }));
+  //     throw err;
+  //   }
+  // };
   const login = async (credentials) => {
     setState(prev => ({ ...prev, error: null }));
-  
     try {
       const res = await authService.login(credentials);
       const { user, token } = res.data.data;
-  
-      // Store token and user data
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       setState(prev => ({ ...prev, user, loading: false }));
-      
-      // Return the user object - let ProtectedRoute handle navigation
       return user;
-  
     } catch (err) {
-      // Handle backend error structure with cause property
-      const backendError = err.response?.data;
-      const errorMessage = backendError?.message || "Login failed";
-      
-      // Check for verification requirement in cause property
-      const requiresVerification = backendError?.cause?.requiresVerification;
-      
-      if (requiresVerification) {
-        const userData = backendError?.cause?.data?.user || { 
-          _id: null, 
-          email: credentials.email 
+      console.error('AuthContext login error:', {
+        message: err.message,
+        response: err.response?.data,
+        redirectTo: err.response?.data?.redirectTo,
+        userData: err.response?.data?.data?.user,
+      });
+      const error = err.response?.data?.message || err.message || 'Login failed';
+      if (err.response?.data?.requiresVerification) {
+        const userData = err.response?.data?.data?.user || {
+          _id: null,
+          email: credentials.email,
         };
-        const basicUser = { 
-          _id: userData._id, 
-          email: userData.email, 
-          role: "guest",
-          emailVerified: false 
+        const basicUser = {
+          _id: userData._id,
+          email: userData.email,
+          role: 'guest',
+          emailVerified: false,
         };
-        localStorage.setItem("user", JSON.stringify(basicUser));
-        setState(prev => ({ ...prev, user: basicUser, loading: false }));
-        navigate("/verify-email", {
-          state: { email: basicUser.email, userId: basicUser._id }
-        });        
+        localStorage.setItem('user', JSON.stringify(basicUser));
+        setState(prev => ({ ...prev,
+          user: basicUser,
+          loading: false,
+        }));
+        navigate('/verify-email', {
+          state: { email: basicUser.email, userId: basicUser._id },
+          replace: true,
+        });
         return basicUser;
       }
-  
-      // Handle other backend errors
-      setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-      throw err;
+      if (err.response?.data?.redirectTo === '/reset-password') {
+        navigate('/reset-password', {
+          state: {
+            email: err.response?.data?.data?.user?.email,
+            userId: err.response?.data?.data?.user?._id,
+          },
+          replace: true,
+        });
+        throw new Error('Password change required');
+      }
+      setState(prev => ({ ...prev, error, loading: false }));
+      throw new Error(error);
     }
   };
+
 
   const register = async (userData) => {
     setState(prev => ({ ...prev, error: null }));
@@ -117,6 +168,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem("user", JSON.stringify(verifiedUser));
       
       setState(prev => ({ ...prev, user: verifiedUser, error: null }));
+      await checkAuth();
       navigate(getDashboardPath(verifiedUser.role));
     } catch (err) {
       const error = err.response?.data?.message || "Email verification failed";
@@ -132,6 +184,22 @@ export function AuthProvider({ children }) {
       const error = err.response?.data?.message || "Failed to resend OTP";
       setState(prev => ({ ...prev, error }));
       throw error;
+    }
+  };
+
+  const updateUserPassword = async (userId, newPassword) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const res = await authService.updateUserPassword(userId, newPassword);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setState(prev => ({ ...prev, user: null, loading: false }));
+      debouncedNavigate("/login", { state: { message: "Password updated successfully. Please log in." }, replace: true });
+      return res;
+    } catch (err) {
+      const error = err.response?.data?.message || "Failed to update password";
+      setState(prev => ({ ...prev, loading: false, error }));
+      throw err;
     }
   };
 
@@ -174,13 +242,14 @@ export function AuthProvider({ children }) {
   // Provide the auth state and methods
   const value = {
     ...state,
-    isAuthenticated: !!state.user,
+    isAuthenticated: !!state.user && state.user.emailVerified && state.user.isActive && !state.user.passwordResetPending,
     login,
     register,
     verifyEmail,
     resendOTP,
     logout,
-    checkAuth
+    checkAuth,
+    updateUserPassword,
   };
 
   return (
