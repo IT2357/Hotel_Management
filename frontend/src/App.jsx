@@ -113,9 +113,7 @@ const App = () => {
             path="/admin/invitations"
             element={
               <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminInvitationPage />
-                </DefaultAdminLayout>
+                <AdminInvitationPage />
               </ProtectedRoute>
             }
           />
@@ -135,9 +133,7 @@ const App = () => {
             path="/admin/users"
             element={
               <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <UserManagementPage />
-                </DefaultAdminLayout>
+                <UserManagementPage />
               </ProtectedRoute>
             }
           />
@@ -179,9 +175,7 @@ const App = () => {
             path="/admin/refunds"
             element={
               <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminRefundManagementPage />
-                </DefaultAdminLayout>
+                <AdminRefundManagementPage />
               </ProtectedRoute>
             }
           />
