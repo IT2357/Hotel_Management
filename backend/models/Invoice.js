@@ -4,10 +4,11 @@ import mongoose from "mongoose";
 const invoiceSchema = new mongoose.Schema(
   {
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" },
+    foodOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "FoodOrder" },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     invoiceNumber: { type: String, unique: true, index: true },
     amount: Number,
-    currency: { type: String, default: "USD" },
+    currency: { type: String, default: "LKR" },
     taxRate: Number,
     discountApplied: Number,
     paymentStatus: {
