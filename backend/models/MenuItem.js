@@ -66,16 +66,51 @@ const menuItemSchema = new mongoose.Schema({
   },
   dietaryTags: [{
     type: String,
-    enum: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'nut-free', 'halal', 'kosher']
+    enum: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'nut-free', 'halal', 'kosher', 'keto', 'paleo', 'low-carb', 'sugar-free']
   }],
+  cuisineType: {
+    type: String,
+    enum: ['Sri Lankan', 'Indian', 'Chinese', 'Italian', 'Continental', 'Thai', 'Japanese', 'Mexican', 'Mediterranean', 'Fusion'],
+    default: 'Sri Lankan'
+  },
+  spiceLevel: {
+    type: String,
+    enum: ['None', 'Mild', 'Medium', 'Hot', 'Extra Hot'],
+    default: 'Mild'
+  },
+  servingSize: {
+    type: String,
+    enum: ['Individual', 'Sharing (2-3)', 'Family (4-6)', 'Large (6+)'],
+    default: 'Individual'
+  },
   foodType: {
     type: String,
-    enum: ['veg', 'non-veg', 'seafood'],
+    enum: ['veg', 'non-veg', 'seafood', 'vegan'],
     required: true
   },
-  isHalal: {
+  isSignatureDish: {
     type: Boolean,
     default: false
+  },
+  isChefSpecial: {
+    type: Boolean,
+    default: false
+  },
+  isNewItem: {
+    type: Boolean,
+    default: false
+  },
+  isPopular: {
+    type: Boolean,
+    default: false
+  },
+  isSeasonalItem: {
+    type: Boolean,
+    default: false
+  },
+  seasonalAvailability: {
+    startMonth: Number, // 1-12
+    endMonth: Number   // 1-12
   },
   ingredients: [{
     type: String,
@@ -107,7 +142,45 @@ const menuItemSchema = new mongoose.Schema({
     protein: Number,
     carbs: Number,
     fat: Number,
-    fiber: Number
+    fiber: Number,
+    sodium: Number,
+    sugar: Number
+  },
+  reviews: {
+    totalReviews: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    lastReviewDate: Date
+  },
+  inventory: {
+    stockLevel: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    lowStockThreshold: {
+      type: Number,
+      default: 5
+    },
+    isLowStock: {
+      type: Boolean,
+      default: false
+    }
+  },
+  pricing: {
+    costPrice: Number, // Cost to make the dish
+    markupPercentage: Number, // Profit margin
+    discountPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+    isOnSale: {
+      type: Boolean,
+      default: false
+    },
+    saleStartDate: Date,
+    saleEndDate: Date
   },
   slug: {
     type: String,
@@ -157,15 +230,61 @@ menuItemSchema.virtual('primaryImage').get(function() {
   return primary || this.images[0];
 });
 
-// Virtual for price display
+// Virtual for display price with discount
 menuItemSchema.virtual('displayPrice').get(function() {
+  let price;
+  
   if (this.portions && this.portions.length > 0) {
     const defaultPortion = this.portions.find(p => p.isDefault);
-    if (defaultPortion) return defaultPortion.price;
-    return this.portions[0].price;
+    price = defaultPortion ? defaultPortion.price : this.portions[0].price;
+  } else {
+    price = this.basePrice;
+  }
+
+  // Apply discount if on sale
+  if (this.pricing && this.pricing.isOnSale && this.pricing.discountPercentage > 0) {
+    const discount = (this.pricing.discountPercentage / 100) * price;
+    return Math.round((price - discount) * 100) / 100; // Round to 2 decimal places
+  }
+
+  return price;
+});
+
+// Virtual for original price (before discount)
+menuItemSchema.virtual('originalPrice').get(function() {
+  if (this.portions && this.portions.length > 0) {
+    const defaultPortion = this.portions.find(p => p.isDefault);
+    return defaultPortion ? defaultPortion.price : this.portions[0].price;
   }
   return this.basePrice;
 });
+
+// Virtual for checking if item is currently seasonal
+menuItemSchema.virtual('isCurrentlySeasonal').get(function() {
+  if (!this.isSeasonalItem || !this.seasonalAvailability) return false;
+  
+  const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11
+  const { startMonth, endMonth } = this.seasonalAvailability;
+  
+  if (startMonth <= endMonth) {
+    return currentMonth >= startMonth && currentMonth <= endMonth;
+  } else {
+    // Handle cases where season spans across year (e.g., Nov-Feb)
+    return currentMonth >= startMonth || currentMonth <= endMonth;
+  }
+});
+
+// Method to update stock level and check if low stock
+menuItemSchema.methods.updateStock = function(quantity, operation = 'subtract') {
+  if (operation === 'subtract') {
+    this.inventory.stockLevel = Math.max(0, this.inventory.stockLevel - quantity);
+  } else if (operation === 'add') {
+    this.inventory.stockLevel += quantity;
+  }
+  
+  this.inventory.isLowStock = this.inventory.stockLevel <= this.inventory.lowStockThreshold;
+  return this.save();
+};
 
 // Indexes for better query performance
 menuItemSchema.index({ category: 1, isActive: 1, isAvailable: 1 });

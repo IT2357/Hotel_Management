@@ -16,7 +16,14 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
-    "react-router-dom": "^7.6.3"
+    "react-router-dom": "^7.6.3",
+    "framer-motion": "^11.2.12",
+    "react-spring": "^9.7.4",
+    "lucide-react": "^0.395.0",
+    "react-hot-toast": "^2.4.1",
+    "date-fns": "^2.30.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

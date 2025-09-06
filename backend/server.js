@@ -15,6 +15,9 @@ import { connectDB, dbHealthCheck } from "./config/database.js";
 // Import routes
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import menuRoutes from "./routes/menuRoutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -111,6 +114,9 @@ app.get("/health", async (req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/menu", menuRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/orders", orderRoutes);
 
 // API 404 Handler
 app.use("/api", (req, res) => {
@@ -131,6 +137,10 @@ app.get("/", (req, res) => {
     documentation: "/api/docs",
     endpoints: {
       auth: "/api/auth",
+      menu: "/api/menu", 
+      bookings: "/api/bookings",
+      orders: "/api/orders",
+      admin: "/api/admin",
       health: "/health",
     },
   });
