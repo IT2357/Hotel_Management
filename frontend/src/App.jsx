@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import ToastProvider from './components/ToastProvider.jsx';
 import ProtectedRoute from './components/shared/ProtectedRoute.jsx';
 import RedirectIfAuthenticated from './components/shared/RedirectIfAuthenticated.jsx';
 import HomePage from './pages/HomePage.jsx';
+import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
+import TableBookingPage from './pages/TableBookingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -25,17 +28,20 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* 🔒 Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route
-            path="/login"
-            element={
-              <RedirectIfAuthenticated>
-                <LoginPage />
-              </RedirectIfAuthenticated>
-            }
-          />
+        <ToastProvider>
+          <Routes>
+            {/* 🔒 Public Routes */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/menu" element={<RestaurantMenuPage />} />
+            <Route path="/book-table" element={<TableBookingPage />} />
+            <Route
+              path="/login"
+              element={
+                <RedirectIfAuthenticated>
+                  <LoginPage />
+                </RedirectIfAuthenticated>
+              }
+            />
           <Route
             path="/register"
             element={
@@ -158,6 +164,7 @@ const App = () => {
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );
