@@ -386,30 +386,28 @@ export default function UserManagementPage() {
                   </div>
                 </div>
                 <div className="w-full lg:w-64">
-                  <Select
-                    value={filters.role}
-                    onChange={(e) => setFilters({ ...filters, role: e.target.value, page: 1 })}
-                    options={[
-                      { value: '', label: 'All Roles' },
-                      { value: 'guest', label: 'Guest' },
-                      { value: 'staff', label: 'Staff' },
-                      { value: 'manager', label: 'Manager' },
-                      { value: 'admin', label: 'Admin' },
-                    ]}
-                    className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                  />
+                <Select
+                  value={filters.role}
+                  onChange={(e) => setFilters({ ...filters, role: e.target.value, page: 1 })}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="">All Roles</option>
+                  <option value="guest">Guest</option>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </Select>
                 </div>
                 <div className="w-full lg:w-64">
-                  <Select
-                    value={filters.isApproved}
-                    onChange={(e) => setFilters({ ...filters, isApproved: e.target.value, page: 1 })}
-                    options={[
-                      { value: 'all', label: 'All Status' },
-                      { value: 'true', label: 'Approved' },
-                      { value: 'false', label: 'Pending' },
-                    ]}
-                    className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                  />
+                <Select
+                  value={filters.isApproved}
+                  onChange={(e) => setFilters({ ...filters, isApproved: e.target.value, page: 1 })}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="true">Approved</option>
+                  <option value="false">Pending</option>
+                </Select>
                 </div>
               </div>
             </Card>
