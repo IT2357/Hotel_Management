@@ -76,14 +76,12 @@ const App = () => {
           />
 
 
-          {/* 🔐 Protected Routes */}
-          <Route 
-            path="/guest/dashboard" 
-            element={
-              <ProtectedRoute roles={['guest']}>
+          {/* 🔐 Protected Routes */}            
+          <Route path="/guest/dashboard" element={
+              // <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
-              </ProtectedRoute>
-            } 
+              // </ProtectedRoute>
+            }
           />
 
           <Route

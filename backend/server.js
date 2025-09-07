@@ -3,7 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
-import xss from "xss-clean";
 import hpp from "hpp";
 import compression from "compression";
 import morgan from "morgan";
@@ -60,7 +59,6 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   app.use(mongoSanitize());
-  app.use(xss());
   app.use(hpp());
 } else {
   app.use(express.json());

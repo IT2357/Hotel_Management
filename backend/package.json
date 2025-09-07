@@ -16,20 +16,17 @@
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.5.1",
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
-    "hotel_management": "file:..",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.2",
     "morgan": "^1.10.0",
-    "nodemailer": "^7.0.5",
-    "xss-clean": "^0.1.4"
+    "nodemailer": "^7.0.5"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",

@@ -1,0 +1,157 @@
+/* Luxury Hotel Booking Design System */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+/* Custom styles for the luxury hotel theme */
+:root {
+  /* White Blue Premium Theme */
+  --background: 0 0% 100%;
+  --foreground: 222 84% 5%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 84% 5%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 84% 5%;
+
+  /* Premium Blue Primary */
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 217 91% 75%;
+
+  /* Light Blue Secondary */
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 84% 5%;
+
+  /* Light Gray Muted */
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  /* Bright Blue Accent */
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+  --accent-light: 217 91% 85%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;
+
+  --radius: 0.75rem;
+
+  /* Premium Shadows */
+  --shadow-luxury: 0 20px 40px -12px hsl(217 91% 60% / 0.3);
+  --shadow-card: 0 8px 32px -8px hsl(217 91% 60% / 0.1);
+  --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.6);
+
+  /* Smooth Transitions */
+  --transition-luxury: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography Scale */
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Spacing Scale */
+  --space-luxury: 2.5rem;
+  --space-section: 5rem;
+
+  /* Sidebar colors */
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 222 84% 5%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 210 40% 96%;
+  --sidebar-accent-foreground: 222 84% 5%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 217 91% 60%;
+}
+
+.dark {
+  --background: 216 28% 4%;
+  --foreground: 213 31% 95%;
+
+  --card: 216 28% 8%;
+  --card-foreground: 213 31% 95%;
+
+  --popover: 216 28% 8%;
+  --popover-foreground: 213 31% 95%;
+
+  --primary: 217 91% 65%;
+  --primary-foreground: 216 28% 4%;
+
+  --secondary: 216 28% 12%;
+  --secondary-foreground: 213 31% 95%;
+
+  --muted: 216 20% 15%;
+  --muted-foreground: 213 20% 80%;
+
+  --accent: 217 91% 65%;
+  --accent-foreground: 216 28% 4%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 213 31% 95%;
+
+  --border: 216 20% 18%;
+  --input: 216 20% 18%;
+  --ring: 217 91% 65%;
+  
+  --sidebar-background: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+}
+
+/* Custom utility classes for hotel theming */
+.bg-gradient-luxury {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+}
+
+.bg-gradient-sunset {
+  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(204 94% 94%));
+}
+
+.bg-gradient-ocean {
+  background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--primary)));
+}
+
+.shadow-luxury {
+  box-shadow: var(--shadow-luxury);
+}
+
+.shadow-card-luxury {
+  box-shadow: var(--shadow-card);
+}
+
+.shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.transition-luxury {
+  transition: var(--transition-luxury);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
