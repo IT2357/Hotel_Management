@@ -1,61 +1,73 @@
-// 📁 backend/services/notification/emailService.js
 import nodemailer from "nodemailer";
-import { User } from "../../models/User.js";
+import AdminSettings from "../../models/AdminSettings.js";
 
-// Check if email service is enabled
 const isEmailEnabled = process.env.EMAIL_ENABLED === "true";
 
-// Initialize transporter only if email is enabled and all required vars are present
 let transporter = null;
 
-if (isEmailEnabled) {
-  // Validate required environment variables
-  const requiredEnvVars = [
-    "SMTP_HOST",
-    "SMTP_PORT",
-    "SMTP_USER",
-    "SMTP_PASS",
-    "SMTP_FROM",
-  ];
-
-  const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
-
-  if (missingVars.length > 0) {
-    console.error(
-      `❌ Missing required email configuration: ${missingVars.join(", ")}`
-    );
-    console.warn(
-      "⚠️ Email service will be disabled due to missing configuration"
-    );
-  } else {
-    try {
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT, 10),
-        secure: process.env.SMTP_SECURE === "true",
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-
-      // Verify connection configuration
-      transporter.verify((error, success) => {
-        if (error) {
-          console.error("❌ SMTP connection verification failed:", error);
-          transporter = null;
-        } else {
-          console.log("✅ SMTP server is ready to send emails");
-        }
-      });
-    } catch (error) {
-      console.error("❌ Failed to create email transporter:", error);
-      transporter = null;
-    }
+const initializeTransporter = async () => {
+  if (!isEmailEnabled) {
+    console.log("📧 Email service is disabled (EMAIL_ENABLED=false)");
+    return null;
   }
-} else {
-  console.log("📧 Email service is disabled (EMAIL_ENABLED=false)");
-}
+
+  try {
+    console.log("Checking MongoDB connection state...");
+    if (mongoose.connection.readyState !== 1) {
+      console.warn(
+        "MongoDB connection not ready, skipping transporter initialization"
+      );
+      return null;
+    }
+
+    const settings = await AdminSettings.findOne().lean();
+    const smtpConfig = {
+      host: settings?.smtpHost || process.env.SMTP_HOST,
+      port: settings?.smtpPort || parseInt(process.env.SMTP_PORT, 10) || 587,
+      secure: settings?.smtpSecure ?? process.env.SMTP_SECURE === "true",
+      auth:
+        (settings?.smtpUser || process.env.SMTP_USER) &&
+        (settings?.smtpPassword || process.env.SMTP_PASS)
+          ? {
+              user: settings?.smtpUser || process.env.SMTP_USER,
+              pass: settings?.smtpPassword || process.env.SMTP_PASS,
+            }
+          : undefined,
+    };
+
+    console.log("Initializing transporter with:", {
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      user: smtpConfig.auth?.user,
+    });
+
+    const requiredFields = ["host", "port", "auth.user", "auth.pass"];
+    const missingFields = requiredFields.filter(
+      (field) => !field.split(".").reduce((obj, key) => obj?.[key], smtpConfig)
+    );
+
+    if (missingFields.length > 0) {
+      console.warn(
+        `Missing email configuration: ${missingFields.join(
+          ", "
+        )}. Transporter not initialized.`
+      );
+      return null;
+    }
+
+    transporter = nodemailer.createTransport(smtpConfig);
+    await transporter.verify();
+    console.log("✅ SMTP server is ready to send emails");
+    return transporter;
+  } catch (error) {
+    console.error("Failed to initialize email transporter:", {
+      message: error.message,
+      stack: error.stack,
+    });
+    return null;
+  }
+};
 
 class EmailService {
   // Base email sending method
@@ -63,24 +75,23 @@ class EmailService {
     if (!isEmailEnabled) {
       throw new Error("Email service is disabled");
     }
-
     if (!transporter) {
       throw new Error("Email transporter not configured");
     }
-
     if (!to || !subject || (!html && !text)) {
       throw new Error("Missing required email parameters");
     }
-
     try {
+      const settings = await AdminSettings.findOne().lean();
+      const from =
+        settings?.smtpFrom || process.env.SMTP_FROM || "noreply@grandhotel.com";
       const mailOptions = {
-        from: `"Hotel Management System" <${process.env.SMTP_FROM}>`,
+        from: `"Hotel Management System" <${from}>`,
         to: Array.isArray(to) ? to.join(", ") : to,
         subject,
         html,
         text: text || html.replace(/<[^>]*>/g, ""),
       };
-
       const info = await transporter.sendMail(mailOptions);
       console.log("📧 Email sent:", info.messageId);
       return info;
@@ -90,7 +101,55 @@ class EmailService {
     }
   }
 
-  // Send verification email with OTP
+  // Test email configuration with provided settings
+  static async testEmailConfig({
+    smtpHost,
+    smtpPort,
+    smtpUser,
+    smtpPassword,
+    smtpFrom,
+    smtpSecure,
+  }) {
+    if (!isEmailEnabled) {
+      throw new Error("Email service is disabled");
+    }
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFrom) {
+      throw new Error("Missing required email configuration parameters");
+    }
+    try {
+      const testTransporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort, 10),
+        secure: smtpSecure,
+        auth: { user: smtpUser, pass: smtpPassword },
+      });
+      await testTransporter.verify();
+      const info = await testTransporter.sendMail({
+        from: `"Hotel Management System" <${smtpFrom}>`,
+        to: smtpFrom, // Send to the from email for testing
+        subject: "Test Email from Hotel Management System",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2c3e50;">Test Email</h2>
+            <p>This is a test email to verify your SMTP configuration.</p>
+            <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
+          </div>
+        `,
+      });
+      console.log("📧 Test email sent:", info.messageId);
+      return info;
+    } catch (error) {
+      console.error("❌ Test email failed:", error);
+      throw error;
+    }
+  }
+
+  // Reinitialize transporter after settings update
+  static async reinitializeTransporter() {
+    transporter = await initializeTransporter();
+  }
+
+  // Existing email methods (unchanged)
   static async sendVerificationEmail(user, otpCode) {
     const subject = "Verify Your Email Address";
     const html = `
@@ -103,11 +162,9 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
       </div>
     `;
-
     return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Send password reset email
   static async sendPasswordResetEmail(user, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     const subject = "Password Reset Request";
@@ -117,7 +174,7 @@ class EmailService {
         <p>Hello ${user.name},</p>
         <p>We received a request to reset your password. Click the button below to proceed:</p>
         <p style="margin: 20px 0;">
-          <a href="${resetUrl}" 
+          <a href="${resetUrl}"
              style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Reset Password
           </a>
@@ -128,11 +185,9 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
       </div>
     `;
-
     return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Send admin notification about pending approval
   static async sendAdminNotificationEmail(
     admin,
     { subject, userName, userEmail, userRole }
@@ -149,7 +204,7 @@ class EmailService {
           <li><strong>Role:</strong> ${userRole}</li>
         </ul>
         <p style="margin: 20px 0;">
-          <a href="${approvalUrl}" 
+          <a href="${approvalUrl}"
              style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Review Pending Approvals
           </a>
@@ -157,11 +212,9 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management System</p>
       </div>
     `;
-
     return this.sendEmail({ to: admin.email, subject, html });
   }
 
-  // Send welcome email (used in authService)
   static async sendWelcomeEmail(user, role) {
     const subject = `Welcome to Hotel Management System as ${role}`;
     const html = `
@@ -172,11 +225,9 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
       </div>
     `;
-
     return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Send approval email (used in authService)
   static async sendApprovalEmail(user) {
     const subject = `Account Approved - Hotel Management System`;
     const html = `
@@ -188,11 +239,9 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
       </div>
     `;
-
     return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Send invitation email (used in authService)
   static async sendInvitationEmail(email, role, token, expiresInHours) {
     const subject = `Invitation to Join as ${role}`;
     const invitationLink = `${process.env.FRONTEND_URL}/accept-invitation?token=${token}`;
@@ -202,7 +251,7 @@ class EmailService {
         <p>You've been invited to join our Hotel Management System as a ${role}.</p>
         <p>This invitation will expire in ${expiresInHours} hours.</p>
         <p style="margin: 20px 0;">
-          <a href="${invitationLink}" 
+          <a href="${invitationLink}"
              style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Accept Invitation
           </a>
@@ -211,7 +260,6 @@ class EmailService {
         <p style="margin-top: 30px;">Best regards,<br/>Hotel Management Team</p>
       </div>
     `;
-
     return this.sendEmail({ to: email, subject, html });
   }
 
