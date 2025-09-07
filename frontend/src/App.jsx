@@ -11,6 +11,7 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
@@ -84,6 +85,14 @@ const App = () => {
             element={
               <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

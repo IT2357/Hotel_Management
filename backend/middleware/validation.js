@@ -58,3 +58,35 @@ export const validateLogin = [
   body("password").notEmpty().withMessage("Password is required"),
   handleValidationErrors,
 ];
+
+export const validateProfileUpdate = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Name must be between 2 and 50 characters"),
+  body("phone")
+    .optional()
+    .isMobilePhone()
+    .withMessage("Please provide a valid phone number"),
+  body("address")
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 100 })
+    .withMessage("Address must be between 5 and 100 characters"),
+  handleValidationErrors,
+];
+
+export const validateChangePassword = [
+  body("currentPassword")
+    .notEmpty()
+    .withMessage("Current password is required"),
+  body("newPassword")
+    .isLength({ min: 8 })
+    .withMessage("New password must be at least 8 characters long")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage(
+      "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    ),
+  handleValidationErrors,
+];

@@ -14,11 +14,14 @@ import {
   changePassword,
   logout,
   socialCallback,
+  deleteProfile,
 } from "../controllers/auth/authController.js";
 import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 import {
   validateRegistration,
   validateLogin,
+  validateProfileUpdate,
+  validateChangePassword,
 } from "../middleware/validation.js";
 import { authorizeRoles } from "../middleware/roleAuth.js"; // <-- only this now
 
@@ -57,8 +60,15 @@ router.post(
 
 // Protected routes
 router.get("/me", authenticateToken, getCurrentUser);
-router.put("/profile", authenticateToken, updateProfile);
+router.put("/profile", authenticateToken, validateProfileUpdate, updateProfile);
+router.put(
+  "/change-password",
+  authenticateToken,
+  validateChangePassword,
+  changePassword
+);
 router.post("/logout", authenticateToken, logout);
+router.delete("/profile", authenticateToken, deleteProfile);
 
 // Example protected route with role & permission check:
 // router.get(
