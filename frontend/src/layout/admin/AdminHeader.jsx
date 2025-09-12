@@ -10,8 +10,8 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const { logout } = useAuth();
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow sticky top-0 z-[999] w-full">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
+    <header className="bg-white sticky top-0 z-[10] w-full shadow-lg rounded-b-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-[20px] border-b border-gray-200">
         {/* Left: Sidebar toggle, logo & title */}
         <div className="flex items-center gap-2 min-w-0 flex-shrink">
           <button
@@ -20,16 +20,16 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
               e.stopPropagation();
               setSidebarOpen(prev => !prev);
             }}
-            className="lg:hidden p-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+            className="lg:hidden p-2 rounded-full bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
           >
-            <svg className="h-6 w-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
-          <Link to="/" className="inline-flex items-center lg:hidden max-w-[150px] sm:max-w-none">
-            <img src={Logo} alt="Logo" className="h-8 w-auto shrink-0" />
-            <span className="ml-2 text-base sm:text-lg font-semibold text-indigo-600 dark:text-indigo-400 truncate">
+          <Link to="/" className="inline-flex items-center lg:hidden">
+            <img src={Logo} alt="Logo" className="h-8 w-auto rounded-full" />
+            <span className="ml-2 text-lg font-bold text-gray-800">
               Admin Panel
             </span>
           </Link>
@@ -42,68 +42,103 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
               <input
                 type="text"
                 placeholder="Search..."
-                className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 text-gray-800 placeholder-gray-500 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
               />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-300">
-                <svg className="h-4 w-4" viewBox="0 0 20 20">
-                  <path d="M9 2a7 7 0 105.33 12.06l3.6 3.6a1 1 0 001.42-1.42l-3.6-3.6A7 7 0 009 2z" />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
             </div>
           </form>
-
           <button
-            className="sm:hidden p-2 rounded-full text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
+            className="sm:hidden p-2 rounded-full text-gray-700 hover:bg-gray-100"
             onClick={() => setShowSearch(prev => !prev)}
           >
-            <svg className="h-6 w-6" viewBox="0 0 20 20">
-              <path d="M9 2a7 7 0 105.33 12.06l3.6 3.6a1 1 0 001.42-1.42l-3.6-3.6A7 7 0 009 2z" />
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
-
           {showSearch && (
-            <form className="absolute top-16 left-4 right-4 sm:hidden bg-white dark:bg-gray-800 p-4 rounded-md shadow-lg z-50">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full pl-4 pr-4 py-2 rounded bg-gray-100 dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:outline-none"
-              />
-            </form>
+            <div className="absolute top-16 left-4 right-4 sm:hidden">
+              <div className="bg-white shadow-xl rounded-xl border-0 p-4">
+                <input
+                  type="text"
+                  placeholder="🔍 Search..."
+                  className="w-full pl-4 pr-4 py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
           )}
         </div>
 
         {/* Right: Notifications & profile */}
         <div className="flex items-center gap-2 relative flex-shrink-0">
-          <NotificationDropdown />
+        <NotificationDropdown />
 
-          <div className="relative">
-            <button
-              onClick={() => setProfileOpen(prev => !prev)}
-              className="focus:outline-none"
+        <div className="relative">
+          <button
+            onClick={() => setProfileOpen(prev => !prev)}
+            className="focus:outline-none transition-transform duration-200 transform hover:scale-105"
+          >
+            <img
+              src="https://i.pravatar.cc/300?u=admin"
+              alt="Profile"
+              className="h-9 w-9 rounded-full ring-2 ring-indigo-500 ring-offset-2 ring-offset-white transition-all duration-200"
+            />
+          </button>
+          {profileOpen && (
+            <div
+              className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 text-base font-medium animate-fade-in-up"
             >
-              <img
-                src="https://i.pravatar.cc/300?u=admin"
-                alt="Profile"
-                className="h-8 w-8 rounded-full border border-gray-300 dark:border-gray-600"
-              />
-            </button>
-
-            {profileOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 text-sm">
-                <Link to="/admin/profile" onClick={() => setProfileOpen(false)} className="block px-4 py-2 hover:bg-indigo-100 dark:hover:bg-indigo-700 text-gray-700 dark:text-gray-200">Profile</Link>
-                <Link to="/admin/settings" onClick={() => setProfileOpen(false)} className="block px-4 py-2 hover:bg-indigo-100 dark:hover:bg-indigo-700 text-gray-700 dark:text-gray-200">Settings</Link>
-                <button
-                  onClick={() => {
-                    setProfileOpen(false);
-                    logout();
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-indigo-100 dark:hover:bg-indigo-700 text-gray-700 dark:text-gray-200"
-                >
-                  Logout
-                </button>
+              <div className="p-4 flex items-center gap-3 border-b border-gray-100">
+                <img
+                  src="https://i.pravatar.cc/300?u=admin"
+                  alt="Profile"
+                  className="h-10 w-10 rounded-full"
+                />
+                <div>
+                  <p className="text-gray-900 font-semibold">Admin</p>
+                  <p className="text-gray-500 text-sm">View profile</p>
+                </div>
               </div>
-            )}
-          </div>
+              <Link
+                to="/admin/profile"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile</span>
+              </Link>
+              <Link
+                to="/admin/settings"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Settings</span>
+              </Link>
+              <div className="border-t border-gray-100 my-1"></div>
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
+                  logout();
+                }}
+                className="w-full text-left flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-b-2xl transition-colors duration-200"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </header>
@@ -111,3 +146,4 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
 };
 
 export default AdminHeader;
+
