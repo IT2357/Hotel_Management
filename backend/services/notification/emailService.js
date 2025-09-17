@@ -1,9 +1,28 @@
 import nodemailer from "nodemailer";
+import mongoose from "mongoose";
 import AdminSettings from "../../models/AdminSettings.js";
 
 const isEmailEnabled = process.env.EMAIL_ENABLED === "true";
 
 let transporter = null;
+let isInitializing = false;
+
+const getTransporter = async () => {
+  if (transporter) return transporter;
+  if (isInitializing) {
+    // Wait for initialization to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return transporter;
+  }
+  
+  isInitializing = true;
+  try {
+    transporter = await initializeTransporter();
+    return transporter;
+  } finally {
+    isInitializing = false;
+  }
+};
 
 const initializeTransporter = async () => {
   if (!isEmailEnabled) {
@@ -12,34 +31,25 @@ const initializeTransporter = async () => {
   }
 
   try {
-    console.log("Checking MongoDB connection state...");
-    if (mongoose.connection.readyState !== 1) {
-      console.warn(
-        "MongoDB connection not ready, skipping transporter initialization"
-      );
-      return null;
-    }
-
     const settings = await AdminSettings.findOne().lean();
     const smtpConfig = {
       host: settings?.smtpHost || process.env.SMTP_HOST,
       port: settings?.smtpPort || parseInt(process.env.SMTP_PORT, 10) || 587,
-      secure: settings?.smtpSecure ?? process.env.SMTP_SECURE === "true",
-      auth:
-        (settings?.smtpUser || process.env.SMTP_USER) &&
-        (settings?.smtpPassword || process.env.SMTP_PASS)
-          ? {
-              user: settings?.smtpUser || process.env.SMTP_USER,
-              pass: settings?.smtpPassword || process.env.SMTP_PASS,
-            }
-          : undefined,
+      secure: settings?.smtpSecure ?? (process.env.SMTP_SECURE === "true"),
+      auth: {
+        user: settings?.smtpUser || process.env.SMTP_USER,
+        pass: settings?.smtpPassword || process.env.SMTP_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false // Only for development
+      }
     };
 
-    console.log("Initializing transporter with:", {
+    console.log("Initializing email transporter with:", {
       host: smtpConfig.host,
       port: smtpConfig.port,
       secure: smtpConfig.secure,
-      user: smtpConfig.auth?.user,
+      user: smtpConfig.auth.user,
     });
 
     const requiredFields = ["host", "port", "auth.user", "auth.pass"];
@@ -48,18 +58,15 @@ const initializeTransporter = async () => {
     );
 
     if (missingFields.length > 0) {
-      console.warn(
-        `Missing email configuration: ${missingFields.join(
-          ", "
-        )}. Transporter not initialized.`
-      );
-      return null;
+      throw new Error(`Missing email configuration: ${missingFields.join(", ")}`);
     }
 
-    transporter = nodemailer.createTransport(smtpConfig);
-    await transporter.verify();
+    const newTransporter = nodemailer.createTransport(smtpConfig);
+    
+    // Test the connection
+    await newTransporter.verify();
     console.log("✅ SMTP server is ready to send emails");
-    return transporter;
+    return newTransporter;
   } catch (error) {
     console.error("Failed to initialize email transporter:", {
       message: error.message,
@@ -72,31 +79,25 @@ const initializeTransporter = async () => {
 class EmailService {
   // Base email sending method
   static async sendEmail({ to, subject, html, text }) {
-    if (!isEmailEnabled) {
-      throw new Error("Email service is disabled");
-    }
-    if (!transporter) {
-      throw new Error("Email transporter not configured");
-    }
-    if (!to || !subject || (!html && !text)) {
-      throw new Error("Missing required email parameters");
-    }
     try {
-      const settings = await AdminSettings.findOne().lean();
-      const from =
-        settings?.smtpFrom || process.env.SMTP_FROM || "noreply@grandhotel.com";
-      const mailOptions = {
-        from: `"Hotel Management System" <${from}>`,
-        to: Array.isArray(to) ? to.join(", ") : to,
+      const currentTransporter = await getTransporter();
+      if (!currentTransporter) {
+        throw new Error("Email transporter not configured");
+      }
+      
+      const from = process.env.SMTP_FROM;
+      const info = await currentTransporter.sendMail({
+        from,
+        to,
         subject,
         html,
-        text: text || html.replace(/<[^>]*>/g, ""),
-      };
-      const info = await transporter.sendMail(mailOptions);
-      console.log("📧 Email sent:", info.messageId);
+        text: text || html.replace(/<[^>]*>/g, '')
+      });
+      
+      console.log(`Email sent: ${info.messageId}`);
       return info;
     } catch (error) {
-      console.error("❌ Email sending failed:", error);
+      console.error("Error sending email:", error);
       throw error;
     }
   }
@@ -110,12 +111,6 @@ class EmailService {
     smtpFrom,
     smtpSecure,
   }) {
-    if (!isEmailEnabled) {
-      throw new Error("Email service is disabled");
-    }
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFrom) {
-      throw new Error("Missing required email configuration parameters");
-    }
     try {
       const testTransporter = nodemailer.createTransport({
         host: smtpHost,
