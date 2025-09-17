@@ -21,6 +21,7 @@
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.1.0",
+    "hotel_management": "file:..",
     "lucide-react": "^0.542.0",
     "react": "^19.1.0",
     "react-day-picker": "^9.9.0",
