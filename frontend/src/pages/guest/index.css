@@ -3,155 +3,126 @@
 
 @import "tailwindcss";
 
-/* Custom styles for the luxury hotel theme */
-:root {
+/* === Theme Tokens === */
+@theme {
+  --font-display: "Playfair Display", serif;
+  --font-body: "Inter", sans-serif;
+
   /* White Blue Premium Theme */
-  --background: 0 0% 100%;
-  --foreground: 222 84% 5%;
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222 84% 5%);
 
-  --card: 0 0% 100%;
-  --card-foreground: 222 84% 5%;
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222 84% 5%);
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 84% 5%;
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222 84% 5%);
 
   /* Premium Blue Primary */
-  --primary: 217 91% 60%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 217 91% 75%;
+  --color-primary: hsl(217 91% 60%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-primary-glow: hsl(217 91% 75%);
 
   /* Light Blue Secondary */
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 84% 5%;
+  --color-secondary: hsl(210 40% 96%);
+  --color-secondary-foreground: hsl(222 84% 5%);
 
   /* Light Gray Muted */
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --color-muted: hsl(210 40% 96%);
+  --color-muted-foreground: hsl(215 16% 47%);
 
   /* Bright Blue Accent */
-  --accent: 217 91% 60%;
-  --accent-foreground: 0 0% 100%;
-  --accent-light: 217 91% 85%;
+  --color-accent: hsl(217 91% 60%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-accent-light: hsl(217 91% 85%);
 
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(0 0% 100%);
 
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 217 91% 60%;
+  --color-border: hsl(214 32% 91%);
+  --color-input: hsl(214 32% 91%);
+  --color-ring: hsl(217 91% 60%);
 
+  /* Sidebar */
+  --color-sidebar-background: hsl(0 0% 98%);
+  --color-sidebar-foreground: hsl(222 84% 5%);
+  --color-sidebar-primary: hsl(217 91% 60%);
+  --color-sidebar-primary-foreground: hsl(0 0% 100%);
+  --color-sidebar-accent: hsl(210 40% 96%);
+  --color-sidebar-accent-foreground: hsl(222 84% 5%);
+  --color-sidebar-border: hsl(214 32% 91%);
+  --color-sidebar-ring: hsl(217 91% 60%);
+
+  /* Radius */
   --radius: 0.75rem;
 
-  /* Premium Shadows */
+  /* Gradients */
+  --gradient-luxury: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 75%));
+  --gradient-sunset: linear-gradient(135deg, hsl(217 91% 60%), hsl(204 94% 94%));
+  --gradient-ocean: linear-gradient(135deg, hsl(210 40% 96%), hsl(217 91% 60%));
+  --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%), hsl(210 40% 96%));
+
+  /* Shadows */
   --shadow-luxury: 0 20px 40px -12px hsl(217 91% 60% / 0.3);
   --shadow-card: 0 8px 32px -8px hsl(217 91% 60% / 0.1);
   --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.6);
 
-  /* Smooth Transitions */
+  /* Transitions */
   --transition-luxury: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography Scale */
-  --font-display: 'Playfair Display', serif;
-  --font-body: 'Inter', sans-serif;
-
-  /* Spacing Scale */
+  /* Spacing */
   --space-luxury: 2.5rem;
   --space-section: 5rem;
-
-  /* Sidebar colors */
-  --sidebar-background: 0 0% 98%;
-  --sidebar-foreground: 222 84% 5%;
-  --sidebar-primary: 217 91% 60%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 40% 96%;
-  --sidebar-accent-foreground: 222 84% 5%;
-  --sidebar-border: 214 32% 91%;
-  --sidebar-ring: 217 91% 60%;
 }
 
-.dark {
-  --background: 216 28% 4%;
-  --foreground: 213 31% 95%;
+/* === Dark Mode Overrides === */
+@layer base {
+  .dark {
+    --color-background: hsl(216 28% 4%);
+    --color-foreground: hsl(213 31% 95%);
 
-  --card: 216 28% 8%;
-  --card-foreground: 213 31% 95%;
+    --color-card: hsl(216 28% 8%);
+    --color-card-foreground: hsl(213 31% 95%);
 
-  --popover: 216 28% 8%;
-  --popover-foreground: 213 31% 95%;
+    --color-popover: hsl(216 28% 8%);
+    --color-popover-foreground: hsl(213 31% 95%);
 
-  --primary: 217 91% 65%;
-  --primary-foreground: 216 28% 4%;
+    --color-primary: hsl(217 91% 65%);
+    --color-primary-foreground: hsl(216 28% 4%);
 
-  --secondary: 216 28% 12%;
-  --secondary-foreground: 213 31% 95%;
+    --color-secondary: hsl(216 28% 12%);
+    --color-secondary-foreground: hsl(213 31% 95%);
 
-  --muted: 216 20% 15%;
-  --muted-foreground: 213 20% 80%;
+    --color-muted: hsl(216 20% 15%);
+    --color-muted-foreground: hsl(213 20% 80%);
 
-  --accent: 217 91% 65%;
-  --accent-foreground: 216 28% 4%;
+    --color-accent: hsl(217 91% 65%);
+    --color-accent-foreground: hsl(216 28% 4%);
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 213 31% 95%;
+    --color-destructive: hsl(0 62.8% 30.6%);
+    --color-destructive-foreground: hsl(213 31% 95%);
 
-  --border: 216 20% 18%;
-  --input: 216 20% 18%;
-  --ring: 217 91% 65%;
-  
-  --sidebar-background: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 224.3 76.3% 48%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+    --color-border: hsl(216 20% 18%);
+    --color-input: hsl(216 20% 18%);
+    --color-ring: hsl(217 91% 65%);
+
+    --color-sidebar-background: hsl(240 5.9% 10%);
+    --color-sidebar-foreground: hsl(240 4.8% 95.9%);
+    --color-sidebar-primary: hsl(224.3 76.3% 48%);
+    --color-sidebar-primary-foreground: hsl(0 0% 100%);
+    --color-sidebar-accent: hsl(240 3.7% 15.9%);
+    --color-sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+    --color-sidebar-border: hsl(240 3.7% 15.9%);
+    --color-sidebar-ring: hsl(217.2 91.2% 59.8%);
+  }
 }
 
-* {
-  border-color: hsl(var(--border));
-}
-
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: var(--font-body);
-}
-
-/* Custom utility classes for hotel theming */
-.bg-gradient-luxury {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-}
-
-.bg-gradient-sunset {
-  background: linear-gradient(135deg, hsl(217 91% 60%), hsl(204 94% 94%));
-}
-
-.bg-gradient-ocean {
-  background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--primary)));
-}
-
-.shadow-luxury {
-  box-shadow: var(--shadow-luxury);
-}
-
-.shadow-card-luxury {
-  box-shadow: var(--shadow-card);
-}
-
-.shadow-glow {
-  box-shadow: var(--shadow-glow);
-}
-
-.transition-luxury {
-  transition: var(--transition-luxury);
-}
-
-.font-display {
-  font-family: var(--font-display);
-}
-
-.font-body {
-  font-family: var(--font-body);
+/* === Base Styles === */
+@layer base {
+  body {
+    font-family: var(--font-body);
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
 }
