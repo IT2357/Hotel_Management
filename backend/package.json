@@ -16,7 +16,6 @@
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "express-mongo-sanitize": "^2.2.0",
