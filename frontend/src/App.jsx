@@ -194,7 +194,9 @@ const App = () => {
             path="/admin/rooms"
             element={
               <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
                   <AdminRoomsPage />
+                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />

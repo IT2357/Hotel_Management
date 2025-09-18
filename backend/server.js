@@ -16,6 +16,7 @@ import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
+
 const app = express();
 app.set("trust proxy", 1);
 // Initialize Passport
