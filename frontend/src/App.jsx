@@ -25,6 +25,7 @@ import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
 import AdminAddRoomPage from './pages/admin/AdminAddRooms.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
@@ -207,6 +208,16 @@ const App = () => {
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminAddRoomPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoomsPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }

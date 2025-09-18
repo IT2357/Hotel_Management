@@ -10,6 +10,7 @@ import Spinner from "../../components/ui/Spinner";
 import Pagination from "../../components/ui/Pagination";
 import adminService from "../../services/adminService";
 
+
 export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,33 +32,34 @@ export default function AdminRoomsPage() {
     fetchRooms();
   }, [filters]);
 
-  const fetchRooms = async () => {
-    setLoading(true);
-    try {
-      const response = await adminService.getAllRooms({ params: filters });
-      const data = response?.data;
-  
-      // If data.rooms exists, use it; else if data is an array, use it directly
-      const roomsData = data?.rooms ?? (Array.isArray(data) ? data : []);
-      setRooms(roomsData);
-  
-      // Pagination info (if available)
-      setPagination({
-        page: data?.page || 1,
-        limit: data?.limit || 20,
-        total: data?.total || roomsData.length,
-        pages: data?.pages || 1,
-      });
-  
-      console.log("Fetched rooms:", roomsData);
-    } catch (err) {
-      console.error("Error fetching rooms:", err);
-      setRooms([]);
-      setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchRooms = async () => {
+  setLoading(true);
+  try {
+    const response = await adminService.getAllRooms({ params: filters });
+    const data = response?.data;
+
+    // Correctly extract rooms array
+    const roomsData = data?.data ?? [];
+
+    setRooms(roomsData);
+
+    setPagination({
+      page: data?.page || 1,
+      limit: data?.limit || 20,
+      total: data?.count || roomsData.length,
+      pages: data?.pages || 1,
+    });
+
+    console.log("Fetched rooms:", roomsData);
+  } catch (err) {
+    console.error("Error fetching rooms:", err);
+    setRooms([]);
+    setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
   const deleteRoom = async (roomId) => {
@@ -202,7 +204,9 @@ export default function AdminRoomsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <Button size="sm" variant="outline" onClick={() => alert("View Room modal")}>View</Button>
-                          <Button size="sm" onClick={() => alert("Edit Room modal")}>Edit</Button>
+                          <Link to={`/admin/edit-room/${room._id}`}>
+                            <Button size="sm">Edit</Button>
+                          </Link>
                           <Button size="sm" variant="danger" onClick={() => deleteRoom(room._id)}>Delete</Button>
                         </div>
                       </td>
