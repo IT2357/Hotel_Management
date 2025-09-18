@@ -10,11 +10,15 @@ import Spinner from "../../components/ui/Spinner";
 import Badge from "../../components/ui/Badge";
 import EditInvitationModal from "./components/EditInvitationModal";
 import useDebounce from "../../hooks/useDebounce";
+import PermissionSelector from "./components/PermissionSelector";
+
 export default function AdminInvitationPage() {
   const { user } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("staff");
   const [expiresInHours, setExpiresInHours] = useState(24);
+  const [permissions, setPermissions] = useState([]);
+
   const [status, setStatus] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [loadingInvites, setLoadingInvites] = useState(true);
@@ -33,14 +37,17 @@ export default function AdminInvitationPage() {
     { id: "used", label: "Used Invitations", icon: "✅" },
     { id: "expired", label: "Expired Invitations", icon: "❌" },
   ];
+
   useEffect(() => {
     fetchStats();
   }, []);
+
   useEffect(() => {
     if (activeTab !== "create") {
       fetchInvitations();
     }
   }, [activeTab, filters.status, debouncedSearch]);
+
   const fetchStats = async () => {
     try {
       const res = await adminService.getInvitations({
@@ -65,6 +72,7 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const fetchInvitations = async () => {
     setLoadingInvites(true);
     try {
@@ -90,20 +98,24 @@ export default function AdminInvitationPage() {
       setLoadingInvites(false);
     }
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus(null);
     try {
-      const response = await adminService.sendInvitation({
+      const payload = {
         email,
         role,
         expiresInHours,
-      });
+        ...(role === "admin" && permissions.length ? { permissions } : {}),
+      };
+      const response = await adminService.sendInvitation(payload);
       if (response.data.success) {
         setStatus({ type: "success", message: "✅ Invitation sent successfully!" });
         setEmail("");
         setRole("staff");
         setExpiresInHours(24);
+        setPermissions([]);
         fetchStats();
         if (activeTab !== "create") {
           fetchInvitations();
@@ -118,6 +130,7 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const handleDelete = async (id) => {
     try {
       await adminService.deleteInvitation(id);
@@ -131,12 +144,14 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     if (tabId !== "create") {
       setFilters((prev) => ({ ...prev, status: tabId }));
     }
   };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
@@ -149,6 +164,7 @@ export default function AdminInvitationPage() {
         return "bg-gray-50 text-gray-800 border-gray-200";
     }
   };
+
   return (
     <DefaultAdminLayout>
       <div className="space-y-6">
@@ -304,6 +320,17 @@ export default function AdminInvitationPage() {
                   />
                 </div>
               </div>
+              {role === "admin" && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600">
+                    Optional: assign granular permissions for the invited admin.
+                  </div>
+                  <PermissionSelector
+                    selectedPermissions={permissions}
+                    onPermissionChange={setPermissions}
+                  />
+                </div>
+              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -397,6 +424,7 @@ export default function AdminInvitationPage() {
     </DefaultAdminLayout>
   );
 }
+
 function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
   if (invitations.length === 0) {
     return (
@@ -452,6 +480,16 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
                   </svg>
                   <span className="truncate max-w-xs">Token: {inv.token}</span>
                 </div>
+                {inv.role === "admin" && inv.permissions?.length > 0 && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold mb-1">Permissions:</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {inv.permissions.map((p) => (
+                        <li key={`${p.module}`}>{p.module}: {Array.isArray(p.actions) ? p.actions.join(", ") : ''}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button

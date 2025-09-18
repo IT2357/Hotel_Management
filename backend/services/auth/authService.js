@@ -170,8 +170,12 @@ class AuthService {
       authProviders: [],
     });
 
-    // Create role-specific profile
-    await this.createRoleProfile(user._id, invitation.role);
+    // Create role-specific profile (apply permissions for admin invites)
+    await this.createRoleProfile(
+      user._id,
+      invitation.role,
+      invitation.role === "admin" ? invitation.permissions : null
+    );
 
     // Mark invitation as used
     invitation.used = true;

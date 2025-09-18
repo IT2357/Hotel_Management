@@ -1,5 +1,42 @@
 import mongoose from "mongoose";
 
+const permissionSchema = new mongoose.Schema(
+  {
+    module: {
+      type: String,
+      required: true,
+      enum: [
+        "invitations",
+        "notification",
+        "users",
+        "rooms",
+        "bookings",
+        "inventory",
+        "staff",
+        "finance",
+        "reports",
+        "system",
+      ],
+    },
+    actions: [
+      {
+        type: String,
+        enum: [
+          "create",
+          "read",
+          "update",
+          "delete",
+          "approve",
+          "reject",
+          "export",
+          "manage",
+        ],
+      },
+    ],
+  },
+  { _id: false }
+);
+
 const invitationSchema = new mongoose.Schema({
   email: { type: String, required: true },
   role: {
@@ -7,6 +44,8 @@ const invitationSchema = new mongoose.Schema({
     required: true,
     enum: ["staff", "manager", "admin"],
   },
+  // Optional granular permissions for admin invites
+  permissions: { type: [permissionSchema], default: undefined },
   token: { type: String, required: true, unique: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   expiresAt: { type: Date, required: true },

@@ -153,7 +153,7 @@ class AdminService {
   }
 
   // Create invitation
-  async createInvitation({ email, role, expiresInHours = 24, createdBy }) {
+  async createInvitation({ email, role, permissions, expiresInHours = 24, createdBy }) {
     // Check if invitation already exists
     const existingInvitation = await Invitation.findOne({
       email,
@@ -172,6 +172,7 @@ class AdminService {
     const invitation = new Invitation({
       email,
       role,
+      permissions: role === "admin" ? permissions : undefined,
       token,
       createdBy,
       expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000),
@@ -186,6 +187,7 @@ class AdminService {
       invitationId: invitation._id,
       email: invitation.email,
       role: invitation.role,
+      permissions: invitation.permissions,
       expiresAt: invitation.expiresAt,
       message: "Invitation sent successfully",
     };

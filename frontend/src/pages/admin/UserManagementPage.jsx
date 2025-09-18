@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import Pagination from '../../components/ui/Pagination';
 import Card from '../../components/ui/Card';
 import useDebounce from '../../hooks/useDebounce';
+import PermissionSelector from './components/PermissionSelector';
 
 export default function UserManagementPage() {
   const { user } = useContext(AuthContext);
@@ -35,6 +36,7 @@ export default function UserManagementPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [editFormData, setEditFormData] = useState({});
+  const [editPermissions, setEditPermissions] = useState([]);
   const [createFormData, setCreateFormData] = useState({
     name: '',
     email: '',
@@ -171,7 +173,7 @@ export default function UserManagementPage() {
     }
   };
 
-  const openEditModal = (user) => {
+  const openEditModal = async (user) => {
     setSelectedUser(user);
     setEditFormData({
       name: user.name,
@@ -179,6 +181,19 @@ export default function UserManagementPage() {
       address: user.address || {},
       profile: {},
     });
+    // Load current permissions for admin users
+    if (user.role === 'admin') {
+      try {
+        const res = await adminService.getUserDetails(user._id);
+        const current = res.data.data?.profile?.permissions || [];
+        setEditPermissions(current);
+      } catch (e) {
+        console.error('Failed to load admin permissions:', e);
+        setEditPermissions([]);
+      }
+    } else {
+      setEditPermissions([]);
+    }
     setShowEditModal(true);
   };
 
@@ -484,12 +499,20 @@ export default function UserManagementPage() {
           user={selectedUser}
           formData={editFormData}
           setFormData={setEditFormData}
+          permissions={editPermissions}
+          setPermissions={setEditPermissions}
           onClose={() => {
             setShowEditModal(false);
             setSelectedUser(null);
             setEditFormData({});
           }}
-          onSave={() => handleUserAction('updateProfile', selectedUser._id, editFormData)}
+          onSave={(updates) => {
+            if (selectedUser.role === 'admin') {
+              handleUserAction('updateProfile', selectedUser._id, { ...updates, permissions: editPermissions });
+            } else {
+              handleUserAction('updateProfile', selectedUser._id, updates);
+            }
+          }}
         />
         <PasswordResetModal
           isOpen={showPasswordResetModal}
@@ -902,6 +925,20 @@ function UserDetailsModal({ isOpen, user, onClose }) {
             </pre>
           </div>
         )}
+        {user.user?.role === 'admin' && Array.isArray(user.profile?.permissions) && user.profile.permissions.length > 0 && (
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 mb-3">Permissions</h3>
+            <div className="bg-gray-50 p-4 rounded-xl text-xs text-gray-700 overflow-auto">
+              <ul className="list-disc pl-5 space-y-1">
+                {user.profile.permissions.map((p) => (
+                  <li key={p.module}>
+                    <strong className="capitalize">{p.module}</strong>: {Array.isArray(p.actions) ? p.actions.join(', ') : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
         <div className="flex justify-end">
           <Button
             variant="outline"
@@ -916,7 +953,7 @@ function UserDetailsModal({ isOpen, user, onClose }) {
   );
 }
 
-function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave }) {
+function EditUserModal({ isOpen, user, formData, setFormData, permissions, setPermissions, onClose, onSave }) {
   if (!user) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit User" className="rounded-2xl shadow-xl">
@@ -939,6 +976,15 @@ function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave })
             className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
+        {user.role === 'admin' && (
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">Manage admin permissions</div>
+            <PermissionSelector
+              selectedPermissions={permissions}
+              onPermissionChange={setPermissions}
+            />
+          </div>
+        )}
         <div className="flex justify-end gap-3">
           <Button
             variant="outline"
@@ -948,7 +994,13 @@ function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave })
             Cancel
           </Button>
           <Button
-            onClick={onSave}
+            onClick={() => {
+              const updates = {
+                ...formData,
+                ...(user.role === 'admin' ? { profile: { ...(formData.profile || {}), permissions } } : {}),
+              };
+              onSave(updates);
+            }}
             className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
           >
             Save Changes

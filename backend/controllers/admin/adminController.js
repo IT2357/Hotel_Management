@@ -93,7 +93,7 @@ export const approveUser = async (req, res) => {
 // Create invitation
 export const createInvitation = async (req, res) => {
   try {
-    const { email, role, expiresInHours = 24 } = req.body;
+    const { email, role, permissions, expiresInHours = 24 } = req.body;
 
     // Input validation
     if (!email || !role) {
@@ -106,6 +106,7 @@ export const createInvitation = async (req, res) => {
     const result = await AdminService.createInvitation({
       email,
       role,
+      permissions,
       expiresInHours,
       createdBy: req.user._id,
     });

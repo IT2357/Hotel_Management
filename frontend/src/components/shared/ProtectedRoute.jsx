@@ -1,10 +1,12 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import getDashboardPath from '../../utils/GetDashboardPath';
+import usePermissions from '../../hooks/usePermissions';
 
 export function ProtectedRoute({ children, roles = [], permissions = [] }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const { hasAllPermissions } = usePermissions();
 
   // Define public routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-email', '/reset-password'];
@@ -100,12 +102,11 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Permission-based access control
+  // Permission-based access control (common across admin/manager/staff; guests excluded by hook)
   if (permissions.length) {
-    const userPerms = user.permissions || [];
-    const hasAll = permissions.every((p) => userPerms.includes(p));
-    if (!hasAll) {
-      console.log('Insufficient permissions', { userPerms, requiredPerms: permissions });
+    const ok = hasAllPermissions(permissions);
+    if (!ok) {
+      console.log('Insufficient permissions', { requiredPerms: permissions });
       return <Navigate to="/unauthorized" replace />;
     }
   }
