@@ -1,5 +1,6 @@
 // 📁 frontend/pages/admin/AdminRoomsPage.jsx
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -7,6 +8,7 @@ import Select from "../../components/ui/Select";
 import Badge from "../../components/ui/Badge";
 import Spinner from "../../components/ui/Spinner";
 import Pagination from "../../components/ui/Pagination";
+import adminService from "../../services/adminService";
 
 export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState([]);
@@ -18,9 +20,13 @@ export default function AdminRoomsPage() {
     status: "",
     search: "",
   });
-  const [pagination, setPagination] = useState({});
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 1,
+  });
 
-  // Mock data - replace with actual API later
   useEffect(() => {
     fetchRooms();
   }, [filters]);
@@ -28,33 +34,39 @@ export default function AdminRoomsPage() {
   const fetchRooms = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800)); // mock delay
-      const mockRooms = [
-        {
-          _id: "r1",
-          roomNumber: "101",
-          type: "Deluxe",
-          floor: 1,
-          status: "Available",
-          basePrice: 150,
-          occupancy: { adults: 2, children: 1 },
-        },
-        {
-          _id: "r2",
-          roomNumber: "205",
-          type: "Suite",
-          floor: 2,
-          status: "Booked",
-          basePrice: 300,
-          occupancy: { adults: 3, children: 0 },
-        },
-      ];
-      setRooms(mockRooms);
-      setPagination({ page: 1, limit: 20, total: mockRooms.length, pages: 1 });
+      const response = await adminService.getAllRooms({ params: filters });
+      const data = response?.data;
+  
+      // If data.rooms exists, use it; else if data is an array, use it directly
+      const roomsData = data?.rooms ?? (Array.isArray(data) ? data : []);
+      setRooms(roomsData);
+  
+      // Pagination info (if available)
+      setPagination({
+        page: data?.page || 1,
+        limit: data?.limit || 20,
+        total: data?.total || roomsData.length,
+        pages: data?.pages || 1,
+      });
+  
+      console.log("Fetched rooms:", roomsData);
     } catch (err) {
       console.error("Error fetching rooms:", err);
+      setRooms([]);
+      setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const deleteRoom = async (roomId) => {
+    if (!window.confirm("Are you sure you want to delete this room?")) return;
+    try {
+      await adminService.deleteRoom(roomId);
+      fetchRooms();
+    } catch (err) {
+      console.error("Failed to delete room:", err);
     }
   };
 
@@ -118,7 +130,9 @@ export default function AdminRoomsPage() {
               <option value="OutOfService">Out of Service</option>
             </Select>
             <Button onClick={fetchRooms}>Apply Filters</Button>
-            <Button variant="primary">+ Add Room</Button>
+            <Link to="/admin/add-room">
+              <Button variant="primary">+ Add Room</Button>
+            </Link>
           </div>
         </div>
 
@@ -155,10 +169,7 @@ export default function AdminRoomsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {rooms.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="px-6 py-4 text-center text-gray-500"
-                    >
+                    <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
                       No rooms found
                     </td>
                   </tr>
@@ -168,43 +179,31 @@ export default function AdminRoomsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="font-medium text-gray-900">
-                            Room {room.roomNumber}
+                            Room {room.roomNumber || "N/A"}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            ID: {room._id}
-                          </div>
+                          <div className="text-sm text-gray-500">ID: {room._id}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="font-medium text-gray-900">
-                            {room.type}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Floor {room.floor}
-                          </div>
+                          <div className="font-medium text-gray-900">{room.type || "N/A"}</div>
+                          <div className="text-sm text-gray-500">Floor {room.floor ?? "N/A"}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {room.occupancy.adults} Adults, {room.occupancy.children} Children
+                        {(room.occupancy?.adults ?? 0)} Adults, {(room.occupancy?.children ?? 0)} Children
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${room.basePrice}
+                        ${room.basePrice ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={getStatusColor(room.status)}>
-                          {room.status}
-                        </Badge>
+                        <Badge className={getStatusColor(room.status)}>{room.status || "Unknown"}</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <Button size="sm" variant="outline">
-                            View
-                          </Button>
-                          <Button size="sm">Edit</Button>
-                          <Button size="sm" variant="danger">
-                            Delete
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => alert("View Room modal")}>View</Button>
+                          <Button size="sm" onClick={() => alert("Edit Room modal")}>Edit</Button>
+                          <Button size="sm" variant="danger" onClick={() => deleteRoom(room._id)}>Delete</Button>
                         </div>
                       </td>
                     </tr>
@@ -216,7 +215,7 @@ export default function AdminRoomsPage() {
         )}
 
         {/* Pagination */}
-        {pagination.pages > 1 && (
+        {pagination?.pages > 1 && (
           <div className="mt-6">
             <Pagination
               currentPage={pagination.page}
@@ -229,27 +228,19 @@ export default function AdminRoomsPage() {
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
           <Card title="Total Rooms" className="p-6">
-            <div className="text-3xl font-bold text-indigo-600">
-              {rooms.length}
-            </div>
+            <div className="text-3xl font-bold text-indigo-600">{rooms.length}</div>
             <p className="text-gray-600">All registered rooms</p>
           </Card>
           <Card title="Available" className="p-6">
-            <div className="text-3xl font-bold text-green-600">
-              {rooms.filter((r) => r.status === "Available").length}
-            </div>
+            <div className="text-3xl font-bold text-green-600">{rooms.filter((r) => r.status === "Available").length}</div>
             <p className="text-gray-600">Ready to book</p>
           </Card>
           <Card title="Booked" className="p-6">
-            <div className="text-3xl font-bold text-blue-600">
-              {rooms.filter((r) => r.status === "Booked").length}
-            </div>
+            <div className="text-3xl font-bold text-blue-600">{rooms.filter((r) => r.status === "Booked").length}</div>
             <p className="text-gray-600">Currently reserved</p>
           </Card>
           <Card title="Maintenance" className="p-6">
-            <div className="text-3xl font-bold text-yellow-600">
-              {rooms.filter((r) => r.status === "Maintenance").length}
-            </div>
+            <div className="text-3xl font-bold text-yellow-600">{rooms.filter((r) => r.status === "Maintenance").length}</div>
             <p className="text-gray-600">Unavailable for service</p>
           </Card>
         </div>

@@ -58,6 +58,13 @@ const adminService = {
   getAdminSettings: () => api.get("/admin/settings"),
   updateAdminSettings: (data) => api.put("/admin/settings", data),
   testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
+
+  // Room management
+  createRoom: (data) => api.post("/admin/rooms", data),
+  getAllRooms: (params) => api.get("/admin/rooms", { params }),
+  getRoomById: (id) => api.get(`/admin/rooms/${id}`),
+  updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
+  deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
 };
 
 export default adminService;

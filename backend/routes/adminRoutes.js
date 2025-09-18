@@ -242,10 +242,10 @@ router.put(
 router.post("/settings/test-email", testEmailConfig);
 
 // Admin CRUD for rooms
-router.post("/rooms", authorizeRoles({ permissions: ["rooms:create"] }), createRoom);
-router.get("/rooms", authorizeRoles({ permissions: ["rooms:read"] }), getAllRooms);
-router.get("/rooms/:id", authorizeRoles({ permissions: ["rooms:read"] }), getRoomById);
-router.put("/rooms/:id", authorizeRoles({ permissions: ["rooms:update"] }), updateRoom);
-router.delete("/rooms/:id", authorizeRoles({ permissions: ["rooms:delete"] }), deleteRoom);
+router.post("/rooms", createRoom);
+router.get("/rooms", getAllRooms);
+router.get("/rooms/:id", getRoomById);
+router.put("/rooms/:id", updateRoom);
+router.delete("/rooms/:id", deleteRoom);
 
 export default router;

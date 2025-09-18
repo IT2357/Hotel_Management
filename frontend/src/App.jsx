@@ -22,6 +22,7 @@ import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRoomPage from './pages/admin/AdminAddRooms.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
@@ -196,6 +197,16 @@ const App = () => {
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/add-room"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRoomPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
