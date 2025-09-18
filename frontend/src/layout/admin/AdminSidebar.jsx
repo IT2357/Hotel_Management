@@ -1,12 +1,15 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import useAuth from '../../hooks/useAuth';
 import Logo from '../../assets/images/adminLogo.jpg';
-import Card from '../../components/ui/Card';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter(x => x);
   const sidebarRef = useRef();
+  const { logout } = useAuth();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // New state for modal
 
   const links = [
     { label: 'Dashboard', to: '/admin/dashboard', icon: '🏠' },
@@ -41,6 +44,12 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     };
   }, [sidebarOpen, setSidebarOpen, toggleRef]);
 
+  // Handle the confirm logout action
+  const handleConfirmLogout = () => {
+    logout();
+    setIsLogoutModalOpen(false);
+  };
+
   return (
     <>
       {/* Overlay for mobile */}
@@ -56,12 +65,12 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-0 left-0 z-50 h-full max-w-xs w-72 bg-indigo-950 text-white transition-transform duration-300 ease-in-out overflow-y-auto
+        className={`fixed top-0 left-0 z-[1000] h-full max-w-xs w-72 bg-indigo-950 text-white transition-transform duration-300 ease-in-out overflow-y-auto flex flex-col
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:static lg:transform-none shadow-2xl`}
       >
         {/* Logo & Title */}
-        <div className="flex items-center gap-3 p-6 border-b border-white/10">
+        <div className="flex-shrink-0 flex items-center gap-3 p-6 border-b border-white/10">
           <img src={Logo} alt="Logo" className="h-10 rounded-full" />
           <span className="text-xl font-bold text-white">
             Admin Panel
@@ -76,7 +85,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
           </button>
         </div>
         {/* Breadcrumbs */}
-        <div className="px-6 py-4 border-b border-white/10 text-sm text-white/70">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-white/10 text-sm text-white/70">
           <NavLink to="/admin/dashboard" className="hover:text-white transition font-medium">
             Home
           </NavLink>
@@ -104,7 +113,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
           })}
         </div>
         {/* Navigation */}
-        <nav className="mt-6 px-6 space-y-2 pb-6">
+        <nav className="flex-1 mt-6 px-6 space-y-2">
           {links.map(({ label, to, icon }) => (
             <NavLink
               key={label}
@@ -123,7 +132,29 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
             </NavLink>
           ))}
         </nav>
+        {/* Logout Button */}
+        <div className="p-6">
+          <button
+            onClick={() => setIsLogoutModalOpen(true)} // Open modal on click
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-base font-semibold text-red-400 bg-red-900/50 hover:bg-red-800/50 transition-all duration-300 transform hover:scale-102"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </button>
+        </div>
       </aside>
+      
+      {/* The Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleConfirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to log out of your account?"
+        confirmButtonText="Logout"
+      />
     </>
   );
 };
