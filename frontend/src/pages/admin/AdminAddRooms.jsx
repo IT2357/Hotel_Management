@@ -91,175 +91,231 @@ export default function AddRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-2xl font-bold text-indigo-600 mb-6">Add New Room</h1>
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow max-w-3xl mx-auto space-y-4"
-      >
-        {error && <p className="text-red-600">{error}</p>}
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-6 sm:p-8">
+        <h1 className="text-3xl font-bold text-indigo-700 mb-6">Add New Room</h1>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
+          )}
 
-        <Input
-          label="Title"
-          name="title"
-          value={roomData.title}
-          onChange={handleChange}
-          required
-        />
-        <Input
-          label="Description"
-          name="description"
-          value={roomData.description}
-          onChange={handleChange}
-          textarea
-        />
-        <Input
-          label="Room Number"
-          name="roomNumber"
-          value={roomData.roomNumber}
-          onChange={handleChange}
-          required
-        />
-        <Select
-          label="Type"
-          name="type"
-          value={roomData.type}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Select type</option>
-          <option value="Standard">Standard</option>
-          <option value="Deluxe">Deluxe</option>
-          <option value="Suite">Suite</option>
-          <option value="Executive">Executive</option>
-          <option value="Presidential">Presidential</option>
-          <option value="Family">Family</option>
-          <option value="Accessible">Accessible</option>
-          <option value="Connecting">Connecting</option>
-        </Select>
-        <Input
-          label="Floor"
-          name="floor"
-          type="number"
-          value={roomData.floor}
-          onChange={handleChange}
-          required
-        />
-        <Input
-          label="Base Price"
-          name="basePrice"
-          type="number"
-          value={roomData.basePrice}
-          onChange={handleChange}
-          required
-        />
-        <Input
-          label="Size (sqm)"
-          name="size"
-          type="number"
-          value={roomData.size}
-          onChange={handleChange}
-          required
-        />
-        <Select
-          label="Bed Type"
-          name="bedType"
-          value={roomData.bedType}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Select bed type</option>
-          {bedTypes.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="View"
-          name="view"
-          value={roomData.view}
-          onChange={handleChange}
-        >
-          {views.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </Select>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Adults"
-            name="adults"
-            type="number"
-            value={roomData.occupancy.adults}
-            onChange={handleChange}
-            min={1}
-            required
-          />
-          <Input
-            label="Children"
-            name="children"
-            type="number"
-            value={roomData.occupancy.children}
-            onChange={handleChange}
-            min={0}
-          />
-        </div>
-        <Select
-          label="Status"
-          name="status"
-          value={roomData.status}
-          onChange={handleChange}
-        >
-          <option value="Available">Available</option>
-          <option value="Booked">Booked</option>
-          <option value="Maintenance">Maintenance</option>
-          <option value="Cleaning">Cleaning</option>
-          <option value="OutOfService">OutOfService</option>
-        </Select>
-        <Select
-          label="Cancellation Policy"
-          name="cancellationPolicy"
-          value={roomData.cancellationPolicy}
-          onChange={handleChange}
-        >
-          {cancellationPolicies.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </Select>
-        <div>
-          <label className="block font-medium mb-2">Amenities</label>
-          <div className="grid grid-cols-3 gap-2">
-            {amenityOptions.map((amenity) => (
-              <label key={amenity} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  name={amenity}
-                  checked={roomData.amenities.includes(amenity)}
-                  onChange={handleChange}
-                />
-                <span>{amenity}</span>
-              </label>
-            ))}
+          {/* Room Details Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Room Title"
+              name="title"
+              value={roomData.title}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., Deluxe Oceanfront Suite"
+            />
+            <Input
+              label="Room Number"
+              name="roomNumber"
+              value={roomData.roomNumber}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 101"
+            />
           </div>
-        </div>
+          <Input
+            label="Description"
+            name="description"
+            value={roomData.description}
+            onChange={handleChange}
+            textarea
+            className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Describe the room features..."
+            rows={4}
+          />
 
-        <div className="flex justify-end space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate("/admin/rooms")}
+          {/* Room Specifications */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select
+              label="Room Type"
+              name="type"
+              value={roomData.type}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Select type</option>
+              <option value="Standard">Standard</option>
+              <option value="Deluxe">Deluxe</option>
+              <option value="Suite">Suite</option>
+              <option value="Executive">Executive</option>
+              <option value="Presidential">Presidential</option>
+              <option value="Family">Family</option>
+              <option value="Accessible">Accessible</option>
+              <option value="Connecting">Connecting</option>
+            </Select>
+            <Input
+              label="Floor"
+              name="floor"
+              type="number"
+              value={roomData.floor}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 5"
+            />
+            <Input
+              label="Base Price ($)"
+              name="basePrice"
+              type="number"
+              value={roomData.basePrice}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 150"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Size (sqm)"
+              name="size"
+              type="number"
+              value={roomData.size}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 30"
+            />
+            <Select
+              label="Bed Type"
+              name="bedType"
+              value={roomData.bedType}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="">Select bed type</option>
+              {bedTypes.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* View and Occupancy */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="View"
+              name="view"
+              value={roomData.view}
+              onChange={handleChange}
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              {views.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Cancellation Policy"
+              name="cancellationPolicy"
+              value={roomData.cancellationPolicy}
+              onChange={handleChange}
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              {cancellationPolicies.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Adults"
+              name="adults"
+              type="number"
+              value={roomData.occupancy.adults}
+              onChange={handleChange}
+              min={1}
+              required
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 2"
+            />
+            <Input
+              label="Children"
+              name="children"
+              type="number"
+              value={roomData.occupancy.children}
+              onChange={handleChange}
+              min={0}
+              className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="e.g., 0"
+            />
+          </div>
+
+          {/* Status */}
+          <Select
+            label="Status"
+            name="status"
+            value={roomData.status}
+            onChange={handleChange}
+            className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
           >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Adding..." : "+ Add Room"}
-          </Button>
-        </div>
-      </form>
+            <option value="Available">Available</option>
+            <option value="Booked">Booked</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="OutOfService">Out of Service</option>
+          </Select>
+
+          {/* Amenities Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Amenities
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-md">
+              {amenityOptions.map((amenity) => (
+                <label
+                  key={amenity}
+                  className="flex items-center space-x-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    name={amenity}
+                    checked={roomData.amenities.includes(amenity)}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  <span className="text-gray-700">{amenity}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/admin/rooms")}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className={`px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {loading ? "Adding..." : "+ Add Room"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
