@@ -181,9 +181,14 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
             <Button variant="outline" onClick={onClose}>
               Close Comparison
             </Button>
-            <Button variant="luxury">
-              Book Selected Rooms
-            </Button>
+            <Button
+  variant="luxury"
+  onClick={() => onBook(room.id)}
+  className="bg-primary text-white hover:bg-primary-dark hover:text-white transition-all duration-300"
+>
+  Book Now
+</Button>
+
           </div>
         </div>
       </div>
