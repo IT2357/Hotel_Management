@@ -170,12 +170,39 @@ class AuthService {
       authProviders: [],
     });
 
+    // Sanitize invitation permissions first
+    let sanitizedPerms = null;
+    if (Array.isArray(invitation.permissions) && invitation.permissions.length > 0) {
+      const first = invitation.permissions[0];
+      if (typeof first === "string") {
+        const grouped = {};
+        for (const entry of invitation.permissions) {
+          if (typeof entry !== "string") continue;
+          const [module, action] = entry.split(":");
+          if (!module) continue;
+          if (!grouped[module]) grouped[module] = new Set();
+          if (action) grouped[module].add(action);
+        }
+        sanitizedPerms = Object.entries(grouped).map(([module, actions]) => ({
+          module,
+          actions: Array.from(actions),
+        }));
+      } else if (typeof first === "object" && first && ("module" in first)) {
+        sanitizedPerms = invitation.permissions;
+      } else {
+        sanitizedPerms = null; // invalid shape
+      }
+    }
+
     // Create role-specific profile (apply permissions for admin invites)
     await this.createRoleProfile(
       user._id,
       invitation.role,
-      invitation.role === "admin" ? invitation.permissions : null
+      invitation.role === "admin" ? sanitizedPerms : null
     );
+
+    // Persist sanitized permissions back to invitation to avoid validation errors
+    invitation.permissions = sanitizedPerms || undefined;
 
     // Mark invitation as used
     invitation.used = true;

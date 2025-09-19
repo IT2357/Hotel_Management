@@ -157,17 +157,17 @@ const AdminRefundManagementPage = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+        return 'bg-gradient-to-r from-yellow-400 to-orange-500';
       case 'approved':
-        return 'bg-blue-50 text-blue-800 border-blue-200';
+        return 'bg-gradient-to-r from-blue-400 to-indigo-500';
       case 'processed':
-        return 'bg-green-50 text-green-800 border-green-200';
+        return 'bg-gradient-to-r from-green-400 to-emerald-500';
       case 'denied':
-        return 'bg-red-50 text-red-800 border-red-200';
+        return 'bg-gradient-to-r from-red-400 to-pink-500';
       case 'info_requested':
-        return 'bg-purple-50 text-purple-800 border-purple-200';
+        return 'bg-gradient-to-r from-purple-400 to-violet-500';
       default:
-        return 'bg-gray-50 text-gray-800 border-gray-200';
+        return 'bg-gradient-to-r from-gray-400 to-slate-500';
     }
   };
 
@@ -403,7 +403,7 @@ function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatu
               key={refund._id}
               className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
-              <div className={`${getStatusColor(refund.status)} rounded-xl p-4 text-white mb-4 shadow-lg bg-opacity-20`}>
+              <div className={`${getStatusColor(refund.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{refund.bookingId?.bookingNumber || 'N/A'}</h3>

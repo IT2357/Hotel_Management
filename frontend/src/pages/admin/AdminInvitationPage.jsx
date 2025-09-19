@@ -18,6 +18,7 @@ export default function AdminInvitationPage() {
   const [role, setRole] = useState("staff");
   const [expiresInHours, setExpiresInHours] = useState(24);
   const [permissions, setPermissions] = useState([]);
+  const [showPerms, setShowPerms] = useState(false);
 
   const [status, setStatus] = useState(null);
   const [invitations, setInvitations] = useState([]);
@@ -107,7 +108,7 @@ export default function AdminInvitationPage() {
         email,
         role,
         expiresInHours,
-        ...(role === "admin" && permissions.length ? { permissions } : {}),
+        ...(role === "admin" && showPerms && permissions.length ? { permissions } : {}),
       };
       const response = await adminService.sendInvitation(payload);
       if (response.data.success) {
@@ -116,6 +117,7 @@ export default function AdminInvitationPage() {
         setRole("staff");
         setExpiresInHours(24);
         setPermissions([]);
+        setShowPerms(false);
         fetchStats();
         if (activeTab !== "create") {
           fetchInvitations();
@@ -155,13 +157,13 @@ export default function AdminInvitationPage() {
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-yellow-50 text-yellow-800 border-yellow-200";
+        return "bg-gradient-to-r from-yellow-400 to-orange-500";
       case "used":
-        return "bg-green-50 text-green-800 border-green-200";
+        return "bg-gradient-to-r from-green-400 to-emerald-500";
       case "expired":
-        return "bg-red-50 text-red-800 border-red-200";
+        return "bg-gradient-to-r from-red-400 to-pink-500";
       default:
-        return "bg-gray-50 text-gray-800 border-gray-200";
+        return "bg-gradient-to-r from-gray-400 to-slate-500";
     }
   };
 
@@ -322,13 +324,26 @@ export default function AdminInvitationPage() {
               </div>
               {role === "admin" && (
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600">
-                    Optional: assign granular permissions for the invited admin.
-                  </div>
-                  <PermissionSelector
-                    selectedPermissions={permissions}
-                    onPermissionChange={setPermissions}
-                  />
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                      checked={showPerms}
+                      onChange={(e) => setShowPerms(e.target.checked)}
+                    />
+                    Show granular permissions
+                  </label>
+                  {showPerms && (
+                    <>
+                      <div className="text-sm text-gray-600">
+                        Optional: assign granular permissions for the invited admin.
+                      </div>
+                      <PermissionSelector
+                        selectedPermissions={permissions}
+                        onPermissionChange={setPermissions}
+                      />
+                    </>
+                  )}
                 </div>
               )}
               <Button
@@ -454,7 +469,7 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
               key={inv._id}
               className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
-              <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg bg-opacity-20`}>
+              <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{inv.email}</h3>

@@ -28,15 +28,28 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Initialize auth state
+  // Initialize auth state and hydrate full user (with role-specific profile)
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const user = getLocalStorageUser();
-    
-    if (token && user) {
-      setState(prev => ({ ...prev, user, loading: false }));
+    const cachedUser = getLocalStorageUser();
+
+    if (token) {
+      (async () => {
+        try {
+          // Inline minimal hydration to avoid TDZ on checkAuth
+          const res = await authService.getCurrentUser();
+          const user = res.data.data.user;
+          localStorage.setItem("user", JSON.stringify(user));
+          setState(prev => ({ ...prev, user }));
+        } catch (err) {
+          // If token invalid, just clear local user silently here
+          setState(prev => ({ ...prev, user: cachedUser || null }));
+        } finally {
+          setState(prev => ({ ...prev, loading: false }));
+        }
+      })();
     } else {
-      setState(prev => ({ ...prev, loading: false }));
+      setState(prev => ({ ...prev, user: cachedUser, loading: false }));
     }
   }, []);
 
@@ -78,12 +91,6 @@ export function AuthProvider({ children }) {
   //       });        
   //       return basicUser;
   //     }
-  
-  //     // Handle other backend errors
-  //     setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-  //     throw err;
-  //   }
-  // };
   const login = async (credentials) => {
     setState(prev => ({ ...prev, error: null }));
     try {
@@ -91,7 +98,8 @@ export function AuthProvider({ children }) {
       const { user, token } = res.data.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      setState(prev => ({ ...prev, user, loading: false }));
+      // Hydrate full user with role-specific profile to support permission checks
+      await checkAuth();
       return user;
     } catch (err) {
       console.error('AuthContext login error:', {

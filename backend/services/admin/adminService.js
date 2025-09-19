@@ -77,7 +77,13 @@ class AdminService {
       case "admin":
         return await AdminProfile.create({
           userId,
-          permissions: permissions || ["view-reports"],
+          permissions:
+            permissions && Array.isArray(permissions)
+              ? permissions
+              : [
+                  { module: "users", actions: ["read"] },
+                  { module: "reports", actions: ["read"] },
+                ],
         });
       default:
         throw new Error(`Invalid role for profile creation: ${role}`);
@@ -144,7 +150,15 @@ class AdminService {
       case "admin":
         return await AdminProfile.findOneAndUpdate(
           { userId },
-          { permissions: permissions || ["view-reports"] },
+          {
+            permissions:
+              permissions && Array.isArray(permissions)
+                ? permissions
+                : [
+                    { module: "users", actions: ["read"] },
+                    { module: "reports", actions: ["read"] },
+                  ],
+          },
           options
         );
       default:

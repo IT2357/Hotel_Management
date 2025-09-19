@@ -1,13 +1,18 @@
 // src/pages/admin/components/EditInvitationModal.jsx
 
 import { useState, useEffect } from "react";
+import PermissionSelector from "./PermissionSelector";
 
 const EditInvitationModal = ({ isOpen, invitation, onClose, onUpdate }) => {
   const [formData, setFormData] = useState(null);
+  const [showPerms, setShowPerms] = useState(false);
+  const [permissions, setPermissions] = useState([]);
 
   useEffect(() => {
     if (invitation) {
       setFormData(invitation);
+      setPermissions(invitation.permissions || []);
+      setShowPerms(!!(invitation.role === "admin" && (invitation.permissions?.length || 0) > 0));
     }
   }, [invitation]);
 
@@ -19,13 +24,21 @@ const EditInvitationModal = ({ isOpen, invitation, onClose, onUpdate }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onUpdate({
+    const payload = {
       ...formData,
       expiresAt:
         typeof formData.expiresAt === "string"
           ? new Date(formData.expiresAt)
           : formData.expiresAt,
-    });
+    };
+    if (formData.role === "admin") {
+      if (showPerms && permissions.length) {
+        payload.permissions = permissions;
+      } else {
+        payload.permissions = undefined; // remove perms when toggled off
+      }
+    }
+    onUpdate(payload);
   };
 
   return (
@@ -91,6 +104,27 @@ const EditInvitationModal = ({ isOpen, invitation, onClose, onUpdate }) => {
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
             />
           </div>
+
+          {/* Permissions Toggle + Selector (Admin only) */}
+          {formData.role === "admin" && (
+            <div className="space-y-3">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  checked={showPerms}
+                  onChange={(e) => setShowPerms(e.target.checked)}
+                />
+                Show granular permissions
+              </label>
+              {showPerms && (
+                <PermissionSelector
+                  selectedPermissions={permissions}
+                  onPermissionChange={setPermissions}
+                />
+              )}
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex justify-end gap-2 pt-4">

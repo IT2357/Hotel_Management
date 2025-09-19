@@ -71,7 +71,7 @@ const App = () => {
             }
           />
           <Route
-            path="/invite"
+            path="/accept-invitation"
             element={
               <RedirectIfAuthenticated>
                 <InviteRegisterPage />
@@ -121,7 +121,7 @@ const App = () => {
           <Route
             path="/admin/invitations"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["invitations:read"]}>
                 <AdminInvitationPage />
               </ProtectedRoute>
             }
@@ -130,7 +130,7 @@ const App = () => {
           <Route
             path="/admin/notifications"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["notification:read"]}>
                 <DefaultAdminLayout>
                   <AdminNotificationPage />
                 </DefaultAdminLayout>
@@ -141,7 +141,7 @@ const App = () => {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["users:read"]}>
                 <UserManagementPage />
               </ProtectedRoute>
             }
@@ -150,7 +150,7 @@ const App = () => {
           <Route
             path="/admin/bookings"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
                 <DefaultAdminLayout>
                   <AdminBookingsPage />
                 </DefaultAdminLayout>
@@ -161,7 +161,7 @@ const App = () => {
           <Route
             path="/admin/reports"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["reports:read"]}>
                 <DefaultAdminLayout>
                   <AdminReportsPage />
                 </DefaultAdminLayout>
@@ -172,7 +172,7 @@ const App = () => {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["settings:read"]}>
                 <DefaultAdminLayout>
                   <AdminSettingsPage />
                   </DefaultAdminLayout>
@@ -183,7 +183,7 @@ const App = () => {
           <Route
             path="/admin/refunds"
             element={
-              <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
                 <AdminRefundManagementPage />
               </ProtectedRoute>
             }
