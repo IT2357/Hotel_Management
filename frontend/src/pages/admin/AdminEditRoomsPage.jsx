@@ -7,6 +7,30 @@ import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 
+const amenityOptions = [
+  "WiFi",
+  "TV",
+  "AC",
+  "Minibar",
+  "Safe",
+  "Hairdryer",
+  "CoffeeMaker",
+  "Iron",
+  "Desk",
+  "Balcony",
+  "PoolView",
+  "OceanView",
+  "RoomService",
+  "DailyCleaning",
+  "Bathrobes",
+  "Slippers",
+  "Jacuzzi",
+];
+
+const bedTypes = ["Single", "Double", "Queen", "King", "Twin", "Bunk"];
+const views = ["City", "Garden", "Pool", "Ocean", "Mountain", "None"];
+const cancellationPolicies = ["Flexible", "Moderate", "Strict", "NonRefundable"];
+
 export default function EditRoomPage() {
   const { id } = useParams(); // Get room ID from URL
   const navigate = useNavigate();
@@ -24,6 +48,7 @@ export default function EditRoomPage() {
     cancellationPolicy: "Moderate",
     amenities: [],
     description: "",
+    images: [], // <-- initialized
   });
 
   const [loading, setLoading] = useState(false);
@@ -35,7 +60,7 @@ export default function EditRoomPage() {
       setLoading(true);
       try {
         const response = await roomService.getRoomById(id);
-        const data = response?.data?.data ?? response?.data; // Adjust to your API
+        const data = response?.data?.data ?? response?.data; // Adjust according to API
         setRoomData({
           roomNumber: data.roomNumber || "",
           type: data.type || "",
@@ -49,6 +74,7 @@ export default function EditRoomPage() {
           cancellationPolicy: data.cancellationPolicy || "Moderate",
           amenities: data.amenities || [],
           description: data.description || "",
+          images: data.images || [],
         });
       } catch (err) {
         console.error("Error fetching room:", err);
@@ -61,20 +87,29 @@ export default function EditRoomPage() {
   }, [id]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+    let newValue = value;
+    if (type === "number") {
+      newValue = value === "" ? "" : Number(value);
+    }
+
     if (name === "adults" || name === "children") {
       setRoomData({
         ...roomData,
-        occupancy: { ...roomData.occupancy, [name]: Number(value) },
+        occupancy: { ...roomData.occupancy, [name]: newValue },
       });
-    } else if (name === "amenities") {
-      const values = Array.from(
-        e.target.selectedOptions,
-        (option) => option.value
-      );
-      setRoomData({ ...roomData, amenities: values });
+    } else if (amenityOptions.includes(name)) {
+      if (checked) {
+        setRoomData({ ...roomData, amenities: [...roomData.amenities, name] });
+      } else {
+        setRoomData({
+          ...roomData,
+          amenities: roomData.amenities.filter((a) => a !== name),
+        });
+      }
     } else {
-      setRoomData({ ...roomData, [name]: value });
+      setRoomData({ ...roomData, [name]: newValue });
     }
   };
 
@@ -102,10 +137,11 @@ export default function EditRoomPage() {
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow max-w-2xl mx-auto space-y-4"
+          className="bg-white p-6 rounded-lg shadow max-w-3xl mx-auto space-y-4"
         >
           {error && <p className="text-red-600">{error}</p>}
 
+          {/* Room Details */}
           <Input
             label="Room Number"
             name="roomNumber"
@@ -113,7 +149,6 @@ export default function EditRoomPage() {
             onChange={handleChange}
             required
           />
-
           <Select
             label="Type"
             name="type"
@@ -129,7 +164,6 @@ export default function EditRoomPage() {
             <option value="Family">Family</option>
             <option value="Presidential">Presidential</option>
           </Select>
-
           <Input
             label="Floor"
             name="floor"
@@ -138,7 +172,6 @@ export default function EditRoomPage() {
             onChange={handleChange}
             required
           />
-
           <Input
             label="Base Price"
             name="basePrice"
@@ -147,7 +180,23 @@ export default function EditRoomPage() {
             onChange={handleChange}
             required
           />
+          <Input
+            label="Size (sqm)"
+            name="size"
+            type="number"
+            value={roomData.size}
+            onChange={handleChange}
+            required
+          />
+          <Input
+            label="Description"
+            name="description"
+            value={roomData.description}
+            onChange={handleChange}
+            type="text"
+          />
 
+          {/* Occupancy */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Adults"
@@ -168,6 +217,7 @@ export default function EditRoomPage() {
             />
           </div>
 
+          {/* Status, Bed, View, Policy */}
           <Select
             label="Status"
             name="status"
@@ -180,97 +230,136 @@ export default function EditRoomPage() {
             <option value="Cleaning">Cleaning</option>
             <option value="OutOfService">OutOfService</option>
           </Select>
-
           <Select
             label="Bed Type"
             name="bedType"
             value={roomData.bedType}
             onChange={handleChange}
           >
-            <option value="Single">Single</option>
-            <option value="Double">Double</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-            <option value="Twin">Twin</option>
-            <option value="Bunk">Bunk</option>
+            {bedTypes.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
           </Select>
-
-          <Input
-            label="Size (sqm)"
-            name="size"
-            type="number"
-            value={roomData.size}
-            onChange={handleChange}
-            required
-          />
-
           <Select
             label="View"
             name="view"
             value={roomData.view}
             onChange={handleChange}
           >
-            <option value="None">None</option>
-            <option value="City">City</option>
-            <option value="Garden">Garden</option>
-            <option value="Pool">Pool</option>
-            <option value="Ocean">Ocean</option>
-            <option value="Mountain">Mountain</option>
+            {views.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </Select>
-
           <Select
             label="Cancellation Policy"
             name="cancellationPolicy"
             value={roomData.cancellationPolicy}
             onChange={handleChange}
           >
-            <option value="Flexible">Flexible</option>
-            <option value="Moderate">Moderate</option>
-            <option value="Strict">Strict</option>
-            <option value="NonRefundable">NonRefundable</option>
-          </Select>
-
-          <Input
-            label="Description"
-            name="description"
-            value={roomData.description}
-            onChange={handleChange}
-            type="text"
-          />
-
-          <Select
-            label="Amenities"
-            name="amenities"
-            value={roomData.amenities}
-            onChange={handleChange}
-            multiple
-          >
-            {[
-              "WiFi",
-              "TV",
-              "AC",
-              "Minibar",
-              "Safe",
-              "Hairdryer",
-              "CoffeeMaker",
-              "Iron",
-              "Desk",
-              "Balcony",
-              "PoolView",
-              "OceanView",
-              "RoomService",
-              "DailyCleaning",
-              "Bathrobes",
-              "Slippers",
-              "Jacuzzi",
-            ].map((amenity) => (
-              <option key={amenity} value={amenity}>
-                {amenity}
+            {cancellationPolicies.map((p) => (
+              <option key={p} value={p}>
+                {p}
               </option>
             ))}
           </Select>
 
-          <div className="flex justify-end space-x-2">
+          {/* Amenities */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-800">Amenities</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 bg-gray-50 p-5 rounded-lg">
+              {amenityOptions.map((amenity) => (
+                <label key={amenity} className="flex items-center space-x-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name={amenity}
+                    checked={roomData.amenities.includes(amenity)}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-600 transition-all"
+                  />
+                  <span className="text-gray-700">{amenity}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Images Section */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-800">Images</h2>
+            <div className="space-y-3">
+              {roomData.images?.map((img, index) => (
+                <div key={index} className="p-4 border rounded-lg bg-gray-50 space-y-2">
+                  <Input
+                    label="Image URL"
+                    type="url"
+                    value={img.url}
+                    onChange={(e) => {
+                      const updated = [...roomData.images];
+                      updated[index].url = e.target.value;
+                      setRoomData({ ...roomData, images: updated });
+                    }}
+                    placeholder="https://example.com/image.jpg"
+                    required
+                  />
+                  <Input
+                    label="Caption"
+                    type="text"
+                    value={img.caption || ""}
+                    onChange={(e) => {
+                      const updated = [...roomData.images];
+                      updated[index].caption = e.target.value;
+                      setRoomData({ ...roomData, images: updated });
+                    }}
+                    placeholder="Optional caption"
+                  />
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={img.isPrimary || false}
+                      onChange={(e) => {
+                        const updated = roomData.images.map((image, i) => ({
+                          ...image,
+                          isPrimary: i === index ? e.target.checked : false,
+                        }));
+                        setRoomData({ ...roomData, images: updated });
+                      }}
+                    />
+                    <span className="text-sm text-gray-700">Primary Image</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const updated = roomData.images.filter((_, i) => i !== index);
+                      setRoomData({ ...roomData, images: updated });
+                    }}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setRoomData({
+                  ...roomData,
+                  images: [...(roomData.images || []), { url: "", caption: "", isPrimary: false }],
+                })
+              }
+              className="mt-2"
+            >
+              + Add Image
+            </Button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={() => navigate("/admin/rooms")}>
               Cancel
             </Button>
