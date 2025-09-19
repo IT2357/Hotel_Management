@@ -21,7 +21,25 @@ const Index = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  //const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState({
+    priceRange: [50, 500],
+    bedType: "",
+    adults: 1,
+    children: 0,
+    view: [],
+    amenities: [],
+    type: "",
+    floor: null,
+    status: "Any",
+    sizeRange: [10, 200],
+    cancellationPolicy: "Any",
+    ratingLabel: "",
+    minReviewRating: 0,   // ✅ add this
+    discountAvailable: false,
+    packagesIncluded: false,
+    cleaningStatus: "Any",
+  });
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
   const [comparisonRooms, setComparisonRooms] = useState([]);
@@ -95,9 +113,8 @@ const Index = () => {
     setSelectedFloor(floorNum);
     setSearchQuery("");
   };
-
   const clearFilters = () =>
-    setFilters({
+    setIsFilterOpen({
       priceRange: [50, 500],
       bedType: "",
       adults: 1,
@@ -105,7 +122,17 @@ const Index = () => {
       view: [],
       amenities: [],
       type: "",
+      floor: null,
+      status: "Any",
+      sizeRange: [10, 200],
+      cancellationPolicy: "Any",
+      ratingLabel: "",
+      minReviewRating: 0,   // ✅ reset properly
+      discountAvailable: false,
+      packagesIncluded: false,
+      cleaningStatus: "Any",
     });
+  
 
   // Filtering logic
   const roomsToShow = selectedFloor
@@ -289,28 +316,12 @@ const Index = () => {
 
       {/* Modals */}
       {selectedRoom && (
-  <RoomModal
-    isOpen={!!selectedRoom}
-    room={{
-      ...selectedRoom,
-      name: selectedRoom.title, // map backend "title" → modal "name"
-      price: selectedRoom.basePrice, // map backend "basePrice" → modal "price"
-      id: selectedRoom._id, // map backend "_id" → modal "id"
-      maxGuests:
-        (selectedRoom.occupancy?.adults || 0) +
-        (selectedRoom.occupancy?.children || 0), // calculate max guests
-      reviews: selectedRoom.reviews || {
-        rating: 0,
-        count: 0,
-        recent: [],
-      }, // fallback in case reviews missing
-      images: selectedRoom.images?.map((img) => img.url) || [], // flatten images
-    }}
-    onClose={() => setSelectedRoom(null)}
-    onBook={handleBooking}
-  />
-)}
-
+        <RoomModal
+          room={selectedRoom}
+          onClose={() => setSelectedRoom(null)}
+          onBook={handleBooking}
+        />
+      )}
       {isCompareModalOpen && (
         <CompareModal
           rooms={getComparisonRoomsData()}
