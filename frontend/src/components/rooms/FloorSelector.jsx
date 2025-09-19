@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { Button } from "@/components/rooms/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/rooms/ui/card";
 import { Badge } from "@/components/rooms/ui/badge";
 import { Building, Users, MapPin } from "lucide-react";
 
 const FloorSelector = ({ floors, selectedFloor, onFloorSelect }) => {
+  if (!floors || floors.length === 0) return null; // no floors
+
   return (
     <div className="mb-8">
       <div className="mb-6">
@@ -15,17 +15,17 @@ const FloorSelector = ({ floors, selectedFloor, onFloorSelect }) => {
           Choose a floor to view available rooms
         </p>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {floors.map((floor) => (
-          <Card 
+          <Card
             key={floor.id}
             className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-luxury ${
-              selectedFloor === floor.id 
-                ? 'border-primary shadow-glow bg-primary/5' 
-                : 'hover:border-primary/50'
+              selectedFloor === floor.id
+                ? "border-primary shadow-glow bg-primary/5"
+                : "hover:border-primary/50"
             }`}
-            onClick={() => onFloorSelect(floor.id)}
+            onClick={() => onFloorSelect(floor.number)}
           >
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
@@ -37,11 +37,9 @@ const FloorSelector = ({ floors, selectedFloor, onFloorSelect }) => {
                   Floor {floor.number}
                 </Badge>
               </div>
-              <CardDescription className="text-sm">
-                {floor.description}
-              </CardDescription>
+              <CardDescription className="text-sm">{floor.description}</CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
@@ -51,7 +49,7 @@ const FloorSelector = ({ floors, selectedFloor, onFloorSelect }) => {
                   </div>
                   <span className="font-medium">{floor.roomCount}</span>
                 </div>
-                
+
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-muted-foreground" />
@@ -61,15 +59,11 @@ const FloorSelector = ({ floors, selectedFloor, onFloorSelect }) => {
                     {floor.occupancy}/{floor.maxOccupancy}
                   </span>
                 </div>
-                
-                {floor.features.length > 0 && (
+
+                {floor.features?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-3">
                     {floor.features.map((feature, index) => (
-                      <Badge 
-                        key={index} 
-                        variant="outline" 
-                        className="text-xs px-2 py-0.5"
-                      >
+                      <Badge key={index} variant="outline" className="text-xs px-2 py-0.5">
                         {feature}
                       </Badge>
                     ))}

@@ -174,7 +174,7 @@ export default function AddRoomPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Room Title *"
+                  label="Room Title "
                   name="title"
                   value={roomData.title}
                   onChange={handleChange}
@@ -186,7 +186,7 @@ export default function AddRoomPage() {
               </div>
               <div>
                 <Input
-                  label="Room Number *"
+                  label="Room Number "
                   name="roomNumber"
                   value={roomData.roomNumber}
                   onChange={handleChange}
@@ -217,7 +217,7 @@ export default function AddRoomPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Select
-                  label="Room Type *"
+                  label="Room Type "
                   name="type"
                   value={roomData.type}
                   onChange={handleChange}
@@ -238,7 +238,7 @@ export default function AddRoomPage() {
               </div>
               <div>
                 <Input
-                  label="Floor *"
+                  label="Floor "
                   name="floor"
                   type="number"
                   value={roomData.floor}
@@ -251,7 +251,7 @@ export default function AddRoomPage() {
               </div>
               <div>
                 <Input
-                  label="Base Price ($) *"
+                  label="Base Price ($) "
                   name="basePrice"
                   type="number"
                   value={roomData.basePrice}
@@ -266,7 +266,7 @@ export default function AddRoomPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Size (sqm) *"
+                  label="Size (sqm) "
                   name="size"
                   type="number"
                   value={roomData.size}
@@ -279,7 +279,7 @@ export default function AddRoomPage() {
               </div>
               <div>
                 <Select
-                  label="Bed Type *"
+                  label="Bed Type "
                   name="bedType"
                   value={roomData.bedType}
                   onChange={handleChange}
@@ -337,7 +337,7 @@ export default function AddRoomPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
-                  label="Adults *"
+                  label="Adults "
                   name="adults"
                   type="number"
                   value={roomData.occupancy.adults}
@@ -404,6 +404,81 @@ export default function AddRoomPage() {
               ))}
             </div>
           </div>
+
+              {/* Images Section */}
+<div className="space-y-4">
+  <h2 className="text-lg font-semibold text-gray-800">Images</h2>
+  <div className="space-y-3">
+    {roomData.images?.map((img, index) => (
+      <div
+        key={index}
+        className="p-4 border rounded-lg bg-gray-50 space-y-2"
+      >
+        <Input
+          label="Image URL"
+          type="url"
+          value={img.url}
+          onChange={(e) => {
+            const updated = [...roomData.images];
+            updated[index].url = e.target.value;
+            setRoomData({ ...roomData, images: updated });
+          }}
+          placeholder="https://example.com/image.jpg"
+          required
+        />
+        <Input
+          label="Caption"
+          type="text"
+          value={img.caption || ""}
+          onChange={(e) => {
+            const updated = [...roomData.images];
+            updated[index].caption = e.target.value;
+            setRoomData({ ...roomData, images: updated });
+          }}
+          placeholder="Optional caption for this image"
+        />
+        <label className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={img.isPrimary || false}
+            onChange={(e) => {
+              const updated = roomData.images.map((image, i) => ({
+                ...image,
+                isPrimary: i === index ? e.target.checked : false, // only one primary
+              }));
+              setRoomData({ ...roomData, images: updated });
+            }}
+          />
+          <span className="text-sm text-gray-700">Primary Image</span>
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            const updated = roomData.images.filter((_, i) => i !== index);
+            setRoomData({ ...roomData, images: updated });
+          }}
+          className="text-red-600 hover:bg-red-50"
+        >
+          Remove
+        </Button>
+      </div>
+    ))}
+  </div>
+  <Button
+    type="button"
+    variant="outline"
+    onClick={() =>
+      setRoomData({
+        ...roomData,
+        images: [...(roomData.images || []), { url: "", caption: "", isPrimary: false }],
+      })
+    }
+    className="mt-2"
+  >
+    + Add Image
+  </Button>
+</div>
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-4 pt-6">

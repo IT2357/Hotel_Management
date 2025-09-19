@@ -9,7 +9,7 @@ import Badge from "../../components/ui/Badge";
 import Spinner from "../../components/ui/Spinner";
 import Pagination from "../../components/ui/Pagination";
 import adminService from "../../services/adminService";
-
+import roomService from "../../services/roomService";
 
 export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState([]);
@@ -35,7 +35,7 @@ export default function AdminRoomsPage() {
 const fetchRooms = async () => {
   setLoading(true);
   try {
-    const response = await adminService.getAllRooms({ params: filters });
+    const response = await roomService.getAllRooms({ params: filters });
     const data = response?.data;
 
     // Correctly extract rooms array

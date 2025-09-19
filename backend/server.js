@@ -14,6 +14,7 @@ import { connectDB, dbHealthCheck } from "./config/database.js";
 // Import routes
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import roomsRoutes from "./routes/rooms.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
 
@@ -76,6 +77,7 @@ app.get("/health", async (req, res) => {
 });
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/rooms", roomsRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api", (req, res) => {

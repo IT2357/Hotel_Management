@@ -31,8 +31,6 @@ import {
 } from "../controllers/admin/adminController.js";
 import {
   createRoom,
-  getAllRooms,
-  getRoomById,
   updateRoom,
   deleteRoom,
 } from "../controllers/rooms/roomController.js";
@@ -243,8 +241,6 @@ router.post("/settings/test-email", testEmailConfig);
 
 // Admin CRUD for rooms
 router.post("/rooms", createRoom);
-router.get("/rooms", getAllRooms);
-router.get("/rooms/:id", getRoomById);
 router.put("/rooms/:id", updateRoom);
 router.delete("/rooms/:id", deleteRoom);
 

@@ -61,8 +61,6 @@ const adminService = {
 
   // Room management
   createRoom: (data) => api.post("/admin/rooms", data),
-  getAllRooms: (params) => api.get("/admin/rooms", { params }),
-  getRoomById: (id) => api.get(`/admin/rooms/${id}`),
   updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
   deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
 };
