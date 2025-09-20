@@ -574,6 +574,17 @@ export const getPendingRefunds = async (req, res) => {
   }
 };
 
+// Get all refunds with optional filtering
+export const getRefunds = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    const refunds = await AdminService.getRefunds({ status, search });
+    sendSuccess(res, refunds);
+  } catch (error) {
+    handleError(res, error, "Failed to get refunds");
+  }
+};
+
 // Get specific refund details
 export const getRefundDetails = async (req, res) => {
   try {
@@ -719,6 +730,7 @@ export default {
   updateNotificationTemplate,
   deleteNotificationTemplate,
   getPendingRefunds,
+  getRefunds,
   getRefundDetails,
   approveRefund,
   denyRefund,

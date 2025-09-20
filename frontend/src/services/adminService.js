@@ -42,6 +42,7 @@ const adminService = {
 
   // Refund management
   getPendingRefunds: () => api.get("/admin/refunds/pending"),
+  getRefunds: (params = {}) => api.get("/admin/refunds", { params }),
   getRefundDetails: (id) => api.get(`/admin/refunds/${id}`),
   approveRefund: (id) => api.post(`/admin/refunds/${id}/approve`),
   denyRefund: (id, reason) => api.post(`/admin/refunds/${id}/deny`, { reason }),
@@ -56,8 +57,13 @@ const adminService = {
 
   // Admin Settings
   getAdminSettings: () => api.get("/admin/settings"),
+  getSettingsByCategory: (category) => api.get(`/admin/settings/${category}`),
   updateAdminSettings: (data) => api.put("/admin/settings", data),
   testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
+  backupSettings: () => api.get("/admin/settings/backup/download"),
+  restoreSettings: (data) => api.post("/admin/settings/restore", data),
+  resetToDefaults: () => api.post("/admin/settings/reset"),
+  validatePaymentGateway: (data) => api.post("/admin/settings/validate-payment", data),
 };
 
 export default adminService;

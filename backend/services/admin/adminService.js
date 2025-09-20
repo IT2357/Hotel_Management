@@ -732,14 +732,41 @@ class AdminService {
 
   // Refund Management Methods
 
-  async getPendingRefunds() {
-    const pendingRefunds = await RefundRequest.find({ status: "pending" })
+  // Get all refunds with optional status filtering
+  async getRefunds({ status = null, search = null } = {}) {
+    const query = {};
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Add search functionality
+    if (search) {
+      const refunds = await RefundRequest.find(query)
+        .populate("bookingId", "bookingNumber")
+        .populate("guestId", "name email")
+        .populate("invoiceId", "invoiceNumber")
+        .sort({ createdAt: -1 });
+
+      // Filter by search term
+      const filteredRefunds = refunds.filter(refund =>
+        refund.bookingId?.bookingNumber?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.guestId?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.guestId?.email?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.reason?.toLowerCase().includes(search.toLowerCase())
+      );
+
+      return filteredRefunds;
+    }
+
+    const refunds = await RefundRequest.find(query)
       .populate("bookingId", "bookingNumber")
       .populate("guestId", "name email")
       .populate("invoiceId", "invoiceNumber")
       .sort({ createdAt: -1 });
 
-    return pendingRefunds;
+    return refunds;
   }
 
   async getRefundDetails(refundId) {

@@ -22,6 +22,7 @@ import {
   resetUserPassword,
   updateUserPassword,
   getPendingRefunds,
+  getRefunds,
   getRefundDetails,
   approveRefund,
   denyRefund,
@@ -33,6 +34,11 @@ import {
   getAdminSettings,
   updateAdminSettings,
   testEmailConfig,
+  getSettingsByCategory,
+  backupSettings,
+  restoreSettings,
+  resetToDefaults,
+  validatePaymentGateway,
 } from "../controllers/admin/settingsController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
@@ -187,6 +193,11 @@ router.get(
   getPendingRefunds
 );
 router.get(
+  "/refunds",
+  authorizeRoles({ permissions: ["refunds:read"] }),
+  getRefunds
+);
+router.get(
   "/refunds/:id",
   authorizeRoles({ permissions: ["refunds:read"] }),
   getRefundDetails
@@ -227,11 +238,32 @@ router.get(
   authorizeRoles({ permissions: ["settings:read"] }),
   getAdminSettings
 );
+router.get(
+  "/settings/:category",
+  authorizeRoles({ permissions: ["settings:read"] }),
+  getSettingsByCategory
+);
 router.put(
   "/settings",
   authorizeRoles({ permissions: ["settings:update"] }),
   updateAdminSettings
 );
 router.post("/settings/test-email", testEmailConfig);
+router.get(
+  "/settings/backup/download",
+  authorizeRoles({ permissions: ["settings:backup"] }),
+  backupSettings
+);
+router.post(
+  "/settings/restore",
+  authorizeRoles({ permissions: ["settings:restore"] }),
+  restoreSettings
+);
+router.post(
+  "/settings/reset",
+  authorizeRoles({ permissions: ["settings:reset"] }),
+  resetToDefaults
+);
+router.post("/settings/validate-payment", validatePaymentGateway);
 
 export default router;

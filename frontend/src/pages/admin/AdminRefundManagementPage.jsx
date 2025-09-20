@@ -56,12 +56,21 @@ const AdminRefundManagementPage = () => {
   const loadRefunds = async () => {
     try {
       setLoading(true);
-      const response = await adminService.getPendingRefunds();
-      let filteredRefunds = response.data.data || [];
+
+      // Get refunds based on active tab
+      const params = {};
       if (activeTab !== 'all') {
-        filteredRefunds = filteredRefunds.filter(refund => refund.status === activeTab);
+        params.status = activeTab;
       }
       if (filters.search) {
+        params.search = filters.search;
+      }
+
+      const response = await adminService.getRefunds(params);
+      let filteredRefunds = response.data.data || response.data || [];
+
+      // Additional client-side filtering if needed (for search within results)
+      if (filters.search && filteredRefunds.length > 0) {
         filteredRefunds = filteredRefunds.filter(
           refund =>
             refund.bookingId?.bookingNumber?.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -70,6 +79,7 @@ const AdminRefundManagementPage = () => {
             refund.reason?.toLowerCase().includes(filters.search.toLowerCase())
         );
       }
+
       setRefunds(filteredRefunds);
     } catch (error) {
       console.error('Failed to load refunds:', error);
@@ -100,6 +110,10 @@ const AdminRefundManagementPage = () => {
         case 'deny':
           if (!actionReason.trim()) {
             alert('Please provide a reason for denial');
+            return;
+          }
+          if (actionReason.trim().length < 20) {
+            alert('Denial reason must be at least 20 characters long');
             return;
           }
           response = await adminService.denyRefund(selectedRefund._id, actionReason);
@@ -635,7 +649,7 @@ function RefundActionModal({
             <Textarea
               value={actionReason}
               onChange={(e) => setActionReason(e.target.value)}
-              placeholder="Provide a detailed reason for denying this refund..."
+              placeholder="Provide a detailed reason for denying this refund (minimum 20 characters)..."
               rows={4}
               className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
               required
