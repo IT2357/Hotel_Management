@@ -34,6 +34,11 @@ import {
   updateRoom,
   deleteRoom,
 } from "../controllers/rooms/roomController.js";
+import{
+  deleteBooking,
+  updateBookingStatus,
+  getAllBookings
+} from "../controllers/bookings/bookingController.js";
 import {
   getAdminSettings,
   updateAdminSettings,
@@ -243,5 +248,16 @@ router.post("/settings/test-email", testEmailConfig);
 router.post("/rooms", createRoom);
 router.put("/rooms/:id", updateRoom);
 router.delete("/rooms/:id", deleteRoom);
+
+//Admin CRUD for bookings
+
+// Get all bookings
+router.get("/Allbookings", getAllBookings);
+
+// Update booking status (Confirm / Cancel)
+router.put("/:id/status", updateBookingStatus);
+
+// Delete a booking
+router.delete("/:id", deleteBooking);
 
 export default router;

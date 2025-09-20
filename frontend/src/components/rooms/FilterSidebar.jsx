@@ -408,7 +408,7 @@ const FilterSidebar = ({
           </Card>
 
           {/* Extra Options */}
-          <Card>
+          {/* <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Extra Options</CardTitle>
             </CardHeader>
@@ -434,10 +434,10 @@ const FilterSidebar = ({
                 </Label>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Cleaning Status */}
-          <Card>
+          {/* <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Cleaning Status</CardTitle>
             </CardHeader>
@@ -456,7 +456,7 @@ const FilterSidebar = ({
                 </SelectContent>
               </Select>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </>

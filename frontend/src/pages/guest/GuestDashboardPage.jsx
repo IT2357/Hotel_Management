@@ -316,8 +316,23 @@ const Index = () => {
 
       {/* Modals */}
       {selectedRoom && (
-        <RoomModal
-          room={selectedRoom}
+          <RoomModal
+          isOpen={!!selectedRoom}
+          room={{
+            ...selectedRoom,
+            name: selectedRoom.title, // map backend "title" → modal "name"
+            price: selectedRoom.basePrice, // map backend "basePrice" → modal "price"
+            id: selectedRoom._id, // map backend "_id" → modal "id"
+            maxGuests:
+              (selectedRoom.occupancy?.adults || 0) +
+              (selectedRoom.occupancy?.children || 0), // calculate max guests
+            reviews: selectedRoom.reviews || {
+              rating: 0,
+              count: 0,
+              recent: [],
+            }, // fallback in case reviews missing
+            images: selectedRoom.images?.map((img) => img.url) || [], // flatten images
+          }}
           onClose={() => setSelectedRoom(null)}
           onBook={handleBooking}
         />

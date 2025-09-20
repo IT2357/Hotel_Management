@@ -17,6 +17,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import roomsRoutes from "./routes/rooms.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
+import bookings from "./routes/bookings.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -78,6 +79,7 @@ app.get("/health", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/rooms", roomsRoutes);
+app.use("/api/bookings",bookings);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api", (req, res) => {
