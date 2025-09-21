@@ -3,13 +3,15 @@ import api from "./api";
 
 class NotificationService {
   // User notification operations
-  async getMyNotifications(params = {}) {
+  async getMyNotifications(options = {}) {
     try {
-      const response = await api.get("/notifications/my", { params });
+      const params = new URLSearchParams(options);
+      const response = await api.get(`/notifications/my?${params}`);
       return response.data;
     } catch (error) {
-      console.error("Failed to get my notifications:", error);
-      throw error;
+      console.warn('Failed to get my notifications:', error.message);
+      // Return empty array if service is unavailable
+      return { notifications: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } };
     }
   }
 
@@ -58,11 +60,12 @@ class NotificationService {
 
   async getUnreadCount() {
     try {
-      const response = await api.get("/notifications/unread-count");
-      return response.data;
+      const response = await api.get('/notifications/unread-count');
+      return response.data.count || 0;
     } catch (error) {
-      console.error("Failed to get unread count:", error);
-      throw error;
+      console.warn('Failed to get unread count:', error.message);
+      // Return 0 if service is unavailable
+      return 0;
     }
   }
 

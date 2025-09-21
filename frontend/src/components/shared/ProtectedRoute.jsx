@@ -135,7 +135,10 @@ export function RedirectIfAuthenticated({ children }) {
   // Only redirect if user is authenticated, email is verified, active, and no password reset pending
   if (user && user.emailVerified && user.isActive && !user.passwordResetPending) {
     const dashboardPath = getDashboardPath(user.role);
-    if (location.pathname !== dashboardPath) {
+    // Don't redirect to dashboard if user is already on home page or other public pages
+    const publicRoutesAfterLogin = ['/', '/about', '/menu', '/gallery', '/reservations', '/blog', '/contact'];
+
+    if (!publicRoutesAfterLogin.includes(location.pathname) && location.pathname !== dashboardPath) {
       console.log('Redirecting authenticated user to dashboard', {
         userId: user._id,
         dashboardPath,

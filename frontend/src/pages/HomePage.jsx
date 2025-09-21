@@ -73,13 +73,16 @@ export default function HomePage() {
           </div>
           <nav>
             <ul style={{ listStyle: 'none', display: 'flex', gap: '2rem', margin: 0, padding: 0 }}>
-              <li><a href="#home" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Home</a></li>
-              <li><a href="#about" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>About</a></li>
-              <li><a href="#menu" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Menu</a></li>
-              <li><a href="#gallery" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Gallery</a></li>
-              <li><a href="#reservation" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Reservation</a></li>
-              <li><a href="#blog" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Blog</a></li>
-              <li><a href="#contact" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Contact</a></li>
+              <li><Link to="/" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Home</Link></li>
+              <li><Link to="/about" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>About</Link></li>
+              <li><Link to="/menu" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Menu</Link></li>
+              <li><Link to="/gallery" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Gallery</Link></li>
+              <li><Link to="/reservations" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Reservation</Link></li>
+              <li><Link to="/blog" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Blog</Link></li>
+              <li><Link to="/contact" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Contact</Link></li>
+              {user && (
+                <li><Link to="/dashboard/my-orders" style={{ textDecoration: 'none', color: '#C41E3A', fontWeight: 500 }}>My Orders</Link></li>
+              )}
             </ul>
           </nav>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -121,6 +124,43 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Profile Section */}
+      {user && (
+        <section style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', background: '#f9f9f9' }}>
+          <h2 style={{ textAlign: 'center', color: '#C41E3A', fontFamily: "'Merriweather', serif", marginBottom: '2rem' }}>Welcome back, {user.name || user.email}!</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ color: '#C41E3A', fontFamily: "'Merriweather', serif", marginBottom: '1rem' }}>Quick Actions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <Link to="/menu" style={{ background: '#C41E3A', color: 'white', padding: '0.75rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShoppingCart size={16} />
+                  Order Food
+                </Link>
+                <Link to="/dashboard/my-orders" style={{ background: '#D2691E', color: 'white', padding: '0.75rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  📋
+                  View My Orders
+                </Link>
+                {user.role === 'admin' && (
+                  <Link to="/admin/dashboard" style={{ background: '#6B7280', color: 'white', padding: '0.75rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    ⚙️
+                    Admin Panel
+                  </Link>
+                )}
+              </div>
+            </div>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ color: '#C41E3A', fontFamily: "'Merriweather', serif", marginBottom: '1rem' }}>Account Information</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <p><strong>Email:</strong> {user.email}</p>
+                <p><strong>Role:</strong> {user.role}</p>
+                <p><strong>Status:</strong> {user.isActive ? 'Active' : 'Inactive'}</p>
+                {user.emailVerified && <p><strong>✓ Email Verified</strong></p>}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Why Section */}
       <section style={{ padding: '4rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -260,25 +300,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-
-      <style jsx>{`
-        @media (max-width: 768px) {
-          header .header-container {
-            flex-direction: column;
-            gap: 1rem;
-          }
-          nav ul {
-            flex-wrap: wrap;
-            justify-content: center;
-          }
-          .why-content {
-            flex-direction: column;
-          }
-          .hero h1 {
-            font-size: 2rem;
-          }
-        }
-      `}</style>
     </div>
   );
 }

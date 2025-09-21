@@ -53,10 +53,11 @@ export function AuthProvider({ children }) {
     setState(prev => ({ ...prev, error: null }));
     try {
       const res = await authService.login(credentials);
-      const { user, token } = res.data.data;
+      const { user, token } = res.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setState(prev => ({ ...prev, user, loading: false }));
+      navigate("/");
       return user;
     } catch (err) {
       console.error('AuthContext login error:', {

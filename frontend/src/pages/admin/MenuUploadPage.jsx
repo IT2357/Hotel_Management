@@ -93,27 +93,6 @@ const MenuUploadPage = () => {
     setUploadProgress(0);
 
     try {
-      // First, handle image upload if it's an image upload
-      let imageId = null;
-      if (activeTab === 'upload' && formData.file) {
-        const imageFormData = new FormData();
-        imageFormData.append('image', formData.file);
-
-        // Upload image to GridFS
-        const uploadResponse = await api.post('/menu/upload', imageFormData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        if (uploadResponse.data.success) {
-          imageId = uploadResponse.data.fileId;
-          console.log('✅ Image uploaded to GridFS:', imageId);
-        } else {
-          throw new Error('Image upload failed');
-        }
-      }
-
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
@@ -125,21 +104,21 @@ const MenuUploadPage = () => {
         });
       }, 200);
 
+      // Create FormData for the extraction request
       const submitFormData = new FormData();
-      submitFormData.append('inputType', activeTab);
       submitFormData.append('title', formData.title);
 
-      // Add imageId if we uploaded an image
-      if (imageId) {
-        submitFormData.append('imageId', imageId);
-      }
-
-      if (activeTab === 'url') {
+      // Handle different input types
+      if (activeTab === 'upload' && formData.file) {
+        // For image upload, append the file directly - GridFS storage will handle it
+        submitFormData.append('image', formData.file);
+      } else if (activeTab === 'url') {
         submitFormData.append('url', formData.url);
       } else if (activeTab === 'path') {
-        submitFormData.append('filePath', formData.filePath);
+        submitFormData.append('path', formData.filePath);
       }
 
+      // Call the extraction endpoint directly
       const response = await api.post('/uploadMenu/upload', submitFormData, {
         headers: {
           'Content-Type': 'multipart/form-data',

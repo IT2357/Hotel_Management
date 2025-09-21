@@ -353,7 +353,7 @@ const ModernRestaurantMenu = () => {
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={item.image || "https://via.placeholder.com/400x300?text=Delicious+Dish"}
+                    src={item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Delicious+Dish"}
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />

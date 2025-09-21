@@ -68,6 +68,7 @@ const dietaryOptions = [
 const FoodMenuManagementPage = () => {
   const [foodItems, setFoodItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -80,8 +81,7 @@ const FoodMenuManagementPage = () => {
   const [activeTab, setActiveTab] = useState('manage');
   const navigate = useNavigate();
 
-  // Form data for creating/editing items
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     name: '',
     category: '',
     description: '',
@@ -91,8 +91,8 @@ const FoodMenuManagementPage = () => {
     isVeg: false,
     isSpicy: false,
     isPopular: false,
-    ingredients: [],
-    dietaryTags: [],
+    ingredients: [], // Always initialize as array
+    dietaryTags: [], // Always initialize as array
     nutritionalInfo: {
       calories: '',
       protein: '',
@@ -102,6 +102,54 @@ const FoodMenuManagementPage = () => {
     cookingTime: 15,
     customizations: []
   });
+
+  // Ensure formData is always properly structured
+  useEffect(() => {
+    if (!formData || typeof formData !== 'object') {
+      setFormData({
+        name: '',
+        category: '',
+        description: '',
+        price: '',
+        image: '',
+        isAvailable: true,
+        isVeg: false,
+        isSpicy: false,
+        isPopular: false,
+        ingredients: [], // Always ensure it's an array
+        dietaryTags: [], // Always ensure it's an array
+        nutritionalInfo: {
+          calories: '',
+          protein: '',
+          carbs: '',
+          fat: ''
+        },
+        cookingTime: 15,
+        customizations: []
+      });
+    } else {
+      // Ensure nutritionalInfo is always an object with proper structure
+      if (!formData.nutritionalInfo || typeof formData.nutritionalInfo !== 'object') {
+        setFormData(prev => ({
+          ...prev,
+          nutritionalInfo: {
+            calories: '',
+            protein: '',
+            carbs: '',
+            fat: ''
+          }
+        }));
+      } else {
+        // Ensure ingredients and dietaryTags are always arrays
+        if (!formData.ingredients || !Array.isArray(formData.ingredients)) {
+          setFormData(prev => ({ ...prev, ingredients: [] }));
+        }
+        if (!formData.dietaryTags || !Array.isArray(formData.dietaryTags)) {
+          setFormData(prev => ({ ...prev, dietaryTags: [] }));
+        }
+      }
+    }
+  }, [formData]);
   
   // AI Form Data
   const [aiFormData, setAiFormData] = useState({
@@ -113,6 +161,20 @@ const FoodMenuManagementPage = () => {
     preview: null
   });
 
+  // Ensure aiFormData is always properly initialized
+  useEffect(() => {
+    if (!aiFormData || typeof aiFormData !== 'object') {
+      setAiFormData({
+        cuisine: '',
+        dietaryRestrictions: [],
+        mealType: '',
+        budget: '',
+        image: null,
+        preview: null
+      });
+    }
+  }, [aiFormData]);
+
 
   // Fetch food items when component mounts or filters change
   useEffect(() => {
@@ -123,6 +185,7 @@ const FoodMenuManagementPage = () => {
   const fetchFoodItems = async () => {
     try {
       setLoading(true);
+      setError(null);
       // Use the food service to get items with proper image handling
       const response = await foodService.getMenuItems({
         category: selectedCategory !== 'all' ? selectedCategory : undefined,
@@ -131,7 +194,9 @@ const FoodMenuManagementPage = () => {
       setFoodItems(response.data.data || []);
     } catch (error) {
       console.error('Error fetching menu items:', error);
+      setError(error.message || 'Failed to load menu items');
       toast.error('Failed to load menu items');
+      setFoodItems([]); // Ensure foodItems is always an array
     } finally {
       setLoading(false);
     }
@@ -175,8 +240,8 @@ const FoodMenuManagementPage = () => {
         delete createData.nutritionalInfo;
       }
 
-      const response = await api.post('/menu/items', createData);
-      setFoodItems([...foodItems, response.data.data]);
+      const response = await api.post('/food/menu/items', createData);
+      setFoodItems([...(foodItems || []), response.data.data]);
       setIsCreateDialogOpen(false);
       resetForm();
       toast.success('Menu item created successfully');
@@ -227,8 +292,8 @@ const FoodMenuManagementPage = () => {
         delete updateData.nutritionalInfo;
       }
 
-      const response = await api.put(`/menu/items/${selectedItem._id}`, updateData);
-      setFoodItems(foodItems.map(item =>
+      const response = await api.put(`/food/menu/items/${selectedItem._id}`, updateData);
+      setFoodItems((foodItems || []).map(item =>
         item._id === selectedItem._id ? response.data.data : item
       ));
       setIsEditDialogOpen(false);
@@ -246,8 +311,8 @@ const FoodMenuManagementPage = () => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      await api.delete(`/menu/items/${itemId}`);
-      setFoodItems(foodItems.filter(item => item._id !== itemId));
+      await api.delete(`/food/menu/items/${itemId}`);
+      setFoodItems((foodItems || []).filter(item => item._id !== itemId));
       toast.success('Menu item deleted successfully');
     } catch (error) {
       console.error('Error deleting menu item:', error);
@@ -267,8 +332,8 @@ const FoodMenuManagementPage = () => {
       isVeg: false,
       isSpicy: false,
       isPopular: false,
-      ingredients: [],
-      dietaryTags: [],
+      ingredients: [], // Always ensure it's an array
+      dietaryTags: [], // Always ensure it's an array
       nutritionalInfo: {
         calories: '',
         protein: '',
@@ -284,34 +349,39 @@ const FoodMenuManagementPage = () => {
   const openEditDialog = (item) => {
     setSelectedItem(item);
     setFormData({
-      name: item.name,
-      category: item.category,
+      name: item.name || '',
+      category: item.category?._id || item.category || '',
       description: item.description || '',
-      price: item.price,
-      image: item.image || '',
+      price: item.price ? item.price.toString() : '',
+      image: item.image || item.imageUrl || '',
       isAvailable: item.isAvailable !== false,
       isVeg: item.isVeg || false,
       isSpicy: item.isSpicy || false,
       isPopular: item.isPopular || false,
-      ingredients: item.ingredients || [],
-      dietaryTags: item.dietaryTags || [],
-      nutritionalInfo: item.nutritionalInfo || {
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients : [], // Always ensure it's an array
+      dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [], // Always ensure it's an array
+      nutritionalInfo: item.nutritionalInfo && typeof item.nutritionalInfo === 'object' ? {
+        calories: item.nutritionalInfo.calories ? item.nutritionalInfo.calories.toString() : '',
+        protein: item.nutritionalInfo.protein ? item.nutritionalInfo.protein.toString() : '',
+        carbs: item.nutritionalInfo.carbs ? item.nutritionalInfo.carbs.toString() : '',
+        fat: item.nutritionalInfo.fat ? item.nutritionalInfo.fat.toString() : ''
+      } : {
         calories: '',
         protein: '',
         carbs: '',
         fat: ''
       },
-      cookingTime: item.cookingTime || 15,
-      customizations: item.customizations || []
+      cookingTime: item.cookingTime ? item.cookingTime.toString() : '15',
+      customizations: Array.isArray(item.customizations) ? item.customizations : []
     });
     setIsEditDialogOpen(true);
   };
 
   // Filter items based on search and category
-  const filteredItems = foodItems.filter(item => {
+  const filteredItems = (foodItems || []).filter(item => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+                          (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -352,7 +422,7 @@ const FoodMenuManagementPage = () => {
       const formData = new FormData();
       formData.append('image', aiFormData.image);
       
-      const response = await api.post('/menu/process-image', formData, {
+      const response = await api.post('/uploadMenu/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -377,8 +447,8 @@ const FoodMenuManagementPage = () => {
     }
 
     try {
-      const response = await api.post('/menu/batch', { items: ocrResult.items });
-      setFoodItems(prev => [...prev, ...response.data]);
+      const response = await api.post('/food/menu/batch', { items: ocrResult.items });
+      setFoodItems(prev => [...(prev || []), ...response.data]);
       toast.success(`Successfully added ${response.data.length} menu items`);
       setIsAIDialogOpen(false);
       resetAIDialog();
@@ -435,7 +505,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-600 text-sm font-medium">Total Items</p>
-                <p className="text-3xl font-bold text-orange-900">{foodItems.length}</p>
+                <p className="text-3xl font-bold text-orange-900">{(foodItems || []).length}</p>
               </div>
               <div className="p-3 bg-orange-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,7 +518,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-600 text-sm font-medium">Available</p>
-                <p className="text-3xl font-bold text-green-900">{foodItems.filter(item => item.isAvailable).length}</p>
+                <p className="text-3xl font-bold text-green-900">{(foodItems || []).filter(item => item.isAvailable).length}</p>
               </div>
               <div className="p-3 bg-green-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -461,7 +531,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-600 text-sm font-medium">Categories</p>
-                <p className="text-3xl font-bold text-blue-900">{new Set(foodItems.map(item => item.category).filter(Boolean)).size}</p>
+                <p className="text-3xl font-bold text-blue-900">{new Set((foodItems || []).map(item => item.category).filter(Boolean)).size}</p>
               </div>
               <div className="p-3 bg-blue-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -474,7 +544,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-600 text-sm font-medium">Popular</p>
-                <p className="text-3xl font-bold text-purple-900">{foodItems.filter(item => item.isPopular).length}</p>
+                <p className="text-3xl font-bold text-purple-900">{(foodItems || []).filter(item => item.isPopular).length}</p>
               </div>
               <div className="p-3 bg-purple-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -487,7 +557,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-red-600 text-sm font-medium">Vegetarian</p>
-                <p className="text-3xl font-bold text-red-900">{foodItems.filter(item => item.isVeg).length}</p>
+                <p className="text-3xl font-bold text-red-900">{(foodItems || []).filter(item => item.isVeg).length}</p>
               </div>
               <div className="p-3 bg-red-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -500,7 +570,7 @@ const FoodMenuManagementPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-yellow-600 text-sm font-medium">Spicy</p>
-                <p className="text-3xl font-bold text-yellow-900">{foodItems.filter(item => item.isSpicy).length}</p>
+                <p className="text-3xl font-bold text-yellow-900">{(foodItems || []).filter(item => item.isSpicy).length}</p>
               </div>
               <div className="p-3 bg-yellow-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -834,7 +904,7 @@ const FoodMenuManagementPage = () => {
                     <div>
                       <Label>Ingredients (comma-separated)</Label>
                       <Input
-                        value={formData.ingredients.join(', ')}
+                        value={(formData.ingredients || []).join(', ')}
                         onChange={(e) => setFormData({
                           ...formData,
                           ingredients: e.target.value.split(',').map(i => i.trim()).filter(i => i)

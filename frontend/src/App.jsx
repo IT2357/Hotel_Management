@@ -37,6 +37,9 @@ import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
 import MenuReviewPage from './pages/admin/MenuReviewPage.jsx';
 import MenuExtractorPage from './pages/admin/MenuExtractorPage.jsx';
 
+// Auth Test Page
+import AuthTestPage from './pages/AuthTestPage.jsx';
+
 console.log('App.jsx: Imports loaded successfully');
 
 // Legacy Pages (keeping for compatibility)
@@ -65,8 +68,8 @@ const App = () => {
           {/* VALDORA Checkout */}
           <Route path="/checkout" element={<CheckoutPage />} />
 
-          {/* VALDORA Order Details */}
-          <Route path="/order/:id" element={<OrderDetailsPage />} />
+          {/* Auth Test Suite */}
+          <Route path="/auth-test" element={<AuthTestPage />} />
 
           {/* Modern Restaurant Menu (Alternative) */}
           <Route path="/modern-menu" element={<ModernRestaurantMenu />} />

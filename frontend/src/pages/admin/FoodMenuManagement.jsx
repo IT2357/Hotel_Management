@@ -1,6 +1,6 @@
 // 📁 frontend/src/pages/admin/FoodMenuManagement.jsx
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { motion, AnimatePresence, LazyMotion, domAnimation } from 'framer-motion';
 import {
   Plus,
   Edit,
@@ -58,7 +58,6 @@ const FoodMenuManagement = () => {
 
   useEffect(() => {
     fetchMenuData();
-    initializeCloudinaryWidget();
   }, []);
 
   const initializeImageUpload = () => {
@@ -108,7 +107,7 @@ const FoodMenuManagement = () => {
     }
   };
 
-  const fetchMenuData = async () => {
+  const fetchMenuData = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 DEBUG: Fetching menu data...');
@@ -137,8 +136,17 @@ const FoodMenuManagement = () => {
         categoriesData: categoriesRes.data?.data
       });
 
-      setMenuItems(itemsRes.data.data.items || []);
-      setCategories(categoriesRes.data.data || []);
+      if (itemsRes.data?.data?.items) {
+        setMenuItems(itemsRes.data.data.items);
+      } else {
+        setMenuItems([]);
+      }
+
+      if (categoriesRes.data?.data) {
+        setCategories(categoriesRes.data.data);
+      } else {
+        setCategories([]);
+      }
     } catch (error) {
       console.error('❌ DEBUG: Error fetching menu data:', error);
       console.error('❌ DEBUG: Error details:', {
@@ -159,35 +167,45 @@ const FoodMenuManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     try {
       const payload = {
         ...formData,
-        price: parseFloat(formData.price),
-        cookingTime: parseInt(formData.cookingTime),
+        price: parseFloat(formData.price) || 0,
+        cookingTime: parseInt(formData.cookingTime) || 15,
+        nutritionalInfo: {
+          calories: formData.nutritionalInfo.calories ? parseInt(formData.nutritionalInfo.calories) : 0,
+          protein: formData.nutritionalInfo.protein ? parseInt(formData.nutritionalInfo.protein) : 0,
+          carbs: formData.nutritionalInfo.carbs ? parseInt(formData.nutritionalInfo.carbs) : 0,
+          fat: formData.nutritionalInfo.fat ? parseInt(formData.nutritionalInfo.fat) : 0
+        },
         portions: formData.portions.map(p => ({
           ...p,
-          price: parseFloat(p.price)
+          name: p.name || 'Regular',
+          price: parseFloat(p.price) || 0
         }))
       };
 
       if (editingItem) {
         await api.put(`/food/menu/items/${editingItem._id}`, payload);
+        toast.success('Menu item updated successfully!');
       } else {
         await api.post('/food/menu/items', payload);
+        toast.success('Menu item created successfully!');
       }
       
       await fetchMenuData();
       resetForm();
     } catch (error) {
       console.error('Error saving menu item:', error);
+      toast.error('Failed to save menu item: ' + (error.response?.data?.message || error.message));
     }
-  };
+  }, [formData, editingItem, fetchMenuData]);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (window.confirm('Are you sure you want to delete this menu item?')) {
       try {
         await api.delete(`/food/menu/items/${id}`);
@@ -196,9 +214,46 @@ const FoodMenuManagement = () => {
         console.error('Error deleting menu item:', error);
       }
     }
-  };
+  }, [fetchMenuData]);
 
-  const resetForm = () => {
+  const startEdit = useCallback((item) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name || '',
+      description: item.description || '',
+      price: item.price ? item.price.toString() : '',
+      category: item.category?._id || item.category || '',
+      image: item.image || '',
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
+      allergens: Array.isArray(item.allergens) ? item.allergens : [],
+      nutritionalInfo: item.nutritionalInfo && typeof item.nutritionalInfo === 'object' ? {
+        calories: item.nutritionalInfo.calories ? item.nutritionalInfo.calories.toString() : '',
+        protein: item.nutritionalInfo.protein ? item.nutritionalInfo.protein.toString() : '',
+        carbs: item.nutritionalInfo.carbs ? item.nutritionalInfo.carbs.toString() : '',
+        fat: item.nutritionalInfo.fat ? item.nutritionalInfo.fat.toString() : ''
+      } : {
+        calories: '',
+        protein: '',
+        carbs: '',
+        fat: ''
+      },
+      dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [],
+      spiceLevel: item.spiceLevel || 'mild',
+      cookingTime: item.cookingTime ? item.cookingTime.toString() : '',
+      portions: Array.isArray(item.portions) && item.portions.length > 0 
+        ? item.portions.map(p => ({
+            name: p.name || 'Regular',
+            price: p.price ? p.price.toString() : ''
+          }))
+        : [{ name: 'Regular', price: item.price ? item.price.toString() : '' }],
+      isAvailable: item.isAvailable !== false,
+      isPopular: item.isPopular || false,
+      isFeatured: item.isFeatured || false
+    });
+    setShowAddModal(true);
+  }, []);
+
+  const resetForm = useCallback(() => {
     setFormData({
       name: '',
       description: '',
@@ -223,26 +278,100 @@ const FoodMenuManagement = () => {
     });
     setEditingItem(null);
     setShowAddModal(false);
-  };
+  }, []);
 
-  const startEdit = (item) => {
-    setFormData({
-      ...item,
-      category: item.category?._id || '',
-      price: item.price.toString(),
-      cookingTime: item.cookingTime?.toString() || '',
-      portions: item.portions || [{ name: 'Regular', price: item.price.toString() }]
+// Memoized Menu Item Card Component for better performance
+const MenuItemCard = memo(({ item, onEdit, onDelete }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-purple-500/20 hover:border-purple-500/40 transition-all"
+    >
+      {/* Image */}
+      <div className="relative h-48">
+        <img
+          src={item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item"}
+          alt={item.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* Status Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1">
+          {item.isFeatured && (
+            <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">
+              Featured
+            </span>
+          )}
+          {item.isPopular && (
+            <span className="px-2 py-1 bg-yellow-500 text-black text-xs rounded-full">
+              Popular
+            </span>
+          )}
+          {!item.isAvailable && (
+            <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">
+              Unavailable
+            </span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="absolute top-3 right-3 flex gap-2">
+          <button
+            onClick={() => onEdit(item)}
+            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onDelete(item._id)}
+            className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Price */}
+        <div className="absolute bottom-3 left-3">
+          <span className="text-2xl font-bold text-white">
+            LKR {item.price}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-white mb-2">
+          {item.name}
+        </h3>
+        <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+          {item.description}
+        </p>
+
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>{item.category?.name}</span>
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {item.cookingTime || 15}min
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+MenuItemCard.displayName = 'MenuItemCard';
+
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' ||
+        (item.category && item.category._id === selectedCategory);
+      return matchesSearch && matchesCategory;
     });
-    setEditingItem(item);
-    setShowAddModal(true);
-  };
-
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || 
-      (item.category && item.category._id === selectedCategory);
-    return matchesSearch && matchesCategory;
-  });
+  }, [menuItems, searchTerm, selectedCategory]);
 
   const addPortion = () => {
     setFormData(prev => ({
@@ -262,7 +391,7 @@ const FoodMenuManagement = () => {
     setFormData(prev => ({
       ...prev,
       portions: prev.portions.map((portion, i) =>
-        i === index ? { ...portion, [field]: value } : portion
+        i === index ? { ...portion, [field]: value || '' } : portion
       )
     }));
   };
@@ -349,91 +478,22 @@ const FoodMenuManagement = () => {
         </motion.div>
 
         {/* Menu Items Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          {filteredItems.map((item, index) => (
-            <motion.div
-              key={item._id}
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-purple-500/20 hover:border-purple-500/40 transition-all"
-            >
-              {/* Image */}
-              <div className="relative h-48">
-                <img
-                  src={item.image || "https://via.placeholder.com/400x300?text=Menu+Item"}
-                  alt={item.name}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                
-                {/* Status Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1">
-                  {item.isFeatured && (
-                    <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">
-                      Featured
-                    </span>
-                  )}
-                  {item.isPopular && (
-                    <span className="px-2 py-1 bg-yellow-500 text-black text-xs rounded-full">
-                      Popular
-                    </span>
-                  )}
-                  {!item.isAvailable && (
-                    <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full">
-                      Unavailable
-                    </span>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="absolute top-3 right-3 flex gap-2">
-                  <button
-                    onClick={() => startEdit(item)}
-                    className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item._id)}
-                    className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Price */}
-                <div className="absolute bottom-3 left-3">
-                  <span className="text-2xl font-bold text-white">
-                    LKR {item.price}
-                  </span>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {item.name}
-                </h3>
-                <p className="text-gray-400 text-sm mb-3 line-clamp-2">
-                  {item.description}
-                </p>
-                
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{item.category?.name}</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {item.cookingTime || 15}min
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+        <LazyMotion features={domAnimation}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {filteredItems.map((item, index) => (
+              <MenuItemCard
+                key={item._id}
+                item={item}
+                onEdit={startEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </motion.div>
+        </LazyMotion>
 
         {/* Add/Edit Modal */}
         <AnimatePresence>

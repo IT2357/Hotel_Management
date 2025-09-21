@@ -63,7 +63,7 @@ const CheckoutPage = () => {
       deliveryFee,
       total,
       orderDate: new Date().toISOString(),
-      estimatedTime: orderType === 'dine-in' ? '30 minutes' : '45 minutes'
+      estimatedTime: orderType === 'dine-in' ? '30 minutes' : orderType === 'takeaway' ? '20 minutes' : '45 minutes'
     };
 
     setOrderDetails(orderData);
@@ -103,7 +103,7 @@ const CheckoutPage = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
               <div>
                 <p style={{ margin: '0.5rem 0', color: '#666' }}><strong>Order ID:</strong> {orderDetails.orderId}</p>
-                <p style={{ margin: '0.5rem 0', color: '#666' }}><strong>Order Type:</strong> {orderDetails.orderType === 'dine-in' ? 'Dine-in' : 'Delivery'}</p>
+                <p style={{ margin: '0.5rem 0', color: '#666' }}><strong>Order Type:</strong> {orderDetails.orderType === 'dine-in' ? 'Dine-in' : orderDetails.orderType === 'takeaway' ? 'Take Away' : 'Delivery'}</p>
                 <p style={{ margin: '0.5rem 0', color: '#666' }}><strong>Estimated Time:</strong> {orderDetails.estimatedTime}</p>
               </div>
               <div>
@@ -226,6 +226,24 @@ const CheckoutPage = () => {
                   🍽️ Dine-in
                 </button>
                 <button
+                  onClick={() => setOrderType('takeaway')}
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    border: orderType === 'takeaway' ? '2px solid #C41E3A' : '2px solid #ddd',
+                    borderRadius: '10px',
+                    backgroundColor: orderType === 'takeaway' ? '#C41E3A' : 'white',
+                    color: orderType === 'takeaway' ? 'white' : '#333',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  🛍️ Take Away
+                </button>
+                <button
                   onClick={() => setOrderType('delivery')}
                   style={{
                     flex: 1,
@@ -246,7 +264,7 @@ const CheckoutPage = () => {
                 </button>
               </div>
 
-              {orderType === 'dine-in' && (
+              {orderType !== 'delivery' && (
                 <div style={{ marginTop: '1rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
                     Table Number *
@@ -498,7 +516,7 @@ const CheckoutPage = () => {
 
               <div style={{ marginTop: '1rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '0.875rem', color: '#666' }}>
-                  {orderType === 'dine-in' ? 'Dine-in orders will be ready in 30 minutes' : 'Delivery in 45 minutes'}
+                  {orderType === 'dine-in' ? 'Dine-in orders will be ready in 30 minutes' : orderType === 'takeaway' ? 'Take away orders will be ready in 20 minutes' : 'Delivery in 45 minutes'}
                 </p>
               </div>
             </div>

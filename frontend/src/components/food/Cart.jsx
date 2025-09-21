@@ -76,7 +76,7 @@ const ModernCart = ({ onCheckout, onClose }) => {
             <div className="flex gap-4">
               <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/10 flex-shrink-0">
                 <img
-                  src={item.image || 'https://via.placeholder.com/80x80?text=Dish'}
+                  src={item.image || 'https://dummyimage.com/80x80/cccccc/000000&text=Dish'}
                   alt={item.name}
                   className="w-full h-full object-cover"
                 />
