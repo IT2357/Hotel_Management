@@ -1,18 +1,18 @@
 import { useState, useRef } from 'react';
-import AdminSidebar from './AdminSidebar';
-import AdminHeader from './AdminHeader';
+import ManagerSidebar from './ManagerSidebar';
+import ManagerHeader from './ManagerHeader';
 import { NotificationProvider } from '../../context/NotificationContext';
 
-export default function DefaultAdminLayout({ children }) {
+export default function DefaultManagerLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const toggleRef = useRef();
+  const toggleRef = useRef(null); // Ensure ref is initialized
 
   return (
     <NotificationProvider>
       <div className="dark:bg-gray-900 dark:text-gray-200 h-screen overflow-hidden">
         <div className="flex h-full">
           {/* Sidebar */}
-          <AdminSidebar
+          <ManagerSidebar
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
             toggleRef={toggleRef}
@@ -20,14 +20,14 @@ export default function DefaultAdminLayout({ children }) {
 
           {/* Content Area */}
           <div className="flex flex-col flex-1">
-            <AdminHeader
+            <ManagerHeader
               sidebarOpen={sidebarOpen}
               setSidebarOpen={setSidebarOpen}
               toggleRef={toggleRef}
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 g:pl-16">
+            <main className="">
               {children}
             </main>
           </div>

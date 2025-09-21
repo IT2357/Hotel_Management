@@ -6,7 +6,7 @@ class NotificationService {
   async getMyNotifications(params = {}) {
     try {
       const response = await api.get("/notifications/my", { params });
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get my notifications:", error);
       throw error;
@@ -16,7 +16,7 @@ class NotificationService {
   async getMyPreferences() {
     try {
       const response = await api.get("/notifications/my/preferences");
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get my preferences:", error);
       throw error;
@@ -29,7 +29,7 @@ class NotificationService {
         "/notifications/my/preferences",
         preferences
       );
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to update my preferences:", error);
       throw error;
@@ -39,7 +39,7 @@ class NotificationService {
   async markAsRead(notificationId) {
     try {
       const response = await api.patch(`/notifications/${notificationId}/read`);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to mark as read:", error);
       throw error;
@@ -49,7 +49,7 @@ class NotificationService {
   async markAllAsRead() {
     try {
       const response = await api.patch("/notifications/read-all");
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to mark all as read:", error);
       throw error;
@@ -59,7 +59,7 @@ class NotificationService {
   async getUnreadCount() {
     try {
       const response = await api.get("/notifications/unread-count");
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get unread count:", error);
       throw error;
@@ -69,7 +69,7 @@ class NotificationService {
   async deleteNotification(notificationId) {
     try {
       const response = await api.delete(`/notifications/${notificationId}`);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to delete notification:", error);
       throw error;
@@ -80,7 +80,7 @@ class NotificationService {
   async sendNotification(data) {
     try {
       const response = await api.post("/notifications/send", data);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to send notification:", error);
       throw error;
@@ -90,7 +90,7 @@ class NotificationService {
   async sendBulkNotifications(data) {
     try {
       const response = await api.post("/notifications/send/bulk", data);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to send bulk notifications:", error);
       throw error;
@@ -100,7 +100,7 @@ class NotificationService {
   async getAdminNotifications(params = {}) {
     try {
       const response = await api.get("/notifications/admin", { params });
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get admin notifications:", error);
       throw error;
@@ -110,7 +110,7 @@ class NotificationService {
   async getNotificationStats() {
     try {
       const response = await api.get("/notifications/stats");
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get notification stats:", error);
       throw error;
@@ -122,7 +122,7 @@ class NotificationService {
       const response = await api.get(`/notifications/user/${userId}`, {
         params,
       });
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get user notifications:", error);
       throw error;
@@ -134,7 +134,7 @@ class NotificationService {
       const response = await api.delete(
         `/notifications/admin/${notificationId}`
       );
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to admin delete notification:", error);
       throw error;
@@ -155,7 +155,7 @@ class NotificationService {
   async createTemplate(templateData) {
     try {
       const response = await api.post("/notifications/templates", templateData);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to create template:", error);
       throw error;
@@ -168,7 +168,7 @@ class NotificationService {
         `/notifications/templates/${templateId}`,
         templateData
       );
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to update template:", error);
       throw error;
@@ -180,7 +180,7 @@ class NotificationService {
       const response = await api.delete(
         `/notifications/templates/${templateId}`
       );
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to delete template:", error);
       throw error;
@@ -191,7 +191,7 @@ class NotificationService {
   async getUserPreferences(userId) {
     try {
       const response = await api.get(`/notifications/preferences/${userId}`);
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get user preferences:", error);
       throw error;
@@ -204,7 +204,7 @@ class NotificationService {
         `/notifications/preferences/${userId}`,
         preferences
       );
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to update user preferences:", error);
       throw error;
@@ -215,7 +215,7 @@ class NotificationService {
   async getNotificationMetadata() {
     try {
       const response = await api.get("/notifications/metadata");
-      return response.data;
+      return response.data?.data || response.data;
     } catch (error) {
       console.error("Failed to get notification metadata:", error);
       throw error;

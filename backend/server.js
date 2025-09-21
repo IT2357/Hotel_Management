@@ -17,6 +17,9 @@ import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
+import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
+
+
 const app = express();
 app.set("trust proxy", 1);
 // Initialize Passport
@@ -25,13 +28,16 @@ app.use(passport.initialize()); // Added
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
+
+const isProd = process.env.NODE_ENV === "production";
 const corsOptions = {
-  origin: process.env.FRONTEND_URL,
+  origin: isProd ? process.env.FRONTEND_URL : true, // Allow any origin in dev to prevent CORS issues
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -52,7 +58,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-if (process.env.NODE_ENV === "production") {
+if (isProd) {
   app.use("/api/", limiter);
   app.use("/api/auth/", authLimiter);
   app.use(express.json({ limit: "10mb" }));
@@ -78,6 +84,10 @@ app.get("/health", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/manager", managerRoutes); // New manager routes
+
+
+
 
 app.use("/api", (req, res) => {
   console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -143,7 +153,7 @@ app.use((err, req, res, next) => {
   });
 });
 // Start server
-const PORT = process.env.PORT;
+const PORT = parseInt(process.env.PORT, 10) || 5000; // Default to 5000 for dev
 const server = app.listen(PORT, () => {
   console.log(`
 🚀 Server running in ${

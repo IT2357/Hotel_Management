@@ -14,6 +14,10 @@ import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
+// Manager pages
+import ManagerDashboardPage from './pages/manager/ManagerDashboardPageNew.jsx';
+import TaskManagementPage from './pages/manager/TaskManagementPage.jsx';
+import StaffPerformancePage from './pages/manager/StaffPerformancePage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
 import UserManagementPage from './pages/admin/UserManagementPage.jsx';
@@ -23,6 +27,10 @@ import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
+import TaskManagement from './pages/manager/TaskManagementPage.jsx';
+import StaffMessageForm from './pages/manager/StaffMessageForm.jsx';
+import ManagerInbox from './pages/manager/ManagerInbox.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
@@ -185,6 +193,63 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']}>
                 <AdminRefundManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+
+         
+
+          {/* 👔 Manager Portal (layout + nested pages) */}
+            <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <DefaultManagerLayout>
+                    <ManagerDashboardPage />
+                </DefaultManagerLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/tasks"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <DefaultManagerLayout>
+                    <TaskManagementPage />
+                </DefaultManagerLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/staff-performance"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <DefaultManagerLayout>
+                    <StaffPerformancePage />
+                </DefaultManagerLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/staff-messages"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <DefaultManagerLayout>
+                    <StaffMessageForm />
+                </DefaultManagerLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/inbox"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <DefaultManagerLayout>
+                    <ManagerInbox />
+                </DefaultManagerLayout>
               </ProtectedRoute>
             }
           />

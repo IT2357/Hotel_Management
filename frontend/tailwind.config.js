@@ -1,5 +1,8 @@
 // tailwind.config.js
 module.exports = {
+  content: [
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
   theme: {
     fontSize: {
       sm: "0.875rem",
@@ -9,4 +12,7 @@ module.exports = {
     },
     extend: {},
   },
+  plugins: [
+    require('tailwind-scrollbar')({ nocompatible: true }),
+  ],
 };
