@@ -79,14 +79,28 @@ router.put(
   changePassword
 );
 router.post("/logout", authenticateToken, logout);
-router.delete("/profile", authenticateToken, deleteProfile);
+import seedTestUsers from "../utils/seedTestUsers.js";
 
-// Example protected route with role & permission check:
-// router.get(
-//   "/staff-panel",
-//   authenticateToken,
-//   authorizeRoles({ roles: ["staff", "manager", "admin"], permissions: ["staff:read"] }),
-//   getStaffPanel
-// );
-
-export default router;
+// Test route to seed test users
+router.post("/seed-test-users", async (req, res) => {
+  try {
+    await seedTestUsers();
+    res.json({
+      success: true,
+      message: "Test users seeded successfully",
+      users: [
+        { email: 'admin@test.com', password: 'admin123', role: 'admin' },
+        { email: 'guest@test.com', password: 'guest123', role: 'guest' },
+        { email: 'manager@test.com', password: 'manager123', role: 'manager' },
+        { email: 'staff@test.com', password: 'staff123', role: 'staff' }
+      ]
+    });
+  } catch (error) {
+    console.error("Error seeding test users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to seed test users",
+      error: error.message
+    });
+  }
+});

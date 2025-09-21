@@ -18,7 +18,7 @@ class GridFSService {
     try {
       if (mongoose.connection.readyState === 1) {
         this.bucket = new GridFSBucket(mongoose.connection.db, {
-          bucketName: 'menu_images'
+          bucketName: 'menu.Images'
         });
         this.initialized = true;
         console.log('✅ GridFS bucket initialized');
@@ -26,7 +26,7 @@ class GridFSService {
         // Wait for mongoose connection
         mongoose.connection.on('connected', () => {
           this.bucket = new GridFSBucket(mongoose.connection.db, {
-            bucketName: 'menu_images'
+            bucketName: 'menu.Images'
           });
           this.initialized = true;
           console.log('✅ GridFS bucket initialized');

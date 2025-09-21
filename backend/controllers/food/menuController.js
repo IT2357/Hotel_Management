@@ -175,7 +175,7 @@ export const createMenuItem = async (req, res) => {
       description,
       price: parseFloat(price),
       category,
-      image: image || "https://via.placeholder.com/400x300?text=Menu+Item",
+      image: image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
       ingredients: ingredients || [],
       allergens: allergens || [],
       nutritionalInfo: nutritionalInfo || {},
@@ -427,6 +427,76 @@ export const getPopularItems = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch popular items",
+      error: error.message,
+    });
+  }
+};
+
+// Batch create menu items (for AI extraction)
+export const batchCreateMenuItems = async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        message: "Items array is required",
+      });
+    }
+
+    const createdItems = [];
+    const errors = [];
+
+    for (const itemData of items) {
+      try {
+        // Find or create category
+        let category = await Category.findOne({ name: itemData.category });
+        if (!category) {
+          category = new Category({ name: itemData.category });
+          await category.save();
+        }
+
+        // Create menu item
+        const menuItem = new MenuItem({
+          name: itemData.name,
+          description: itemData.description || '',
+          price: parseFloat(itemData.price) || 0,
+          category: category._id,
+          image: itemData.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
+          ingredients: itemData.ingredients || [],
+          allergens: itemData.allergens || [],
+          nutritionalInfo: itemData.nutritionalInfo || {},
+          dietaryTags: itemData.dietaryTags || [],
+          spiceLevel: itemData.spiceLevel || "mild",
+          cookingTime: parseInt(itemData.cookingTime) || 15,
+          portions: itemData.portions || [{ name: "Regular", price: parseFloat(itemData.price) || 0 }],
+          isAvailable: itemData.isAvailable !== false,
+          isPopular: itemData.isPopular === true,
+          isFeatured: itemData.isFeatured === true,
+        });
+
+        await menuItem.save();
+        await menuItem.populate("category", "name slug displayOrder");
+        createdItems.push(menuItem);
+      } catch (error) {
+        errors.push({
+          item: itemData.name,
+          error: error.message
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdItems.length} menu items`,
+      data: createdItems,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Error batch creating menu items:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to batch create menu items",
       error: error.message,
     });
   }

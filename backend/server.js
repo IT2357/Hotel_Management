@@ -8,6 +8,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+import { GridFSBucket } from 'mongodb';
+import multer from 'multer';
+import { GridFsStorage } from 'multer-gridfs-storage';
+import 'dotenv/config';
 
 // Import security middlewares
 import {
@@ -56,21 +61,19 @@ validateEnvironment();
 // Connect to database
 await connectDB();
 
-// GridFS setup
+// GridFS setup with proper configuration
 let gfs;
 const conn = mongoose.connection;
-conn.once('open', () => {
-  // Init GridFS bucket
-  gfs = new GridFSBucket(conn.db, {
-    bucketName: 'menu.Images'
-  });
-  console.log('✅ GridFS bucket initialized: menu.Images');
-});
 
-// Configure GridFS storage for multer
+// Initialize GridFS bucket immediately since connection is already established
+gfs = new GridFSBucket(conn.db, {
+  bucketName: 'menu.Images'
+});
+console.log('✅ GridFS bucket initialized: menu.Images');
+
+// GridFS Storage configuration with crypto for unique filenames
 const storage = new GridFsStorage({
   url: process.env.MONGODB_URI,
-  options: { useNewUrlParser: true, useUnifiedTopology: true },
   file: (req, file) => {
     return new Promise((resolve, reject) => {
       crypto.randomBytes(16, (err, buf) => {
@@ -93,10 +96,11 @@ const storage = new GridFsStorage({
   }
 });
 
+// Configure multer with GridFS storage
 const upload = multer({
-  storage,
+  storage: storage,
   limits: {
-    fileSize: 10000000 // 10MB limit
+    fileSize: 15 * 1024 * 1024 // 15MB limit as per README
   },
   fileFilter: function(req, file, cb) {
     checkFileType(file, cb);
@@ -112,12 +116,12 @@ function checkFileType(file, cb) {
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb('Error: Images Only!');
+    cb('Error: Images Only! Supported formats: JPEG, JPG, PNG, WEBP, GIF');
   }
 }
 
 import 'dotenv/config';
-import './utils/passport.js';
+// import './utils/passport.js';
 
 // Configure __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -125,6 +129,8 @@ const __dirname = dirname(__filename);
 
 // Import database configuration
 import { connectDB, dbHealthCheck } from "./config/database.js";
+// Import services
+import gridfsService from './services/gridfsService.js';
 // Import routes
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -132,9 +138,8 @@ import foodRoutes from "./routes/food.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import menuExtractionRoutes from "./routes/menuExtractionRoutes.js";
-import newMenuRoutes from "./routes/menu.js";
 import foodMenuRoutes from "./routes/food/menuRoutes.js";
-import "./eventListeners/notificationListeners.js";
+// import "./eventListeners/notificationListeners.js";
 
 // Initialize Express app
 const app = express();
@@ -144,56 +149,59 @@ app.set("trust proxy", 1);
 app.use(passport.initialize()); 
 
 // Security middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false,
-}));
+// app.use(helmet({
+//   crossOriginResourcePolicy: { policy: "cross-origin" },
+//   contentSecurityPolicy: false,
+// }));
 
 // Security headers
-app.use(securityHeaders);
+// app.use(securityHeaders);
 
 // Security logging
-app.use(securityLogger);
+// app.use(securityLogger);
 
 // Rate limiting
-if (process.env.NODE_ENV === "production") {
-  app.use("/api/", apiLimiter);
-  app.use("/api/auth/", authLimiter);
-  app.use("/api/uploadMenu/upload", uploadLimiter);
-}
+// if (process.env.NODE_ENV === "production") {
+//   app.use("/api/", apiLimiter);
+//   app.use("/api/auth/", authLimiter);
+//   app.use("/api/uploadMenu/upload", uploadLimiter);
+// }
 
-app.use(compression());
-app.use(morgan("combined"));
+// app.use(compression());
+// app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Data sanitization
-app.use(dataSanitization);
-app.use(xssProtection);
-app.use(preventParamPollution);
+// app.use(dataSanitization);
+// app.use(xssProtection);
+// app.use(preventParamPollution);
 
-// CORS configuration
+// CORS configuration - MUST be before other middleware
 const corsOptions = {
   origin: [
-    process.env.FRONTEND_URL,
     "http://localhost:5173",
-    "http://localhost:5174", 
+    "http://localhost:5174",
     "http://localhost:5175",
-    "http://localhost:5176", 
-    "http://localhost:5177", 
-    "http://localhost:5180", 
+    "http://localhost:5176",
+    "http://localhost:5177",
+    "http://localhost:5180",
     "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174", 
+    "http://127.0.0.1:5174",
     "http://127.0.0.1:5175",
     "http://127.0.0.1:5176",
     "http://127.0.0.1:5177",
     "http://127.0.0.1:5180"
-  ],
+  ].filter(Boolean), // Filter out any undefined values
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+// app.options('*', cors(corsOptions));
 
 // Health check endpoint
 app.get("/health", async (req, res) => {
@@ -213,24 +221,25 @@ app.use("/api/auth", authRoutes);
 console.log('✅ DEBUG: Auth routes registered at /api/auth');
 app.use("/api/admin", adminRoutes);
 console.log('✅ DEBUG: Admin routes registered at /api/admin');
-app.use("/api/food", foodRoutes);
-console.log('✅ DEBUG: Food routes registered at /api/food');
+// app.use("/api/food", foodRoutes);
+// console.log('✅ DEBUG: Food routes registered at /api/food');
+// app.use("/api/food/menu", foodMenuRoutes);
 app.use("/api/food/menu", foodMenuRoutes);
-console.log('✅ DEBUG: Food menu routes registered at /api/food/menu');
-console.log('✅ DEBUG: Available food menu endpoints:');
-console.log('✅ DEBUG: - GET /api/food/menu/items');
-console.log('✅ DEBUG: - GET /api/food/menu/categories');
-console.log('✅ DEBUG: - POST /api/food/menu/items (protected)');
-console.log('✅ DEBUG: - PUT /api/food/menu/items/:id (protected)');
-console.log('✅ DEBUG: - DELETE /api/food/menu/items/:id (protected)');
+// console.log('✅ DEBUG: Food menu routes registered at /api/food/menu');
+// console.log('✅ DEBUG: Available food menu endpoints:');
+// console.log('✅ DEBUG: - GET /api/food/menu/items');
+// console.log('✅ DEBUG: - GET /api/food/menu/categories');
+// console.log('✅ DEBUG: - POST /api/food/menu/items (protected)');
+// console.log('✅ DEBUG: - PUT /api/food/menu/items/:id (protected)');
+// console.log('✅ DEBUG: - DELETE /api/food/menu/items/:id (protected)');
+// app.use("/api/notifications", notificationRoutes);
 app.use("/api/notifications", notificationRoutes);
 console.log('✅ DEBUG: Notification routes registered at /api/notifications');
 app.use("/api/menu", menuRoutes);
-console.log('✅ DEBUG: Menu extraction routes registered at /api/menu');
+console.log('✅ DEBUG: Menu routes registered at /api/menu');
 app.use("/api/uploadMenu", menuExtractionRoutes);
-console.log('✅ DEBUG: Upload menu routes registered at /api/uploadMenu');
-// Image upload route
-app.post('/api/menu/upload', upload.single('image'), async (req, res) => {
+console.log('✅ DEBUG: Menu extraction routes registered at /api/uploadMenu');
+app.post('/api/uploadMenu/image', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -239,17 +248,44 @@ app.post('/api/menu/upload', upload.single('image'), async (req, res) => {
       });
     }
 
-    console.log('📁 File uploaded successfully:', req.file);
+    // Generate unique filename
+    const filename = crypto.randomBytes(16).toString('hex') + path.extname(req.file.originalname);
 
-    res.json({
-      success: true,
-      message: 'File uploaded successfully',
-      fileId: req.file.id,
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      size: req.file.size,
-      uploadDate: req.file.uploadDate
+    // Create upload stream to GridFS
+    const uploadStream = gfs.openUploadStream(filename, {
+      metadata: {
+        originalName: req.file.originalname,
+        uploadDate: new Date(),
+        contentType: req.file.mimetype
+      }
     });
+
+    // Write file buffer to GridFS
+    uploadStream.end(req.file.buffer);
+
+    uploadStream.on('finish', () => {
+      console.log('📁 File uploaded successfully to GridFS:', filename);
+
+      res.json({
+        success: true,
+        message: 'File uploaded successfully',
+        fileId: uploadStream.id,
+        filename: filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        uploadDate: new Date()
+      });
+    });
+
+    uploadStream.on('error', (error) => {
+      console.error('❌ GridFS upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Upload failed',
+        error: error.message
+      });
+    });
+
   } catch (error) {
     console.error('❌ Upload error:', error);
     res.status(500).json({
@@ -260,45 +296,56 @@ app.post('/api/menu/upload', upload.single('image'), async (req, res) => {
   }
 });
 
-// Serve images from GridFS
+// Serve images from GridFS - /api/menu/image/:gridfsId
 app.get('/api/menu/image/:id', async (req, res) => {
   try {
-    const fileId = new mongoose.Types.ObjectId(req.params.id);
+    const fileId = req.params.id;
 
-    // Check if file exists
-    const files = await gfs.find({ _id: fileId }).toArray();
-    if (!files || files.length === 0) {
+    // Check if image exists
+    const exists = await gridfsService.imageExists(fileId);
+    if (!exists) {
       return res.status(404).json({
         success: false,
-        message: 'File not found'
+        message: 'Image not found'
       });
     }
 
-    const file = files[0];
+    // Get image stream and metadata
+    const { stream, metadata } = await gridfsService.getImageStream(fileId);
 
-    // Check if it's an image
-    if (!file.contentType || !file.contentType.startsWith('image/')) {
-      return res.status(400).json({
-        success: false,
-        message: 'File is not an image'
-      });
-    }
+    // Set response headers for proper image serving
+    res.set({
+      'Content-Type': metadata.contentType,
+      'Content-Length': metadata.length,
+      'Content-Disposition': `inline; filename="${metadata.originalName || metadata.filename}"`,
+      'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
+      'ETag': fileId
+    });
 
-    // Set content type
-    res.set('Content-Type', file.contentType);
-    res.set('Content-Disposition', `inline; filename="${file.metadata?.originalName || file.filename}"`);
+    // Handle stream errors
+    stream.on('error', (error) => {
+      console.error('❌ GridFS stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Error streaming image',
+          error: error.message
+        });
+      }
+    });
 
-    // Stream the file
-    const readstream = gfs.openDownloadStream(fileId);
-    readstream.pipe(res);
+    // Stream the file to response
+    stream.pipe(res);
 
   } catch (error) {
     console.error('❌ Image serve error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error serving image',
-      error: error.message
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Error serving image',
+        error: error.message
+      });
+    }
   }
 });
 
@@ -312,13 +359,13 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
-app.use("/api", (req, res) => {
-  console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
-  res.status(404).json({
-    success: false,
-    message: "API endpoint not found",
-  });
-});
+// app.use("/api", (req, res) => {
+//   console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
+//   res.status(404).json({
+//     success: false,
+//     message: "API endpoint not found",
+//   });
+// });
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -367,5 +414,8 @@ const server = app.listen(PORT, () => {
 📚 Documentation: http://localhost:${PORT}/api/docs
   `);
 });
+
+// Export upload middleware for use in routes
+export { upload };
 
 export default app;

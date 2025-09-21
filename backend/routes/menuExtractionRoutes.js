@@ -8,44 +8,29 @@ import {
 } from '../controllers/menuExtractionController.js';
 import { authenticateToken as protect } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
-import { uploadSingle, handleMulterError } from '../middleware/upload.js';
+import { uploadSingle, uploadToGridFS, handleMulterError } from '../middleware/gridfsUpload.js';
 import { validateImageUpload } from '../middleware/validation.js';
 import imageStorageService from '../services/imageStorageService.js';
 
 const router = express.Router();
 
-// All routes require authentication and admin/manager role
-router.use(protect);
-router.use(authorizeRoles(['admin', 'manager']));
-
 // Upload and process menu (supports file upload, URL, and file path)
-router.post('/upload', protect, authorizeRoles(['admin', 'manager']), validateImageUpload, uploadSingle, handleMulterError, extractMenu);
+router.post('/upload', uploadSingle, handleMulterError, uploadToGridFS, protect, authorizeRoles(['admin', 'manager']), extractMenu);
 
 // General image upload endpoint
-router.post('/image', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, async (req, res) => {
+router.post('/image', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, uploadToGridFS, async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.file || !req.file.gridfsId) {
       return res.status(400).json({
         success: false,
-        message: 'No image file provided'
+        message: 'No image file provided or upload failed'
       });
     }
 
-    const imageId = await imageStorageService.uploadImage(
-      req.file.buffer,
-      req.file.originalname,
-      {
-        uploadedBy: req.user?.id,
-        purpose: 'menu_item'
-      }
-    );
-
-    const imageUrl = await imageStorageService.getImageUrl(imageId);
-
     res.status(200).json({
       success: true,
-      imageId,
-      imageUrl,
+      imageId: req.file.gridfsId,
+      imageUrl: `/api/menu/image/${req.file.gridfsId}`,
       message: 'Image uploaded successfully'
     });
 

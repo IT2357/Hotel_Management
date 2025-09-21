@@ -110,8 +110,8 @@ export const login = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: result,
       message: "Login successful",
+      ...result,
     });
   } catch (error) {
     console.error("🔐 Login controller error:", {
@@ -290,12 +290,12 @@ export const updateProfile = async (req, res) => {
 
 // Logout
 export const logout = async (req, res) => {
-  try {
-    const result = await AuthService.logout(req.user._id);
-    sendSuccess(res, result, result.message);
-  } catch (error) {
-    handleError(res, error, "Logout failed");
-  }
+try {
+  const result = await AuthService.logout(req.user._id);
+  sendSuccess(res, result, "Login successful");
+} catch (error) {
+  handleError(res, error, "Login failed");
+}
 };
 
 // Check approval status
@@ -309,31 +309,13 @@ export const checkApprovalStatus = async (req, res) => {
   }
 };
 
-// Social login callback
-export const socialCallback = (req, res) => {
-  try {
-    const result = AuthService.processSocialCallback(req.user);
-
-    // Redirect to frontend with token
-    res.redirect(
-      `${process.env.FRONTEND_URL}/auth/callback?token=${result.token}`
-    );
-  } catch (error) {
-    console.error("Social callback error:", error);
-    res.redirect(
-      `${process.env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(
-        error.message
-      )}`
-    );
-  }
-};
-
+// Delete profile
 export const deleteProfile = async (req, res) => {
   try {
     const result = await AuthService.deleteProfile(req.user._id);
     sendSuccess(res, result, "Profile deleted successfully");
   } catch (error) {
-    handleError(res, error, "Profile deletion failed");
+    handleError(res, error, "Failed to delete profile");
   }
 };
 

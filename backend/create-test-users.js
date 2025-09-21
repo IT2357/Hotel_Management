@@ -19,11 +19,10 @@ async function createTestUsers() {
     console.log('🧹 Cleared existing test users');
 
     // Create Admin User
-    const adminPassword = await bcrypt.hash('admin123', 12);
     const adminUser = await User.create({
       name: 'Admin User',
       email: 'admin@test.com',
-      password: adminPassword,
+      password: 'admin123',
       role: 'admin',
       isApproved: true,
       isActive: true,
@@ -46,11 +45,10 @@ async function createTestUsers() {
     console.log('✅ Created admin user: admin@test.com / admin123');
 
     // Create Guest User
-    const guestPassword = await bcrypt.hash('guest123', 12);
     const guestUser = await User.create({
       name: 'Guest User',
       email: 'guest@test.com',
-      password: guestPassword,
+      password: 'guest123',
       role: 'guest',
       isApproved: true,
       isActive: true,

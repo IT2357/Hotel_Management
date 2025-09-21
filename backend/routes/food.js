@@ -7,7 +7,12 @@ import {
   createFoodItem,
   updateFoodItem,
   deleteFoodItem,
-  generateAIMenu
+  generateAIMenu,
+  getAllCategories,
+  getCategory,
+  createCategory,
+  updateCategory,
+  deleteCategory
 } from '../controllers/food/foodController.js';
 import {
   getAllFoodOrders,
@@ -23,6 +28,11 @@ const router = express.Router();
 // Public routes - no authentication required for viewing menu items
 router.get('/menu/items', getAllFoodItems);
 router.get('/menu/items/:id', getFoodItem);
+router.get('/menu/categories', getAllCategories);
+router.get('/menu/categories/:id', getCategory);
+router.post('/menu/categories', authorizeRoles(['admin', 'manager']), createCategory);
+router.put('/menu/categories/:id', authorizeRoles(['admin', 'manager']), updateCategory);
+router.delete('/menu/categories/:id', authorizeRoles(['admin', 'manager']), deleteCategory);
 
 // Protected routes for authenticated users
 router.use(protect);

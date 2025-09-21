@@ -23,9 +23,9 @@ const menuItemSchema = new mongoose.Schema({
     min: [0, 'Price cannot be negative'],
   },
   category: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
     required: [true, 'Category is required'],
-    trim: true,
   },
   image: {
     data: Buffer,

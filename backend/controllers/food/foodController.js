@@ -51,7 +51,7 @@ export const getFoodItem = catchAsync(async (req, res) => {
   }
 
   // Add imageUrl for frontend display
-  const responseItem = menuItem.toObject();
+  const responseItem = item;
   if (responseItem.image && responseItem.image.data) {
     responseItem.imageUrl = `data:${responseItem.image.contentType};base64,${responseItem.image.data.toString('base64')}`;
   }
@@ -62,7 +62,7 @@ export const getFoodItem = catchAsync(async (req, res) => {
   });
 });
 
-// Create new food item
+// Create new menu item (Admin/Manager only)
 export const createFoodItem = catchAsync(async (req, res) => {
   const menuItem = await MenuItem.create(req.body);
 
@@ -73,32 +73,18 @@ export const createFoodItem = catchAsync(async (req, res) => {
   });
 });
 
-// Update food item
+// Update menu item (Admin/Manager only)
 export const updateFoodItem = catchAsync(async (req, res) => {
-  // Validate required fields
-  const { name, category, price } = req.body;
-  
-  if (!name || !category || price === undefined) {
-    throw new AppError('Name, category, and price are required fields', 400);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid menu item ID', 400);
   }
 
-  // Validate price
-  if (isNaN(price) || price < 0) {
-    throw new AppError('Price must be a positive number', 400);
-  }
-
-  const updateData = {
-    ...req.body,
-    price: Number(price),
-    cookingTime: req.body.cookingTime ? Number(req.body.cookingTime) : 15,
-    isAvailable: Boolean(req.body.isAvailable)
-  };
-
-  const menuItem = await MenuItem.findByIdAndUpdate(
-    req.params.id,
-    updateData,
-    { new: true, runValidators: true }
-  );
+  const menuItem = await MenuItem.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true
+  }).populate('category', 'name slug');
 
   if (!menuItem) {
     throw new AppError('Menu item not found', 404);
@@ -111,9 +97,15 @@ export const updateFoodItem = catchAsync(async (req, res) => {
   });
 });
 
-// Delete food item
+// Delete menu item (Admin/Manager only)
 export const deleteFoodItem = catchAsync(async (req, res) => {
-  const menuItem = await MenuItem.findByIdAndDelete(req.params.id);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid menu item ID', 400);
+  }
+
+  const menuItem = await MenuItem.findByIdAndDelete(id);
 
   if (!menuItem) {
     throw new AppError('Menu item not found', 404);
@@ -122,6 +114,105 @@ export const deleteFoodItem = catchAsync(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Menu item deleted successfully'
+  });
+});
+
+// Get all categories (public)
+export const getAllCategories = catchAsync(async (req, res) => {
+  const categories = await Category.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .lean();
+
+  res.status(200).json({
+    success: true,
+    data: categories
+  });
+});
+
+// Get single category (public)
+export const getCategory = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid category ID', 400);
+  }
+
+  const category = await Category.findById(id).lean();
+
+  if (!category) {
+    throw new AppError('Category not found', 404);
+  }
+
+  // Get item count for this category
+  const itemCount = await MenuItem.countDocuments({
+    category: id,
+    isAvailable: true
+  });
+
+  res.status(200).json({
+    success: true,
+    data: { ...category, itemCount }
+  });
+});
+
+// Create category (Admin/Manager only)
+export const createCategory = catchAsync(async (req, res) => {
+  const category = await Category.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: category,
+    message: 'Category created successfully'
+  });
+});
+
+// Update category (Admin/Manager only)
+export const updateCategory = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid category ID', 400);
+  }
+
+  const category = await Category.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!category) {
+    throw new AppError('Category not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: category,
+    message: 'Category updated successfully'
+  });
+});
+
+// Delete category (Admin/Manager only)
+export const deleteCategory = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid category ID', 400);
+  }
+
+  // Check if there are menu items using this category
+  const itemsWithCategory = await MenuItem.countDocuments({ category: id });
+  if (itemsWithCategory > 0) {
+    throw new AppError(`Cannot delete category. ${itemsWithCategory} menu items are using this category.`, 400);
+  }
+
+  const category = await Category.findByIdAndDelete(id);
+
+  if (!category) {
+    throw new AppError('Category not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Category deleted successfully'
   });
 });
 

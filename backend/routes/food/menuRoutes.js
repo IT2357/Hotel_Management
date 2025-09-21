@@ -10,6 +10,7 @@ import {
   getCategories,
   getFeaturedItems,
   getPopularItems,
+  batchCreateMenuItems,
 } from "../../controllers/food/menuController.js";
 import { authenticateToken } from "../../middleware/auth.js";
 import { authorizeRoles } from "../../middleware/roleAuth.js";
@@ -27,6 +28,7 @@ router.get("/popular", getPopularItems);
 // Protected routes (admin/manager only)
 router.post("/categories", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuCategory, createCategory);
 router.post("/items", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuItem, createMenuItem);
+router.post("/batch", authenticateToken, authorizeRoles(["admin", "manager"]), batchCreateMenuItems);
 router.put("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuItem, updateMenuItem);
 router.delete("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), deleteMenuItem);
 

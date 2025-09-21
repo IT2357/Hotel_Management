@@ -54,6 +54,11 @@ const MenuSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  imageId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'fs.files', // Reference to GridFS files collection
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -179,7 +184,9 @@ MenuSchema.methods.toAPIResponse = function() {
     totalCategories: this.totalCategories,
     confidence: this.confidence,
     extractionMethod: this.extractionMethod,
-    processingStatus: this.processingStatus
+    processingStatus: this.processingStatus,
+    imageId: this.imageId,
+    imageUrl: this.imageId ? `/api/menu/image/${this.imageId}` : null
   };
 };
 
