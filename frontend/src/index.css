@@ -26,3 +26,55 @@ html {
   transform: translateX(100%);
   transition: opacity 300ms, transform 300ms;
 }
+
+/* Fix for menu and user management layout conflicts */
+.menu-management-page,
+.user-management-page {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure proper spacing and layout isolation */
+.menu-management-page .max-w-7xl,
+.user-management-page .max-w-7xl {
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Fix for card components to prevent layout conflicts */
+.menu-management-page .card,
+.user-management-page .card {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure proper text rendering */
+.menu-management-page * {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.user-management-page * {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for modal and dialog positioning */
+.menu-management-page .modal,
+.user-management-page .modal {
+  position: fixed;
+  z-index: 50;
+}
+
+/* Ensure proper button and input styling isolation */
+.menu-management-page button,
+.menu-management-page input,
+.user-management-page button,
+.user-management-page input {
+  font-family: inherit;
+}

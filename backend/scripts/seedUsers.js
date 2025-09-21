@@ -61,6 +61,11 @@ const seedUsers = async () => {
       const existingUser = await User.findOne({ email: userData.email });
       if (existingUser) {
         console.log(`⏭️  User already exists: ${userData.email} (${userData.role})`);
+        // Update password to ensure it's hashed
+        existingUser.password = userData.password;
+        existingUser.markModified('password');
+        await existingUser.save();
+        console.log(`🔄 Updated password for: ${userData.email}`);
         continue;
       }
 

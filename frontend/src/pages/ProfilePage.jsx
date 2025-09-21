@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import useAuth from '../hooks/useAuth';
 import authService from '../services/authService';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
 import Spinner from '../components/ui/Spinner';
-import Modal from '../components/ui/Modal';
+import Modal from '../components/ui/modal';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

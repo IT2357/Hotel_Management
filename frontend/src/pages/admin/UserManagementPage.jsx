@@ -2,14 +2,14 @@ import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
-import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
+import Modal from '../../components/ui/modal';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Select } from '../../components/ui/select';
 import Spinner from '../../components/ui/Spinner';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/badge';
 import Pagination from '../../components/ui/Pagination';
-import Card from '../../components/ui/Card';
+import { Card } from '../../components/ui/card';
 import useDebounce from '../../hooks/useDebounce';
 
 export default function UserManagementPage() {
@@ -217,7 +217,7 @@ export default function UserManagementPage() {
 
   return (
     <DefaultAdminLayout>
-      <div className="space-y-6">
+      <div className="user-management-page space-y-6">
         {/* Modern Page Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">

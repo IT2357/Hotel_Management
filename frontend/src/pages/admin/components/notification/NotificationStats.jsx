@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import StatsCard from "../../../../components/ui/StatsCard";
+import StatsCard from "../../../../components/ui/statscard";
 
 export default function NotificationStats({ stats }) {
   const statCards = useMemo(() => {

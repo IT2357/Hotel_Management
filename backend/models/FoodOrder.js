@@ -12,11 +12,24 @@ const foodOrderSchema = new mongoose.Schema(
       {
         foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food" },
         quantity: { type: Number, default: 1 },
+        price: { type: Number },
+        name: { type: String },
       },
     ],
     scheduledTime: Date,
     deliveryLocation: String,
     totalPrice: Number,
+    isTakeaway: {
+      type: Boolean,
+      default: false,
+    },
+    customerDetails: {
+      name: { type: String },
+      email: { type: String },
+      phone: { type: String },
+      deliveryAddress: { type: String },
+      specialInstructions: { type: String },
+    },
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Refunded", "Failed"],
@@ -26,6 +39,19 @@ const foodOrderSchema = new mongoose.Schema(
       type: String,
       enum: ["Cash", "Card", "Wallet", "Online"],
       default: "Cash",
+    },
+    paymentId: {
+      type: String,
+      required: false,
+    },
+    transactionId: {
+      type: String,
+      required: false,
+    },
+    paymentGateway: {
+      type: String,
+      enum: ["PayHere", "Stripe", "PayPal", "Other"],
+      default: "PayHere",
     },
     status: {
       type: String,

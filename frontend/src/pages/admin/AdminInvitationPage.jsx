@@ -2,12 +2,12 @@ import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import adminService from "../../services/adminService";
 import DefaultAdminLayout from "../../layout/admin/DefaultAdminLayout";
-import Card from "../../components/ui/Card";
-import Button from "../../components/ui/Button";
-import Input from "../../components/ui/Input";
-import Select from "../../components/ui/Select";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
 import Spinner from "../../components/ui/Spinner";
-import Badge from "../../components/ui/Badge";
+import { Badge } from "../../components/ui/badge";
 import EditInvitationModal from "./components/EditInvitationModal";
 import useDebounce from "../../hooks/useDebounce";
 export default function AdminInvitationPage() {

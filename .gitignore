@@ -1,3 +1,8 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log
@@ -7,9 +12,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build files
 dist
 dist-ssr
+build
+
+# Local development
 *.local
 
 # Editor directories and files
@@ -23,5 +34,12 @@ dist-ssr
 *.sln
 *.sw?
 
-node_modules/
+# Service account keys
+*.json
+!package.json
+!package-lock.json
+
+# Uploads directory
+/uploads
+/backend/uploads
 .env

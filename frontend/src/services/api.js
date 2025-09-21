@@ -2,7 +2,26 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: (() => {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+
+    // Handle double /api issue
+    if (envUrl && envUrl.includes('/api/api')) {
+      return envUrl.replace('/api/api', '/api');
+    }
+
+    // Default to localhost:5000/api (main backend server)
+    if (!envUrl) {
+      return "http://localhost:5000/api";
+    }
+
+    // If env var doesn't end with /api, add it
+    if (!envUrl.endsWith('/api')) {
+      return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
+    }
+
+    return envUrl;
+  })(),
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,6 +33,12 @@ api.interceptors.request.use((config) => {
   if (token && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Don't set Content-Type for FormData - let browser set it with boundary
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
+
   return config;
 });
 

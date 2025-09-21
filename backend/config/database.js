@@ -3,12 +3,14 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
+    console.log('🔍 Attempting to connect to MongoDB...');
+    console.log('📍 MongoDB URI:', process.env.MONGODB_URI);
+    
     const options = {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       family: 4,
-      bufferCommands: false, // Disable mongoose buffering
     };
 
     const conn = await mongoose.connect(process.env.MONGODB_URI, options);
@@ -46,9 +48,11 @@ export const connectDB = async () => {
 
     return conn;
   } catch (error) {
-    console.error("❌ Database connection error:", error);
-    console.log("🔄 Retrying database connection in 5 seconds...");
-    setTimeout(connectDB, 5000);
+    console.error("❌ Database connection error:", error.message);
+    console.error("❌ Full error:", error);
+    
+    // Don't retry automatically, just throw the error
+    throw error;
   }
 };
 

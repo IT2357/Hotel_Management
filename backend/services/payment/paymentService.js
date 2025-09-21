@@ -219,6 +219,246 @@ class PaymentService {
   }
 
   /**
+   * Process payment for food orders
+   * @param {Object} paymentData - Payment information
+   * @returns {Object} - Payment response
+   */
+  async processOrderPayment(paymentData) {
+    try {
+      const {
+        orderId,
+        amount,
+        currency = "LKR",
+        paymentMethod,
+        customerDetails,
+        returnUrl,
+        cancelUrl,
+        notifyUrl
+      } = paymentData;
+
+      // Validate required fields
+      if (!orderId || !amount || !paymentMethod || !customerDetails) {
+        throw new Error("Order ID, amount, payment method, and customer details are required");
+      }
+
+      // Handle different payment methods
+      switch (paymentMethod) {
+        case 'card':
+          return await this.processCardPayment({
+            orderId,
+            amount,
+            currency,
+            customerDetails,
+            returnUrl,
+            cancelUrl,
+            notifyUrl
+          });
+
+        case 'wallet':
+          return await this.processWalletPayment({
+            orderId,
+            amount,
+            currency,
+            customerDetails
+          });
+
+        case 'cash':
+          return await this.processCashPayment({
+            orderId,
+            amount,
+            currency,
+            customerDetails
+          });
+
+        default:
+          throw new Error(`Unsupported payment method: ${paymentMethod}`);
+      }
+    } catch (error) {
+      logger.error("Order payment processing failed", {
+        error: error.message,
+        stack: error.stack,
+        paymentData,
+      });
+
+      return {
+        success: false,
+        error: error.message || "Payment processing failed",
+        errorCode: "PAYMENT_ERROR",
+      };
+    }
+  }
+
+  /**
+   * Process card payment through PayHere
+   * @param {Object} cardData - Card payment information
+   * @returns {Object} - Payment response
+   */
+  async processCardPayment(cardData) {
+    try {
+      const {
+        orderId,
+        amount,
+        currency,
+        customerDetails,
+        returnUrl,
+        cancelUrl,
+        notifyUrl
+      } = cardData;
+
+      // Prepare payment request data
+      const paymentRequest = {
+        merchant_id: this.merchantId,
+        order_id: orderId,
+        amount: parseFloat(amount).toFixed(2),
+        currency: currency,
+        customer_name: customerDetails.customerName,
+        customer_email: customerDetails.customerEmail,
+        customer_phone: customerDetails.customerPhone,
+        return_url: returnUrl || `${process.env.FRONTEND_URL}/payment/success`,
+        cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/payment/cancel`,
+        notify_url: notifyUrl || `${process.env.BACKEND_URL}/api/webhooks/payhere`,
+        payment_method: "CARD",
+        timestamp: Math.floor(Date.now() / 1000),
+      };
+
+      // Generate signature
+      paymentRequest.signature = this.generateSignature(paymentRequest);
+
+      logger.info("Processing PayHere card payment", {
+        orderId,
+        amount,
+        customerEmail: customerDetails.customerEmail,
+      });
+
+      // Make API request to PayHere
+      const response = await axios.post(
+        `${this.apiUrl}/checkout`,
+        paymentRequest,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.PAYHERE_API_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      const paymentResponse = response.data;
+
+      // Log successful payment initiation
+      logger.info("PayHere card payment initiated successfully", {
+        orderId,
+        paymentId: paymentResponse.payment_id,
+        status: paymentResponse.status,
+      });
+
+      return {
+        success: true,
+        paymentId: paymentResponse.payment_id,
+        status: paymentResponse.status,
+        redirectUrl: paymentResponse.redirect_url,
+        amount: paymentResponse.amount,
+        currency: paymentResponse.currency,
+        gatewayResponse: paymentResponse,
+      };
+    } catch (error) {
+      logger.error("PayHere card payment processing failed", {
+        error: error.message,
+        stack: error.stack,
+        cardData,
+      });
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || "Card payment processing failed",
+        errorCode: error.response?.data?.code || "CARD_PAYMENT_ERROR",
+        gatewayResponse: error.response?.data,
+      };
+    }
+  }
+
+  /**
+   * Process wallet payment (mock implementation)
+   * @param {Object} walletData - Wallet payment information
+   * @returns {Object} - Payment response
+   */
+  async processWalletPayment(walletData) {
+    try {
+      const { orderId, amount, currency, customerDetails } = walletData;
+
+      // Mock wallet payment processing
+      // In real implementation, integrate with wallet providers like PayPal, Google Pay, etc.
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate processing
+
+      logger.info("Wallet payment processed successfully", {
+        orderId,
+        amount,
+        customerEmail: customerDetails.customerEmail,
+      });
+
+      return {
+        success: true,
+        paymentId: `WALLET_${Date.now()}`,
+        status: "SUCCESS",
+        amount: amount,
+        currency: currency,
+        paymentMethod: "WALLET",
+        processedAt: new Date(),
+      };
+    } catch (error) {
+      logger.error("Wallet payment processing failed", {
+        error: error.message,
+        walletData,
+      });
+
+      return {
+        success: false,
+        error: error.message || "Wallet payment processing failed",
+        errorCode: "WALLET_PAYMENT_ERROR",
+      };
+    }
+  }
+
+  /**
+   * Process cash on delivery payment
+   * @param {Object} cashData - Cash payment information
+   * @returns {Object} - Payment response
+   */
+  async processCashPayment(cashData) {
+    try {
+      const { orderId, amount, currency, customerDetails } = cashData;
+
+      logger.info("Cash on delivery payment registered", {
+        orderId,
+        amount,
+        customerEmail: customerDetails.customerEmail,
+      });
+
+      return {
+        success: true,
+        paymentId: `CASH_${Date.now()}`,
+        status: "PENDING",
+        amount: amount,
+        currency: currency,
+        paymentMethod: "CASH",
+        message: "Cash on delivery payment registered. Payment will be collected upon delivery.",
+        processedAt: new Date(),
+      };
+    } catch (error) {
+      logger.error("Cash payment processing failed", {
+        error: error.message,
+        cashData,
+      });
+
+      return {
+        success: false,
+        error: error.message || "Cash payment processing failed",
+        errorCode: "CASH_PAYMENT_ERROR",
+      };
+    }
+  }
+
+  /**
    * Get supported currencies
    * @returns {Array} - List of supported currencies
    */

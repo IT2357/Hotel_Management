@@ -10,6 +10,7 @@ import ManagerProfile from "../../models/profiles/ManagerProfile.js";
 import AdminProfile from "../../models/profiles/AdminProfile.js";
 import EmailService from "../notification/emailService.js";
 import logger from "../../utils/logger.js";
+import { checkDBConnection } from "../../config/database.js";
 
 class AuthService {
   // Generate JWT Token with tokenVersion
@@ -287,14 +288,24 @@ class AuthService {
       ipAddress,
       userAgent,
     });
+
     try {
+      // Check database connection first
+      const dbStatus = await checkDBConnection();
+      if (!dbStatus.isConnected) {
+        console.error("🔐 Database not connected:", dbStatus);
+        throw new Error("Database connection unavailable. Please try again later.");
+      }
+
       const user = await User.findOne({ email }).select(
         "+password +tokenVersion +passwordResetPending +isActive +emailVerified +isApproved"
       );
+
       if (!user) {
         console.error("🔐 User not found for email:", email);
         throw new Error("Invalid email or password");
       }
+
       console.log("🔐 Found user:", {
         email: user.email,
         isActive: user.isActive,

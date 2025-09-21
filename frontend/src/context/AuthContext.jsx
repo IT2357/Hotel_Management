@@ -1,9 +1,18 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 import getDashboardPath from "../utils/GetDashboardPath";
 
 export const AuthContext = createContext();
+
+// Custom hook to use the AuthContext
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
@@ -18,8 +27,8 @@ export function AuthProvider({ children }) {
   const getLocalStorageUser = () => {
     try {
       const raw = localStorage.getItem("user");
-      return raw && raw !== "undefined" && raw !== "null" 
-        ? JSON.parse(raw) 
+      return raw && raw !== "undefined" && raw !== "null"
+        ? JSON.parse(raw)
         : null;
     } catch (err) {
       console.warn("Failed to parse user from localStorage:", err);
@@ -32,7 +41,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const user = getLocalStorageUser();
-    
+
     if (token && user) {
       setState(prev => ({ ...prev, user, loading: false }));
     } else {
@@ -40,51 +49,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // const login = async (credentials) => {
-  //   setState(prev => ({ ...prev, error: null }));
-  
-  //   try {
-  //     const res = await authService.login(credentials);
-  //     const { user, token } = res.data.data;
-  
-  //     // Store token and user data
-  //     localStorage.setItem("token", token);
-  //     localStorage.setItem("user", JSON.stringify(user));
-  //     setState(prev => ({ ...prev, user, loading: false }));
-      
-  //     // Return the user object - let ProtectedRoute handle navigation
-  //     return user;
-  
-  //   } catch (err) {
-  //     // Handle backend error structure with cause property
-  //     const backendError = err.response?.data;
-  //     const requiresVerification = backendError?.requiresVerification;
-
-  //     if (requiresVerification) {
-  //       const userData = backendError?.data?.user || {
-  //         _id: null,
-  //         email: credentials.email
-  //       };
-  //       const basicUser = {
-  //         _id: userData._id,
-  //         email: userData.email,
-  //         role: "guest",
-  //         emailVerified: false
-  //       };
-  //       localStorage.setItem("user", JSON.stringify(basicUser));
-  //       setState(prev => ({ ...prev, user: basicUser, loading: false }));
-  //       navigate("/verify-email", {
-  //         state: { email: basicUser.email, userId: basicUser._id }
-  //       });        
-  //       return basicUser;
-  //     }
-  
-  //     // Handle other backend errors
-  //     setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-  //     throw err;
-  //   }
-  // };
-  const login = async (credentials) => {
+  const login = useCallback(async (credentials) => {
     setState(prev => ({ ...prev, error: null }));
     try {
       const res = await authService.login(credentials);
@@ -136,12 +101,11 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error, loading: false }));
       throw new Error(error);
     }
-  };
+  }, [navigate]);
 
-
-  const register = async (userData) => {
+  const register = useCallback(async (userData) => {
     setState(prev => ({ ...prev, error: null }));
-    
+
     try {
       const res = await authService.register(userData);
       const { userId, email } = res.data.data;
@@ -149,7 +113,7 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem("user", JSON.stringify(basicUser));
       setState(prev => ({ ...prev, user: basicUser, loading: false }));
-      
+
       navigate("/verify-email", { state: { email, userId } });
       return basicUser;
     } catch (err) {
@@ -157,16 +121,16 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error, loading: false }));
       throw err; // Throw original error object
     }
-  };
+  }, [navigate]);
 
-  const verifyEmail = async (data) => {
+  const verifyEmail = useCallback(async (data) => {
     try {
       const res = await authService.verifyEmail(data);
       const { user: verifiedUser, token } = res.data.data;
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(verifiedUser));
-      
+
       setState(prev => ({ ...prev, user: verifiedUser, error: null }));
       await checkAuth();
       navigate(getDashboardPath(verifiedUser.role));
@@ -175,7 +139,7 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error }));
       throw error;
     }
-  };
+  }, [navigate]);
 
   const resendOTP = async (data) => {
     try {
@@ -194,7 +158,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setState(prev => ({ ...prev, user: null, loading: false }));
-      debouncedNavigate("/login", { state: { message: "Password updated successfully. Please log in." }, replace: true });
+      navigate("/login", { state: { message: "Password updated successfully. Please log in." }, replace: true });
       return res;
     } catch (err) {
       const error = err.response?.data?.message || "Failed to update password";
@@ -218,11 +182,11 @@ export function AuthProvider({ children }) {
     }
 
     setState(prev => ({ ...prev, loading: true }));
-    
+
     try {
       const res = await authService.getCurrentUser();
       const user = res.data.data.user;
-      
+
       localStorage.setItem("user", JSON.stringify(user));
       setState(prev => ({ ...prev, user, loading: false }));
     } catch (err) {

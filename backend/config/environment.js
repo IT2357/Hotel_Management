@@ -65,6 +65,9 @@ const config = {
     API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
   },
 
+  // Image Storage Configuration
+  IMAGE_STORAGE_PROVIDER: process.env.IMAGE_STORAGE_PROVIDER || "gridfs", // Options: gridfs, cloudinary
+
   // Frontend Configuration
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 

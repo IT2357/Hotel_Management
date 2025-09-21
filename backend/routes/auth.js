@@ -39,24 +39,35 @@ router.post("/reset-password", resetPassword);
 router.post("/change-password", optionalAuth, changePassword);
 
 // Social login routes
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-router.get(
-  "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: "/login",
-    session: false,
-  }),
-  socialCallback
-);
-router.get("/apple", passport.authenticate("apple"));
-router.post(
-  "/apple/callback",
-  passport.authenticate("apple", { failureRedirect: "/login", session: false }),
-  socialCallback
-);
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
+  router.get(
+    "/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+  router.get(
+    "/google/callback",
+    passport.authenticate("google", {
+      failureRedirect: "/login",
+      session: false,
+    }),
+    socialCallback
+  );
+  console.log("✅ Google OAuth routes registered");
+} else {
+  console.log("⚠️ Google OAuth routes not registered - missing environment variables");
+}
+
+if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY && process.env.APPLE_CALLBACK_URL) {
+  router.get("/apple", passport.authenticate("apple"));
+  router.post(
+    "/apple/callback",
+    passport.authenticate("apple", { failureRedirect: "/login", session: false }),
+    socialCallback
+  );
+  console.log("✅ Apple OAuth routes registered");
+} else {
+  console.log("⚠️ Apple OAuth routes not registered - missing environment variables");
+}
 
 // Protected routes
 router.get("/me", authenticateToken, getCurrentUser);

@@ -1,4 +1,3 @@
-
 /**
  * GENERATED FILE FROM THE TYPESCRIPT-WORKSHEET EXTENSION
 */
@@ -67,7 +66,7 @@ if ( tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefine
    tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(express.urlencoded({ extended: true, limit: "10mb" }))), line: 61});
    tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(mongoSanitize())), line: 62});
    tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(xss())), line: 63});
-   tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(hpp())), line: 64});
+   tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(hpp({}))), line: 64});
 } else {
    tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(express.json())), line: 66});
    tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (app.use(express.urlencoded({ extended: true }))), line: 67});
@@ -123,7 +122,7 @@ await tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefin
   mylog(console.error, {type: 'log', called: ["Global error handler:", err], line: 117});
 
   if ( tsWorksheetWatch({stringed: 'empty', type: 'expression', variable: undefined,  called: () => (err.name === "ValidationError"), line: 119})) {
-    const errors =  tsWorksheetWatch({stringed: 'empty', type: 'variable', variable: 'errors',  called: () => (Object.values(err.errors).map((val) => val.message)), line: 120});
+    const errors =  tsWorksheetWatch({stringed: 'empty', type: 'variable', variable: 'errors',  called: () => (Object.values(err.errors).map((val: any) => val.message)), line: 120});
     return res.status(400).json({
       success: false,
       message: "Validation Error",
@@ -252,8 +251,12 @@ function __tsGetFn(str: string) {
   if(result?.length) {
     
     const fn = result.at(-1);
-    const afterKey = fn.substring('function'.length);
-    return 'function ' + afterKey;
+    if (fn) {
+        const afterKey = fn.substring('function'.length);
+        return 'function ' + afterKey;
+    } else {
+        return undefined;
+    }
   }
   return undefined;
 }
@@ -282,7 +285,7 @@ function tryToStringify(value: any) {
                 res = stringify(value);
                 break;
             case 'function':
-                res = __tsGetFn(value.toString()) ?? __tsGetArrowFn(value.toString());
+                res = __tsGetFn(value.toString()) ?? __tsGetArrowFn(value.toString()) ?? '';
                 break;
             case 'bigint':
                 res = value?.toString();
@@ -308,6 +311,7 @@ function __onError(error: any, dataValue: any) {
   dataValue.type = 'error';
   dataValue.called = [error.message , stringError];
 }
+declare const Bun: any;
 function save(hide: boolean, dataValue?: any) {
   if(hide) {
     return;
@@ -317,7 +321,7 @@ function save(hide: boolean, dataValue?: any) {
     dataFile.push(dataValue);
   }
 
-  if(isIpcCompatible) {
+  if(isIpcCompatible && process.send) {
     process.send(dataValue);
   }
 
@@ -327,19 +331,35 @@ function save(hide: boolean, dataValue?: any) {
 }
 
 function tsWorksheetWatch(data: {stringed: string, hide?: boolean, type: string, variable?: string, called: () => any, line: number }) {
-  const dataValue = {...data, called: 'Failed Promise. Please use a .catch to display it'};
+  const dataValue: {
+    called: string;
+    stringed: string;
+    hide?: boolean;
+    type: string;
+    variable?: string;
+    line: number;
+    prefix?: string;
+  } = {
+    called: '',
+    stringed: data.stringed,
+    hide: data.hide,
+    type: data.type,
+    variable: data.variable,
+    line: data.line,
+    prefix: '',
+  };
   let called: any;
   try {
       called = data.called();
   } catch(error) {
       __onError(error, dataValue);
-      save(data.hide, dataValue);
+      save(data.hide ?? false, dataValue);
       throw error;
   }
 
   if(data.type === 'throw') {
       __onError(called, dataValue);
-      save(data.hide, dataValue);
+      save(data.hide ?? false, dataValue);
       throw called;
   }
 
@@ -347,18 +367,18 @@ function tsWorksheetWatch(data: {stringed: string, hide?: boolean, type: string,
      data.called = called.then((r: any) => {
       dataValue.prefix = 'Resolved Promise: ';
         dataValue.called = tryToStringify(r);
-         save(data.hide, dataValue);
+         save(data.hide ?? false, dataValue);
          return r;
      }).catch((err: any) => {
       dataValue.prefix = 'Rejected Promise: ';
       dataValue.called = tryToStringify(err);
       dataValue.type = 'error';
-      save(data.hide, dataValue);
+      save(data.hide ?? false, dataValue);
       throw err;
      });
   } else {
       dataValue.called = tryToStringify(called);
-      save(data.hide, dataValue);
+      save(data.hide ?? false, dataValue);
   }
 
   return called;
