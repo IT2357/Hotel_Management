@@ -39,7 +39,25 @@ import {
   restoreSettings,
   resetToDefaults,
   validatePaymentGateway,
+  testSocialAuthConfig,
 } from "../controllers/admin/settingsController.js";
+import {
+  initiatePayment,
+  handleWebhook,
+  getPaymentStatus,
+  refundPayment,
+} from "../controllers/paymentController.js";
+import {
+  sendSMSTemplate,
+  sendBookingConfirmationSMS,
+  sendPaymentConfirmationSMS,
+  sendCheckInReminderSMS,
+  testSMSConfig,
+  getSMSTemplates,
+  createSMSTemplate,
+  updateSMSTemplate,
+  getSMSDeliveryLogs,
+} from "../controllers/smsController.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
 import { refundOperationMiddleware } from "../middleware/refundValidation.js";
@@ -249,6 +267,7 @@ router.put(
   updateAdminSettings
 );
 router.post("/settings/test-email", testEmailConfig);
+router.post("/settings/test-social-auth", testSocialAuthConfig);
 router.get(
   "/settings/backup/download",
   authorizeRoles({ permissions: ["settings:backup"] }),
@@ -265,5 +284,68 @@ router.post(
   resetToDefaults
 );
 router.post("/settings/validate-payment", validatePaymentGateway);
+
+// 💳 Payment routes
+router.post(
+  "/payments/initiate",
+  authorizeRoles({ permissions: ["payments:create"] }),
+  initiatePayment
+);
+router.get(
+  "/payments/:paymentId",
+  authorizeRoles({ permissions: ["payments:read"] }),
+  getPaymentStatus
+);
+router.post(
+  "/payments/:paymentId/refund",
+  authorizeRoles({ permissions: ["payments:update"] }),
+  refundPayment
+);
+
+// Webhook route (no auth required)
+router.post("/payments/webhook", handleWebhook);
+
+// 📱 SMS routes
+router.post(
+  "/sms/send-template",
+  authorizeRoles({ permissions: ["sms:send"] }),
+  sendSMSTemplate
+);
+router.post(
+  "/bookings/:bookingId/sms/confirmation",
+  authorizeRoles({ permissions: ["sms:send"] }),
+  sendBookingConfirmationSMS
+);
+router.post(
+  "/payments/:paymentId/sms/confirmation",
+  authorizeRoles({ permissions: ["sms:send"] }),
+  sendPaymentConfirmationSMS
+);
+router.post(
+  "/bookings/:bookingId/sms/checkin-reminder",
+  authorizeRoles({ permissions: ["sms:send"] }),
+  sendCheckInReminderSMS
+);
+router.post("/settings/test-sms", testSMSConfig);
+router.get(
+  "/sms/templates",
+  authorizeRoles({ permissions: ["sms:read"] }),
+  getSMSTemplates
+);
+router.post(
+  "/sms/templates",
+  authorizeRoles({ permissions: ["sms:create"] }),
+  createSMSTemplate
+);
+router.put(
+  "/sms/templates/:templateId",
+  authorizeRoles({ permissions: ["sms:update"] }),
+  updateSMSTemplate
+);
+router.get(
+  "/sms/logs",
+  authorizeRoles({ permissions: ["sms:read"] }),
+  getSMSDeliveryLogs
+);
 
 export default router;

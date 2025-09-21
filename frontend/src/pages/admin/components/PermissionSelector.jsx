@@ -51,11 +51,11 @@ export default function PermissionSelector({ selectedPermissions = [], onPermiss
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4">
+    <div className="bg-white rounded-2xl border border-gray-200 p-4 max-h-96 overflow-y-auto">
       <h3 className="text-lg font-semibold text-gray-800 mb-3">Granular Permissions</h3>
       <div className="space-y-4">
-        {PERMISSION_MODULES.map((module) => (
-          <div key={module} className="border border-gray-200 rounded-xl p-4">
+        {PERMISSION_MODULES.map((module, moduleIndex) => (
+          <div key={`module-${moduleIndex}-${module || 'unknown'}`} className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center mb-3">
               <label className="inline-flex items-center gap-2 text-lg font-semibold text-gray-800 capitalize">
                 <input
@@ -68,8 +68,11 @@ export default function PermissionSelector({ selectedPermissions = [], onPermiss
               </label>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pl-1 sm:pl-8">
-              {PERMISSION_ACTIONS.map((action) => (
-                <label key={`${module}-${action}`} className="inline-flex items-center gap-2 text-sm text-gray-700">
+              {PERMISSION_ACTIONS.map((action, actionIndex) => (
+                <label
+                  key={`action-${moduleIndex}-${actionIndex}-${module || 'unknown'}-${action || 'unknown'}`}
+                  className="inline-flex items-center gap-2 text-sm text-gray-700"
+                >
                   <input
                     type="checkbox"
                     className="h-4 w-4 text-indigo-600 rounded border-gray-300"

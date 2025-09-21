@@ -33,9 +33,9 @@ export const validateRegistration = [
     .withMessage("Password must contain at least one uppercase letter")
     .matches(/(?=.*\d)/)
     .withMessage("Password must contain at least one number")
-    .matches(/(?=.*[@$!%*?&#+\-_=\[\]{}|\\:";'<>?,./^~`])/)
+    .matches(/(?=.*[!@#$%^&*(),.?":{}|<>])/)
     .withMessage(
-      "Password must contain at least one special character (@$!%*?&#+\\-_=[]{}|\\:\";'<>?,./^~`)"
+      "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
     ),
   body("phone")
     .optional()
@@ -84,9 +84,9 @@ export const validateChangePassword = [
   body("newPassword")
     .isLength({ min: 8 })
     .withMessage("New password must be at least 8 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]/)
     .withMessage(
-      "New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+      "New password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
     ),
   handleValidationErrors,
 ];

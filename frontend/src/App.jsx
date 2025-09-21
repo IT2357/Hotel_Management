@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { SettingsProvider } from './context/SettingsContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -29,7 +30,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <SettingsProvider>
+          <Routes>
           {/* 🔒 Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route
@@ -131,9 +133,7 @@ const App = () => {
             path="/admin/notifications"
             element={
               <ProtectedRoute roles={['admin']} permissions={["notification:read"]}>
-                <DefaultAdminLayout>
                   <AdminNotificationPage />
-                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
@@ -221,7 +221,8 @@ const App = () => {
           {/* 🚧 Error Routes */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+          </Routes>
+        </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

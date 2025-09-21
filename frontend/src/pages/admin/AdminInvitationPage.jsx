@@ -338,10 +338,12 @@ export default function AdminInvitationPage() {
                       <div className="text-sm text-gray-600">
                         Optional: assign granular permissions for the invited admin.
                       </div>
-                      <PermissionSelector
-                        selectedPermissions={permissions}
-                        onPermissionChange={setPermissions}
-                      />
+                      <div className="max-h-96 overflow-y-auto">
+                        <PermissionSelector
+                          selectedPermissions={permissions}
+                          onPermissionChange={setPermissions}
+                        />
+                      </div>
                     </>
                   )}
                 </div>
@@ -467,7 +469,7 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
           {invitations.map((inv) => (
             <div
               key={inv._id}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 min-h-[350px] flex flex-col"
             >
               <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
                 <div className="flex items-center justify-between">
@@ -482,31 +484,36 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
                   </Badge>
                 </div>
               </div>
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-6 flex-grow">
                 <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Expires: {new Date(inv.expiresAt).toLocaleString()}</span>
+                  <span className="break-words">Expires: {new Date(inv.expiresAt).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="truncate max-w-xs">Token: {inv.token}</span>
+                  <span
+                    className="break-all text-xs leading-relaxed"
+                    title={inv.token}
+                  >
+                    Token: {inv.token}
+                  </span>
                 </div>
                 {inv.role === "admin" && inv.permissions?.length > 0 && (
                   <div className="text-xs text-gray-600">
                     <div className="font-semibold mb-1">Permissions:</div>
                     <ul className="list-disc pl-5 space-y-1">
                       {inv.permissions.map((p) => (
-                        <li key={`${p.module}`}>{p.module}: {Array.isArray(p.actions) ? p.actions.join(", ") : ''}</li>
+                        <li key={`${p.module}-${inv._id}`}>{p.module}: {Array.isArray(p.actions) ? p.actions.join(", ") : ''}</li>
                       ))}
                     </ul>
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mt-auto">
                 <Button
                   size="sm"
                   variant="outline"

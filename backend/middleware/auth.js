@@ -1,6 +1,39 @@
 import jwt from "jsonwebtoken";
 import { promisify } from "util";
 import { User } from "../models/User.js";
+import AdminSettings from "../models/AdminSettings.js";
+
+// Cache settings to avoid database calls on every request
+let cachedSettings = null;
+let settingsCacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getSettings = async () => {
+  const now = Date.now();
+  if (!cachedSettings || (now - settingsCacheTime) > CACHE_DURATION) {
+    try {
+      cachedSettings = await AdminSettings.findOne().lean();
+      settingsCacheTime = now;
+    } catch (error) {
+      console.error("Failed to fetch settings:", error);
+      // Use defaults if database fails
+      cachedSettings = {
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        twoFactorRequired: false,
+        requireSpecialCharacters: true,
+        passwordMinLength: 8
+      };
+    }
+  }
+  return cachedSettings;
+};
+
+// Function to clear settings cache when settings are updated
+export const clearSettingsCache = () => {
+  cachedSettings = null;
+  settingsCacheTime = 0;
+};
 
 export const authenticateToken = async (req, res, next) => {
   try {
@@ -13,6 +46,20 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
     const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+    const settings = await getSettings();
+    
+    // Check session timeout based on settings
+    const sessionTimeoutMs = (settings?.sessionTimeout || 30) * 60 * 1000;
+    const tokenAge = Date.now() - (decoded.iat * 1000);
+    
+    if (tokenAge > sessionTimeoutMs) {
+      return res.status(401).json({
+        success: false,
+        message: "Session expired due to inactivity",
+        sessionExpired: true
+      });
+    }
+    
     const user = await User.findById(decoded.userId).select(
       "+tokenVersion -password"
     );

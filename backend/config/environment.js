@@ -11,11 +11,11 @@ const config = {
 
   // Database Configuration
   MONGODB_URI:
-    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel_management",
+    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel-management",
 
   // JWT Configuration
   JWT_SECRET:
-    process.env.JWT_SECRET || "your-default-jwt-secret-change-in-production",
+    process.env.JWT_SECRET || "f885fa53bc37eaab86296f11cada2c2939d4695c822a8bbba6b71ac9516488d",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
 
   // PayHere Payment Gateway Configuration

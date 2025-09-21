@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
 import Alert from '../../components/common/Alert';
+import SocialAuthButtons from './components/SocialAuthButtons';
 
 export default function RegisterPage() {
   const { register: registerUser } = useAuth();
@@ -72,6 +73,20 @@ export default function RegisterPage() {
             Create your account to get started
           </p>
         </div>
+        
+        {/* Social Authentication */}
+        <SocialAuthButtons />
+        
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+        
         <AuthForm fields={fields} onSubmit={handleSubmit} submitText="Register" />
         <div className="text-center text-sm">
           Already have an account?{' '}

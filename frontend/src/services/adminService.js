@@ -23,7 +23,7 @@ const adminService = {
   getPendingApprovals: () => api.get("/admin/approvals"),
   approveUser: (userId, data) => api.put(`/admin/approvals/${userId}`, data),
   getDashboardStats: () => api.get("/admin/dashboard/stats"),
-  // frontend/src/services/adminService.js
+
   async getStaffProfiles() {
     try {
       const response = await api.get("/admin/staff-profiles");
@@ -60,6 +60,8 @@ const adminService = {
   getSettingsByCategory: (category) => api.get(`/admin/settings/${category}`),
   updateAdminSettings: (data) => api.put("/admin/settings", data),
   testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
+  testSMSConfig: (data) => api.post("/admin/settings/test-sms", data),
+  testSocialAuthConfig: (data) => api.post("/admin/settings/test-social-auth", data),
   backupSettings: () => api.get("/admin/settings/backup/download"),
   restoreSettings: (data) => api.post("/admin/settings/restore", data),
   resetToDefaults: () => api.post("/admin/settings/reset"),

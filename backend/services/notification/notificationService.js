@@ -2,6 +2,7 @@
 import Notification from "../../models/Notification.js";
 import NotificationPreferences from "../../models/NotificationPreferences.js";
 import NotificationTemplate from "../../models/NotificationTemplate.js";
+import AdminSettings from "../../models/AdminSettings.js";
 import { User } from "../../models/User.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import EmailService from "./emailService.js";
@@ -12,6 +13,9 @@ class NotificationService {
   constructor() {
     this.emailEnabled = process.env.EMAIL_ENABLED === "true";
     this.smsEnabled = process.env.SMS_ENABLED === "true";
+    this.settingsCache = null;
+    this.settingsCacheTime = 0;
+    this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
     // Validate configuration
     if (this.emailEnabled && !process.env.SMTP_HOST) {
@@ -19,6 +23,57 @@ class NotificationService {
     }
     if (this.smsEnabled && !process.env.SMS_PROVIDER) {
       console.warn("⚠️ SMS enabled but SMS configuration missing");
+    }
+  }
+
+  // Get cached settings to avoid database calls
+  async getSettings() {
+    const now = Date.now();
+    if (!this.settingsCache || (now - this.settingsCacheTime) > this.CACHE_DURATION) {
+      try {
+        this.settingsCache = await AdminSettings.findOne().lean();
+        this.settingsCacheTime = now;
+      } catch (error) {
+        console.error("Failed to fetch settings for notifications:", error);
+        // Use defaults if database fails
+        this.settingsCache = {
+          enableEmailNotifications: true,
+          enableSMSNotifications: false,
+          bookingConfirmations: true,
+          promotionalEmails: true,
+          adminNotifications: true
+        };
+      }
+    }
+    return this.settingsCache;
+  }
+
+  // Check if notification type is enabled in settings
+  async isNotificationEnabled(type, channel) {
+    const settings = await this.getSettings();
+    
+    // Check global channel settings
+    if (channel === 'email' && !settings.enableEmailNotifications) {
+      return false;
+    }
+    if (channel === 'sms' && !settings.enableSMSNotifications) {
+      return false;
+    }
+    
+    // Check specific notification type settings
+    switch (type) {
+      case 'booking_confirmation':
+      case 'booking_update':
+      case 'booking_cancellation':
+        return settings.bookingConfirmations !== false;
+      case 'promotional':
+      case 'marketing':
+        return settings.promotionalEmails !== false;
+      case 'admin_message':
+      case 'system_alert':
+        return settings.adminNotifications !== false;
+      default:
+        return true; // Allow other types by default
     }
   }
 
@@ -36,6 +91,13 @@ class NotificationService {
     expiryDate,
   }) {
     try {
+      // Check if notification type is enabled in settings
+      const isEnabled = await this.isNotificationEnabled(type, channel);
+      if (!isEnabled) {
+        console.log(`Notification type ${type} on channel ${channel} is disabled in settings`);
+        return null;
+      }
+
       // Validate user exists
       const user = await User.findById(userId).select("role");
       if (!user) {

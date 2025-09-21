@@ -1,14 +1,20 @@
 import { Link } from 'react-router-dom';
+import { useHotelInfo } from '../hooks/useSettings';
 
 export default function HomePage() {
+  const hotelInfo = useHotelInfo();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-100 to-white flex items-center justify-center px-4">
       <div className="max-w-xl w-full text-center">
         <h1 className="text-4xl md:text-5xl font-extrabold text-indigo-700 mb-4">
-          Welcome to the Hotel Management App 🏨
+          Welcome to {hotelInfo.hotelName} 🏨
         </h1>
-        <p className="text-gray-700 text-lg mb-8">
-          Manage bookings, rooms, and users with ease. Build something awesome here!
+        <p className="text-gray-700 text-lg mb-2">
+          {hotelInfo.description}
+        </p>
+        <p className="text-gray-600 text-sm mb-8">
+          {hotelInfo.address}
         </p>
         
         <div className="flex justify-center gap-6">
