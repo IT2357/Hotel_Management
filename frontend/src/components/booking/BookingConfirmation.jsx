@@ -50,6 +50,18 @@ export default function BookingConfirmation({ bookingData, onClose }) {
   };
 
   const getStatusColor = (status) => {
+    // Handle consolidated status values
+    if (status === 'Approved - Payment Pending') return 'bg-green-100 text-green-800';
+    if (status === 'Approved - Payment Processing') return 'bg-blue-100 text-blue-800';
+    if (status === 'Confirmed') return 'bg-green-100 text-green-800';
+    if (status === 'Completed') return 'bg-blue-100 text-blue-800';
+    if (status === 'Pending Approval') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'On Hold') return 'bg-blue-100 text-blue-800';
+    if (status === 'Rejected') return 'bg-red-100 text-red-800';
+    if (status === 'Cancelled') return 'bg-gray-100 text-gray-800';
+    if (status === 'No Show') return 'bg-gray-100 text-gray-800';
+
+    // Legacy support
     const colors = {
       'Confirmed': 'bg-green-100 text-green-800',
       'Pending Approval': 'bg-yellow-100 text-yellow-800',

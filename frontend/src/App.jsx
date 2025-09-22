@@ -186,9 +186,7 @@ const App = () => {
             path="/admin/bookings"
             element={
               <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
-                <DefaultAdminLayout>
-                  <AdminBookingsPage />
-                </DefaultAdminLayout>
+                <AdminBookingsPage />
               </ProtectedRoute>
             }
           />
@@ -197,9 +195,7 @@ const App = () => {
             path="/admin/invoices"
             element={
               <ProtectedRoute roles={['admin']} permissions={["invoices:read"]}>
-                <DefaultAdminLayout>
-                  <AdminInvoicesPage />
-                </DefaultAdminLayout>
+                <AdminInvoicesPage />
               </ProtectedRoute>
             }
           />

@@ -17,10 +17,10 @@ export default function AdminDashboardPage() {
     try {
       setLoading(true);
       const [bookingResponse, invoiceResponse] = await Promise.all([
-        fetch('/api/bookings/admin/stats', {
+        fetch('/api/bookings/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
-        fetch('/api/invoices/admin/stats', {
+        fetch('/api/invoices/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);

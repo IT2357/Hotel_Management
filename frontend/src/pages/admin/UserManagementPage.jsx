@@ -258,7 +258,7 @@ export default function UserManagementPage() {
         </div>
 
         {/* Modern Statistics Dashboard */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>

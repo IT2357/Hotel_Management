@@ -61,10 +61,9 @@ export default function MyBookings() {
         checkOut: "2025-02-18",
         guests: 2,
         totalPrice: 45000,
-        status: "Confirmed",
-        createdAt: "2025-01-20",
-        image: "/api/placeholder/300/200",
-        paymentStatus: "Paid",
+        status: "Accepted",
+        paymentStatus: "completed",
+        paymentMethod: "card",
         specialRequests: "Late check-out if possible"
       },
       {
@@ -76,10 +75,9 @@ export default function MyBookings() {
         checkOut: "2025-03-12",
         guests: 1,
         totalPrice: 17000,
-        status: "Pending Approval",
-        createdAt: "2025-01-25",
-        image: "/api/placeholder/300/200",
-        paymentStatus: "Pending",
+        status: "On Hold",
+        paymentStatus: "pending",
+        paymentMethod: "cash",
         specialRequests: "High floor preferred"
       },
       {
@@ -91,10 +89,9 @@ export default function MyBookings() {
         checkOut: "2024-12-25",
         guests: 4,
         totalPrice: 110000,
-        status: "Completed",
-        createdAt: "2024-11-15",
-        image: "/api/placeholder/300/200",
-        paymentStatus: "Paid",
+        status: "Accepted",
+        paymentStatus: "completed",
+        paymentMethod: "card",
         specialRequests: "Anniversary celebration setup"
       },
       {
@@ -107,9 +104,8 @@ export default function MyBookings() {
         guests: 2,
         totalPrice: 16000,
         status: "Cancelled",
-        createdAt: "2024-07-20",
-        image: "/api/placeholder/300/200",
-        paymentStatus: "Refunded",
+        paymentStatus: "Failed",
+        paymentMethod: "cash",
         specialRequests: "Quiet room requested"
       }
     ];
@@ -121,7 +117,7 @@ export default function MyBookings() {
       // Update local state
       setBookings(prev => prev.map(booking =>
         booking._id === bookingId || booking.id === bookingId
-          ? { ...booking, status: 'Cancelled', paymentStatus: 'Refunded' }
+          ? { ...booking, status: 'Cancelled', paymentStatus: 'Failed' }
           : booking
       ));
     } catch (error) {
@@ -136,25 +132,57 @@ export default function MyBookings() {
   };
 
   const getStatusColor = (status) => {
+    // Handle consolidated status values
+    if (status === 'Approved - Payment Pending') return 'bg-green-100 text-green-800';
+    if (status === 'Approved - Payment Processing') return 'bg-blue-100 text-blue-800';
+    if (status === 'Confirmed') return 'bg-green-100 text-green-800';
+    if (status === 'Completed') return 'bg-blue-100 text-blue-800';
+    if (status === 'Pending Approval') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'On Hold') return 'bg-orange-100 text-orange-800';
+    if (status === 'Rejected') return 'bg-red-100 text-red-800';
+    if (status === 'Cancelled') return 'bg-red-100 text-red-800';
+    if (status === 'No Show') return 'bg-gray-100 text-gray-800';
+
+    // Legacy support
     const colors = {
+      'Accepted': 'bg-green-100 text-green-800',
       'Confirmed': 'bg-green-100 text-green-800',
       'Pending Approval': 'bg-yellow-100 text-yellow-800',
-      'Completed': 'bg-blue-100 text-blue-800',
-      'Cancelled': 'bg-red-100 text-red-800',
       'On Hold': 'bg-orange-100 text-orange-800',
-      'Rejected': 'bg-gray-100 text-gray-800'
+      'Rejected': 'bg-red-100 text-red-800',
+      'Cancelled': 'bg-red-100 text-red-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const getPaymentStatusColor = (status) => {
-    const colors = {
-      'Paid': 'bg-green-100 text-green-800',
-      'Pending': 'bg-yellow-100 text-yellow-800',
-      'Refunded': 'bg-blue-100 text-blue-800',
-      'Failed': 'bg-red-100 text-red-800'
+  const getStatusDisplayText = (status) => {
+    // Handle consolidated status values with user-friendly display text
+    if (status === 'Approved - Payment Pending') return 'Approved (Pay at Hotel)';
+    if (status === 'Approved - Payment Processing') return 'Approved (Payment Processing)';
+    if (status === 'Confirmed') return 'Confirmed';
+    if (status === 'Completed') return 'Completed';
+    if (status === 'Pending Approval') return 'Pending Approval';
+    if (status === 'On Hold') return 'On Hold';
+    if (status === 'Rejected') return 'Rejected';
+    if (status === 'Cancelled') return 'Cancelled';
+    if (status === 'No Show') return 'No Show';
+
+    // Legacy support
+    const displayText = {
+      'Accepted': 'Confirmed',
+      'Pending Approval': 'Pending Approval',
+      'On Hold': 'On Hold',
+      'Rejected': 'Rejected',
+      'Cancelled': 'Cancelled',
+      'Completed': 'Completed',
+      'Confirmed': 'Confirmed'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return displayText[status] || status;
+  };
+
+  const getPaymentStatusColor = (status) => {
+    // Legacy function - payment status is now part of consolidated status
+    return 'bg-gray-100 text-gray-800';
   };
 
   const filteredBookings = bookings.filter(booking => {
@@ -163,6 +191,9 @@ export default function MyBookings() {
   });
 
   const formatPrice = (price) => {
+    if (typeof price !== 'number' || isNaN(price)) {
+      return 'LKR 0.00';
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'LKR'
@@ -170,19 +201,29 @@ export default function MyBookings() {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const getNights = (checkIn, checkOut) => {
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    if (!checkIn || !checkOut) return 0;
+    try {
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    } catch (error) {
+      return 0;
+    }
   };
 
   if (loading) {
@@ -236,14 +277,23 @@ export default function MyBookings() {
 
         {/* Filter Tabs */}
         <div className="flex flex-wrap gap-2 mb-8">
-          {['all', 'Confirmed', 'Pending Approval', 'Completed', 'Cancelled'].map((status) => (
+          {[
+            { key: 'all', label: 'All Bookings' },
+            { key: 'Pending Approval', label: 'Pending Approval' },
+            { key: 'On Hold', label: 'On Hold' },
+            { key: 'Approved - Payment Pending', label: 'Approved (Pay at Hotel)' },
+            { key: 'Approved - Payment Processing', label: 'Approved (Payment Processing)' },
+            { key: 'Confirmed', label: 'Confirmed' },
+            { key: 'Completed', label: 'Completed' },
+            { key: 'Cancelled', label: 'Cancelled' }
+          ].map((status) => (
             <Button
-              key={status}
-              variant={filter === status ? "default" : "outline"}
+              key={status.key}
+              variant={filter === status.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilter(status)}
+              onClick={() => setFilter(status.key)}
             >
-              {status === 'all' ? 'All Bookings' : status}
+              {status.label}
             </Button>
           ))}
         </div>
@@ -297,10 +347,7 @@ export default function MyBookings() {
                       </div>
                       <div className="flex gap-2">
                         <Badge className={getStatusColor(booking.status)}>
-                          {booking.status}
-                        </Badge>
-                        <Badge className={getPaymentStatusColor(booking.paymentStatus)}>
-                          {booking.paymentStatus}
+                          {getStatusDisplayText(booking.status)}
                         </Badge>
                       </div>
                     </div>
@@ -326,7 +373,7 @@ export default function MyBookings() {
                         <Users className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Guests</p>
-                          <p className="text-sm text-gray-600">{booking.guests}</p>
+                          <p className="text-sm text-gray-600">{booking.guests || booking.guestCount?.adults || 1}</p>
                         </div>
                       </div>
 
@@ -342,15 +389,21 @@ export default function MyBookings() {
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center space-x-4">
                         <div key={`total-${booking.id}`}>
-                          <p className="text-sm text-gray-600">Total Paid</p>
+                          <p className="text-sm text-gray-600">
+                            {booking.status === 'Completed' || booking.status === 'Confirmed'
+                              ? 'Total Paid'
+                              : booking.paymentMethod === 'cash' && (booking.status === 'Approved - Payment Pending' || booking.status === 'Pending Approval')
+                                ? 'Amount Due (Pay at Hotel)'
+                                : 'Total Amount'}
+                          </p>
                           <p className="text-lg font-semibold text-gray-800">
-                            {formatPrice(booking.totalPrice)}
+                            {formatPrice(booking.costBreakdown?.total || booking.totalPrice)}
                           </p>
                         </div>
                         <div key={`nights-${booking.id}`}>
                           <p className="text-sm text-gray-600">Nights</p>
                           <p className="text-sm font-medium text-gray-800">
-                            {getNights(booking.checkIn, booking.checkOut)}
+                            {booking.costBreakdown?.nights || getNights(booking.checkIn, booking.checkOut)}
                           </p>
                         </div>
                       </div>
@@ -365,13 +418,15 @@ export default function MyBookings() {
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </Button>
-                        {booking.paymentStatus === 'Paid' && booking.status === 'Confirmed' && (
+                        {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
                           <Button key={`receipt-${booking.id}`} variant="outline" size="sm">
                             <Download className="h-4 w-4 mr-2" />
                             Receipt
                           </Button>
                         )}
-                        {booking.status === 'Confirmed' && new Date(booking.checkIn) > new Date() && (
+                        {booking.status === 'Pending Approval' ||
+                         booking.status === 'On Hold' ||
+                         booking.status === 'Approved - Payment Pending' ? (
                           <Button
                             key={`cancel-${booking.id}`}
                             variant="outline"
@@ -381,7 +436,7 @@ export default function MyBookings() {
                           >
                             Cancel
                           </Button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
@@ -406,6 +461,28 @@ export default function MyBookings() {
                         </div>
                       </div>
                     )}
+
+                    {booking.status === 'On Hold' && (
+                      <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-orange-600" />
+                          <p className="text-sm text-orange-800">
+                            Your booking is currently on hold. Please check back later or contact our team for updates.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {booking.status === 'Approved - Payment Processing' && (
+                      <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4 text-indigo-600" />
+                          <p className="text-sm text-indigo-800">
+                            Your booking is approved and payment is being processed. We'll notify you once payment is confirmed.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -423,7 +500,7 @@ export default function MyBookings() {
           },
           {
             key: 'paid-stat',
-            value: bookings.filter(b => b.paymentStatus === 'Paid').length,
+            value: bookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length,
             label: 'Paid',
             color: 'text-green-600'
           },
@@ -435,7 +512,11 @@ export default function MyBookings() {
           },
           {
             key: 'total-spent-stat',
-            value: formatPrice(bookings.filter(b => typeof b.totalPrice === 'number' && !isNaN(b.totalPrice)).reduce((sum, b) => sum + b.totalPrice, 0)),
+            value: formatPrice(
+              bookings
+                .filter(b => typeof b.totalPrice === 'number' && !isNaN(b.totalPrice))
+                .reduce((sum, b) => sum + b.totalPrice, 0)
+            ),
             label: 'Total Spent',
             color: 'text-purple-600'
           }

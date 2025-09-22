@@ -40,7 +40,7 @@ const bookingService = {
       let method = 'PUT';
 
       switch (status) {
-        case 'Confirmed':
+        case 'Approve':
           endpoint = `/bookings/admin/${bookingId}/approve`;
           break;
         case 'Rejected':

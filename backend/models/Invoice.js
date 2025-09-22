@@ -14,13 +14,17 @@ const invoiceSchema = new mongoose.Schema(
     discountApplied: Number,
     status: {
       type: String,
-      enum: ["Draft", "Sent", "Paid", "Overdue", "Cancelled", "Pending"],
+      enum: [
+        "Draft",                    // Invoice created but not sent
+        "Sent - Payment Pending",   // Invoice sent, waiting for payment
+        "Sent - Payment Processing", // Invoice sent, payment in progress
+        "Paid",                     // Invoice fully paid
+        "Overdue",                  // Payment past due date
+        "Cancelled",                // Invoice cancelled
+        "Refunded",                 // Payment refunded
+        "Failed"                    // Payment failed
+      ],
       default: "Draft",
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["Pending", "Paid", "Refunded", "Failed"],
-      default: "Pending",
     },
     paymentMethod: {
       type: String,
@@ -34,8 +38,15 @@ const invoiceSchema = new mongoose.Schema(
     overdueAt: Date,
     items: [{
       description: String,
+      quantity: { type: Number, default: 1 },
+      unitPrice: Number,
       amount: Number,
-      quantity: { type: Number, default: 1 }
+      type: {
+        type: String,
+        enum: ['room', 'meal', 'meal_plan', 'tax', 'service_fee', 'additional', 'discount'],
+        default: 'room'
+      },
+      metadata: mongoose.Schema.Types.Mixed // For storing additional item-specific data
     }],
     statusNotes: String,
   },

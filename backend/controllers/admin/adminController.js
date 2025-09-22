@@ -952,15 +952,15 @@ export const approveBooking = async (req, res) => {
       });
     }
 
-    if (booking.status !== 'Pending Approval') {
+    if (booking.status !== 'On Hold') {
       return res.status(400).json({
         success: false,
-        message: `Booking status is ${booking.status}, not pending approval`,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
       });
     }
 
     // Update booking status
-    booking.status = 'Confirmed';
+    booking.status = 'Accepted';
     booking.confirmedAt = new Date();
     booking.confirmedBy = adminId;
     booking.approvalNotes = approvalNotes;
@@ -968,6 +968,20 @@ export const approveBooking = async (req, res) => {
     booking.reviewedAt = new Date();
     booking.requiresReview = false;
     await booking.save();
+
+    // Create invoice for cash payments when booking is approved
+    if (booking.paymentMethod === 'cash') {
+      try {
+        const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        booking.invoiceId = invoice._id;
+        await booking.save();
+        console.log(`✅ Invoice created for approved cash booking ${booking.bookingNumber}`);
+      } catch (invoiceError) {
+        console.error('❌ Failed to create invoice for approved booking:', invoiceError);
+        // Don't fail the approval if invoice creation fails
+      }
+    }
 
     // Send notification to guest
     await NotificationService.sendNotification({
@@ -1032,10 +1046,10 @@ export const rejectBooking = async (req, res) => {
       });
     }
 
-    if (booking.status !== 'Pending Approval') {
+    if (booking.status !== 'On Hold') {
       return res.status(400).json({
         success: false,
-        message: `Booking status is ${booking.status}, not pending approval`,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
       });
     }
 
@@ -1188,7 +1202,7 @@ export const getBookingStats = async (req, res) => {
             $sum: { $cond: [{ $eq: ["$status", "Pending Approval"] }, 1, 0] }
           },
           confirmed: {
-            $sum: { $cond: [{ $eq: ["$status", "Confirmed"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] }
           },
           onHold: {
             $sum: { $cond: [{ $eq: ["$status", "On Hold"] }, 1, 0] }

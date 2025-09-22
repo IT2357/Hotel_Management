@@ -115,17 +115,22 @@ export const getUserInvoices = async (req, res) => {
 // Get invoice statistics
 export const getInvoiceStats = async (req, res) => {
   try {
-    const { period = '30' } = req.query;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(period));
+    const { period = 'all' } = req.query;
+    let matchStage = {};
+
+    if (period !== 'all') {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(period));
+      matchStage = {
+        createdAt: { $gte: startDate }
+      };
+    }
 
     const Invoice = (await import("../models/Invoice.js")).default;
 
     const stats = await Invoice.aggregate([
       {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
+        $match: matchStage
       },
       {
         $group: {
@@ -243,24 +248,53 @@ export const updateInvoiceStatus = async (req, res) => {
     }
 
     // Update invoice status
-    invoice.paymentStatus = status;
     invoice.statusNotes = reason;
     invoice.updatedAt = new Date();
 
-    // Set appropriate dates based on status
+    // Update invoice status using consolidated status field
     if (status === 'Paid') {
+      invoice.status = 'Paid';
       invoice.paidAt = new Date();
     } else if (status === 'Overdue') {
+      invoice.status = 'Overdue';
       invoice.overdueAt = new Date();
+    } else if (status === 'Cancelled') {
+      invoice.status = 'Cancelled';
+    } else if (status === 'Sent') {
+      invoice.status = 'Sent - Payment Pending';
+    } else {
+      // For other statuses like 'Draft', 'Pending'
+      invoice.status = status;
     }
+
+    invoice.statusNotes = reason;
+    invoice.updatedAt = new Date();
 
     await invoice.save();
 
-    // Populate the updated invoice
-    await invoice.populate('userId', 'name email');
-    await invoice.populate('bookingId', 'checkIn checkOut roomId');
+    // Update linked booking status if invoice status changes
+    if (invoice.bookingId) {
+      const Booking = (await import("../models/Booking.js")).default;
+      const booking = await Booking.findById(invoice.bookingId);
 
-    sendSuccess(res, invoice, "Invoice status updated successfully");
+      if (booking) {
+        // Update booking status based on invoice status
+        if (status === 'Paid') {
+          booking.status = 'Confirmed'; // Payment completed, booking confirmed
+          booking.paidAt = new Date();
+        } else if (status === 'Sent - Payment Pending') {
+          // Invoice sent, keep booking status as is but ensure it's not completed
+          if (booking.status === 'Confirmed') {
+            booking.status = booking.paymentMethod === 'cash' ? 'Approved - Payment Pending' : 'Approved - Payment Processing';
+          }
+        } else if (status === 'Cancelled') {
+          booking.status = 'Cancelled';
+        }
+
+        await booking.save();
+        console.log(`✅ Booking ${booking.bookingNumber} status updated to ${booking.status} due to invoice status change`);
+      }
+    }
 
   } catch (error) {
     handleError(res, error, "Failed to update invoice status");

@@ -114,6 +114,18 @@ export default function BookingHistory({ userId, onBookingSelect }) {
   };
 
   const getStatusColor = (status) => {
+    // Handle consolidated status values
+    if (status === 'Approved - Payment Pending') return 'bg-green-100 text-green-800';
+    if (status === 'Approved - Payment Processing') return 'bg-blue-100 text-blue-800';
+    if (status === 'Confirmed') return 'bg-green-100 text-green-800';
+    if (status === 'Completed') return 'bg-blue-100 text-blue-800';
+    if (status === 'Pending Approval') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'On Hold') return 'bg-blue-100 text-blue-800';
+    if (status === 'Rejected') return 'bg-red-100 text-red-800';
+    if (status === 'Cancelled') return 'bg-gray-100 text-gray-800';
+    if (status === 'No Show') return 'bg-gray-100 text-gray-800';
+
+    // Legacy support
     const colors = {
       'Confirmed': 'bg-green-100 text-green-800',
       'Pending Approval': 'bg-yellow-100 text-yellow-800',
@@ -211,8 +223,11 @@ export default function BookingHistory({ userId, onBookingSelect }) {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="all">All Bookings</option>
+            <option value="Pending Approval">Pending Approval</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Approved - Payment Pending">Approved (Pay at Hotel)</option>
+            <option value="Approved - Payment Processing">Approved (Payment Processing)</option>
             <option value="Confirmed">Confirmed</option>
-            <option value="Pending Approval">Pending</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
@@ -230,9 +245,14 @@ export default function BookingHistory({ userId, onBookingSelect }) {
 
         <Card className="p-4 text-center">
           <div className="text-2xl font-bold text-green-600">
-            {bookings.filter(b => b.status === 'Completed').length}
+            {bookings.filter(b =>
+              b.status === 'Confirmed' ||
+              b.status === 'Approved - Payment Pending' ||
+              b.status === 'Approved - Payment Processing' ||
+              b.status === 'Completed'
+            ).length}
           </div>
-          <div className="text-sm text-gray-600">Completed</div>
+          <div className="text-sm text-gray-600">Confirmed</div>
         </Card>
 
         <Card className="p-4 text-center">

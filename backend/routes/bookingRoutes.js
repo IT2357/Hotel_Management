@@ -38,7 +38,7 @@ router.put("/admin/:bookingId/hold", authenticateToken, requireRole(['admin', 'm
 router.put("/:bookingId/cancel", authenticateToken, cancelBooking);
 
 // Process booking payment
-router.post("/:bookingNumber/pay", authenticateToken, processBookingPayment);
+router.put("/:bookingNumber/process-payment", authenticateToken, processBookingPayment);
 
 // ===== ADMIN ROUTES (Admin only) =====
 

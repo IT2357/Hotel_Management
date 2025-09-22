@@ -85,12 +85,6 @@ export function AuthProvider({ children }) {
   //         emailVerified: false
   //       };
   //       localStorage.setItem("user", JSON.stringify(basicUser));
-  //       setState(prev => ({ ...prev, user: basicUser, loading: false }));
-  //       navigate("/verify-email", {
-  //         state: { email: basicUser.email, userId: basicUser._id }
-  //       });        
-  //       return basicUser;
-  //     }
   const login = async (credentials) => {
     setState(prev => ({ ...prev, error: null }));
     try {
@@ -100,6 +94,12 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user', JSON.stringify(user));
       // Hydrate full user with role-specific profile to support permission checks
       await checkAuth();
+
+      // Handle redirect after successful login
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin') || getDashboardPath(user.role);
+      sessionStorage.removeItem('redirectAfterLogin'); // Clean up
+      navigate(redirectPath);
+
       return user;
     } catch (err) {
       console.error('AuthContext login error:', {

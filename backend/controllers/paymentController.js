@@ -88,8 +88,7 @@ export const handleWebhook = async (req, res) => {
     // Update booking status if payment successful
     if (processedPayment.status === 'success' && processedPayment.bookingId) {
       await Booking.findByIdAndUpdate(processedPayment.bookingId, {
-        status: 'confirmed',
-        paymentStatus: 'paid',
+        status: 'Confirmed',
         paymentId: payment._id,
       });
 
@@ -173,8 +172,7 @@ export const refundPayment = async (req, res) => {
     // Update booking status
     if (payment.bookingId) {
       await Booking.findByIdAndUpdate(payment.bookingId, {
-        status: 'cancelled',
-        paymentStatus: 'refunded',
+        status: 'Cancelled',
       });
     }
 

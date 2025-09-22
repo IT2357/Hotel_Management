@@ -209,6 +209,16 @@ const adminSettingsSchema = new mongoose.Schema(
       default: "24 hours before check-in",
       trim: true,
     },
+    
+    // Booking Settings
+    bookingSettings: {
+      autoApprovalEnabled: { type: Boolean, default: false },
+      autoApprovalThreshold: { type: Number, default: 5000, min: 0 },
+      requireCashApproval: { type: Boolean, default: true }, // Always require approval for cash payments
+      requireBankApproval: { type: Boolean, default: true }, // Require approval for bank transfers
+      requireCardApproval: { type: Boolean, default: false }, // Auto-approve card payments below threshold
+      approvalTimeoutHours: { type: Number, default: 24, min: 1, max: 168 }
+    },
     // Auto-approval settings
     autoApprovalSettings: {
       enabled: { type: Boolean, default: false },

@@ -18,11 +18,14 @@ class BookingService {
     const now = Date.now();
     if (!this.settingsCache || (now - this.settingsCacheTime) > this.CACHE_DURATION) {
       try {
+        console.log('🔧 Loading AdminSettings from database...');
         this.settingsCache = await AdminSettings.findOne().lean();
+        console.log('📋 AdminSettings loaded:', JSON.stringify(this.settingsCache, null, 2));
         this.settingsCacheTime = now;
       } catch (error) {
         console.error("Failed to fetch settings for booking:", error);
         // Use defaults if database fails
+        console.log('⚠️ Using default settings due to database error');
         this.settingsCache = {
           allowGuestBooking: true,
           requireApproval: false,
@@ -31,6 +34,14 @@ class BookingService {
           defaultCheckOutTime: '11:00',
           maxGuestsPerRoom: 4,
           cancellationPolicy: '24 hours before check-in',
+          bookingSettings: {
+            autoApprovalEnabled: false,
+            autoApprovalThreshold: 5000,
+            requireCashApproval: true,
+            requireBankApproval: true,
+            requireCardApproval: false,
+            approvalTimeoutHours: 24
+          },
           financialSettings: {
             taxRate: 0,
             serviceFee: 0,
@@ -178,8 +189,8 @@ class BookingService {
     };
   }
 
-  // Calculate booking cost based on settings
-  async calculateBookingCost(checkIn, checkOut, roomRate) {
+  // Calculate booking cost based on settings with meal plans
+  async calculateBookingCost(checkIn, checkOut, room, bookingData = {}) {
     const settings = await this.getSettings();
     const checkInDate = typeof checkIn === 'string' ? parseISO(checkIn) : checkIn;
     const checkOutDate = typeof checkOut === 'string' ? parseISO(checkOut) : checkOut;
@@ -194,16 +205,72 @@ class BookingService {
       throw new Error('Check-out date must be after check-in date');
     }
 
-    const rate = parseFloat(roomRate) || 0;
-    const subtotal = nights * rate;
+    // Get base room rate
+    let roomRate = room.basePrice || 0;
+
+    // Check for seasonal pricing
+    if (room.seasonalPricing && room.seasonalPricing.length > 0) {
+      const applicableSeason = room.seasonalPricing.find(season =>
+        season.isActive &&
+        checkInDate >= season.startDate &&
+        checkInDate <= season.endDate
+      );
+      if (applicableSeason) {
+        roomRate = applicableSeason.price;
+      }
+    }
+
+    // Calculate room cost
+    const subtotal = nights * roomRate;
 
     const financialSettings = settings.financialSettings || {};
     const taxRate = (financialSettings.taxRate || 0) / 100;
     const serviceFeeRate = (financialSettings.serviceFee || 0) / 100;
 
+    // Calculate taxes and service fees
     const tax = subtotal * taxRate;
     const serviceFee = subtotal * serviceFeeRate;
-    const total = subtotal + tax + serviceFee;
+
+    // Calculate meal plan costs
+    let mealPlanCost = 0;
+    let mealBreakdown = {};
+
+    if (bookingData.foodPlan && bookingData.foodPlan !== 'None') {
+      const guests = bookingData.guests || 1;
+      const mealPlanRates = {
+        'Breakfast': 15,
+        'Half Board': 35, // Breakfast + Dinner
+        'Full Board': 50, // All meals
+        'A la carte': 0 // Will be calculated separately based on selected meals
+      };
+
+      if (bookingData.foodPlan === 'A la carte' && bookingData.selectedMeals) {
+        // Calculate cost for selected meals
+        mealPlanCost = bookingData.selectedMeals.reduce((total, meal) => {
+          return total + (meal.price * guests * nights);
+        }, 0);
+        mealBreakdown = {
+          meals: bookingData.selectedMeals.map(meal => ({
+            name: meal.name,
+            price: meal.price,
+            quantity: guests * nights,
+            total: meal.price * guests * nights
+          }))
+        };
+      } else {
+        const mealRate = mealPlanRates[bookingData.foodPlan] || 0;
+        mealPlanCost = mealRate * guests * nights;
+        mealBreakdown = {
+          plan: bookingData.foodPlan,
+          rate: mealRate,
+          guests: guests,
+          nights: nights,
+          total: mealPlanCost
+        };
+      }
+    }
+
+    const total = subtotal + tax + serviceFee + mealPlanCost;
 
     const depositRequired = financialSettings.depositRequired !== false;
     const depositAmount = financialSettings.depositAmount || 100;
@@ -221,10 +288,20 @@ class BookingService {
       subtotal,
       tax,
       serviceFee,
+      mealPlanCost,
       total,
       deposit,
       depositRequired,
-      currency: settings.currency || 'USD'
+      currency: settings.currency || 'LKR',
+      roomRate,
+      mealBreakdown,
+      breakdown: {
+        roomCost: subtotal,
+        taxes: tax,
+        serviceFees: serviceFee,
+        meals: mealPlanCost,
+        total: total
+      }
     };
   }
 
@@ -259,16 +336,57 @@ class BookingService {
       }
 
       // Validate room pricing
-      if ((!room.basePrice && !room.price) && !bookingData.roomBasePrice) {
+      if (!room.basePrice) {
         throw new Error('Room pricing information is not available');
       }
 
-      // Calculate cost
+      // Calculate cost with meal plans
       const costBreakdown = await this.calculateBookingCost(
         bookingData.checkIn,
         bookingData.checkOut,
-        bookingData.roomBasePrice || room.basePrice || room.price || 0
+        room,
+        bookingData
       );
+
+      // Determine booking status based on payment method and settings
+      let finalStatus = bookingData.status || 'Pending Approval'; // Respect status passed from controller
+      
+      // Check settings for approval requirements
+      const bookingSettings = settings && settings.bookingSettings ? settings.bookingSettings : {};
+      
+      console.log('🔍 Booking creation debug:', {
+        paymentMethod: bookingData.paymentMethod,
+        initialStatus: bookingData.status,
+        finalStatusBeforeLogic: finalStatus,
+        settingsExist: !!settings,
+        bookingSettings: bookingSettings,
+        oldRequireApproval: settings ? settings.requireApprovalForAllBookings : 'undefined'
+      });
+      
+      // Always require admin approval for cash payments - this overrides all other settings
+      if (bookingData.paymentMethod === 'cash') {
+        finalStatus = 'Pending Approval';
+        console.log('💰 Cash payment detected - FORCED Pending Approval status');
+      } else if (bookingData.paymentMethod === 'bank') {
+        // For bank transfers, check if approval is required
+        finalStatus = bookingSettings.requireBankApproval !== false ? 'Pending Approval' : 'Confirmed';
+        console.log(`🏦 Bank payment, approval required: ${bookingSettings.requireBankApproval !== false}`);
+      } else if (bookingData.paymentMethod === 'card' || bookingData.paymentMethod === 'paypal') {
+        // For card payments, check auto-approval settings
+        if (bookingSettings.autoApprovalEnabled && bookingSettings.requireCardApproval === false && 
+            costBreakdown.total <= (bookingSettings.autoApprovalThreshold || 0)) {
+          finalStatus = 'Confirmed';
+          console.log('💳 Card payment auto-approved');
+        } else if (bookingSettings.requireCardApproval) {
+          finalStatus = 'Pending Approval';
+          console.log('💳 Card payment requires approval');
+        } else {
+          finalStatus = 'Confirmed'; // Default to confirmed for card payments
+          console.log('💳 Card payment default to confirmed');
+        }
+      }
+      
+      console.log('✅ Final booking status:', finalStatus);
 
       // Create booking
       const booking = new Booking({
@@ -277,10 +395,11 @@ class BookingService {
         roomId: bookingData.roomId,
         checkIn: bookingData.checkIn,
         checkOut: bookingData.checkOut,
-        guests: bookingData.guests,
+        guests: bookingData.guests || bookingData.guestCount || 1,
+        guestCount: bookingData.guestCount || { adults: bookingData.guests || 1, children: 0 },
         specialRequests: bookingData.specialRequests,
         costBreakdown,
-        status: settings.requireApproval ? 'Pending Approval' : 'Confirmed',
+        status: finalStatus, // Use the determined status
         bookingSettings: {
           checkInTime: settings.defaultCheckInTime,
           checkOutTime: settings.defaultCheckOutTime,
@@ -291,14 +410,25 @@ class BookingService {
 
       await booking.save();
 
-      // Create invoice for the booking
-      try {
-        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
-        booking.invoiceId = invoice._id;
-        await booking.save();
-      } catch (invoiceError) {
-        console.error('Failed to create invoice for booking:', invoiceError);
-        // Don't fail the booking creation if invoice creation fails
+      // Only create invoice for confirmed bookings, NEVER for pending approval
+      if (booking.status === 'Confirmed') {
+        try {
+          // Create invoice for confirmed bookings
+          const InvoiceService = (await import("../payment/invoiceService.js")).default;
+          const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+          booking.invoiceId = invoice._id;
+          await booking.save(); // Save the invoiceId
+          console.log(`✅ Invoice created for confirmed booking ${booking.bookingNumber}`);
+        } catch (invoiceError) {
+          console.error('❌ Failed to create invoice for confirmed booking:', invoiceError.message);
+          // For confirmed bookings, invoice creation failure is critical
+          if (!invoiceError.message.includes('Invoice already exists')) {
+            console.error('❌ Unexpected invoice creation error for confirmed booking:', invoiceError);
+            // Don't fail the booking creation if invoice creation fails, but log it
+          }
+        }
+      } else {
+        console.log(`📋 Booking ${booking.bookingNumber} created with status ${booking.status} - no invoice created`);
       }
 
       // Send notifications based on settings
@@ -306,23 +436,26 @@ class BookingService {
         await NotificationService.sendNotification({
           userId,
           userType: user.role,
-          type: 'booking_confirmation',
-          title: 'Booking Confirmation',
-          message: `Your booking for ${room.name} has been ${booking.status === 'Confirmed' ? 'confirmed' : 'received and is pending approval'}.`,
+          type: booking.status === 'Confirmed' ? 'booking_confirmation' : 'booking_pending_approval',
+          title: booking.status === 'Confirmed' ? 'Booking Confirmed' : 'Booking Pending Approval',
+          message: booking.status === 'Confirmed' 
+            ? `Your booking for ${room.title} has been confirmed!`
+            : `Your booking for ${room.title} has been received and is pending admin approval.`,
           channel: 'email',
           metadata: {
             bookingId: booking._id,
-            roomName: room.name,
+            roomName: room.title,
             checkIn: booking.checkIn,
             checkOut: booking.checkOut,
             total: costBreakdown.total,
-            currency: costBreakdown.currency
+            currency: costBreakdown.currency,
+            status: booking.status
           }
         });
       }
 
       // Send admin notification if approval is required
-      if (settings.requireApproval && settings.adminNotifications) {
+      if (booking.status === 'Pending Approval') {
         const admins = await User.find({ role: 'admin', isActive: true });
         for (const admin of admins) {
           await NotificationService.sendNotification({
@@ -335,9 +468,11 @@ class BookingService {
             metadata: {
               bookingId: booking._id,
               guestName: user.name,
-              roomName: room.name,
+              roomName: room.title,
               checkIn: booking.checkIn,
-              checkOut: booking.checkOut
+              checkOut: booking.checkOut,
+              paymentMethod: booking.paymentMethod,
+              total: costBreakdown.total
             }
           });
         }

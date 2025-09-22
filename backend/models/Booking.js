@@ -7,8 +7,12 @@ const bookingSchema = new mongoose.Schema(
     roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room", index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     bookingNumber: { type: String, unique: true, sparse: true, index: true },
+    // Booking dates
+    checkIn: { type: Date, required: true, index: true },
+    checkOut: { type: Date, required: true, index: true },
 
     // Guest information
+    guests: { type: Number, default: 1 }, // For backward compatibility with frontend
     guestCount: {
       adults: { type: Number, default: 1 },
       children: { type: Number, default: 0 }
@@ -38,12 +42,30 @@ const bookingSchema = new mongoose.Schema(
       index: true
     },
 
-    // Status workflow
+    // Consolidated status that combines approval and payment states
     status: {
       type: String,
-      enum: ["Pending Approval", "On Hold", "Confirmed", "Rejected", "Cancelled"],
+      enum: [
+        "Pending Approval",        // Booking submitted, waiting for admin approval
+        "On Hold",                // Booking temporarily held
+        "Approved - Payment Pending",    // Approved but payment due at hotel (cash)
+        "Approved - Payment Processing", // Approved and payment being processed (card/bank)
+        "Confirmed",              // Fully paid and confirmed (ready for check-in)
+        "Rejected",               // Booking rejected by admin
+        "Cancelled",              // Booking cancelled
+        "Completed",              // Stay completed
+        "No Show"                 // Guest didn't show up
+      ],
       default: "Pending Approval",
-      index: true,
+      index: true
+    },
+
+    // Legacy payment status (deprecated - will be removed after migration)
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "processing", "completed", "failed", "cancelled"],
+      default: "pending",
+      index: true
     },
 
     // Workflow tracking
@@ -113,7 +135,6 @@ const bookingSchema = new mongoose.Schema(
 bookingSchema.index({ userId: 1, status: 1 });
 bookingSchema.index({ roomId: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ status: 1, holdUntil: 1 });
-bookingSchema.index({ bookingNumber: 1 });
 
 // Pre-save hook to generate booking number
 bookingSchema.pre('save', async function(next) {

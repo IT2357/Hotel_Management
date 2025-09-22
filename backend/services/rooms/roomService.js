@@ -68,7 +68,7 @@ class RoomService {
       // Find conflicting bookings
       const conflictingBookings = await Booking.find({
         roomId: roomId,
-        status: { $in: ['Confirmed', 'Pending Approval', 'On Hold'] },
+        status: { $in: ['Accepted', 'Pending Approval', 'On Hold'] },
         ...(excludeBookingId && { _id: { $ne: excludeBookingId } }),
         $or: [
           // Booking starts during requested period
@@ -430,10 +430,10 @@ class RoomService {
             roomType: { $first: '$room.type' },
             totalBookings: { $sum: 1 },
             confirmedBookings: {
-              $sum: { $cond: [{ $eq: ['$status', 'Confirmed'] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$status', 'Accepted'] }, 1, 0] }
             },
             revenue: {
-              $sum: { $cond: [{ $eq: ['$status', 'Confirmed'] }, '$totalPrice', 0] }
+              $sum: { $cond: [{ $eq: ['$status', 'Accepted'] }, '$totalPrice', 0] }
             }
           }
         }

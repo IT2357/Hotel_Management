@@ -50,10 +50,8 @@ const paymentService = {
     });
   },
 
-  // Validate payment configuration
-  validatePaymentConfig: (provider) => {
-    return api.post("/admin/settings/validate-payment", { provider });
-  }
+  // Process booking payment
+  processBookingPayment: (bookingNumber, paymentData) => api.put(`/bookings/${bookingNumber}/process-payment`, paymentData),
 };
 
 export default paymentService;

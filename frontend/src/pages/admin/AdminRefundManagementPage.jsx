@@ -464,22 +464,17 @@ function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatu
             {safeRefunds.length} {safeRefunds.length === 1 ? 'refund' : 'refunds'} found
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3 gap-6">
           {safeRefunds.map((refund) => (
             <div
               key={refund._id}
               className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
-              <div className={`${getStatusColor(refund.status || 'pending')} rounded-xl p-4 text-white mb-4 shadow-lg`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg">{refund.bookingId?.bookingNumber || 'N/A'}</h3>
-                    <p className="text-white/90 text-sm">{refund.guestId?.name || 'N/A'}</p>
-                  </div>
-                  <Badge className={`${getStatusColor(refund.status)} bg-white/20 text-white border-white/30`}>
-                    {refund.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
-                  </Badge>
-                </div>
+              <div className={`${getStatusColor(refund.status || 'pending')} rounded-xl p-4 text-white mb-4 shadow-lg text-center`}>
+                <h3 className="font-bold text-lg mb-2">{refund.bookingId?.bookingNumber || 'N/A'}</h3>
+                <Badge className={`${getStatusColor(refund.status)} bg-white/20 text-white border-white/30 text-sm px-3 py-1`}>
+                  {getStatusColor(refund.status).includes('yellow') ? '⏳' : getStatusColor(refund.status).includes('green') ? '✅' : getStatusColor(refund.status).includes('blue') ? '🔄' : '❌'} {refund.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                </Badge>
               </div>
               <div className="space-y-3 mb-6">
                 <div className="flex items-center text-sm text-gray-600">

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext.jsx';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RoomCard from '../../components/booking/RoomCard';
 import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -10,10 +11,41 @@ import Textarea from '../../components/ui/Textarea';
 import Alert from '../../components/common/Alert';
 import { Calendar, Users } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
+import bookingService from '../../services/bookingService';
+import paymentService from '../../services/paymentService';
 
 const GuestBookingFlow = () => {
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated } = useContext(AuthContext);
+
+  // Check authentication on component mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Store redirect URL for after login
+      sessionStorage.setItem('redirectAfterLogin', location.pathname);
+      // Redirect to login with return URL
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+  }, [isAuthenticated, navigate, location.pathname]);
+
+  // Show loading while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <Card className="min-h-[80vh]">
+          <CardContent className="p-6 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">Checking authentication...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const [step, setStep] = useState(1);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(location.state?.roomId ? {
@@ -216,41 +248,30 @@ const GuestBookingFlow = () => {
   const handleBookingSubmit = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        window.alert('Please log in to make a booking');
-        return;
-      }
-
       const bookingPayload = {
         ...bookingData,
         roomId: selectedRoom.roomId,
+        checkIn: new Date(bookingData.checkIn).toISOString(),
+        checkOut: new Date(bookingData.checkOut).toISOString(),
         totalAmount: selectedRoom.pricing.total,
         nights: calculateNights(),
-        status: 'pending',
-        roomBasePrice: selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0
+        status: 'Pending Approval',
+        roomBasePrice: selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0,
+        foodPlan: bookingData.foodPlan || 'None',
+        guests: bookingData.guests || 1,
+        specialRequests: bookingData.specialRequests || '',
+        paymentMethod: paymentData.paymentMethod || 'cash'
       };
 
-      console.log('Submitting booking:', bookingPayload);
-      console.log('Selected room pricing:', selectedRoom.pricing);
-
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(bookingPayload)
-      });
-
-      const data = await response.json();
+      // Use the booking service instead of direct fetch
+      const data = await bookingService.createBooking(bookingPayload);
       console.log('Booking response:', data);
 
-      if (data.success) {
+      if (data && data.success) {
         setBookingResult(data.data);
         setStep(4); // Move to confirmation/review step
       } else {
-        window.alert(data.message || 'Failed to create booking');
+        window.alert(data?.message || 'Failed to create booking');
       }
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -712,8 +733,9 @@ const GuestBookingFlow = () => {
           disabled={
             processingPayment ||
             !paymentData.paymentMethod ||
-            (bookingResult?.paymentStatus === 'completed') ||
-            (bookingResult?.paymentStatus === 'processing') ||
+            // Only disable if booking is confirmed AND payment method is card/bank (not cash)
+            (bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
+            (bookingResult?.status === 'Approved - Payment Processing') ||
             (paymentData.paymentMethod === 'card' &&
               (!paymentData.cardNumber ||
                 !paymentData.cardholderName ||
@@ -725,7 +747,7 @@ const GuestBookingFlow = () => {
           }
           className="px-8 py-3"
         >
-          {processingPayment ? 'Processing Payment...' : 'Complete Payment'}
+          {processingPayment ? 'Processing...' : paymentData.paymentMethod === 'cash' ? 'Submit Booking Request' : 'Complete Payment'}
         </Button>
         {/* Debug info - remove in production */}
         <div className="mt-4 p-4 bg-gray-100 rounded text-sm">
@@ -733,12 +755,12 @@ const GuestBookingFlow = () => {
           <p>Payment Method: {paymentData.paymentMethod}</p>
           <p>Processing: {processingPayment.toString()}</p>
           <p>Booking Status: {bookingResult?.status}</p>
-          <p>Payment Status: {bookingResult?.paymentStatus || 'Not Set'}</p>
           <p>Booking Payment Method: {bookingResult?.paymentMethod}</p>
           <p>Button Disabled: {(processingPayment ||
             !paymentData.paymentMethod ||
-            (bookingResult?.paymentStatus === 'completed') ||
-            (bookingResult?.paymentStatus === 'processing') ||
+            // Only disable if booking is confirmed AND payment method is card/bank (not cash)
+            (bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
+            (bookingResult?.status === 'Approved - Payment Processing') ||
             (paymentData.paymentMethod === 'card' &&
               (!paymentData.cardNumber ||
                 !paymentData.cardholderName ||
@@ -755,15 +777,108 @@ const GuestBookingFlow = () => {
   const renderStep6 = () => (
     <div className="space-y-6">
       <div className="text-center">
-        {bookingResult?.requiresApproval ? (
+        {bookingResult?.status === 'On Hold' && bookingResult?.paymentMethod !== 'cash' ? (
+          <>
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-blue-600 mb-2">Payment Received - Awaiting Approval</h2>
+            <p className="text-gray-600 mb-4">
+              Your payment has been processed successfully. Your booking is now awaiting admin approval.
+            </p>
+            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Next Steps:</strong> An administrator will review your booking within the next hour.
+                You will receive an email notification once your booking is approved.
+              </p>
+            </div>
+          </>
+        ) : bookingResult?.status === 'On Hold' && bookingResult?.paymentMethod === 'cash' ? (
           <>
             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-yellow-600 mb-2">Booking Submitted!</h2>
-            <p className="text-gray-600 mb-4">Your booking has been submitted and is pending admin approval.</p>
+            <h2 className="text-2xl font-bold text-yellow-600 mb-2">Booking Request Submitted - Pay at Hotel</h2>
+            <p className="text-gray-600 mb-4">
+              Your booking request has been submitted successfully. Payment will be collected at the hotel upon check-in.
+            </p>
+            <div className="bg-yellow-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Next Steps:</strong> An administrator will review your booking within the next hour.
+                Once approved, you can check-in and pay at the hotel reception.
+              </p>
+            </div>
+          </>
+        ) : bookingResult?.status === 'Approved - Payment Pending' ? (
+          <>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Approved!</h2>
+            <p className="text-gray-600 mb-4">
+              Your booking has been approved! Payment will be collected at the hotel upon check-in.
+            </p>
+          </>
+        ) : bookingResult?.status === 'Approved - Payment Processing' ? (
+          <>
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-blue-600 mb-2">Booking Approved - Payment Processing</h2>
+            <p className="text-gray-600 mb-4">
+              Your booking has been approved and payment is being processed. We'll notify you once payment is confirmed.
+            </p>
+          </>
+        ) : bookingResult?.status === 'Confirmed' && bookingResult?.paymentMethod === 'cash' ? (
+          <>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed!</h2>
+            <p className="text-gray-600 mb-4">
+              Your booking has been confirmed! Payment will be collected when you arrive at the hotel.
+            </p>
+            <div className="bg-green-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-green-800">
+                <strong>Payment at Hotel:</strong> Please bring a valid ID and the total amount of {bookingResult?.totalPrice ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'LKR' }).format(bookingResult.totalPrice) : 'N/A'} when you check-in.
+              </p>
+            </div>
+          </>
+        ) : bookingResult?.status === 'Confirmed' ? (
+          <>
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-yellow-600 mb-2">
+              {bookingResult?.paymentMethod === 'cash' ? 'Booking Request Submitted - Pay at Hotel' : 'Payment Recorded - Awaiting Approval'}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {bookingResult?.paymentMethod === 'cash'
+                ? 'Your booking request has been submitted successfully. Payment will be collected at the hotel upon check-in.'
+                : 'Your payment information has been recorded. Your booking is now awaiting admin approval.'
+              }
+            </p>
+            <div className="bg-yellow-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Next Steps:</strong> An administrator will review your booking within the next hour.
+                {bookingResult?.paymentMethod === 'cash'
+                  ? ' Once approved, you can check-in and pay at the hotel reception.'
+                  : ' You will receive an email notification once your booking is approved or if more information is needed.'
+                }
+              </p>
+            </div>
           </>
         ) : (
           <>
@@ -778,7 +893,7 @@ const GuestBookingFlow = () => {
             <p className="text-gray-600 mb-4">
               {bookingResult?.paymentMethod === 'card'
                 ? 'Your payment has been processed successfully.'
-                : 'Your booking has been confirmed successfully.'}
+                : 'Your booking has been confirmed! Payment is due when you arrive at the hotel.'}
             </p>
           </>
         )}
@@ -791,6 +906,22 @@ const GuestBookingFlow = () => {
               <div className="flex justify-between">
                 <span className="font-medium">Booking Number:</span>
                 <span className="font-mono text-indigo-600">{bookingResult.bookingNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Status:</span>
+                <Badge className={
+                  bookingResult.status === 'Confirmed' ? 'bg-green-100 text-green-800' :
+                  bookingResult.status === 'Approved - Payment Pending' ? 'bg-green-100 text-green-800' :
+                  bookingResult.status === 'Approved - Payment Processing' ? 'bg-blue-100 text-blue-800' :
+                  bookingResult.status === 'On Hold' ? 'bg-blue-100 text-blue-800' :
+                  bookingResult.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }>
+                  {bookingResult.status === 'Confirmed' ? 'Confirmed' :
+                   bookingResult.status === 'Approved - Payment Pending' ? 'Approved (Pay at Hotel)' :
+                   bookingResult.status === 'Approved - Payment Processing' ? 'Approved (Payment Processing)' :
+                   bookingResult.status || 'Pending'}
+                </Badge>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Room:</span>
@@ -816,7 +947,7 @@ const GuestBookingFlow = () => {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Guests:</span>
-                <span>{bookingResult.guests || 'N/A'}</span>
+                <span>{bookingResult.guests || bookingResult.guestCount?.adults || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Payment Method:</span>
@@ -830,7 +961,7 @@ const GuestBookingFlow = () => {
         </Card>
       )}
       <div className="flex gap-4 justify-center">
-        <Button variant="outline" onClick={() => navigate('/guest/my-bookinga')}>
+        <Button variant="outline" onClick={() => navigate('/guest/my-bookings')}>
           View My Bookings
         </Button>
         <Button onClick={() => navigate('/')}>
@@ -841,70 +972,44 @@ const GuestBookingFlow = () => {
   );
 
   const processPayment = async () => {
-    setProcessingPayment(true);
-    try {
-      // Debug logging
-      console.log('Processing payment with data:', {
-        bookingNumber: bookingResult?.bookingNumber,
-        paymentMethod: paymentData.paymentMethod,
-        paymentData: paymentData
-      });
+  setProcessingPayment(true);
+  try {
+    // Debug logging
+    console.log('Processing payment with data:', {
+      bookingNumber: bookingResult?.bookingNumber,
+      paymentMethod: paymentData.paymentMethod,
+      paymentData: paymentData
+    });
 
-      // Check if payment is already being processed or completed
-      if (bookingResult?.paymentStatus === 'processing' || bookingResult?.paymentStatus === 'completed') {
-        throw new Error('Payment is already being processed or has been completed for this booking.');
-      }
-
-      // Format expiry date for card payments
-      let paymentPayload = {
-        paymentMethod: paymentData.paymentMethod
-      };
-
-      if (paymentData.paymentMethod === 'card') {
-        paymentPayload = {
-          ...paymentPayload,
-          cardNumber: paymentData.cardNumber,
-          expiryDate: `${paymentData.expiryMonth}/${paymentData.expiryYear}`,
-          cvv: paymentData.cvv,
-          cardholderName: paymentData.cardholderName
-        };
-      } else if (paymentData.paymentMethod === 'bank') {
-        paymentPayload = {
-          ...paymentPayload,
-          bankDetails: paymentData.bankDetails
-        };
-      }
-      // Cash payment doesn't need additional data
-
-      const response = await fetch(`/api/bookings/${bookingResult.bookingNumber}/pay`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(paymentPayload)
-      });
-
-      console.log('Payment request body:', JSON.stringify(paymentPayload));
-
-      const data = await response.json();
-      console.log('Payment response:', data);
-
-      if (data.success) {
-        console.log('Payment processed successfully, updating booking result:', data.data);
-        setBookingResult(data.data);
-        setStep(6);
-      } else {
-        console.error('Payment failed:', data);
-        window.alert(data.message || 'Payment update failed.');
-      }
-    } catch (error) {
-      console.error('Payment processing failed:', error);
-      window.alert(error.message || 'Payment processing failed. Please try again.');
-    } finally {
-      setProcessingPayment(false);
+    // Check if payment is already being processed or completed
+    // For cash payments, allow processing even if booking is 'Confirmed' (auto-approved)
+    if ((bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
+        bookingResult?.status === 'Approved - Payment Processing') {
+      throw new Error('Payment is already being processed or has been completed for this booking.');
     }
-  };
+
+    // Use the payment service instead of direct fetch
+    const data = await paymentService.processBookingPayment(bookingResult.bookingNumber, {
+      paymentMethod: paymentData.paymentMethod
+    });
+
+    console.log('Payment response:', data);
+
+    if (data.data && data.data.success) {
+      console.log('Payment processed successfully, updating booking result:', data.data.data);
+      setBookingResult(data.data.data);
+      setStep(6);
+    } else {
+      console.error('Payment failed:', data);
+      window.alert(data.data?.message || data.message || 'Payment update failed.');
+    }
+  } catch (error) {
+    console.error('Payment processing failed:', error);
+    window.alert(error.message || 'Payment processing failed. Please try again.');
+  } finally {
+    setProcessingPayment(false);
+  }
+};
 
   const renderCurrentStep = () => {
     switch (step) {

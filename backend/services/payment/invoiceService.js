@@ -62,33 +62,116 @@ class InvoiceService {
     try {
       const booking = await Booking.findById(bookingId)
         .populate('userId', 'name email')
-        .populate('roomId', 'title basePrice');
+        .populate('roomId', 'title basePrice seasonalPricing');
 
       if (!booking) {
         throw new Error('Booking not found');
       }
 
-      if (booking.status !== 'Pending Approval' && booking.status !== 'Confirmed') {
-        throw new Error(`Cannot create invoice for booking with status: ${booking.status}`);
+      // Check if invoice already exists for this booking
+      const existingInvoice = await Invoice.findOne({ bookingId: booking._id });
+      if (existingInvoice) {
+        throw new Error('Invoice already exists for this booking');
       }
 
       const settings = await this.getSettings();
 
-      // Calculate amounts
-      const subtotal = booking.totalPrice || booking.costBreakdown?.total || 0;
+      if (booking.status !== 'Pending Approval' &&
+          booking.status !== 'Accepted' &&
+          booking.status !== 'On Hold' &&
+          booking.status !== 'Confirmed' &&
+          booking.status !== 'Approved - Payment Pending' &&
+          booking.status !== 'Approved - Payment Processing') {
+        throw new Error(`Cannot create invoice for booking with status: ${booking.status}`);
+      }
+
+      // Calculate amounts from booking cost breakdown
+      const subtotal = booking.costBreakdown?.subtotal || booking.totalPrice || 0;
       const taxRate = (settings.financialSettings?.taxRate || 0) / 100;
       const serviceFeeRate = (settings.financialSettings?.serviceFee || 0) / 100;
 
-      const tax = subtotal * taxRate;
-      const serviceFee = subtotal * serviceFeeRate;
-      const total = subtotal + tax + serviceFee;
+      const tax = booking.costBreakdown?.tax || (subtotal * taxRate);
+      const serviceFee = booking.costBreakdown?.serviceFee || (subtotal * serviceFeeRate);
+      const mealPlanCost = booking.costBreakdown?.mealPlanCost || 0;
 
       // Add any additional charges
       const additionalChargesAmount = Object.values(additionalCharges).reduce((sum, charge) => sum + (charge.amount || 0), 0);
-      const finalTotal = total + additionalChargesAmount;
+      const finalTotal = subtotal + tax + serviceFee + mealPlanCost + additionalChargesAmount;
 
       // Generate invoice number
       const invoiceNumber = await this.generateInvoiceNumber();
+
+      // Create invoice items based on booking breakdown
+      const invoiceItems = [];
+
+      // Room cost item
+      invoiceItems.push({
+        description: `${booking.roomId.title} - ${booking.costBreakdown?.nights || 0} nights`,
+        quantity: booking.costBreakdown?.nights || 1,
+        unitPrice: booking.costBreakdown?.roomRate || booking.roomId.basePrice || 0,
+        amount: booking.costBreakdown?.subtotal || booking.totalPrice || 0,
+        type: 'room'
+      });
+
+      // Meal plan items
+      if (mealPlanCost > 0 && booking.costBreakdown?.mealBreakdown) {
+        if (booking.costBreakdown.mealBreakdown.plan) {
+          // Standard meal plan
+          invoiceItems.push({
+            description: `${booking.costBreakdown.mealBreakdown.plan} for ${booking.costBreakdown.mealBreakdown.guests} guests`,
+            quantity: booking.costBreakdown.mealBreakdown.nights || 1,
+            unitPrice: booking.costBreakdown.mealBreakdown.rate || 0,
+            amount: booking.costBreakdown.mealPlanCost || 0,
+            type: 'meal_plan'
+          });
+        } else if (booking.costBreakdown.mealBreakdown.meals) {
+          // Individual meals
+          booking.costBreakdown.mealBreakdown.meals.forEach(meal => {
+            invoiceItems.push({
+              description: meal.name,
+              quantity: meal.quantity,
+              unitPrice: meal.price,
+              amount: meal.total,
+              type: 'meal'
+            });
+          });
+        }
+      }
+
+      // Tax item
+      if (tax > 0) {
+        invoiceItems.push({
+          description: `Tax (${settings.financialSettings?.taxRate || 0}%)`,
+          quantity: 1,
+          unitPrice: tax,
+          amount: tax,
+          type: 'tax'
+        });
+      }
+
+      // Service fee item
+      if (serviceFee > 0) {
+        invoiceItems.push({
+          description: `Service Fee (${settings.financialSettings?.serviceFee || 0}%)`,
+          quantity: 1,
+          unitPrice: serviceFee,
+          amount: serviceFee,
+          type: 'service_fee'
+        });
+      }
+
+      // Additional charges
+      Object.entries(additionalCharges).forEach(([key, charge]) => {
+        if (charge.amount > 0) {
+          invoiceItems.push({
+            description: charge.description || key,
+            quantity: charge.quantity || 1,
+            unitPrice: charge.unitPrice || charge.amount,
+            amount: charge.amount,
+            type: 'additional'
+          });
+        }
+      });
 
       // Create invoice
       const invoice = new Invoice({
@@ -99,9 +182,10 @@ class InvoiceService {
         currency: settings.currency || 'LKR',
         taxRate: settings.financialSettings?.taxRate || 0,
         discountApplied: 0, // Could be calculated from booking discounts
-        paymentStatus: 'Pending',
-        paymentMethod: 'Online', // Default, can be changed during payment
+        status: booking.status === 'Accepted' || booking.status === 'Confirmed' ? 'Sent - Payment Pending' : 'Draft',
+        paymentMethod: booking.paymentMethod === 'card' ? 'Online' : booking.paymentMethod === 'cash' ? 'Cash' : 'Online',
         issuedAt: new Date(),
+        items: invoiceItems,
         // Additional charges breakdown
         additionalCharges: Object.keys(additionalCharges).length > 0 ? additionalCharges : undefined
       });
@@ -131,13 +215,20 @@ class InvoiceService {
         throw new Error('Invoice not found');
       }
 
-      if (invoice.paymentStatus !== 'Pending') {
-        throw new Error(`Invoice is already ${invoice.paymentStatus}`);
+      if (invoice.status !== 'Sent - Payment Pending' && invoice.status !== 'Draft') {
+        throw new Error(`Invoice is already ${invoice.status}`);
       }
 
-      // Update invoice status
-      invoice.paymentStatus = 'Pending Payment';
-      invoice.paymentMethod = paymentMethod;
+      // Update invoice status based on booking status
+      const bookingStatus = invoice.bookingId?.status;
+      if (bookingStatus === 'Accepted' || bookingStatus === 'Confirmed' ||
+          bookingStatus === 'Approved - Payment Pending' || bookingStatus === 'Approved - Payment Processing') {
+        invoice.status = 'Sent - Payment Pending';
+        invoice.paymentMethod = invoice.bookingId.paymentMethod === 'card' ? 'Online' : invoice.bookingId.paymentMethod === 'cash' ? 'Cash' : 'Online';
+      } else {
+        invoice.status = 'Draft';
+        invoice.paymentMethod = 'Online';
+      }
       await invoice.save();
 
       // Send invoice ready notification
@@ -177,30 +268,25 @@ class InvoiceService {
         throw new Error('Invoice not found');
       }
 
-      if (invoice.paymentStatus === 'Paid') {
+      if (invoice.status === 'Paid') {
         throw new Error('Invoice is already paid');
       }
 
       // Update invoice
-      invoice.paymentStatus = 'Paid';
+      invoice.status = 'Paid';
       invoice.paymentId = paymentId;
       invoice.transactionId = transactionData.transactionId;
       invoice.paidAt = new Date();
       await invoice.save();
 
-      // Update booking status if linked
+      // Update booking status if linked (remove paymentStatus update since field doesn't exist)
       if (invoice.bookingId) {
+        const Booking = (await import("../../models/Booking.js")).default;
         const booking = invoice.bookingId;
-        if (booking.status === 'Pending Approval') {
-          // Move to On Hold for admin approval
-          booking.status = 'On Hold';
-          booking.holdUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour hold
-          booking.lastStatusChange = new Date();
-          await booking.save();
-
-          // Notify admin for approval
-          await this.notifyAdminForApproval(booking, invoice);
-        }
+        booking.status = 'Confirmed'; // Set to confirmed since payment is completed
+        booking.paidAt = new Date();
+        await booking.save();
+        console.log(`✅ Booking ${booking.bookingNumber} status updated to Confirmed`);
       }
 
       // Send payment confirmation
@@ -240,12 +326,12 @@ class InvoiceService {
         throw new Error('Invoice not found');
       }
 
-      if (invoice.paymentStatus !== 'Paid') {
+      if (invoice.status !== 'Paid') {
         throw new Error('Cannot refund unpaid invoice');
       }
 
       // Update invoice status
-      invoice.paymentStatus = 'Refunded';
+      invoice.status = 'Refunded';
       await invoice.save();
 
       // Send refund notification
@@ -334,7 +420,7 @@ class InvoiceService {
       const query = { userId };
 
       if (status) {
-        query.paymentStatus = status;
+        query.status = status; // Filter by consolidated status instead of paymentStatus
       }
 
       const invoices = await Invoice.find(query)

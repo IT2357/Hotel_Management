@@ -78,7 +78,7 @@ class AutoApprovalService {
         const user = await User.findById(userId);
         const existingBookings = await Booking.countDocuments({
           userId: userId,
-          status: { $in: ['Confirmed', 'Completed'] }
+          status: { $in: ['Accepted', 'Completed'] }
         });
 
         if (existingBookings === 0) {
@@ -232,7 +232,7 @@ class AutoApprovalService {
       }
 
       // Auto-approve the booking
-      booking.status = 'Confirmed';
+      booking.status = 'Accepted';
       booking.confirmedAt = new Date();
       booking.approvalNotes = 'Auto-approved based on admin settings';
       booking.reviewedBy = 'system';
@@ -297,11 +297,11 @@ class AutoApprovalService {
 
       const totalBookings = await Booking.countDocuments();
       const autoApproved = await Booking.countDocuments({
-        status: 'Confirmed',
+        status: 'Accepted',
         reviewedBy: 'system'
       });
       const manuallyApproved = await Booking.countDocuments({
-        status: 'Confirmed',
+        status: 'Accepted',
         reviewedBy: { $ne: 'system' }
       });
       const pendingApproval = await Booking.countDocuments({

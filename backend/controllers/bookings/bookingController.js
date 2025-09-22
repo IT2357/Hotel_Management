@@ -119,54 +119,12 @@ export const createBooking = async (req, res) => {
       }
     }
 
-    // Check room availability
-    const availability = await RoomService.checkRoomAvailability(roomId, checkIn, checkOut);
-    if (!availability.available) {
-      return res.status(400).json({
-        success: false,
-        message: availability.reason,
-        conflicts: availability.conflicts,
-        operationalHours: availability.operationalHours
-      });
-    }
-
-    // Determine booking status based on payment method and admin settings
-    let bookingStatus = 'Pending Approval';
+    // Determine booking status based on payment method
+    let bookingStatus = 'Pending Approval'; // Default to pending approval
     let requiresApproval = true;
 
-    if (paymentMethod === 'card') {
-      // Check admin settings for card payment approval
-      if (!settings.cardPaymentApprovalRequired && !settings.requireApprovalForAllBookings) {
-        // Auto-approve card payments if not required by admin settings
-        bookingStatus = 'Confirmed';
-        requiresApproval = false;
-      }
-    } else if (paymentMethod === 'bank') {
-      // Bank transfers always require approval based on admin settings
-      if (!settings.bankTransferApprovalRequired && !settings.requireApprovalForAllBookings) {
-        bookingStatus = 'Confirmed';
-        requiresApproval = false;
-      }
-    } else if (paymentMethod === 'cash') {
-      // Cash payments always require approval based on admin settings
-      if (!settings.cashPaymentApprovalRequired && !settings.requireApprovalForAllBookings) {
-        bookingStatus = 'Confirmed';
-        requiresApproval = false;
-      }
-    }
-
-    // Check auto-approval threshold if booking requires approval
-    if (requiresApproval && settings.autoApprovalThreshold) {
-      // Calculate total booking amount (this would need to be calculated based on room pricing)
-      // For now, simulate with a random amount or get from room pricing
-      const bookingAmount = 10000; // This should be calculated based on room pricing
-      if (bookingAmount <= settings.autoApprovalThreshold) {
-        bookingStatus = 'Confirmed';
-        requiresApproval = false;
-      }
-    }
-
-    // Create booking data with payment method
+    // All bookings now go through admin review to ensure proper validation
+    // The service will determine the final status based on payment method and settings
     const bookingData = {
       roomId,
       checkIn,
@@ -177,7 +135,7 @@ export const createBooking = async (req, res) => {
       selectedMeals: selectedMeals || [],
       source: "website",
       paymentMethod: paymentMethod || 'cash',
-      status: bookingStatus,
+      status: bookingStatus, // Let service determine final status
       requiresApproval
     };
 
@@ -187,28 +145,20 @@ export const createBooking = async (req, res) => {
       userId: req.user._id
     });
 
-    // If booking was auto-approved, set payment status to pending
-    if (bookingStatus === 'Confirmed') {
-      booking.status = 'Confirmed';
-      booking.confirmedAt = new Date();
-      booking.requiresReview = false;
-
-      // Set payment status to pending if not already set
-      if (!booking.paymentStatus) {
-        booking.paymentStatus = 'pending';
-      }
-
-      await booking.save();
-    }
-
     const responseData = {
       bookingId: booking._id,
       bookingNumber: booking.bookingNumber,
       status: booking.status,
-      paymentStatus: booking.paymentStatus,
       totalAmount: booking.totalPrice,
       paymentMethod: booking.paymentMethod,
-      requiresApproval: booking.status === 'Pending Approval'
+      requiresApproval: booking.status === 'Pending Approval',
+      checkIn: booking.checkIn,
+      checkOut: booking.checkOut,
+      guests: booking.guests,
+      roomTitle: booking.roomId?.title,
+      roomNumber: booking.roomId?.roomNumber,
+      specialRequests: booking.specialRequests,
+      foodPlan: booking.foodPlan
     };
 
     // Add approval information to response
@@ -320,7 +270,7 @@ export const cancelBooking = async (req, res) => {
     }
 
     // Check if booking can be cancelled
-    if (booking.status === 'Confirmed') {
+    if (booking.status === 'Approved - Payment Pending' || booking.status === 'Approved - Payment Processing' || booking.status === 'Confirmed') {
       return res.status(400).json({
         success: false,
         message: "Cannot cancel confirmed booking. Please contact hotel staff.",
@@ -469,40 +419,55 @@ export const approveBooking = async (req, res) => {
       });
     }
 
-    if (booking.status !== 'Pending Approval') {
+    if (booking.status !== 'On Hold' && booking.status !== 'Pending Approval') {
       return res.status(400).json({
         success: false,
-        message: `Booking status is ${booking.status}, not pending approval`,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
       });
     }
 
-    // Update booking status
-    booking.status = 'Confirmed';
+    // Create invoice for cash payments BEFORE updating booking status
+    if (booking.paymentMethod === 'cash') {
+      try {
+        const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        booking.invoiceId = invoice._id;
+        console.log(`✅ Invoice created for cash booking ${booking.bookingNumber}`);
+      } catch (invoiceError) {
+        console.error('❌ Failed to create invoice for booking:', invoiceError.message);
+        // For cash payments, if invoice already exists, that's okay - just log it
+        if (!invoiceError.message.includes('Invoice already exists')) {
+          console.error('❌ Unexpected invoice creation error:', invoiceError);
+        }
+        // Don't fail the approval if invoice creation fails
+      }
+    }
+
+    // Update booking status based on payment method
+    if (booking.paymentMethod === 'cash') {
+      booking.status = 'Approved - Payment Pending'; // Cash bookings are approved but payment is due at hotel
+    } else {
+      // For card/bank payments, check if payment is already completed
+      const existingPayment = await Payment.findOne({
+        bookingId: booking._id,
+        status: 'completed'
+      });
+
+      if (existingPayment) {
+        booking.status = 'Confirmed'; // Payment completed, booking confirmed
+      } else {
+        booking.status = 'Approved - Payment Processing'; // Payment was initiated but not completed
+      }
+    }
+
     booking.confirmedAt = new Date();
     booking.confirmedBy = adminId;
     booking.approvalNotes = approvalNotes;
     booking.reviewedBy = adminId;
     booking.reviewedAt = new Date();
     booking.requiresReview = false;
-    await booking.save();
 
-    // Send notification to guest
-    await NotificationService.sendNotification({
-      userId: booking.userId._id,
-      userType: booking.userId.role,
-      type: 'booking_approval',
-      title: 'Booking Approved',
-      message: `Your booking for ${booking.roomId.title} has been approved!`,
-      channel: 'email',
-      metadata: {
-        bookingId: booking._id,
-        bookingNumber: booking.bookingNumber,
-        roomName: booking.roomId.title,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
-        totalAmount: booking.totalPrice
-      }
-    });
+    await booking.save();
 
     sendSuccess(res, {
       bookingId: booking._id,
@@ -511,6 +476,7 @@ export const approveBooking = async (req, res) => {
     }, "Booking approved successfully");
 
   } catch (error) {
+    console.error('Approve booking error:', error);
     handleError(res, error, "Failed to approve booking");
   }
 };
@@ -547,10 +513,10 @@ export const rejectBooking = async (req, res) => {
       });
     }
 
-    if (booking.status !== 'Pending Approval') {
+    if (booking.status !== 'On Hold' && booking.status !== 'Pending Approval') {
       return res.status(400).json({
         success: false,
-        message: `Booking status is ${booking.status}, not pending approval`,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
       });
     }
 
@@ -575,22 +541,27 @@ export const rejectBooking = async (req, res) => {
     }
 
     // Send notification to guest
-    await NotificationService.sendNotification({
-      userId: booking.userId._id,
-      userType: booking.userId.role,
-      type: 'booking_rejection',
-      title: 'Booking Rejected',
-      message: `Your booking for ${booking.roomId.title} has been rejected. Reason: ${reason}`,
-      channel: 'email',
-      metadata: {
-        bookingId: booking._id,
-        bookingNumber: booking.bookingNumber,
-        roomName: booking.roomId.title,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
-        rejectionReason: reason
-      }
-    });
+    try {
+      await NotificationService.sendNotification({
+        userId: booking.userId._id,
+        userType: booking.userId.role,
+        type: 'booking_rejection',
+        title: 'Booking Rejected',
+        message: `Your booking for ${booking.roomId.title} has been rejected. Reason: ${reason}`,
+        channel: 'email',
+        metadata: {
+          bookingId: booking._id,
+          bookingNumber: booking.bookingNumber,
+          roomName: booking.roomId.title,
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          rejectionReason: reason
+        }
+      });
+    } catch (notificationError) {
+      console.error('❌ Failed to send rejection notification:', notificationError);
+      // Don't fail the rejection if notification fails
+    }
 
     sendSuccess(res, {
       bookingId: booking._id,
@@ -681,15 +652,20 @@ export const putOnHold = async (req, res) => {
 // Get booking statistics
 export const getBookingStats = async (req, res) => {
   try {
-    const { period = '30' } = req.query; // days
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(period));
+    const { period = 'all' } = req.query; // 'all' for all time, or number of days
+    let matchStage = {};
+
+    if (period !== 'all') {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(period));
+      matchStage = {
+        createdAt: { $gte: startDate }
+      };
+    }
 
     const stats = await Booking.aggregate([
       {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
+        $match: matchStage
       },
       {
         $group: {
@@ -699,7 +675,7 @@ export const getBookingStats = async (req, res) => {
             $sum: { $cond: [{ $eq: ["$status", "Pending Approval"] }, 1, 0] }
           },
           confirmed: {
-            $sum: { $cond: [{ $eq: ["$status", "Confirmed"] }, 1, 0] }
+            $sum: { $cond: [{ $in: ["$status", ["Confirmed", "Approved - Payment Pending", "Approved - Payment Processing"]] }, 1, 0] }
           },
           onHold: {
             $sum: { $cond: [{ $eq: ["$status", "On Hold"] }, 1, 0] }
@@ -710,7 +686,7 @@ export const getBookingStats = async (req, res) => {
           cancelled: {
             $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] }
           },
-          totalRevenue: { $sum: "$totalPrice" }
+          totalRevenue: { $sum: "$costBreakdown.total" } // Use costBreakdown.total instead of totalPrice
         }
       }
     ]);
@@ -735,6 +711,7 @@ export const getBookingStats = async (req, res) => {
 // Bulk approve bookings
 export const bulkApproveBookings = async (req, res) => {
   try {
+    console.log('🔄 Bulk approve bookings called with:', req.body);
     const { bookingIds, approvalNotes } = req.body;
     const adminId = req.user._id;
 
@@ -753,6 +730,7 @@ export const bulkApproveBookings = async (req, res) => {
 
     for (const bookingId of bookingIds) {
       try {
+        console.log(`🔄 Processing booking ${bookingId} for approval`);
         const booking = await Booking.findById(bookingId)
           .populate('userId')
           .populate('roomId');
@@ -762,41 +740,79 @@ export const bulkApproveBookings = async (req, res) => {
           continue;
         }
 
-        if (booking.status !== 'Pending Approval') {
-          results.alreadyProcessed.push({
-            bookingId,
-            reason: `Booking status is ${booking.status}, not pending approval`
+        if (booking.status !== 'On Hold' && booking.status !== 'Pending Approval') {
+          return res.status(400).json({
+            success: false,
+            message: `Booking status is ${booking.status}, not on hold for approval`,
           });
-          continue;
         }
 
-        // Update booking status
-        booking.status = 'Confirmed';
+        // Create invoice for cash payments BEFORE updating booking status
+        if (booking.paymentMethod === 'cash') {
+          try {
+            const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+            const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+            booking.invoiceId = invoice._id;
+            console.log(`✅ Invoice created for cash booking ${booking.bookingNumber}`);
+          } catch (invoiceError) {
+            console.error('❌ Failed to create invoice for booking:', invoiceError.message);
+            // For cash payments, if invoice already exists, that's okay - just log it
+            if (!invoiceError.message.includes('Invoice already exists')) {
+              console.error('❌ Unexpected invoice creation error:', invoiceError);
+            }
+            // Don't fail the approval if invoice creation fails
+          }
+        }
+
+        // Update booking status based on payment method
+        if (booking.paymentMethod === 'cash') {
+          booking.status = 'Approved - Payment Pending'; // Cash bookings are approved but payment is due at hotel
+        } else {
+          // For card/bank payments, check if payment is already completed
+          const existingPayment = await Payment.findOne({
+            bookingId: booking._id,
+            status: 'completed'
+          });
+
+          if (existingPayment) {
+            booking.status = 'Confirmed'; // Payment completed, booking confirmed
+          } else {
+            booking.status = 'Approved - Payment Processing'; // Payment was initiated but not completed
+          }
+        }
+
         booking.confirmedAt = new Date();
         booking.confirmedBy = adminId;
         booking.approvalNotes = approvalNotes;
         booking.reviewedBy = adminId;
         booking.reviewedAt = new Date();
         booking.requiresReview = false;
+
         await booking.save();
+        console.log(`✅ Booking ${booking.bookingNumber} (${booking._id}) status updated to Accepted`);
 
         // Send notification to guest
-        await NotificationService.sendNotification({
-          userId: booking.userId._id,
-          userType: booking.userId.role,
-          type: 'booking_approval',
-          title: 'Booking Approved',
-          message: `Your booking for ${booking.roomId.title} has been approved!`,
-          channel: 'email',
-          metadata: {
-            bookingId: booking._id,
-            bookingNumber: booking.bookingNumber,
-            roomName: booking.roomId.title,
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            totalAmount: booking.totalPrice
-          }
-        });
+        try {
+          await NotificationService.sendNotification({
+            userId: booking.userId._id,
+            userType: booking.userId.role,
+            type: 'booking_approval',
+            title: 'Booking Approved',
+            message: `Your booking for ${booking.roomId.title} has been approved!`,
+            channel: 'email',
+            metadata: {
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              roomName: booking.roomId.title,
+              checkIn: booking.checkIn,
+              checkOut: booking.checkOut,
+              totalAmount: booking.totalPrice
+            }
+          });
+        } catch (notificationError) {
+          console.error('❌ Failed to send bulk approval notification:', notificationError);
+          // Don't fail the approval if notification fails
+        }
 
         results.successful.push({
           bookingId: booking._id,
@@ -824,6 +840,7 @@ export const bulkApproveBookings = async (req, res) => {
 // Bulk reject bookings
 export const bulkRejectBookings = async (req, res) => {
   try {
+    console.log('❌ Bulk reject bookings called with:', req.body);
     const { bookingIds, reason } = req.body;
     const adminId = req.user._id;
 
@@ -858,10 +875,10 @@ export const bulkRejectBookings = async (req, res) => {
           continue;
         }
 
-        if (booking.status !== 'Pending Approval') {
+        if (booking.status !== 'On Hold' && booking.status !== 'Pending Approval') {
           results.alreadyProcessed.push({
             bookingId,
-            reason: `Booking status is ${booking.status}, not pending approval`
+            reason: `Booking status is ${booking.status}, not on hold for approval`
           });
           continue;
         }
@@ -874,6 +891,7 @@ export const bulkRejectBookings = async (req, res) => {
         booking.reviewedBy = adminId;
         booking.reviewedAt = new Date();
         await booking.save();
+        console.log(`❌ Booking ${booking.bookingNumber} (${booking._id}) status updated to Rejected`);
 
         // Create refund request automatically
         try {
@@ -887,22 +905,27 @@ export const bulkRejectBookings = async (req, res) => {
         }
 
         // Send notification to guest
-        await NotificationService.sendNotification({
-          userId: booking.userId._id,
-          userType: booking.userId.role,
-          type: 'booking_rejection',
-          title: 'Booking Rejected',
-          message: `Your booking for ${booking.roomId.title} has been rejected. Reason: ${reason}`,
-          channel: 'email',
-          metadata: {
-            bookingId: booking._id,
-            bookingNumber: booking.bookingNumber,
-            roomName: booking.roomId.title,
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            rejectionReason: reason
-          }
-        });
+        try {
+          await NotificationService.sendNotification({
+            userId: booking.userId._id,
+            userType: booking.userId.role,
+            type: 'booking_rejection',
+            title: 'Booking Rejected',
+            message: `Your booking for ${booking.roomId.title} has been rejected. Reason: ${reason}`,
+            channel: 'email',
+            metadata: {
+              bookingId: booking._id,
+              bookingNumber: booking.bookingNumber,
+              roomName: booking.roomId.title,
+              checkIn: booking.checkIn,
+              checkOut: booking.checkOut,
+              rejectionReason: reason
+            }
+          });
+        } catch (notificationError) {
+          console.error('❌ Failed to send bulk rejection notification:', notificationError);
+          // Don't fail the rejection if notification fails
+        }
 
         results.successful.push({
           bookingId: booking._id,
@@ -930,6 +953,7 @@ export const bulkRejectBookings = async (req, res) => {
 // Bulk put bookings on hold
 export const bulkHoldBookings = async (req, res) => {
   try {
+    console.log('⏸️ Bulk hold bookings called with:', req.body);
     const { bookingIds, holdUntil, reason } = req.body;
     const adminId = req.user._id;
 
@@ -955,16 +979,21 @@ export const bulkHoldBookings = async (req, res) => {
 
     for (const bookingId of bookingIds) {
       try {
+        console.log(`⏸️ Processing booking ${bookingId}`);
         const booking = await Booking.findById(bookingId)
           .populate('userId')
           .populate('roomId');
 
         if (!booking) {
+          console.log(`❌ Booking ${bookingId} not found`);
           results.failed.push({ bookingId, reason: 'Booking not found' });
           continue;
         }
 
+        console.log(`📋 Found booking ${booking.bookingNumber} with status ${booking.status}`);
+
         if (booking.status !== 'Pending Approval') {
+          console.log(`⚠️ Booking ${booking.bookingNumber} status is ${booking.status}, not pending approval`);
           results.alreadyProcessed.push({
             bookingId,
             reason: `Cannot put booking on hold - status is ${booking.status}`
@@ -980,6 +1009,7 @@ export const bulkHoldBookings = async (req, res) => {
         booking.reviewedAt = new Date();
         booking.lastStatusChange = new Date();
         await booking.save();
+        console.log(`⏸️ Booking ${booking.bookingNumber} (${booking._id}) status updated to On Hold`);
 
         // Send notification to guest
         await NotificationService.sendNotification({
@@ -1003,6 +1033,7 @@ export const bulkHoldBookings = async (req, res) => {
         });
 
       } catch (error) {
+        console.error(`❌ Error processing booking ${bookingId}:`, error);
         results.failed.push({
           bookingId,
           reason: error.message
@@ -1047,24 +1078,32 @@ export const processBookingPayment = async (req, res) => {
       });
     }
 
-    // Check if booking is already confirmed (has successful payment)
-    if (booking.status === 'Confirmed') {
-      // Check if there's already a successful payment
-      const existingPayment = await Payment.findOne({
-        bookingId: booking._id, // Use MongoDB ObjectId
-        status: 'completed'
-      });
+    // Check if booking is already accepted (has successful payment)
+    if (booking.status === 'Confirmed' || booking.status === 'Approved - Payment Processing' || booking.status === 'Approved - Payment Pending') {
+      // Check if there's already a successful payment for card/bank bookings
+      if (booking.paymentMethod !== 'cash') {
+        const existingPayment = await Payment.findOne({
+          bookingId: booking._id,
+          status: 'completed'
+        });
 
-      if (existingPayment) {
+        if (existingPayment) {
+          return res.status(400).json({
+            success: false,
+            message: "Payment has already been completed for this booking",
+            existingPayment: existingPayment._id
+          });
+        }
+
+        // If no successful payment exists, allow re-processing
+        console.log('Booking is confirmed but no successful payment found, allowing re-processing');
+      } else {
+        // For cash bookings that are already confirmed, don't allow re-processing
         return res.status(400).json({
           success: false,
-          message: "Payment has already been completed for this booking",
-          existingPayment: existingPayment._id
+          message: "Cash payment booking is already confirmed",
         });
       }
-
-      // If no successful payment exists, allow re-processing
-      console.log('Booking is confirmed but no successful payment found, allowing re-processing');
     }
 
     // Check if booking is cancelled or rejected
@@ -1105,6 +1144,32 @@ export const processBookingPayment = async (req, res) => {
 
     // For card and PayPal payments, initiate PayHere payment
     if (paymentMethod === 'card' || paymentMethod === 'paypal') {
+      // Check room availability before processing payment
+      const availability = await RoomService.checkRoomAvailability(booking.roomId, booking.checkIn, booking.checkOut);
+      if (!availability.available) {
+        return res.status(400).json({
+          success: false,
+          message: availability.reason,
+          conflicts: availability.conflicts,
+          operationalHours: availability.operationalHours
+        });
+      }
+
+      // Create invoice for the booking when payment begins
+      try {
+        const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        booking.invoiceId = invoice._id;
+        await booking.save();
+        console.log(`✅ Invoice created for booking ${booking.bookingNumber}`);
+      } catch (invoiceError) {
+        console.error('❌ Failed to create invoice for payment:', invoiceError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create invoice for payment processing"
+        });
+      }
+
       const paymentSession = payHereService.createPaymentSession({
         orderId: booking.bookingNumber,
         amount: booking.totalPrice,
@@ -1135,9 +1200,10 @@ export const processBookingPayment = async (req, res) => {
 
       await payment.save();
 
-      // Update booking status to processing payment
-      booking.paymentStatus = 'processing';
-      booking.paymentId = payment._id;
+      // Update booking status to On Hold for admin approval
+      booking.status = 'On Hold';
+      booking.holdUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour hold for admin approval
+      booking.lastStatusChange = new Date();
       await booking.save();
 
       sendSuccess(res, {
@@ -1149,18 +1215,39 @@ export const processBookingPayment = async (req, res) => {
       }, "Payment initiated successfully");
 
     } else if (paymentMethod === 'cash' || paymentMethod === 'bank') {
-      // For cash and bank payments, mark as pending payment
-      booking.paymentStatus = 'pending';
+      // For cash and bank payments
+      const originalPaymentMethod = booking.paymentMethod;
+
+      // If changing from card/paypal to cash/bank, reset status to Pending Approval
+      if ((originalPaymentMethod === 'card' || originalPaymentMethod === 'paypal') &&
+          (paymentMethod === 'cash' || paymentMethod === 'bank') &&
+          booking.status === 'Confirmed') {
+        console.log(`🔄 Payment method changed from ${originalPaymentMethod} to ${paymentMethod}, resetting status to Pending Approval`);
+        booking.status = 'Pending Approval';
+        booking.invoiceId = undefined; // Remove invoice reference since status changed
+        // TODO: Maybe cancel the existing invoice or mark it as void
+      }
+      // If changing from cash/bank to card/paypal, set to On Hold for admin approval
+      else if ((originalPaymentMethod === 'cash' || originalPaymentMethod === 'bank') &&
+               (paymentMethod === 'card' || paymentMethod === 'paypal') &&
+               booking.status === 'Pending Approval') {
+        console.log(`🔄 Payment method changed from ${originalPaymentMethod} to ${paymentMethod}, setting status to On Hold for admin approval`);
+        booking.status = 'On Hold';
+        booking.holdUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour hold for admin approval
+      }
+      // If changing from cash/bank to cash/bank, keep existing status
+      // If booking is already confirmed, keep it confirmed
+
       booking.paymentMethod = paymentMethod;
+      booking.lastStatusChange = new Date();
       await booking.save();
 
       sendSuccess(res, {
         bookingId: booking._id,
         bookingNumber: booking.bookingNumber,
         status: booking.status,
-        paymentStatus: booking.paymentStatus,
         paymentMethod: booking.paymentMethod,
-        requiresApproval: booking.status === 'Pending Approval',
+        requiresApproval: booking.status !== 'Confirmed',
         checkIn: booking.checkIn,
         checkOut: booking.checkOut,
         guests: booking.guests,
