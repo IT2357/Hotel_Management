@@ -1,12 +1,7 @@
-import { Link } from 'react-router-dom';
-import { useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
-import useAuth from '../../hooks/useAuth';
+// 📁 frontend/pages/guest/GuestDashboardPage.jsx
+import { Link } from "react-router-dom";
 
-export default function GuestDashboardPage() {
-  const { user } = useContext(AuthContext);
-  const { logout } = useAuth();
-
+const GuestDashboardPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-tamil-cream via-tamil-brown/20 to-tamil-red/10">
       {/* Hero Section */}
@@ -14,7 +9,7 @@ export default function GuestDashboardPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="animate-fade-in">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              வணக்கம், {user?.name?.split(' ')[0]}! 👋
+              வணக்கம், Guest! 👋
             </h1>
             <p className="text-xl md:text-2xl opacity-90 mb-8">
               Your authentic Jaffna hospitality experience awaits
@@ -57,7 +52,7 @@ export default function GuestDashboardPage() {
                 Profile
               </Link>
               <button
-                onClick={logout}
+                onClick={() => {}}
                 className="bg-tamil-red hover:bg-tamil-red/80 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
                 Logout
@@ -155,7 +150,7 @@ export default function GuestDashboardPage() {
         {/* Logout Button */}
         <div className="text-center mt-12">
           <button
-            onClick={logout}
+            onClick={() => {}}
             className="px-8 py-3 bg-gradient-to-r from-tamil-red to-tamil-maroon text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-semibold"
           >
             வெளியேறு (Logout)
@@ -164,7 +159,7 @@ export default function GuestDashboardPage() {
       </div>
     </div>
   );
-}
+};
 
 function DashboardCard({ title, description, to, icon, color, bgColor }) {
   return (
@@ -188,3 +183,5 @@ function DashboardCard({ title, description, to, icon, color, bgColor }) {
     </Link>
   );
 }
+
+export default GuestDashboardPage;

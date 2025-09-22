@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Phone, Mail, MapPin, CreditCard, Truck, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import api from '../services/api';
 
 const CheckoutPage = () => {
   const [orderType, setOrderType] = useState('dine-in');
@@ -17,25 +19,8 @@ const CheckoutPage = () => {
   const [orderDetails, setOrderDetails] = useState(null);
 
   const { user, logout } = useAuth();
+  const { items: cartItems, clearCart } = useCart();
   const navigate = useNavigate();
-
-  // Sample cart items (in real app, this would come from cart context)
-  const cartItems = [
-    {
-      id: 1,
-      name: 'Jaffna Crab Curry',
-      price: 2850,
-      quantity: 2,
-      image: 'https://images.unsplash.com/photo-1626776877761-72e2a7c6d95c?w=100'
-    },
-    {
-      id: 2,
-      name: 'VALDORA Special Mutton Curry',
-      price: 2250,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1609167830220-7164aa3607c8?w=100'
-    }
-  ];
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const tax = subtotal * 0.15;
@@ -48,27 +33,137 @@ const CheckoutPage = () => {
     navigate('/login');
   };
 
-  const handlePlaceOrder = () => {
-    // Generate order details
-    const orderId = `VAL${Date.now().toString().slice(-8)}`;
-    const orderData = {
-      orderId,
-      orderType,
-      customerInfo,
-      paymentMethod,
-      items: cartItems,
-      subtotal,
-      tax,
-      serviceCharge,
-      deliveryFee,
-      total,
-      orderDate: new Date().toISOString(),
-      estimatedTime: orderType === 'dine-in' ? '30 minutes' : orderType === 'takeaway' ? '20 minutes' : '45 minutes'
-    };
+  // Sri Lankan phone number validation
+  const validateSriLankanPhone = (phone) => {
+    // Remove all spaces, dashes, and parentheses
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
 
-    setOrderDetails(orderData);
-    setOrderPlaced(true);
+    // Check various Sri Lankan phone formats
+    const patterns = [
+      /^\+94[0-9]{9}$/,  // +947XXXXXXXX
+      /^94[0-9]{9}$/,     // 947XXXXXXXX
+      /^0[0-9]{9}$/,      // 07XXXXXXXX or 011XXXXXXX
+    ];
+
+    return patterns.some(pattern => pattern.test(cleanPhone));
   };
+
+  // Email validation
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handlePlaceOrder = async () => {
+      // Validation
+      if (!customerInfo.name.trim()) {
+        alert('Please enter your full name');
+        return;
+      }
+      if (!customerInfo.email.trim()) {
+        alert('Please enter your email address');
+        return;
+      }
+      if (!validateEmail(customerInfo.email)) {
+        alert('Please enter a valid email address');
+        return;
+      }
+      if (!customerInfo.phone.trim()) {
+        alert('Please enter your phone number');
+        return;
+      }
+      if (!validateSriLankanPhone(customerInfo.phone)) {
+        alert('Please enter a valid Sri Lankan phone number (e.g., +94 77 123 4567 or 077 123 4567)');
+        return;
+      }
+      if (orderType === 'dine-in' && !customerInfo.tableNumber.trim()) {
+        alert('Please enter table number for dine-in orders');
+        return;
+      }
+      if (orderType === 'delivery' && !customerInfo.address.trim()) {
+        alert('Please enter delivery address');
+        return;
+      }
+
+     try {
+       // Prepare order data for API
+       const orderData = {
+         items: cartItems.map(item => ({
+           foodId: item.id,
+           quantity: item.quantity,
+           price: item.price,
+           name: item.name
+         })),
+         totalPrice: total,
+         orderType: orderType,
+         isTakeaway: orderType === 'takeaway',
+         customerDetails: {
+           customerName: customerInfo.name,
+           customerEmail: customerInfo.email,
+           customerPhone: customerInfo.phone,
+           deliveryAddress: orderType === 'delivery' ? customerInfo.address : (orderType === 'dine-in' ? `Table: ${customerInfo.tableNumber}` : ''),
+           specialInstructions: `Order Type: ${orderType}${orderType === 'dine-in' ? ` - Table: ${customerInfo.tableNumber}` : ''}`
+         },
+         paymentMethod: paymentMethod,
+         scheduledTime: null
+       };
+
+       // Create order via API
+       const response = await api.post('/food/orders/create', orderData);
+
+       if (response.data.success) {
+         const order = response.data.data;
+
+         // For card payment, redirect to PayHere with POST form submission
+         if (paymentMethod === 'card' && response.data.paymentResult?.gatewayUrl && response.data.paymentResult?.paymentParams) {
+           const { gatewayUrl, paymentParams } = response.data.paymentResult;
+
+           // Create a hidden form and submit it to PayHere
+           const form = document.createElement('form');
+           form.method = 'POST';
+           form.action = gatewayUrl;
+           form.style.display = 'none';
+
+           // Add payment parameters as hidden inputs
+           Object.keys(paymentParams).forEach(key => {
+             const input = document.createElement('input');
+             input.type = 'hidden';
+             input.name = key;
+             input.value = paymentParams[key];
+             form.appendChild(input);
+           });
+
+           // Append form to body and submit
+           document.body.appendChild(form);
+           form.submit();
+           return;
+         }
+
+         // For cash payment, show success page immediately
+         setOrderDetails({
+           orderId: order._id,
+           orderType,
+           customerInfo,
+           paymentMethod,
+           items: cartItems,
+           subtotal,
+           tax,
+           serviceCharge,
+           deliveryFee,
+           total,
+           orderDate: order.createdAt,
+           estimatedTime: orderType === 'dine-in' ? '30 minutes' : orderType === 'takeaway' ? '20 minutes' : '45 minutes'
+         });
+         setOrderPlaced(true);
+         clearCart();
+       } else {
+         throw new Error(response.data.message || 'Failed to create order');
+       }
+     } catch (error) {
+       console.error('Order creation error:', error);
+       alert('Failed to place order. Please try again.');
+     }
+   };
 
   if (orderPlaced && orderDetails) {
     return (
@@ -264,7 +359,7 @@ const CheckoutPage = () => {
                 </button>
               </div>
 
-              {orderType !== 'delivery' && (
+              {orderType === 'dine-in' && (
                 <div style={{ marginTop: '1rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
                     Table Number *
@@ -321,7 +416,7 @@ const CheckoutPage = () => {
                     type="tel"
                     value={customerInfo.phone}
                     onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                    placeholder="+94 XX XXX XXXX"
+                    placeholder="+94 77 123 4567 or 077 123 4567"
                     style={{
                       width: '100%',
                       padding: '0.75rem',

@@ -20,8 +20,8 @@ import {
   Settings,
   Trash2
 } from 'lucide-react';
-import authService from '../../services/authService';
-import api from '../../services/api';
+import authService from '../services/authService.js';
+import api from '../services/api.js';
 
 const AuthTestPage = () => {
   const [activeTab, setActiveTab] = useState('login');

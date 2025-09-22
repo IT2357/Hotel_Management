@@ -89,13 +89,13 @@ const MyOrdersPage = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4 mb-4">
             <Button
-              onClick={() => navigate('/guest/dashboard')}
+              onClick={() => navigate('/')}
               variant="ghost"
               size="sm"
               className="text-white hover:bg-white/20"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              Back to Home
             </Button>
           </div>
           <motion.div
@@ -148,19 +148,19 @@ const MyOrdersPage = () => {
                           Order #{order._id.slice(-8).toUpperCase()}
                         </CardTitle>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {formatDate(order.createdAt)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-4 w-4" />
-                            ${order.totalPrice.toFixed(2)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {order.isTakeaway ? 'Takeaway' : 'Dine-in'}
-                          </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {formatDate(order.createdAt)}
                         </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4" />
+                          LKR {order.totalPrice.toFixed(2)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {order.isTakeaway ? 'Takeaway' : 'Dine-in'}
+                        </div>
+                      </div>
                       </div>
                       <Badge className={`${getStatusColor(order.status)} border`}>
                         <div className="flex items-center gap-1">
@@ -179,8 +179,19 @@ const MyOrdersPage = () => {
                         {order.items.map((item, itemIndex) => (
                           <div key={itemIndex} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-lg flex items-center justify-center">
-                                <ChefHat className="h-6 w-6 text-orange-600" />
+                              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                {item.foodId?.imageUrl ? (
+                                  <img
+                                    src={item.foodId.imageUrl}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'block';
+                                    }}
+                                  />
+                                ) : null}
+                                <ChefHat className="h-6 w-6 text-orange-600" style={{ display: item.foodId?.imageUrl ? 'none' : 'block' }} />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-800">{item.name}</p>
@@ -188,8 +199,8 @@ const MyOrdersPage = () => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-semibold text-gray-800">${(item.price * item.quantity).toFixed(2)}</p>
-                              <p className="text-sm text-gray-600">${item.price.toFixed(2)} each</p>
+                              <p className="font-semibold text-gray-800">LKR {(item.price * item.quantity).toFixed(2)}</p>
+                              <p className="text-sm text-gray-600">LKR {item.price.toFixed(2)} each</p>
                             </div>
                           </div>
                         ))}
@@ -238,7 +249,7 @@ const MyOrdersPage = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-gray-800">
-                          Total: ${order.totalPrice.toFixed(2)}
+                          Total: LKR {order.totalPrice.toFixed(2)}
                         </p>
                       </div>
                     </div>

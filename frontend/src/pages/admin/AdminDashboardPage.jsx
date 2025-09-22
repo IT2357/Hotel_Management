@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
           { title: "Bookings", to: "/admin/bookings", description: "View and handle reservations." },
           { title: "Food Menu", to: "/admin/food/menu", description: "Manage restaurant menu items and AI generation." },
           { title: "Food Orders", to: "/admin/food/orders", description: "Monitor and manage food orders." },
-          { title: "AI Menu Extractor", to: "/admin/menu-upload", description: "Extract menu data from images, URLs, and files using AI." },
+          { title: "🤖 AI Menu Extractor", to: "/admin/menu-upload", description: "Analyze any food image like Google Lens and generate detailed menu items with AI." },
           { title: "Reports", to: "/admin/reports", description: "Analyze system performance and metrics." },
           { title: "Notifications", to: "/admin/notifications", description: "Manage system notifications and alerts." },
         ].map(({ title, description, to }) => (

@@ -1,28 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import api from '../services/api';
 
 export default function MenuPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [filteredItems, setFilteredItems] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [menuAvailable, setMenuAvailable] = useState(false);
   const { user, logout } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
 
-  const menuCategories = [
-    { id: 'all', name: 'All Items', count: 32 },
-    { id: 'appetizers', name: 'Appetizers & Starters', count: 8 },
-    { id: 'soups', name: 'Soups & Salads', count: 4 },
-    { id: 'rice', name: 'Rice & Biryanis', count: 6 },
-    { id: 'curries', name: 'Curries & Gravies', count: 8 },
-    { id: 'kottu', name: 'Kottu & Street Food', count: 4 },
-    { id: 'seafood', name: 'Seafood Specialties', count: 6 },
-    { id: 'desserts', name: 'Desserts & Sweets', count: 4 },
-    { id: 'beverages', name: 'Beverages', count: 3 }
-  ];
+  // Load menu items from API
+  useEffect(() => {
+    const loadMenuItems = async () => {
+      try {
+        console.log('🔍 DEBUG: Loading menu items from API');
+        const response = await api.get('/food/menu/items?limit=100');
+        const items = response.data.data || [];
 
-  const menuItems = [
+        console.log('🔍 DEBUG: Loaded menu items:', items.length);
+
+        if (items.length > 0) {
+          setMenuItems(items);
+          setMenuAvailable(true);
+
+          // Generate categories from items
+          const categoryMap = {};
+          items.forEach(item => {
+            const catId = item.category;
+            const catName = item.category?.name || 'Uncategorized';
+            if (!categoryMap[catId]) {
+              categoryMap[catId] = { name: catName, count: 0 };
+            }
+            categoryMap[catId].count++;
+          });
+
+          const categories = [
+            { id: 'all', name: 'All Items', count: items.length },
+            ...Object.entries(categoryMap).map(([id, data]) => ({
+              id: id,
+              name: data.name,
+              count: data.count
+            }))
+          ];
+
+          setMenuCategories(categories);
+        } else {
+          setMenuAvailable(false);
+        }
+      } catch (error) {
+        console.error('Error loading menu items:', error);
+        setMenuAvailable(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMenuItems();
+  }, []);
+
+  const [menuCategories, setMenuCategories] = useState([
+    { id: 'all', name: 'All Items', count: 0 }
+  ]);
+
+  // Legacy hardcoded items (will be removed once API is working)
+  const legacyMenuItems = [
     // Appetizers & Starters
     {
       id: 1,
@@ -263,23 +311,116 @@ export default function MenuPage() {
     let filtered = menuItems;
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.category === selectedCategory);
+      filtered = filtered.filter(item => {
+        const itemCategory = item.category;
+        return itemCategory === selectedCategory;
+      });
     }
 
     if (searchTerm) {
       filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     setFilteredItems(filtered);
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, menuItems]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const handleAddToCart = (item) => {
+    addToCart(item);
+    // Optional: Show a success message or navigate to cart
+    // For now, just add to cart silently
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{ fontFamily: "'Rubik', sans-serif", margin: 0, padding: 0, lineHeight: '1.6', color: '#333', backgroundColor: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: '4px solid #C41E3A', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }}></div>
+          <p>Loading menu...</p>
+        </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // Show message when menu is not available
+  if (!menuAvailable) {
+    return (
+      <div style={{ fontFamily: "'Rubik', sans-serif", margin: 0, padding: 0, lineHeight: '1.6', color: '#333', backgroundColor: '#fff', minHeight: '100vh' }}>
+        {/* Header */}
+        <header style={{ background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: '#333' }}>
+                <ArrowLeft size={20} />
+                Back to Home
+              </Link>
+            </div>
+
+            {/* VALDORA Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '40px', height: '40px', background: 'linear-gradient(45deg, #C41E3A, #FFD700)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                V
+              </div>
+              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>VALDORA</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              {user ? (
+                <button onClick={handleLogout} style={{ background: '#C41E3A', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
+              ) : (
+                <Link to="/login" style={{ background: '#C41E3A', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <User size={16} />
+                  Login
+                </Link>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Menu Not Available Message */}
+        <div style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          <div style={{ textAlign: 'center', maxWidth: '600px' }}>
+            <AlertCircle size={64} color="#C41E3A" style={{ margin: '0 auto 2rem' }} />
+            <h1 style={{ fontSize: '2.5rem', color: '#C41E3A', marginBottom: '1rem' }}>Menu Coming Soon</h1>
+            <p style={{ fontSize: '1.2rem', color: '#666', marginBottom: '2rem', lineHeight: '1.6' }}>
+              Our menu is currently being prepared. Please check back later or contact our staff for updates on our delicious offerings.
+            </p>
+            <Link
+              to="/"
+              style={{
+                backgroundColor: '#C41E3A',
+                color: 'white',
+                padding: '1rem 2rem',
+                border: 'none',
+                borderRadius: '25px',
+                textDecoration: 'none',
+                fontWeight: 'bold',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '1.1rem'
+              }}
+            >
+              <ArrowLeft size={20} />
+              Back to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'Rubik', sans-serif", margin: 0, padding: 0, lineHeight: '1.6', color: '#333', backgroundColor: '#fff' }}>
@@ -379,7 +520,7 @@ export default function MenuPage() {
       <section style={{ padding: '4rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem' }}>
           {filteredItems.map((item) => (
-            <div key={item.id} style={{
+            <div key={item._id || item.id} style={{
               backgroundColor: 'white',
               borderRadius: '15px',
               overflow: 'hidden',
@@ -388,7 +529,7 @@ export default function MenuPage() {
             }}>
               <div style={{ position: 'relative' }}>
                 <img
-                  src={item.image}
+                  src={item.imageUrl || item.image || 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400'}
                   alt={item.name}
                   style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                 />
@@ -429,19 +570,19 @@ export default function MenuPage() {
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <Star size={16} color="#FFD700" fill="#FFD700" />
                   <span style={{ marginLeft: '0.25rem', fontSize: '0.875rem', color: '#666' }}>
-                    {item.rating}
+                    {item.rating || 4.5}
                   </span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-                    {item.isVegetarian && (
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                    {item.isVeg && (
                       <span style={{
                         backgroundColor: '#22C55E',
                         color: 'white',
                         padding: '0.25rem 0.5rem',
                         borderRadius: '10px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.7rem',
                         fontWeight: 'bold'
                       }}>
-                        Veg
+                        🥬 Veg
                       </span>
                     )}
                     {item.isSpicy && (
@@ -450,21 +591,69 @@ export default function MenuPage() {
                         color: 'white',
                         padding: '0.25rem 0.5rem',
                         borderRadius: '10px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.7rem',
                         fontWeight: 'bold'
                       }}>
-                        Spicy
+                        🌶️ Spicy
+                      </span>
+                    )}
+                    {item.dietaryTags && item.dietaryTags.includes('vegan') && (
+                      <span style={{
+                        backgroundColor: '#16A34A',
+                        color: 'white',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '10px',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}>
+                        🌱 Vegan
+                      </span>
+                    )}
+                    {item.dietaryTags && item.dietaryTags.includes('gluten-free') && (
+                      <span style={{
+                        backgroundColor: '#7C3AED',
+                        color: 'white',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '10px',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}>
+                        🌾 GF
+                      </span>
+                    )}
+                    {item.dietaryTags && item.dietaryTags.includes('dairy-free') && (
+                      <span style={{
+                        backgroundColor: '#059669',
+                        color: 'white',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '10px',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}>
+                        🥛 DF
                       </span>
                     )}
                   </div>
                 </div>
 
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
-                  {item.name}
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#333', margin: 0 }}>
+                    {item.name}
+                  </h3>
+                  <span style={{
+                    backgroundColor: '#E5E7EB',
+                    color: '#374151',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '15px',
+                    fontSize: '0.75rem',
+                    fontWeight: '500'
+                  }}>
+                    {item.category?.name || 'Uncategorized'}
+                  </span>
+                </div>
 
                 <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '1rem', lineHeight: '1.5' }}>
-                  {item.description}
+                  {item.description || 'Delicious dish prepared with fresh ingredients'}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -472,35 +661,28 @@ export default function MenuPage() {
                     <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>
                       LKR {item.price}
                     </span>
-                    {item.originalPrice !== item.price && (
-                      <span style={{
-                        textDecoration: 'line-through',
-                        color: '#999',
-                        marginLeft: '0.5rem',
-                        fontSize: '1rem'
-                      }}>
-                        LKR {item.originalPrice}
-                      </span>
-                    )}
                   </div>
-                  <Link
-                    to="/cart"
+                  <button
+                    onClick={() => handleAddToCart(item)}
                     style={{
                       backgroundColor: '#C41E3A',
                       color: 'white',
                       padding: '0.75rem 1.5rem',
                       border: 'none',
                       borderRadius: '25px',
-                      textDecoration: 'none',
                       fontWeight: 'bold',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem'
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.3s ease'
                     }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#A91E2A'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#C41E3A'}
                   >
                     <ShoppingCart size={16} />
                     Add to Cart
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

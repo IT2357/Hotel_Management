@@ -20,6 +20,17 @@ router.post('/upload', uploadSingle, handleMulterError, uploadToGridFS, protect,
 // General image upload endpoint
 router.post('/image', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, uploadToGridFS, async (req, res) => {
   try {
+    console.log('🔍 DEBUG: Menu extraction /image route hit');
+    console.log('🔍 DEBUG: File present:', !!req.file);
+    if (req.file) {
+      console.log('🔍 DEBUG: File details:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        gridfsId: req.file.gridfsId
+      });
+    }
+
     if (!req.file || !req.file.gridfsId) {
       return res.status(400).json({
         success: false,

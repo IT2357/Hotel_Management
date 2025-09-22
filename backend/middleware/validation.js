@@ -109,8 +109,18 @@ export const validateMenuItem = [
     .withMessage("Invalid category ID"),
   body("image")
     .optional()
-    .isURL()
-    .withMessage("Image must be a valid URL"),
+    .custom((value) => {
+      if (!value) return true; // Allow empty
+      // Allow relative URLs starting with / or full URLs
+      if (value.startsWith('/')) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .withMessage("Image must be a valid URL or relative path"),
   body("ingredients")
     .optional()
     .isArray()

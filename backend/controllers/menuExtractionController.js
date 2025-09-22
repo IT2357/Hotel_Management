@@ -2,12 +2,82 @@ import Menu from '../models/Menu.js';
 import ocrService from '../services/ocrService.js';
 import htmlParser from '../services/htmlParser.js';
 import imageStorageService from '../services/imageStorageService.js';
+import aiImageAnalysisService from '../services/aiImageAnalysisService.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Check if a URL points to an image
+ * @param {string} url - URL to check
+ * @returns {Promise<boolean>} - True if URL is an image
+ */
+async function isImageUrl(url) {
+  console.log('🔍 Checking if URL is image:', url);
+  try {
+    // Check file extension first
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.svg'];
+    const urlLower = url.toLowerCase();
+
+    if (imageExtensions.some(ext => urlLower.includes(ext))) {
+      console.log('✅ URL has image extension');
+      return true;
+    }
+
+    // Check for Google image redirect URLs
+    if (url.includes('google.com/url') && url.includes('source=images')) {
+      console.log('🔍 Detected Google image redirect URL, following redirect...');
+      try {
+        // Follow the redirect to get the actual image URL
+        const redirectResponse = await axios.get(url, {
+          maxRedirects: 5,
+          timeout: 10000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+
+        // Check if the final URL has image extension
+        const finalUrl = redirectResponse.request.res.responseUrl || redirectResponse.config.url;
+        console.log('🔍 Google redirect final URL:', finalUrl);
+        if (imageExtensions.some(ext => finalUrl.toLowerCase().includes(ext))) {
+          console.log('✅ Google redirect leads to image URL:', finalUrl);
+          return true;
+        }
+
+        // Check content-type of final response
+        const contentType = redirectResponse.headers['content-type'];
+        console.log('🔍 Google redirect content-type:', contentType);
+        if (contentType && contentType.startsWith('image/')) {
+          console.log('✅ Google redirect leads to image content-type:', contentType);
+          return true;
+        }
+      } catch (redirectError) {
+        console.warn('⚠️ Failed to follow Google redirect:', redirectError.message);
+      }
+    }
+
+    // Check content-type via HEAD request for other URLs
+    const response = await axios.head(url, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    const contentType = response.headers['content-type'];
+    return contentType && contentType.startsWith('image/');
+
+  } catch (error) {
+    console.warn('⚠️ Could not determine if URL is image:', error.message);
+    // Fallback: assume it's not an image if we can't check
+    return false;
+  }
+}
 
 /**
  * Extract menu from image upload, local path, or URL
@@ -16,19 +86,8 @@ const __dirname = path.dirname(__filename);
 export const extractMenu = async (req, res) => {
   try {
     console.log('🔄 Starting menu extraction...');
-    console.log('🔍 VALIDATION: Request headers:', req.headers);
-    console.log('🔍 VALIDATION: User authenticated:', !!req.user);
-    console.log('🔍 VALIDATION: User role:', req.user?.role);
-    console.log('🔍 VALIDATION: User ID:', req.user?.id);
-    console.log('🔍 VALIDATION: Request body keys:', Object.keys(req.body || {}));
-    console.log('🔍 VALIDATION: Request body:', req.body);
-    console.log('🔍 VALIDATION: Has file:', !!req.file);
-    console.log('🔍 VALIDATION: File details:', req.file ? {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      id: req.file.id // GridFS file ID
-    } : 'No file');
+    console.log('🔍 User authenticated:', !!req.user, 'Role:', req.user?.role);
+    console.log('🔍 Input type detection - File:', !!req.file, 'URL:', !!req.body.url, 'Path:', !!req.body.path);
 
     let extractionData = {
       source: { type: '', value: '' },
@@ -40,6 +99,8 @@ export const extractMenu = async (req, res) => {
     };
 
     // Determine input type and process accordingly
+    // Input type detection
+
     if (req.file) {
       // Image upload - file is already stored in GridFS by our middleware
       console.log('📸 Processing uploaded image...');
@@ -51,28 +112,62 @@ export const extractMenu = async (req, res) => {
         // Since multer-gridfs-storage doesn't provide buffer, we'll use the file path or create a simple OCR result
         let ocrResult;
         
-        if (req.file.buffer) {
-          // If buffer is available (shouldn't be with GridFS storage, but just in case)
-          ocrResult = await ocrService.extractText(req.file.buffer);
-        } else {
-          // Create a mock OCR result for now - in production, you'd read from GridFS and process
-          console.log('📝 Creating sample menu structure for uploaded image...');
-          ocrResult = {
-            text: `Sample Menu\n\nAppetizers\nChicken Wings - $12.99\nMozzarella Sticks - $8.99\n\nMain Course\nBurger & Fries - $15.99\nGrilled Salmon - $22.99\n\nDesserts\nChocolate Cake - $6.99\nIce Cream - $4.99`,
-            method: 'sample-data',
-            confidence: 85
-          };
+        // Enhanced AI Food Analysis like Google Lens
+        console.log('🤖 AI: Analyzing food image with advanced computer vision...');
+        try {
+          // Import the gridfsService to read the file
+          const gridfsService = (await import('../services/gridfsService.js')).default;
+
+          // Get the file buffer from GridFS
+          const fileBuffer = await gridfsService.getImageBuffer(req.file.gridfsId);
+
+          if (!fileBuffer || fileBuffer.length === 0) {
+            throw new Error('Empty or null file buffer from GridFS');
+          }
+
+          // Use AI Image Analysis Service (like Google Lens)
+          console.log('🤖 Analyzing food image with AI...');
+          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname);
+          
+          if (aiAnalysis.success) {
+            console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+            
+            // Convert AI analysis to menu format
+            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis);
+            
+            extractionData.categories = menuData.categories;
+            extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
+            extractionData.extractionMethod = aiAnalysis.method; // Use the method directly from AI analysis
+            extractionData.confidence = aiAnalysis.confidence;
+            extractionData.aiAnalysis = aiAnalysis.data;
+            
+            console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
+          } else {
+            throw new Error('AI analysis failed');
+          }
+
+        } catch (analysisError) {
+          console.error('❌ AI Analysis error:', analysisError);
+          console.error('❌ Error stack:', analysisError.stack);
+          // Fallback to basic structure if AI analysis fails
+          console.log('📝 FALLBACK: Using basic menu structure due to AI analysis failure');
+          extractionData.categories = [{
+            name: "Detected Items",
+            items: [{
+              name: "Food Item from Image",
+              price: 200,
+              description: "Food item detected in uploaded image - please review and edit",
+              image: null,
+              isVeg: false,
+              isSpicy: false,
+              confidence: 50
+            }],
+            description: "Items detected from uploaded image"
+          }];
+          extractionData.rawText = "AI analysis failed - using fallback detection";
+          extractionData.extractionMethod = "ai-vision-fallback";
+          extractionData.confidence = 50;
         }
-        
-        extractionData.rawText = ocrResult.text;
-        extractionData.extractionMethod = ocrResult.method;
-        extractionData.confidence = ocrResult.confidence;
-
-        // Parse text into menu structure
-        extractionData.categories = ocrService.parseMenuText(ocrResult.text);
-
-        // Validate and enhance structure
-        extractionData.categories = ocrService.validateMenuStructure(extractionData.categories);
 
         // Add image reference to items using GridFS ID
         if (extractionData.categories.length > 0 && extractionData.imageId) {
@@ -85,14 +180,23 @@ export const extractMenu = async (req, res) => {
           });
         }
 
-      } catch (ocrError) {
-        console.error('❌ OCR processing failed:', ocrError);
-        // Provide fallback: create empty menu structure
-        extractionData.rawText = 'OCR processing failed';
+      } catch (imageProcessingError) {
+        console.error('❌ Image processing failed:', imageProcessingError);
+        // Provide fallback: create basic menu structure
+        extractionData.rawText = 'Image processing failed';
         extractionData.extractionMethod = 'failed';
         extractionData.confidence = 0;
-        extractionData.categories = [];
-        extractionData.processingStatus = 'failed';
+        extractionData.categories = [{
+          name: "Detected Items",
+          items: [{
+            name: "Food Item from Image",
+            price: 200,
+            description: "Image processing failed - please review and edit",
+            image: null,
+            isVeg: false,
+            isSpicy: false
+          }]
+        }];
       }
       
     } else if (req.body.path) {
@@ -151,20 +255,95 @@ export const extractMenu = async (req, res) => {
       
     } else if (req.body.url) {
       // URL extraction
-      console.log('🌐 Processing URL...');
       const url = req.body.url;
+      console.log('🌐 Processing URL:', url);
       extractionData.source = { type: 'url', value: url };
-      
-      try {
-        // Extract menu from webpage
-        const htmlResult = await htmlParser.extractMenuFromURL(url);
-        extractionData.rawText = htmlResult.rawText;
-        extractionData.extractionMethod = htmlResult.method;
-        extractionData.confidence = htmlResult.confidence;
-        extractionData.categories = htmlResult.categories;
 
-        // Validate structure
-        extractionData.categories = ocrService.validateMenuStructure(extractionData.categories);
+      try {
+        // Check if URL is an image URL
+        const urlIsImage = await isImageUrl(url);
+
+        if (urlIsImage) {
+          console.log('🖼️ Detected image URL, processing as image upload...');
+
+          // Download image from URL
+          const axios = (await import('axios')).default;
+          const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+
+          const imageBuffer = Buffer.from(response.data);
+          const contentType = response.headers['content-type'] || 'image/jpeg';
+
+          // Store the downloaded image in our storage system
+          console.log('💾 Storing downloaded image...');
+          try {
+            const filename = `url-image-${Date.now()}.jpg`;
+            const storedImageId = await imageStorageService.uploadImage(imageBuffer, filename, {
+              contentType: contentType,
+              menuExtraction: true,
+              sourceUrl: url
+            });
+            extractionData.imageId = storedImageId;
+            console.log(`✅ Image stored with ID: ${storedImageId}`);
+          } catch (storageError) {
+            console.error('❌ Image storage failed:', storageError);
+            // Continue with AI analysis even if storage fails
+            extractionData.imageId = null;
+          }
+
+          // Use AI Image Analysis Service (same as file upload)
+          console.log('🤖 Analyzing food image from URL with AI...');
+          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url);
+
+          if (aiAnalysis.success) {
+            console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+
+            // Convert AI analysis to menu format
+            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis);
+
+            extractionData.categories = menuData.categories;
+            extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
+            extractionData.extractionMethod = aiAnalysis.method;
+            extractionData.confidence = aiAnalysis.confidence;
+            extractionData.aiAnalysis = aiAnalysis.data;
+
+            console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
+          } else {
+            throw new Error('AI analysis failed for image URL');
+          }
+
+          // Add image reference to items using stored image ID
+          if (extractionData.categories.length > 0 && extractionData.imageId) {
+            console.log(`🖼️ Assigning stored image ${extractionData.imageId} to menu items...`);
+            extractionData.categories.forEach(category => {
+              category.items.forEach(item => {
+                if (!item.image) {
+                  item.image = `/api/menu/image/${extractionData.imageId}`;
+                  console.log(`✅ Assigned image to item: ${item.name}`);
+                }
+              });
+            });
+          } else {
+            console.log('⚠️ No image stored or no categories to assign images to');
+          }
+
+        } else {
+          // Extract menu from webpage (original logic)
+          console.log('🌐 Processing as webpage URL...');
+          const htmlResult = await htmlParser.extractMenuFromURL(url);
+          extractionData.rawText = htmlResult.rawText;
+          extractionData.extractionMethod = htmlResult.method;
+          extractionData.confidence = htmlResult.confidence;
+          extractionData.categories = htmlResult.categories;
+
+          // Validate structure
+          extractionData.categories = ocrService.validateMenuStructure(extractionData.categories);
+        }
 
       } catch (error) {
         console.error('❌ URL processing failed:', error);
@@ -196,17 +375,28 @@ export const extractMenu = async (req, res) => {
     };
 
     // Save to database
-    const menu = new Menu(menuData);
-    const savedMenu = await menu.save();
+    let savedMenu;
+    try {
+      const menu = new Menu(menuData);
+      savedMenu = await menu.save();
 
-    console.log(`✅ Menu extraction completed. Found ${savedMenu.totalCategories} categories with ${savedMenu.totalItems} items.`);
+      console.log(`✅ Menu extraction completed. Found ${savedMenu.totalCategories} categories with ${savedMenu.totalItems} items.`);
+    } catch (saveError) {
+      console.error('Menu save error:', saveError);
+      if (saveError.errors) {
+        console.error('Validation errors:', saveError.errors);
+      }
+      throw saveError;
+    }
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       menu: savedMenu.toAPIResponse(),
       previewId: savedMenu._id.toString(),
       message: `Successfully extracted ${savedMenu.totalItems} menu items from ${savedMenu.totalCategories} categories`
-    });
+    };
+
+    res.status(200).json(responseData);
 
   } catch (error) {
     console.error('❌ Menu extraction error:', error);

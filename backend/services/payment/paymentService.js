@@ -305,8 +305,12 @@ class PaymentService {
         notifyUrl
       } = cardData;
 
-      // Prepare payment request data
-      const paymentRequest = {
+      // For PayHere hosted checkout, we generate the payment URL directly
+      // PayHere uses a hosted checkout page that accepts form data
+      const gatewayUrl = process.env.PAYHERE_GATEWAY_URL || "https://sandbox.payhere.lk/pay/checkout";
+
+      // Prepare payment parameters for hosted checkout
+      const paymentParams = {
         merchant_id: this.merchantId,
         order_id: orderId,
         amount: parseFloat(amount).toFixed(2),
@@ -314,15 +318,15 @@ class PaymentService {
         customer_name: customerDetails.customerName,
         customer_email: customerDetails.customerEmail,
         customer_phone: customerDetails.customerPhone,
-        return_url: returnUrl || `${process.env.FRONTEND_URL}/payment/success`,
-        cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/payment/cancel`,
-        notify_url: notifyUrl || `${process.env.BACKEND_URL}/api/webhooks/payhere`,
-        payment_method: "CARD",
-        timestamp: Math.floor(Date.now() / 1000),
+        return_url: returnUrl || `${process.env.PAYHERE_RETURN_URL}`,
+        cancel_url: cancelUrl || `${process.env.PAYHERE_CANCEL_URL}`,
+        notify_url: notifyUrl || `${process.env.PAYHERE_NOTIFY_URL}`,
+        items: `Order ${orderId}`,
+        custom_1: orderId, // Custom field for order reference
       };
 
       // Generate signature
-      paymentRequest.signature = this.generateSignature(paymentRequest);
+      paymentParams.hash = this.generateSignature(paymentParams);
 
       logger.info("Processing PayHere card payment", {
         orderId,
@@ -330,36 +334,22 @@ class PaymentService {
         customerEmail: customerDetails.customerEmail,
       });
 
-      // Make API request to PayHere
-      const response = await axios.post(
-        `${this.apiUrl}/checkout`,
-        paymentRequest,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.PAYHERE_API_TOKEN}`,
-          },
-          timeout: 30000,
-        }
-      );
-
-      const paymentResponse = response.data;
-
       // Log successful payment initiation
       logger.info("PayHere card payment initiated successfully", {
         orderId,
-        paymentId: paymentResponse.payment_id,
-        status: paymentResponse.status,
+        paymentId: `PAYHERE_${orderId}_${Date.now()}`,
       });
 
+      // Return payment parameters for frontend to create POST form
       return {
         success: true,
-        paymentId: paymentResponse.payment_id,
-        status: paymentResponse.status,
-        redirectUrl: paymentResponse.redirect_url,
-        amount: paymentResponse.amount,
-        currency: paymentResponse.currency,
-        gatewayResponse: paymentResponse,
+        paymentId: `PAYHERE_${orderId}_${Date.now()}`,
+        status: "PENDING",
+        gatewayUrl: gatewayUrl,
+        paymentParams: paymentParams,
+        amount: amount,
+        currency: currency,
+        message: "Payment parameters ready for PayHere gateway",
       };
     } catch (error) {
       logger.error("PayHere card payment processing failed", {
@@ -370,9 +360,8 @@ class PaymentService {
 
       return {
         success: false,
-        error: error.response?.data?.message || error.message || "Card payment processing failed",
-        errorCode: error.response?.data?.code || "CARD_PAYMENT_ERROR",
-        gatewayResponse: error.response?.data,
+        error: error.message || "Card payment processing failed",
+        errorCode: "CARD_PAYMENT_ERROR",
       };
     }
   }

@@ -23,7 +23,7 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
     );
   }
 
-  // If user is not authenticated and trying to access a protected route
+  //If user is not authenticated and trying to access a protected route
   if (!user) {
     if (publicRoutes.includes(location.pathname)) {
       console.log('Allowing access to public route:', location.pathname);

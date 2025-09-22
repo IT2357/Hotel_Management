@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize";
+import hpp from "hpp";
 import compression from "compression";
 import morgan from "morgan";
 import passport from "passport";
@@ -109,14 +112,14 @@ const upload = multer({
 
 // Check file type
 function checkFileType(file, cb) {
-  const filetypes = /jpeg|jpg|png|gif|webp/;
+  const filetypes = /jpeg|jpg|png|gif|webp|avif/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = filetypes.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb('Error: Images Only! Supported formats: JPEG, JPG, PNG, WEBP, GIF');
+    cb('Error: Images Only! Supported formats: JPEG, JPG, PNG, WEBP, GIF, AVIF');
   }
 }
 
@@ -129,6 +132,10 @@ const __dirname = dirname(__filename);
 
 // Import database configuration
 import { connectDB, dbHealthCheck } from "./config/database.js";
+// Import models to register them with mongoose
+import './models/Food.js';
+import './models/FoodOrder.js';
+import './models/MenuItem.js';
 // Import services
 import gridfsService from './services/gridfsService.js';
 // Import routes
@@ -138,7 +145,11 @@ import foodRoutes from "./routes/food.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import menuExtractionRoutes from "./routes/menuExtractionRoutes.js";
+import menuSelectionRoutes from "./routes/menuSelectionRoutes.js";
 import foodMenuRoutes from "./routes/food/menuRoutes.js";
+import webhooksRoutes from "./routes/webhooks.js";
+import roomsRoutes from "./routes/rooms.js";
+import bookings from "./routes/bookings.js";
 // import "./eventListeners/notificationListeners.js";
 
 // Initialize Express app
@@ -203,6 +214,34 @@ app.use(cors(corsOptions));
 // Handle preflight requests explicitly
 // app.options('*', cors(corsOptions));
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again later",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: "Too many authentication attempts, please try again later",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+if (process.env.NODE_ENV === "production") {
+  app.use("/api/", limiter);
+  app.use("/api/auth/", authLimiter);
+  app.use(mongoSanitize());
+  app.use(hpp());
+}
+
 // Health check endpoint
 app.get("/health", async (req, res) => {
   const dbHealth = await dbHealthCheck();
@@ -221,69 +260,65 @@ app.use("/api/auth", authRoutes);
 console.log('✅ DEBUG: Auth routes registered at /api/auth');
 app.use("/api/admin", adminRoutes);
 console.log('✅ DEBUG: Admin routes registered at /api/admin');
-// app.use("/api/food", foodRoutes);
-// console.log('✅ DEBUG: Food routes registered at /api/food');
-// app.use("/api/food/menu", foodMenuRoutes);
+app.use("/api/rooms", roomsRoutes);
+console.log('✅ DEBUG: Rooms routes registered at /api/rooms');
+app.use("/api/bookings", bookings);
+console.log('✅ DEBUG: Bookings routes registered at /api/bookings');
+app.use("/api/food", foodRoutes);
+console.log('✅ DEBUG: Food routes registered at /api/food');
 app.use("/api/food/menu", foodMenuRoutes);
-// console.log('✅ DEBUG: Food menu routes registered at /api/food/menu');
-// console.log('✅ DEBUG: Available food menu endpoints:');
-// console.log('✅ DEBUG: - GET /api/food/menu/items');
-// console.log('✅ DEBUG: - GET /api/food/menu/categories');
-// console.log('✅ DEBUG: - POST /api/food/menu/items (protected)');
-// console.log('✅ DEBUG: - PUT /api/food/menu/items/:id (protected)');
-// console.log('✅ DEBUG: - DELETE /api/food/menu/items/:id (protected)');
-// app.use("/api/notifications", notificationRoutes);
+console.log('✅ DEBUG: Food menu routes registered at /api/food/menu');
+console.log('✅ DEBUG: Available food menu endpoints:');
+console.log('✅ DEBUG: - GET /api/food/menu/items');
+console.log('✅ DEBUG: - GET /api/food/menu/categories');
+console.log('✅ DEBUG: - POST /api/food/menu/items (protected)');
+console.log('✅ DEBUG: - POST /api/food/menu/batch (protected)');
+console.log('✅ DEBUG: - PUT /api/food/menu/items/:id (protected)');
+console.log('✅ DEBUG: - DELETE /api/food/menu/items/:id (protected)');
 app.use("/api/notifications", notificationRoutes);
 console.log('✅ DEBUG: Notification routes registered at /api/notifications');
 app.use("/api/menu", menuRoutes);
 console.log('✅ DEBUG: Menu routes registered at /api/menu');
 app.use("/api/uploadMenu", menuExtractionRoutes);
 console.log('✅ DEBUG: Menu extraction routes registered at /api/uploadMenu');
+app.use("/api/menu-selection", menuSelectionRoutes);
+console.log('✅ DEBUG: Menu selection routes registered at /api/menu-selection');
+app.use("/api/webhooks", webhooksRoutes);
+console.log('✅ DEBUG: Webhooks routes registered at /api/webhooks');
 app.post('/api/uploadMenu/image', upload.single('image'), async (req, res) => {
   try {
+    console.log('🔍 DEBUG: Image upload request received');
+    console.log('🔍 DEBUG: Request body keys:', Object.keys(req.body || {}));
+    console.log('🔍 DEBUG: Request file:', req.file ? 'Present' : 'Missing');
+    if (req.file) {
+      console.log('🔍 DEBUG: File details:', {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+    }
+
     if (!req.file) {
+      console.log('❌ DEBUG: No file uploaded - returning 400');
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
       });
     }
 
-    // Generate unique filename
-    const filename = crypto.randomBytes(16).toString('hex') + path.extname(req.file.originalname);
+    console.log('📁 File uploaded successfully to GridFS:', req.file.filename);
+    console.log('📁 GridFS ID:', req.file.gridfsId);
 
-    // Create upload stream to GridFS
-    const uploadStream = gfs.openUploadStream(filename, {
-      metadata: {
-        originalName: req.file.originalname,
-        uploadDate: new Date(),
-        contentType: req.file.mimetype
-      }
-    });
-
-    // Write file buffer to GridFS
-    uploadStream.end(req.file.buffer);
-
-    uploadStream.on('finish', () => {
-      console.log('📁 File uploaded successfully to GridFS:', filename);
-
-      res.json({
-        success: true,
-        message: 'File uploaded successfully',
-        fileId: uploadStream.id,
-        filename: filename,
-        originalName: req.file.originalname,
-        size: req.file.size,
-        uploadDate: new Date()
-      });
-    });
-
-    uploadStream.on('error', (error) => {
-      console.error('❌ GridFS upload error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Upload failed',
-        error: error.message
-      });
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      fileId: req.file.gridfsId,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      imageUrl: `/api/menu/image/${req.file.gridfsId}`,
+      uploadDate: new Date()
     });
 
   } catch (error) {

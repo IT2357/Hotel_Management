@@ -92,7 +92,7 @@ const ModernGuestDashboard = () => {
     { name: 'Food Ordering', href: '/food-ordering', icon: Utensils, current: false },
     { name: 'My Orders', href: '/dashboard/my-orders', icon: FileText, current: false },
     { name: 'Reviews', href: '/dashboard/reviews', icon: MessageSquare, current: false },
-    { name: 'Cart', href: '/cart', icon: ShoppingCart, current: false, badge: cartItems?.length || 0 },
+    { name: 'Cart', href: '/cart', icon: ShoppingCart, current: false, badge: getItemCount() || 0 },
     { name: 'Favorites', href: '/dashboard/favorites', icon: Heart, current: false },
   ];
 

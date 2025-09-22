@@ -71,7 +71,7 @@ const MenuSchema = new mongoose.Schema({
   },
   extractionMethod: {
     type: String,
-    enum: ['google-vision', 'openai-vision', 'tesseract', 'web-scraping', 'html-parsing'],
+    enum: ['google-vision', 'openai-vision', 'tesseract', 'web-scraping', 'html-parsing', 'ai-vision-openai', 'ai-vision-google', 'ai-vision-fallback'],
     default: 'tesseract'
   },
   processingStatus: {

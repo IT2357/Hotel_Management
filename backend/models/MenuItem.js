@@ -28,18 +28,12 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Category is required'],
   },
   image: {
-    data: Buffer,
-    contentType: String,
-    filename: String,
-    size: Number,
-    uploadDate: {
-      type: Date,
-      default: Date.now
-    }
+    type: String,
+    default: "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
   },
   imageId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'menu.Images.files', // Reference to GridFS files collection
+    ref: 'fs.files', // Reference to GridFS files collection
     required: false
   },
   isAvailable: {
@@ -79,6 +73,37 @@ const menuItemSchema = new mongoose.Schema({
       price: Number,
     }],
   }],
+  // AI Enhancement Fields
+  dietaryTags: [{
+    type: String,
+    trim: true,
+  }],
+  culturalOrigin: {
+    type: String,
+    trim: true,
+  },
+  allergens: [{
+    type: String,
+    trim: true,
+  }],
+  aiConfidence: {
+    type: Number,
+    min: 0,
+    max: 100,
+  },
+  originalName: {
+    type: String,
+    trim: true,
+  },
+  correctionReason: {
+    type: String,
+    trim: true,
+  },
+  culturalContext: {
+    type: String,
+    enum: ['colombo', 'jaffna', 'kandy', 'galle', 'default'],
+    default: 'colombo',
+  },
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

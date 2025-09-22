@@ -1,4 +1,5 @@
 import FoodOrder from '../../models/FoodOrder.js';
+import Food from '../../models/Food.js';
 import MenuItem from '../../models/MenuItem.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
@@ -136,6 +137,7 @@ export const createFoodOrder = catchAsync(async (req, res) => {
  const {
    items,
    totalPrice,
+   orderType,
    isTakeaway,
    customerDetails,
    paymentMethod,
@@ -168,7 +170,7 @@ export const createFoodOrder = catchAsync(async (req, res) => {
 
  // Validate and populate food items
  const validatedItems = [];
- let calculatedTotal = 0;
+ let calculatedSubtotal = 0;
 
  for (const item of items) {
    const menuItem = await MenuItem.findById(item.foodId || item.id);
@@ -182,7 +184,7 @@ export const createFoodOrder = catchAsync(async (req, res) => {
 
    const quantity = item.quantity || 1;
    const itemTotal = menuItem.price * quantity;
-   calculatedTotal += itemTotal;
+   calculatedSubtotal += itemTotal;
 
    validatedItems.push({
      foodId: menuItem._id,
@@ -191,6 +193,12 @@ export const createFoodOrder = catchAsync(async (req, res) => {
      name: menuItem.name
    });
  }
+
+ // Calculate taxes and fees
+ const tax = calculatedSubtotal * 0.15;
+ const serviceCharge = calculatedSubtotal * 0.10;
+ const deliveryFee = orderType === 'delivery' ? 500 : 0;
+ const calculatedTotal = calculatedSubtotal + tax + serviceCharge + deliveryFee;
 
  // Validate total price matches calculated total
  if (Math.abs(calculatedTotal - totalPrice) > 0.01) {
@@ -233,6 +241,11 @@ export const createFoodOrder = catchAsync(async (req, res) => {
    userId: req.user.id,
    items: validatedItems,
    totalPrice: calculatedTotal,
+   subtotal: calculatedSubtotal,
+   tax: tax,
+   serviceCharge: serviceCharge,
+   deliveryFee: deliveryFee,
+   orderType: orderType,
    isTakeaway: Boolean(isTakeaway),
    customerDetails: {
      name: customerDetails.customerName,
@@ -260,6 +273,10 @@ export const createFoodOrder = catchAsync(async (req, res) => {
    orderId: order._id,
    userId: req.user.id,
    totalPrice: calculatedTotal,
+   subtotal: calculatedSubtotal,
+   tax: tax,
+   serviceCharge: serviceCharge,
+   deliveryFee: deliveryFee,
    paymentMethod,
    paymentId: paymentResult.paymentId
  });

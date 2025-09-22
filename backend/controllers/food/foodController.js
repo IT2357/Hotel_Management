@@ -1,6 +1,7 @@
 import MenuItem from '../../models/MenuItem.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
+import mongoose from 'mongoose';
 
 // Get all food items (Admin view)
 export const getAllFoodItems = catchAsync(async (req, res) => {
@@ -29,8 +30,10 @@ export const getAllFoodItems = catchAsync(async (req, res) => {
   // Add imageUrl to each menu item for frontend display
   const menuItemsWithImages = menuItems.map(item => {
     const itemObj = item.toObject();
-    if (itemObj.image && itemObj.image.data) {
-      itemObj.imageUrl = `data:${itemObj.image.contentType};base64,${itemObj.image.data.toString('base64')}`;
+    if (itemObj.imageId) {
+      itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+    } else if (itemObj.image) {
+      itemObj.imageUrl = itemObj.image;
     }
     return itemObj;
   });
@@ -51,9 +54,11 @@ export const getFoodItem = catchAsync(async (req, res) => {
   }
 
   // Add imageUrl for frontend display
-  const responseItem = item;
-  if (responseItem.image && responseItem.image.data) {
-    responseItem.imageUrl = `data:${responseItem.image.contentType};base64,${responseItem.image.data.toString('base64')}`;
+  const responseItem = menuItem.toObject();
+  if (responseItem.imageId) {
+    responseItem.imageUrl = `/api/menu/image/${responseItem.imageId}`;
+  } else if (responseItem.image) {
+    responseItem.imageUrl = responseItem.image;
   }
 
   res.status(200).json({

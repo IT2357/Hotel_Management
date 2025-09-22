@@ -9,7 +9,7 @@ const getDashboardPath = (role) => {
     case "staff":
       return "/staff/dashboard";
     case "guest":
-      return "/guest/dashboard";
+      return "/";
     default:
       return "/";
   }

@@ -18,7 +18,13 @@ import {
   FileText,
   Tag,
   Clock,
-  Loader2
+  Loader2,
+  Check,
+  Square,
+  CheckSquare,
+  ShoppingCart,
+  Star,
+  Utensils
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -33,6 +39,9 @@ const MenuReviewPage = () => {
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [categoryMappings, setCategoryMappings] = useState({});
 
   // Load menu data
   useEffect(() => {
@@ -191,16 +200,20 @@ const MenuReviewPage = () => {
       });
 
       // Save using existing menu batch endpoint
-      await api.post('/menu/batch', { items: menuItems });
+      console.log('🔍 DEBUG: Calling menu batch endpoint:', api.defaults.baseURL + '/food/menu/batch');
+      console.log('🔍 DEBUG: Menu items to save:', menuItems.length);
+      await api.post('/food/menu/batch', { items: menuItems });
       
       // Update the extracted menu status
+      console.log('🔍 DEBUG: Updating menu status for ID:', id);
       await api.put(`/uploadMenu/${id}`, {
-        processingStatus: 'completed',
-        notes: 'Successfully imported to menu items'
+        ...menuData,
+        processingStatus: 'completed'
       });
 
       toast.success(`${menuItems.length} menu items saved successfully!`);
-      navigate('/admin/menu-management');
+      console.log('🔍 DEBUG: Navigating to admin food menu page');
+      navigate('/admin/food/menu');
       
     } catch (error) {
       console.error('Save error:', error);

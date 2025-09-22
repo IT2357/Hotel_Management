@@ -53,7 +53,7 @@ class OCRService {
       if (this.visionClient && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         return await this.extractWithGoogleVision(imageInput);
       }
-      
+
       // Fallback to Tesseract
       return await this.extractWithTesseract(imageInput, options);
     } catch (error) {
@@ -123,7 +123,7 @@ class OCRService {
       };
 
       const { data } = await Tesseract.recognize(imageInput, 'eng', tesseractOptions);
-      
+
       return {
         text: data.text || '',
         confidence: Math.round(data.confidence || 70),

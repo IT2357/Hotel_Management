@@ -6,14 +6,14 @@ const storage = multer.memoryStorage();
 
 // File filter for images only
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|webp|gif/;
+  const allowedTypes = /jpeg|jpg|png|webp|gif|avif/;
   const extname = allowedTypes.test(file.originalname.split('.').pop().toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed (JPEG, JPG, PNG, WEBP, GIF)'), false);
+    cb(new Error('Only image files are allowed (JPEG, JPG, PNG, WEBP, GIF, AVIF)'), false);
   }
 };
 
@@ -83,7 +83,7 @@ export const handleMulterError = (error, req, res, next) => {
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
       return res.status(400).json({
         success: false,
-        message: 'Unexpected file field. Please use "image" as the field name.',
+        message: 'Unexpected file field. Please use "file" as the field name.',
         error: 'UNEXPECTED_FILE_FIELD'
       });
     }
@@ -102,6 +102,6 @@ export const handleMulterError = (error, req, res, next) => {
 };
 
 // Single file upload middleware
-export const uploadSingle = upload.single('image');
+export const uploadSingle = upload.single('file');
 
 export default upload;

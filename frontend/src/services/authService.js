@@ -1,4 +1,5 @@
 //src/services/authService.js
+console.log('authService loaded');
 
 import api from "./api";
 

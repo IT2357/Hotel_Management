@@ -143,16 +143,49 @@ class HTMLParser {
     const categories = [];
     let confidence = 0;
 
-    // Common menu selectors
+    // Common menu selectors (expanded for better coverage, especially Jaffna/Sri Lankan restaurants)
     const menuSelectors = [
+      // Standard selectors
       '.menu-item', '.food-item', '.dish', '.product', '.menu-product',
       '[class*="menu"]', '[class*="food"]', '[class*="dish"]', '[class*="item"]',
-      '.menu-category', '.food-category', '.menu-section'
+      '.menu-category', '.food-category', '.menu-section',
+      '.restaurant-menu-item', '.menu-entry', '.menu-list-item',
+      '.food-menu-item', '.menu-dish', '.menu-food', '.menu-product-item',
+      '.card-menu', '.menu-card', '.food-card', '.dish-card',
+      '.menu-block', '.food-block', '.menu-container', '.food-container',
+      'article[class*="menu"]', 'div[class*="menu"]', 'section[class*="menu"]',
+
+      // Sri Lankan/Jaffna specific selectors
+      '.foodorders-item', '.valampuri-item', '.akshadaya-item', '.restaurant-item',
+      '.sri-lankan-menu', '.jaffna-menu', '.tamil-menu', '.cuisine-item',
+      '.foodorders-menu-item', '.menu-food-item', '.restaurant-food-item',
+      '.foodorders-dish', '.menu-dish-item', '.dish-menu-item',
+
+      // Common restaurant website patterns
+      '.menu-listing', '.food-listing', '.item-listing', '.product-listing',
+      '.menu-grid', '.food-grid', '.item-grid', '.product-grid',
+      '.menu-wrapper', '.food-wrapper', '.item-wrapper', '.product-wrapper',
+
+      // Bootstrap/card based menus
+      '.card', '.card-body', '.menu-card', '.food-card', '.dish-card',
+      '.col-md-4', '.col-lg-3', '.menu-col', '.food-col',
+
+      // List based menus
+      '.menu-list', '.food-list', '.item-list', '.product-list',
+      'ul[class*="menu"]', 'ol[class*="menu"]', 'li[class*="menu"]',
+
+      // Specific to foodorders.lk and similar platforms
+      '.food-item-card', '.menu-item-card', '.restaurant-card',
+      '.foodorders-card', '.valampuri-card', '.menu-section-card'
     ];
 
     const priceSelectors = [
       '.price', '.cost', '.amount', '.value', '.money',
-      '[class*="price"]', '[class*="cost"]', '[class*="amount"]'
+      '[class*="price"]', '[class*="cost"]', '[class*="amount"]',
+      '.menu-price', '.food-price', '.dish-price', '.item-price',
+      '.product-price', '.menu-cost', '.food-cost', '.dish-cost',
+      '.price-tag', '.price-label', '.cost-label', '.amount-label',
+      'span[class*="price"]', 'div[class*="price"]', 'p[class*="price"]'
     ];
 
     // Try to find menu structure
@@ -270,17 +303,46 @@ class HTMLParser {
     let currentCategory = null;
     
     const categoryKeywords = [
+      // English categories
       'appetizer', 'starter', 'soup', 'salad', 'main', 'entree', 'pasta', 'pizza',
       'dessert', 'beverage', 'drink', 'coffee', 'tea', 'wine', 'beer', 'cocktail',
-      'breakfast', 'lunch', 'dinner', 'special', 'combo', 'platter', 'menu'
+      'breakfast', 'lunch', 'dinner', 'special', 'combo', 'platter', 'menu',
+
+      // Jaffna/Sri Lankan Tamil categories
+      'thosai', 'dosa', 'idiyappam', 'puttu', 'idli', 'vada', 'bonda', 'pakora',
+      'chicken', 'mutton', 'fish', 'seafood', 'vegetarian', 'veg', 'kottu',
+      'rice', 'biryani', 'curry', 'gravy', 'soup', 'wattalappan', 'payasam',
+      'coffee', 'tea', 'juice', 'lassi', 'drinks', 'beverages',
+
+      // Tamil script categories
+      'தோசை', 'இடியாப்பம்', 'புத்து', 'இட்லி', 'வடை', 'கொத்து', 'பிரியாணி',
+      'கறி', 'காபி', 'தேயிலை', 'இறால்', 'மீன்', 'கோழி', 'அட்டை'
     ];
 
     const pricePatterns = [
+      // Sri Lankan Rupee patterns (most important for Jaffna)
+      /LKR\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /Rs\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /Rs\.\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*LKR/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*Rs/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*Rs\./i,
+
+      // Indian Rupee (sometimes used in Sri Lanka)
+      /₹\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*₹/,
+
+      // USD (for international menus)
       /\$(\d+\.?\d*)/,
-      /(\d+)\s*rs/i,
-      /rs\s*(\d+)/i,
-      /₹\s*(\d+)/,
-      /(\d+)\s*\/-/
+      /(\d+\.?\d*)\s*\$/,
+
+      // Generic patterns
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*\/-/,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*only/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*per/i,
+
+      // Fallback numeric patterns
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)/
     ];
 
     for (const line of lines) {
@@ -391,14 +453,29 @@ class HTMLParser {
 
   extractPrice(text) {
     const pricePatterns = [
+      // Sri Lankan Rupee patterns (most important for Jaffna)
+      /LKR\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /Rs\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /Rs\.\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*LKR/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*Rs/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*Rs\./i,
+
+      // Indian Rupee (sometimes used in Sri Lanka)
+      /₹\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*₹/,
+
+      // USD (for international menus)
       /\$(\d+\.?\d*)/,
       /(\d+\.?\d*)\s*\$/,
-      /(\d+)\s*rs/i,
-      /rs\s*(\d+)/i,
-      /₹\s*(\d+\.?\d*)/,
-      /(\d+\.?\d*)\s*₹/,
-      /(\d+)\s*\/-/,
-      /(\d+\.?\d*)/
+
+      // Generic patterns
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*\/-/,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*only/i,
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*per/i,
+
+      // Fallback numeric patterns
+      /(\d+(?:,\d{3})*(?:\.\d{2})?)/
     ];
 
     for (const pattern of pricePatterns) {

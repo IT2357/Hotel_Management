@@ -1,4 +1,5 @@
 // src/services/adminService.js
+import { createBooking } from "../../../backend/controllers/bookings/bookingController";
 import api from "./api";
 
 const adminService = {
@@ -58,6 +59,17 @@ const adminService = {
   getAdminSettings: () => api.get("/admin/settings"),
   updateAdminSettings: (data) => api.put("/admin/settings", data),
   testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
+
+  // Room management
+  createRoom: (data) => api.post("/admin/rooms", data),
+  updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
+  deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
+
+  //booking management
+  getallbookings:(id) => api.get("/admin/Allbookings"),
+  updateBooking:(id, data) => api.put(`/admin/${id}/status`),
+  deleteBooking: (id)=> api.delete(`/admin/${id}`), 
+
 };
 
 export default adminService;

@@ -19,6 +19,15 @@ const foodOrderSchema = new mongoose.Schema(
     scheduledTime: Date,
     deliveryLocation: String,
     totalPrice: Number,
+    subtotal: Number,
+    tax: Number,
+    serviceCharge: Number,
+    deliveryFee: Number,
+    orderType: {
+      type: String,
+      enum: ["dine-in", "takeaway", "delivery"],
+      default: "dine-in",
+    },
     isTakeaway: {
       type: Boolean,
       default: false,
@@ -37,8 +46,8 @@ const foodOrderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Cash", "Card", "Wallet", "Online"],
-      default: "Cash",
+      enum: ["CASH", "CARD", "WALLET", "ONLINE"],
+      default: "CASH",
     },
     paymentId: {
       type: String,

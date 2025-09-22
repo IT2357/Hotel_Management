@@ -140,13 +140,15 @@ export const CartProvider = ({ children, userRole = 'guest' }) => {
   // Cart actions
   const addToCart = (item) => {
     console.log('Adding item to cart:', item); // Debug log
+    console.log('Item image field:', item.image); // Debug log
+    console.log('Item imageUrl field:', item.imageUrl); // Debug log
     dispatch({
       type: ADD_TO_CART,
       payload: {
         id: item._id || item.id,
         name: item.name,
         price: item.price,
-        imageUrl: item.imageUrl,
+        imageUrl: item.image, // Fix: use item.image instead of item.imageUrl
         description: item.description
       }
     });

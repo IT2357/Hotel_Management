@@ -110,8 +110,8 @@ const MenuUploadPage = () => {
 
       // Handle different input types
       if (activeTab === 'upload' && formData.file) {
-        // For image upload, append the file directly - GridFS storage will handle it
-        submitFormData.append('image', formData.file);
+        // For image upload, append the file as 'file' field to match backend multer expectation
+        submitFormData.append('file', formData.file);
       } else if (activeTab === 'url') {
         submitFormData.append('url', formData.url);
       } else if (activeTab === 'path') {
@@ -119,11 +119,13 @@ const MenuUploadPage = () => {
       }
 
       // Call the extraction endpoint directly
-      const response = await api.post('/uploadMenu/upload', submitFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      console.log('🔄 Making API call to /uploadMenu/upload with data:', {
+        title: formData.title,
+        hasFile: !!formData.file,
+        hasUrl: !!formData.url,
+        hasPath: !!formData.filePath
       });
+      const response = await api.post('/uploadMenu/upload', submitFormData);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -132,12 +134,11 @@ const MenuUploadPage = () => {
 
       // Navigate to review page with the extracted menu data
       setTimeout(() => {
-        if (response.data?.data?._id) {
-          navigate(`/admin/menu-review/${response.data.data._id}`, {
-            state: { menuData: response.data.data, stats: response.data.stats }
-          });
+        const menuId = response.data?.menu?.id || response.data?.previewId;
+        if (menuId) {
+          navigate(`/admin/menu-review/${menuId}`);
         } else {
-          toast.error('Invalid response from server');
+          toast.error('Invalid response from server - no menu ID');
         }
       }, 1000);
 
@@ -174,14 +175,33 @@ const MenuUploadPage = () => {
           transition={{ duration: 0.6 }}
         >
           <div className="flex items-center justify-center mb-4">
-            <Sparkles className="h-10 w-10 text-purple-600 mr-3" />
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-              AI Menu Extractor
-            </h1>
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-white mb-4 flex items-center justify-center space-x-3">
+                <Sparkles className="w-10 h-10 text-purple-400" />
+                <span>🤖 AI Food Analyzer</span>
+              </h1>
+              <p className="text-gray-300 text-lg">
+                Analyze any food image like Google Lens - Upload photos and get detailed menu information with AI
+              </p>
+              <div className="flex items-center justify-center space-x-6 mt-4 text-sm text-purple-300">
+                <div className="flex items-center space-x-2">
+                  <Eye className="w-4 h-4" />
+                  <span>Visual Food Recognition</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Smart Menu Generation</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Instant Results</span>
+                </div>
+              </div>
+              <div className="mt-4 text-xs text-purple-200 opacity-75">
+                <p>💡 AI services not configured - using fallback analysis</p>
+              </div>
+            </div>
           </div>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
-            Upload menu images, provide URLs, or specify file paths to automatically extract menu data
-          </p>
         </motion.div>
 
         {/* Main Upload Card */}

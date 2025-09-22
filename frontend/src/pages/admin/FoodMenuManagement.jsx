@@ -80,10 +80,19 @@ const FoodMenuManagement = () => {
     }
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
+
+    console.log('🔍 DEBUG: Preparing image upload');
+    console.log('🔍 DEBUG: File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    console.log('🔍 DEBUG: FormData field name: "file"');
 
     try {
       setLoading(true);
+      console.log('🔍 DEBUG: Sending POST request to /uploadMenu/image');
       const response = await api.post('/uploadMenu/image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -593,14 +602,7 @@ MenuItemCard.displayName = 'MenuItemCard';
                           Image Upload
                         </label>
                         <div className="space-y-3">
-                           <input
-                             type="url"
-                             value={formData.image}
-                             onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                             placeholder="Enter image URL or upload below"
-                             className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                           />
-                           <div className="flex gap-2">
+                           <div className="flex gap-2 items-center">
                              <input
                                type="file"
                                accept="image/*"
@@ -616,11 +618,14 @@ MenuItemCard.displayName = 'MenuItemCard';
                                Upload Image
                              </label>
                              {formData.image && (
-                               <img
-                                 src={formData.image}
-                                 alt="Preview"
-                                 className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
-                               />
+                               <div className="flex items-center gap-2">
+                                 <img
+                                   src={formData.image}
+                                   alt="Preview"
+                                   className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
+                                 />
+                                 <span className="text-gray-400 text-sm">Image uploaded</span>
+                               </div>
                              )}
                            </div>
                          </div>

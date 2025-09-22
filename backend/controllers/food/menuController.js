@@ -66,8 +66,7 @@ export const getMenuItems = async (req, res) => {
       .populate("category", "name slug displayOrder")
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
+      .limit(parseInt(limit));
 
     // Get total count for pagination
     const totalItems = await MenuItem.countDocuments(filter);

@@ -1,21 +1,6 @@
 import express from "express";
 import passport from "passport";
-import {
-  register,
-  registerWithInvitation,
-  checkInvitation,
-  login,
-  verifyEmail,
-  resendOTP,
-  forgotPassword,
-  resetPassword,
-  getCurrentUser,
-  updateProfile,
-  changePassword,
-  logout,
-  socialCallback,
-  deleteProfile,
-} from "../controllers/auth/authController.js";
+import authController from "../controllers/auth/authController.js";
 import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 import {
   validateRegistration,
@@ -28,15 +13,15 @@ import { authorizeRoles } from "../middleware/roleAuth.js"; // <-- only this now
 const router = express.Router();
 
 // Public routes (no auth needed)
-router.post("/register", validateRegistration, register);
-router.get("/check-invitation", checkInvitation);
-router.post("/register-with-invite", registerWithInvitation);
-router.post("/login", validateLogin, login);
-router.post("/verify-email", verifyEmail);
-router.post("/resend-otp", resendOTP);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
-router.post("/change-password", optionalAuth, changePassword);
+router.post("/register", validateRegistration, authController.register);
+router.get("/check-invitation", authController.checkInvitation);
+router.post("/register-with-invite", authController.registerWithInvitation);
+router.post("/login", validateLogin, authController.login);
+router.post("/verify-email", authController.verifyEmail);
+router.post("/resend-otp", authController.resendOTP);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
+router.post("/change-password", optionalAuth, authController.changePassword);
 
 // Social login routes
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
@@ -50,7 +35,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.
       failureRedirect: "/login",
       session: false,
     }),
-    socialCallback
+    authController.socialCallback
   );
   console.log("✅ Google OAuth routes registered");
 } else {
@@ -62,7 +47,7 @@ if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPL
   router.post(
     "/apple/callback",
     passport.authenticate("apple", { failureRedirect: "/login", session: false }),
-    socialCallback
+    authController.socialCallback
   );
   console.log("✅ Apple OAuth routes registered");
 } else {
@@ -70,15 +55,15 @@ if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPL
 }
 
 // Protected routes
-router.get("/me", authenticateToken, getCurrentUser);
-router.put("/profile", authenticateToken, validateProfileUpdate, updateProfile);
+router.get("/me", authenticateToken, authController.getCurrentUser);
+router.put("/profile", authenticateToken, validateProfileUpdate, authController.updateProfile);
 router.put(
   "/change-password",
   authenticateToken,
   validateChangePassword,
-  changePassword
+  authController.changePassword
 );
-router.post("/logout", authenticateToken, logout);
+router.post("/logout", authenticateToken, authController.logout);
 import seedTestUsers from "../utils/seedTestUsers.js";
 
 // Test route to seed test users
@@ -104,3 +89,5 @@ router.post("/seed-test-users", async (req, res) => {
     });
   }
 });
+
+export default router;

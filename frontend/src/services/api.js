@@ -1,4 +1,5 @@
 //src/services/api.js
+console.log('api loaded');
 import axios from "axios";
 
 const api = axios.create({

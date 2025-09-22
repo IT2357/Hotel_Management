@@ -1,57 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Plus, Minus, ShoppingCart, User, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 function CartPage() {
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: 'Jaffna Crab Curry',
-      price: 2850,
-      quantity: 2,
-      image: 'https://images.unsplash.com/photo-1626776877761-72e2a7c6d95c?w=100',
-      description: 'Signature Jaffna crab curry made with roasted spices and coconut milk'
-    },
-    {
-      id: 2,
-      name: 'VALDORA Special Mutton Curry',
-      price: 2250,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1609167830220-7164aa3607c8?w=100',
-      description: 'Tender mutton cooked in traditional Jaffna curry paste'
-    },
-    {
-      id: 3,
-      name: 'Jaffna Watalappam',
-      price: 850,
-      quantity: 3,
-      image: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=100',
-      description: 'Traditional coconut custard pudding with Jaffna spices'
-    }
-  ]);
-
   const { user, logout } = useAuth();
+  const { items: cartItems, removeFromCart, updateQuantity, total } = useCart();
   const navigate = useNavigate();
-
-  const updateQuantity = (id, newQuantity) => {
-    if (newQuantity <= 0) {
-      setCartItems(cartItems.filter(item => item.id !== id));
-    } else {
-      setCartItems(cartItems.map(item =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      ));
-    }
-  };
-
-  const removeItem = (id) => {
-    setCartItems(cartItems.filter(item => item.id !== id));
-  };
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const tax = subtotal * 0.15; // 15% tax
   const serviceCharge = subtotal * 0.10; // 10% service charge
-  const total = subtotal + tax + serviceCharge;
+  const grandTotal = subtotal + tax + serviceCharge;
 
   const handleLogout = () => {
     logout();
@@ -112,93 +73,98 @@ function CartPage() {
               </div>
             ) : (
               <div>
-                {cartItems.map((item) => (
-                  <div key={item.id} style={{
-                    display: 'flex',
-                    gap: '1rem',
-                    backgroundColor: 'white',
-                    padding: '1.5rem',
-                    borderRadius: '15px',
-                    marginBottom: '1rem',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                    alignItems: 'center'
-                  }}>
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '10px' }}
-                    />
+                {cartItems.map((item) => {
+                  console.log('Cart item:', item); // Debug log
+                  console.log('Cart item image:', item.image); // Debug log
+                  console.log('Cart item imageUrl:', item.imageUrl); // Debug log
+                  return (
+                    <div key={item.id} style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      backgroundColor: 'white',
+                      padding: '1.5rem',
+                      borderRadius: '15px',
+                      marginBottom: '1rem',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                      alignItems: 'center'
+                    }}>
+                      <img
+                        src={item.image || item.imageUrl}
+                        alt={item.name}
+                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '10px' }}
+                      />
 
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
-                        {item.name}
-                      </h3>
-                      <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                        {item.description}
-                      </p>
-                      <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>
-                        LKR {item.price}
-                      </p>
-                    </div>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                          {item.name}
+                        </h3>
+                        <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                          {item.description}
+                        </p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>
+                          LKR {item.price}
+                        </p>
+                      </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              border: '1px solid #ddd',
+                              borderRadius: '50%',
+                              backgroundColor: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', minWidth: '40px', textAlign: 'center' }}>
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              border: '1px solid #ddd',
+                              borderRadius: '50%',
+                              backgroundColor: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => removeFromCart(item.id)}
                           style={{
-                            width: '32px',
-                            height: '32px',
-                            border: '1px solid #ddd',
-                            borderRadius: '50%',
-                            backgroundColor: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer'
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#EF4444',
+                            cursor: 'pointer',
+                            padding: '0.5rem'
                           }}
                         >
-                          <Minus size={16} />
-                        </button>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', minWidth: '40px', textAlign: 'center' }}>
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            border: '1px solid #ddd',
-                            borderRadius: '50%',
-                            backgroundColor: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Plus size={16} />
+                          <Trash2 size={20} />
                         </button>
                       </div>
 
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        style={{
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          color: '#EF4444',
-                          cursor: 'pointer',
-                          padding: '0.5rem'
-                        }}
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#C41E3A' }}>
+                        LKR {item.price * item.quantity}
+                      </div>
                     </div>
-
-                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#C41E3A' }}>
-                      LKR {item.price * item.quantity}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div style={{ marginTop: '2rem', textAlign: 'center' }}>
                   <Link to="/menu" style={{ background: '#6B7280', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '25px', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -243,7 +209,7 @@ function CartPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
                 <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Total</span>
                 <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>
-                  LKR {total.toFixed(0)}
+                  LKR {grandTotal.toFixed(0)}
                 </span>
               </div>
 

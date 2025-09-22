@@ -6,6 +6,9 @@ import HomePage from './pages/HomePage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
+import PaymentSuccessPage from './pages/PaymentSuccessPage.jsx';
+import PaymentCancelPage from './pages/PaymentCancelPage.jsx';
+import PayHereRedirectPage from './pages/PayHereRedirectPage.jsx';
 import OrderDetailsPage from './pages/OrderDetailsPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
@@ -34,8 +37,11 @@ import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.j
 import FoodMenuManagement from './pages/admin/FoodMenuManagement.jsx';
 import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
 import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
-import MenuReviewPage from './pages/admin/MenuReviewPage.jsx';
+import EnhancedMenuReviewPage from './pages/admin/EnhancedMenuReviewPage.jsx';
 import MenuExtractorPage from './pages/admin/MenuExtractorPage.jsx';
+import ValampuriMenuGenerator from './pages/admin/ValampuriMenuGenerator.jsx';
+import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRoomPage from './pages/admin/AdminAddRooms.jsx';
 
 // Auth Test Page
 import AuthTestPage from './pages/AuthTestPage.jsx';
@@ -48,7 +54,13 @@ import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
 import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
 import MyOrdersPage from './pages/MyOrdersPage.jsx';
+import About from './pages/About.jsx';
+import Blog from './pages/Blog.jsx';
+import Gallery from './pages/Gallery.jsx';
+import Contact from './pages/Contact.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
+// import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
   return (
@@ -65,8 +77,25 @@ const App = () => {
           {/* VALDORA Cart */}
           <Route path="/cart" element={<CartPage />} />
 
+          {/* VALDORA About */}
+          <Route path="/about" element={<About />} />
+
+          {/* VALDORA Gallery */}
+          <Route path="/gallery" element={<Gallery />} />
+
+          {/* VALDORA Blog */}
+          <Route path="/blog" element={<Blog />} />
+
+          {/* VALDORA Contact */}
+          <Route path="/contact" element={<Contact />} />
+
           {/* VALDORA Checkout */}
           <Route path="/checkout" element={<CheckoutPage />} />
+
+          {/* Payment Success/Cancel */}
+          <Route path="/food/order/success" element={<PaymentSuccessPage />} />
+          <Route path="/food/order/cancel" element={<PaymentCancelPage />} />
+          <Route path="/payhere-redirect" element={<PayHereRedirectPage />} />
 
           {/* Auth Test Suite */}
           <Route path="/auth-test" element={<AuthTestPage />} />
@@ -277,7 +306,18 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
-                  <MenuReviewPage />
+                  <EnhancedMenuReviewPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/valampuri-generator"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <ValampuriMenuGenerator />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
@@ -299,6 +339,37 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']}>
                 <AdminRefundManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/rooms"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/add-room"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRoomPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoomsPage />
+                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
