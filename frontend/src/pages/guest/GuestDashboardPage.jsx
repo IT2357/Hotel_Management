@@ -1,187 +1,350 @@
-// 📁 frontend/pages/guest/GuestDashboardPage.jsx
+// 📁 frontend/pages/rooms/Index.jsx
+import { useState, useEffect } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/rooms/ui/button";
+import { Input } from "@/components/rooms/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import HotelHero from "@/components/rooms/HotelHero.jsx";
+import RoomCard from "@/components/rooms/RoomCard.jsx";
+import FilterSidebar from "@/components/rooms/FilterSidebar.jsx";
+import RoomModal from "@/components/rooms/RoomModal.jsx";
+import ViewToggle from "@/components/rooms/ViewToggle.jsx";
+import CompareModal from "@/components/rooms/CompareModal.jsx";
+import FloorSelector from "@/components/rooms/FloorSelector.jsx";
 import { Link } from "react-router-dom";
+import roomService from "@/services/roomService";
 
-const GuestDashboardPage = () => {
+const Index = () => {
+  const { toast } = useToast();
+
+  // State
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  //const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState({
+    priceRange: [50, 500],
+    bedType: "",
+    adults: 1,
+    children: 0,
+    view: [],
+    amenities: [],
+    type: "",
+    floor: null,
+    status: "Any",
+    sizeRange: [10, 200],
+    cancellationPolicy: "Any",
+    ratingLabel: "",
+    minReviewRating: 0,   // ✅ add this
+    discountAvailable: false,
+    packagesIncluded: false,
+    cleaningStatus: "Any",
+  });
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [viewMode, setViewMode] = useState("grid");
+  const [comparisonRooms, setComparisonRooms] = useState([]);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState(null);
+
+  const [filters, setFilters] = useState({
+    priceRange: [50, 500],
+    bedType: "",
+    adults: 1,
+    children: 0,
+    view: [],
+    amenities: [],
+    type: "",
+  });
+
+  // Fetch rooms from backend
+  useEffect(() => {
+    fetchRooms();
+  }, [filters]);
+
+  const fetchRooms = async () => {
+    setLoading(true);
+    try {
+      const response = await roomService.getAllRooms({ params: filters });
+      const data = response?.data;
+      setRooms(data?.data ?? []);
+    } catch (err) {
+      console.error("Error fetching rooms:", err);
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Floor selector data (optional: you can fetch from backend later)
+  const floors = [...new Set(rooms.map((r) => r.floor))].map((floorNum) => ({
+    id: `floor-${floorNum}`,
+    number: floorNum,
+    name: `Floor ${floorNum}`,
+  }));
+
+  const handleWishlist = (roomId) =>
+    toast({ title: "Added to Wishlist", description: "Room saved to favorites" });
+
+  const handleViewDetails = (roomId) =>
+    setSelectedRoom(rooms.find((r) => r._id === roomId));
+
+  const handleBookNow = (roomId) =>
+    toast({ title: "Booking Started", description: "Redirecting to booking form..." });
+
+  const handleBooking = (roomId, checkIn, checkOut, guests) => {
+    toast({
+      title: "Booking Confirmed!",
+      description: `Room booked from ${checkIn.toLocaleDateString()} to ${checkOut.toLocaleDateString()} for ${guests} guest${guests > 1 ? "s" : ""}.`,
+    });
+    setSelectedRoom(null);
+  };
+
+  const handleCompare = (roomId) =>
+    setComparisonRooms((prev) =>
+      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
+    );
+
+  const handleOpenCompare = () => setIsCompareModalOpen(true);
+
+  const getComparisonRoomsData = () =>
+    rooms.filter((room) => comparisonRooms.includes(room._id));
+
+  const handleFloorSelect = (floorNum) => {
+    setSelectedFloor(floorNum);
+    setSearchQuery("");
+  };
+  const clearFilters = () =>
+    setIsFilterOpen({
+      priceRange: [50, 500],
+      bedType: "",
+      adults: 1,
+      children: 0,
+      view: [],
+      amenities: [],
+      type: "",
+      floor: null,
+      status: "Any",
+      sizeRange: [10, 200],
+      cancellationPolicy: "Any",
+      ratingLabel: "",
+      minReviewRating: 0,   // ✅ reset properly
+      discountAvailable: false,
+      packagesIncluded: false,
+      cleaningStatus: "Any",
+    });
+  
+
+  // Filtering logic
+  const roomsToShow = selectedFloor
+    ? rooms.filter((room) => room.floor === selectedFloor)
+    : rooms;
+
+  const filteredRooms = roomsToShow.filter((room) => {
+    const matchesPrice =
+      room.basePrice >= filters.priceRange[0] &&
+      room.basePrice <= filters.priceRange[1];
+    const matchesBed = !filters.bedType || room.bedType === filters.bedType;
+    const matchesGuests =
+      room.occupancy.adults + room.occupancy.children >=
+      filters.adults + filters.children;
+    const matchesView = !filters.view.length || filters.view.includes(room.view);
+    const matchesAmenities =
+      !filters.amenities.length ||
+      filters.amenities.every((a) => room.amenities.includes(a));
+    const matchesType = !filters.type || room.type === filters.type;
+    const matchesSearch =
+      !searchQuery ||
+      room.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return (
+      matchesPrice &&
+      matchesBed &&
+      matchesGuests &&
+      matchesView &&
+      matchesAmenities &&
+      matchesType &&
+      matchesSearch
+    );
+  });
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-tamil-cream via-tamil-brown/20 to-tamil-red/10">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-tamil-red via-tamil-brown to-tamil-maroon text-white py-16 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="animate-fade-in">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              வணக்கம், Guest! 👋
-            </h1>
-            <p className="text-xl md:text-2xl opacity-90 mb-8">
-              Your authentic Jaffna hospitality experience awaits
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 text-sm">
-              <div className="bg-tamil-gold/20 backdrop-blur-sm rounded-full px-4 py-2">
-                <span className="font-semibold">Authentic Tamil Cuisine</span>
-              </div>
-              <div className="bg-tamil-gold/20 backdrop-blur-sm rounded-full px-4 py-2">
-                <span className="font-semibold">Traditional Hospitality</span>
-              </div>
-              <div className="bg-tamil-gold/20 backdrop-blur-sm rounded-full px-4 py-2">
-                <span className="font-semibold">Sri Lankan Warmth</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Bar */}
-      <nav className="bg-tamil-brown/90 backdrop-blur-sm border-b border-tamil-gold/20">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Link to="/" className="text-tamil-cream hover:text-tamil-gold font-medium transition-colors">
-                Home
-              </Link>
-              <Link to="/menu" className="text-tamil-cream hover:text-tamil-gold font-medium transition-colors">
-                Menu
-              </Link>
-              <Link to="/food-ordering" className="text-tamil-cream hover:text-tamil-gold font-medium transition-colors">
-                Order Food
-              </Link>
-              <Link to="/rooms" className="text-tamil-cream hover:text-tamil-gold font-medium transition-colors">
-                Rooms
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/profile" className="text-tamil-cream hover:text-tamil-gold font-medium transition-colors">
-                Profile
-              </Link>
-              <button
-                onClick={() => {}}
-                className="bg-tamil-red hover:bg-tamil-red/80 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-tamil-cream rounded-xl shadow-lg p-6 text-center transform hover:scale-105 transition-all duration-300 border border-tamil-gold/20">
-            <div className="text-3xl mb-2">🏨</div>
-            <div className="text-2xl font-bold text-tamil-brown">Authentic</div>
-            <div className="text-tamil-brown/70">Jaffna Experience</div>
-          </div>
-          <div className="bg-tamil-cream rounded-xl shadow-lg p-6 text-center transform hover:scale-105 transition-all duration-300 border border-tamil-gold/20">
-            <div className="text-3xl mb-2">⭐</div>
-            <div className="text-2xl font-bold text-tamil-brown">4.9/5</div>
-            <div className="text-tamil-brown/70">Guest Rating</div>
-          </div>
-          <div className="bg-tamil-cream rounded-xl shadow-lg p-6 text-center transform hover:scale-105 transition-all duration-300 border border-tamil-gold/20">
-            <div className="text-3xl mb-2">🌟</div>
-            <div className="text-2xl font-bold text-tamil-brown">Traditional</div>
-            <div className="text-tamil-brown/70">Hospitality</div>
-          </div>
-        </div>
-
-        {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[
-            {
-              title: "Jaffna Menu",
-              to: "/menu",
-              description: "Explore authentic Tamil cuisine and traditional dishes",
-              icon: "🍛",
-              color: "from-tamil-red to-tamil-orange",
-              bgColor: "bg-tamil-red/10"
-            },
-            {
-              title: "My Food Orders",
-              to: "/dashboard/my-orders",
-              description: "Track your food orders and order history",
-              icon: "🛍️",
-              color: "from-tamil-green to-tamil-brown",
-              bgColor: "bg-tamil-green/10"
-            },
-            {
-              title: "My Bookings",
-              to: "/dashboard/my-bookings",
-              description: "View and manage your room reservations",
-              icon: "🏨",
-              color: "from-tamil-gold to-tamil-orange",
-              bgColor: "bg-tamil-gold/10"
-            },
-            {
-              title: "Favorite Rooms",
-              to: "/dashboard/favorites",
-              description: "Browse your saved room preferences",
-              icon: "❤️",
-              color: "from-tamil-maroon to-tamil-red",
-              bgColor: "bg-tamil-maroon/10"
-            },
-            {
-              title: "My Reviews",
-              to: "/dashboard/reviews",
-              description: "Share your experience and feedback",
-              icon: "⭐",
-              color: "from-tamil-saffron to-tamil-gold",
-              bgColor: "bg-tamil-saffron/10"
-            },
-            {
-              title: "My Profile",
-              to: "/profile",
-              description: "Update your personal information",
-              icon: "👤",
-              color: "from-tamil-brown to-tamil-maroon",
-              bgColor: "bg-tamil-brown/10"
-            }
-          ].map(({ title, description, to, icon, color, bgColor }) => (
-            <DashboardCard
-              key={title}
-              title={title}
-              description={description}
-              to={to}
-              icon={icon}
-              color={color}
-              bgColor={bgColor}
-            />
-          ))}
-        </div>
-
-        {/* Logout Button */}
-        <div className="text-center mt-12">
-          <button
-            onClick={() => {}}
-            className="px-8 py-3 bg-gradient-to-r from-tamil-red to-tamil-maroon text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-semibold"
+    <div className="relative min-h-screen bg-gradient-hero">
+      {/* Logout */}
+      <div className="absolute top-6 right-6 z-50">
+        <Link to="/logout">
+          <Button
+            variant="outline"
+            className="bg-red-500 text-white hover:bg-red-600"
           >
-            வெளியேறு (Logout)
-          </button>
+            Logout
+          </Button>
+        </Link>
+      </div>
+
+      <HotelHero />
+
+      <div className="container mx-auto px-4 py-section flex gap-8">
+        {/* Filters Sidebar */}
+        <div className="hidden lg:block w-80 flex-shrink-0">
+          <FilterSidebar
+            isOpen={isFilterOpen}
+            onToggle={() => setIsFilterOpen(!isFilterOpen)}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={clearFilters}
+          />
+        </div>
+        <div className="lg:hidden">
+          <FilterSidebar
+            isOpen={isFilterOpen}
+            onToggle={() => setIsFilterOpen(!isFilterOpen)}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={clearFilters}
+          />
+        </div>
+
+        <div className="flex-1">
+          <FloorSelector
+            floors={floors}
+            selectedFloor={selectedFloor}
+            onFloorSelect={handleFloorSelect}
+          />
+
+          {selectedFloor && (
+            <>
+              {/* Search & Header */}
+              <div className="mb-8">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-3xl font-display font-bold text-foreground mb-2">
+                      {floors.find((f) => f.number === selectedFloor)?.name} Rooms
+                    </h2>
+                    <p className="text-muted-foreground">
+                      {filteredRooms.length > 0
+                        ? `Discover ${filteredRooms.length} beautifully designed room${
+                            filteredRooms.length !== 1 ? "s" : ""
+                          }`
+                        : "No rooms available"}
+                      {searchQuery && ` matching "${searchQuery}"`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <ViewToggle view={viewMode} onViewChange={setViewMode} />
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsFilterOpen(true)}
+                      className="lg:hidden"
+                    >
+                      <SlidersHorizontal className="w-4 h-4 mr-2" />
+                      Filters
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search rooms..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-8">Loading...</div>
+              ) : filteredRooms.length > 0 ? (
+                <div
+                  className={`animate-fade-in ${
+                    viewMode === "grid"
+                      ? "grid md:grid-cols-2 xl:grid-cols-3 gap-8"
+                      : "flex flex-col gap-6"
+                  }`}
+                >
+                  {filteredRooms.map((room) => (
+                    <RoomCard
+                      key={room._id}
+                      id={room._id}
+                      name={room.title}
+                      image={room.images[0]?.url}
+                      price={room.basePrice}
+                      maxGuests={room.occupancy.adults + room.occupancy.children}
+                      bedType={room.bedType}
+                      view={room.view}
+                      amenities={room.amenities.slice(0, 4)}
+                      viewMode={viewMode}
+                      isInComparison={comparisonRooms.includes(room._id)}
+                      onWishlist={handleWishlist}
+                      onCompare={handleCompare}
+                      onViewDetails={handleViewDetails}
+                      onBookNow={handleBookNow}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="text-6xl mb-4">🏨</div>
+                  <h3 className="text-xl font-display font-semibold mb-2">
+                    No rooms found
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Try adjusting your filters or search terms
+                  </p>
+                  <Button variant="outline" onClick={clearFilters}>
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Compare Button */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <Button
+          variant="luxury"
+          size="lg"
+          onClick={handleOpenCompare}
+          className="rounded-full shadow-luxury hover:shadow-xl transition-all duration-300 bg-primary text-white"
+        >
+          Compare ({comparisonRooms.length})
+        </Button>
+      </div>
+
+      {/* Modals */}
+      {selectedRoom && (
+          <RoomModal
+          isOpen={!!selectedRoom}
+          room={{
+            ...selectedRoom,
+            name: selectedRoom.title, // map backend "title" → modal "name"
+            price: selectedRoom.basePrice, // map backend "basePrice" → modal "price"
+            id: selectedRoom._id, // map backend "_id" → modal "id"
+            maxGuests:
+              (selectedRoom.occupancy?.adults || 0) +
+              (selectedRoom.occupancy?.children || 0), // calculate max guests
+            reviews: selectedRoom.reviews || {
+              rating: 0,
+              count: 0,
+              recent: [],
+            }, // fallback in case reviews missing
+            images: selectedRoom.images?.map((img) => img.url) || [], // flatten images
+          }}
+          onClose={() => setSelectedRoom(null)}
+          onBook={handleBooking}
+        />
+      )}
+      {isCompareModalOpen && (
+        <CompareModal
+          rooms={getComparisonRoomsData()}
+          onClose={() => setIsCompareModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
 
-function DashboardCard({ title, description, to, icon, color, bgColor }) {
-  return (
-    <Link to={to} className="group block">
-      <div className={`${bgColor} rounded-2xl p-8 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 border border-tamil-gold/20`}>
-        <div className="flex items-center mb-4">
-          <div className="text-4xl mr-4">{icon}</div>
-          <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${color} flex items-center justify-center shadow-md`}>
-            <span className="text-white text-xl">→</span>
-          </div>
-        </div>
-        <h2 className="text-2xl font-bold text-tamil-brown mb-3 group-hover:text-tamil-red">{title}</h2>
-        <p className="text-tamil-brown/70 text-base leading-relaxed mb-6">{description}</p>
-        <div className={`inline-flex items-center px-6 py-3 bg-gradient-to-r ${color} text-white rounded-full font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300`}>
-          <span>Explore</span>
-          <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-export default GuestDashboardPage;
+export default Index;
