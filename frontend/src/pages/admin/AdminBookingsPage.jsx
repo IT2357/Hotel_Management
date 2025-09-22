@@ -1,95 +1,131 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import { BookingContext } from '../../context/BookingContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import Pagination from '../../components/ui/Pagination';
-import Spinner from '../../components/ui/Spinner';
+import Alert from '../../components/common/Alert';
 
 export default function AdminBookingsPage() {
   const { user } = useContext(AuthContext);
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    page: 1,
-    limit: 20,
-    status: '',
-    search: '',
-    dateFrom: '',
-    dateTo: ''
-  });
-  const [pagination, setPagination] = useState({});
+  const {
+    bookings,
+    stats,
+    loading,
+    error,
+    filters,
+    pagination,
+    fetchBookings,
+    fetchBookingStats,
+    updateBookingStatus,
+    updateFilters,
+    clearError
+  } = useContext(BookingContext);
 
-  // Mock data - replace with actual API call
-  useEffect(() => {
-    fetchBookings();
-  }, [filters]);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionType, setActionType] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [holdUntil, setHoldUntil] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
 
-  const fetchBookings = async () => {
-    setLoading(true);
-    try {
-      // Mock API call - replace with actual booking service
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockBookings = [
-        {
-          _id: '1',
-          bookingNumber: 'BK-2024-001',
-          guest: { name: 'John Doe', email: 'john@example.com' },
-          room: { number: '101', type: 'Deluxe' },
-          checkIn: '2024-03-15',
-          checkOut: '2024-03-18',
-          status: 'confirmed',
-          totalAmount: 450.00,
-          createdAt: '2024-03-01'
-        },
-        {
-          _id: '2',
-          bookingNumber: 'BK-2024-002',
-          guest: { name: 'Jane Smith', email: 'jane@example.com' },
-          room: { number: '205', type: 'Suite' },
-          checkIn: '2024-03-20',
-          checkOut: '2024-03-23',
-          status: 'pending',
-          totalAmount: 750.00,
-          createdAt: '2024-03-02'
-        }
-      ];
-      
-      setBookings(mockBookings);
-      setPagination({
-        page: 1,
-        limit: 20,
-        total: mockBookings.length,
-        pages: 1
-      });
-    } catch (error) {
-      console.error('Failed to fetch bookings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [alert, setAlert] = useState(null);
 
   const getStatusColor = (status) => {
     const colors = {
-      confirmed: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      cancelled: 'bg-red-100 text-red-800',
-      completed: 'bg-blue-100 text-blue-800'
+      'Pending Approval': 'bg-yellow-100 text-yellow-800',
+      'On Hold': 'bg-orange-100 text-orange-800',
+      'Confirmed': 'bg-green-100 text-green-800',
+      'Rejected': 'bg-red-100 text-red-800',
+      'Cancelled': 'bg-gray-100 text-gray-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const handleStatusChange = async (bookingId, newStatus) => {
+  useEffect(() => {
+    fetchBookings();
+    fetchBookingStats();
+  }, [filters]);
+
+  const handleStatusChange = async (bookingId, newStatus, reason = '') => {
+    setActionLoading(true);
+    setError(null);
     try {
-      // Mock API call - replace with actual booking service
-      console.log(`Updating booking ${bookingId} status to ${newStatus}`);
-      await fetchBookings();
+      const data = {};
+
+      switch (newStatus) {
+        case 'Confirmed':
+          if (approvalNotes.trim()) {
+            data.approvalNotes = approvalNotes;
+          }
+          break;
+        case 'Rejected':
+          if (!rejectionReason.trim()) {
+            alert('Please provide a rejection reason');
+            setActionLoading(false);
+            return;
+          }
+          data.reason = rejectionReason;
+          break;
+        case 'On Hold':
+          if (!holdUntil) {
+            alert('Please select a hold until date');
+            setActionLoading(false);
+            return;
+          }
+          data.holdUntil = holdUntil;
+          data.reason = approvalNotes || 'Put on hold for review';
+          break;
+      }
+
+      await updateBookingStatus(bookingId, newStatus, data);
+      setShowActionModal(false);
+      setSelectedBooking(null);
+      setRejectionReason('');
+      setHoldUntil('');
+      setApprovalNotes('');
     } catch (error) {
       console.error('Failed to update booking status:', error);
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const openActionModal = (booking, action) => {
+    setSelectedBooking(booking);
+    setActionType(action);
+    setShowActionModal(true);
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'LKR'
+    }).format(amount);
+  };
+
+  const getPaymentMethodInfo = (paymentMethod) => {
+    const methods = {
+      card: { label: 'Credit/Debit Card', color: 'bg-blue-100 text-blue-800', icon: '💳' },
+      bank: { label: 'Bank Transfer', color: 'bg-purple-100 text-purple-800', icon: '🏦' },
+      cash: { label: 'Pay at Hotel', color: 'bg-green-100 text-green-800', icon: '💵' }
+    };
+    return methods[paymentMethod] || { label: 'Unknown', color: 'bg-gray-100 text-gray-800', icon: '❓' };
+  };
+
+  const getPaymentMethodBadge = (paymentMethod) => {
+    const info = getPaymentMethodInfo(paymentMethod);
+    return (
+      <Badge className={info.color}>
+        <span className="mr-1">{info.icon}</span>
+        {info.label}
+      </Badge>
+    );
   };
 
   return (
@@ -102,35 +138,62 @@ export default function AdminBookingsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <Card title="Total Bookings" className="p-6">
+            <div className="text-3xl font-bold text-indigo-600">{stats.totalBookings || 0}</div>
+            <p className="text-gray-600">All bookings</p>
+          </Card>
+          <Card title="Pending Approval" className="p-6">
+            <div className="text-3xl font-bold text-yellow-600">{stats.pendingApprovals || 0}</div>
+            <p className="text-gray-600">Require review</p>
+          </Card>
+          <Card title="Confirmed" className="p-6">
+            <div className="text-3xl font-bold text-green-600">{stats.confirmed || 0}</div>
+            <p className="text-gray-600">Ready for check-in</p>
+          </Card>
+          <Card title="Revenue" className="p-6">
+            <div className="text-3xl font-bold text-blue-600">
+              {formatCurrency(stats.totalRevenue || 0)}
+            </div>
+            <p className="text-gray-600">Total bookings value</p>
+          </Card>
+      {/* Alert Messages */}
+      {alert && (
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Input
               placeholder="Search bookings..."
               value={filters.search}
-              onChange={(e) => setFilters({...filters, search: e.target.value, page: 1})}
+              onChange={(e) => updateFilters({ search: e.target.value, page: 1 })}
             />
             <Select
               value={filters.status}
-              onChange={(e) => setFilters({...filters, status: e.target.value, page: 1})}
+              onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
             >
               <option value="">All Status</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="completed">Completed</option>
+              <option value="Pending Approval">Pending Approval</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Cancelled">Cancelled</option>
             </Select>
             <Input
               type="date"
               placeholder="From Date"
               value={filters.dateFrom}
-              onChange={(e) => setFilters({...filters, dateFrom: e.target.value, page: 1})}
+              onChange={(e) => updateFilters({ dateFrom: e.target.value, page: 1 })}
             />
             <Input
               type="date"
               placeholder="To Date"
               value={filters.dateTo}
-              onChange={(e) => setFilters({...filters, dateTo: e.target.value, page: 1})}
+              onChange={(e) => updateFilters({ dateTo: e.target.value, page: 1 })}
             />
             <Button onClick={fetchBookings}>
               Apply Filters
@@ -164,6 +227,9 @@ export default function AdminBookingsPage() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Method
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -174,7 +240,7 @@ export default function AdminBookingsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
                       No bookings found
                     </td>
                   </tr>
@@ -191,14 +257,14 @@ export default function AdminBookingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="font-medium text-gray-900">{booking.guest.name}</div>
-                          <div className="text-sm text-gray-500">{booking.guest.email}</div>
+                          <div className="font-medium text-gray-900">{booking.userId?.name}</div>
+                          <div className="text-sm text-gray-500">{booking.userId?.email}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="font-medium text-gray-900">Room {booking.room.number}</div>
-                          <div className="text-sm text-gray-500">{booking.room.type}</div>
+                          <div className="font-medium text-gray-900">{booking.roomId?.title}</div>
+                          <div className="text-sm text-gray-500">Room {booking.roomId?.roomNumber}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -208,43 +274,63 @@ export default function AdminBookingsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={getStatusColor(booking.status)}>
-                          {booking.status}
-                        </Badge>
+                        {getPaymentMethodBadge(booking.paymentMethod)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${booking.totalAmount.toFixed(2)}
+                        {formatCurrency(booking.totalPrice || 0)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <Button size="sm" variant="outline">
                             View
                           </Button>
-                          {booking.status === 'pending' && (
+                          {booking.status === 'Pending Approval' && (
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => handleStatusChange(booking._id, 'confirmed')}
+                                onClick={() => openActionModal(booking, 'approve')}
+                                disabled={actionLoading}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => openActionModal(booking, 'reject')}
+                                disabled={actionLoading}
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openActionModal(booking, 'hold')}
+                                disabled={actionLoading}
+                              >
+                                Hold
+                              </Button>
+                            </>
+                          )}
+                          {booking.status === 'On Hold' && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openActionModal(booking, 'approve')}
+                                disabled={actionLoading}
+                                className="bg-green-600 hover:bg-green-700"
                               >
                                 Confirm
                               </Button>
                               <Button
                                 size="sm"
                                 variant="danger"
-                                onClick={() => handleStatusChange(booking._id, 'cancelled')}
+                                onClick={() => openActionModal(booking, 'reject')}
+                                disabled={actionLoading}
                               >
-                                Cancel
+                                Reject
                               </Button>
                             </>
-                          )}
-                          {booking.status === 'confirmed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleStatusChange(booking._id, 'completed')}
-                            >
-                              Mark Complete
-                            </Button>
                           )}
                         </div>
                       </td>
@@ -257,12 +343,12 @@ export default function AdminBookingsPage() {
         )}
 
         {/* Pagination */}
-        {pagination.pages > 1 && (
+        {pagination.totalPages > 1 && (
           <div className="mt-6">
             <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.pages}
-              onPageChange={(page) => setFilters({...filters, page})}
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={(page) => updateFilters({...filters, page})}
             />
           </div>
         )}
@@ -275,24 +361,142 @@ export default function AdminBookingsPage() {
           </Card>
           <Card title="Confirmed" className="p-6">
             <div className="text-3xl font-bold text-green-600">
-              {bookings.filter(b => b.status === 'confirmed').length}
+              {bookings.filter(b => b.status === 'Confirmed').length}
             </div>
             <p className="text-gray-600">Ready for check-in</p>
           </Card>
           <Card title="Pending" className="p-6">
             <div className="text-3xl font-bold text-yellow-600">
-              {bookings.filter(b => b.status === 'pending').length}
+              {bookings.filter(b => b.status === 'Pending Approval').length}
             </div>
             <p className="text-gray-600">Awaiting confirmation</p>
           </Card>
           <Card title="Revenue" className="p-6">
             <div className="text-3xl font-bold text-blue-600">
-              ${bookings.reduce((sum, b) => sum + b.totalAmount, 0).toFixed(0)}
+              {formatCurrency(bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0))}
             </div>
             <p className="text-gray-600">Total bookings value</p>
           </Card>
         </div>
       </main>
+
+      {/* Enhanced Action Modal */}
+      {showActionModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">
+              {actionType === 'approve' ? 'Approve Booking' :
+               actionType === 'reject' ? 'Reject Booking' :
+               actionType === 'hold' ? 'Put Booking on Hold' : 'Booking Action'}
+            </h3>
+
+            <div className="mb-4 p-4 bg-gray-50 rounded">
+              <h4 className="font-medium">{selectedBooking.bookingNumber}</h4>
+              <p className="text-sm text-gray-600">
+                Guest: {selectedBooking.userId?.name}
+              </p>
+              <p className="text-sm text-gray-600">
+                Room: {selectedBooking.roomId?.title}
+              </p>
+              <p className="text-sm text-gray-600">
+                {new Date(selectedBooking.checkIn).toLocaleDateString()} - {new Date(selectedBooking.checkOut).toLocaleDateString()}
+              </p>
+              <p className="text-sm text-gray-600">
+                Amount: {formatCurrency(selectedBooking.totalPrice || 0)}
+              </p>
+            </div>
+
+            {/* Approval Notes */}
+            {actionType === 'approve' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Approval Notes (Optional)
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows="3"
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Add any notes for this approval..."
+                />
+              </div>
+            )}
+
+            {/* Rejection Reason */}
+            {actionType === 'reject' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rejection Reason *
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows="3"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for rejection..."
+                  required
+                />
+              </div>
+            )}
+
+            {/* Hold Until Date */}
+            {actionType === 'hold' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Hold Until Date *
+                </label>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={holdUntil}
+                  onChange={(e) => setHoldUntil(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mt-2"
+                  rows="2"
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Reason for putting on hold..."
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowActionModal(false);
+                  setSelectedBooking(null);
+                  setRejectionReason('');
+                  setHoldUntil('');
+                  setApprovalNotes('');
+                }}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleStatusChange(
+                  selectedBooking._id,
+                  actionType === 'approve' ? 'Confirmed' :
+                  actionType === 'reject' ? 'Rejected' : 'On Hold'
+                )}
+                disabled={actionLoading ||
+                  (actionType === 'reject' && !rejectionReason.trim()) ||
+                  (actionType === 'hold' && !holdUntil)
+                }
+                className={actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
+              >
+                {actionLoading ? 'Processing...' :
+                 actionType === 'approve' ? 'Approve Booking' :
+                 actionType === 'reject' ? 'Reject Booking' : 'Put on Hold'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

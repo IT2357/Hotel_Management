@@ -64,15 +64,8 @@ const settingsService = {
         "maxLoginAttempts",
         "twoFactorRequired",
         
-        // Booking settings
-        "allowGuestBooking",
-        "requireApproval",
-        "maxAdvanceBooking",
-        "cancellationPolicy",
-        "defaultCheckInTime",
-        "defaultCheckOutTime",
-        "maxGuestsPerRoom",
-        "maintenanceMode",
+        // Operational settings
+        "operationalSettings",
         
         // Payment Gateway settings
         "paymentGateway",
@@ -339,6 +332,8 @@ const settingsService = {
             maxLoginAttempts: settings.maxLoginAttempts,
             twoFactorRequired: settings.twoFactorRequired,
           };
+        case 'operational':
+          return settings.operationalSettings || {};
         case 'booking':
           return {
             allowGuestBooking: settings.allowGuestBooking,
@@ -367,8 +362,6 @@ const settingsService = {
           return settings.customizationSettings || {};
         case 'guest':
           return settings.guestSettings || {};
-        default:
-          return settings;
       }
     } catch (error) {
       console.error(`Error getting settings for category ${category}:`, error);

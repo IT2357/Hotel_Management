@@ -17,9 +17,14 @@ import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import webhookRoutes from "./routes/webhooks.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
+import invoiceRoutes from "./routes/invoiceRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
 import "./eventListeners/notificationListeners.js";
 // Import SMS template seeder
 import { seedSMSTemplates } from "./utils/smsTemplatesSeeder.js";
+// Import booking scheduler
+import BookingScheduler from "./services/booking/bookingScheduler.js";
 const app = express();
 app.set("trust proxy", 1);
 // Initialize Passport
@@ -68,6 +73,74 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 }
 // Start server after attempting database connection
+const startBookingScheduler = () => {
+  // Process expired bookings every hour
+  const processExpiredBookings = async () => {
+    try {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+        const result = await BookingScheduler.processExpiredBookings();
+        if (result.processed > 0) {
+          console.log(`🕐 Auto-processed ${result.processed} expired bookings`);
+        }
+      } else {
+        console.log('⏸️  Booking scheduler disabled (set ENABLE_SCHEDULER=true to enable)');
+      }
+    } catch (error) {
+      console.error('❌ Booking scheduler error:', error);
+    }
+  };
+
+  // Send expiry reminders every 6 hours
+  const sendExpiryReminders = async () => {
+    try {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+        const result = await BookingScheduler.sendExpiryReminders(24); // 24 hours before expiry
+        if (result.sent > 0) {
+          console.log(`📧 Sent ${result.sent} expiry reminders`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Expiry reminders error:', error);
+    }
+  };
+
+  // Cleanup old bookings daily at midnight
+  const cleanupOldBookings = async () => {
+    try {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+        const deletedCount = await BookingScheduler.cleanupOldBookings(90); // 90 days old
+        if (deletedCount > 0) {
+          console.log(`🧹 Cleaned up ${deletedCount} old bookings`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Cleanup error:', error);
+    }
+  };
+
+  // Initial run after 1 minute delay to ensure server is fully started
+  setTimeout(() => {
+    processExpiredBookings();
+    sendExpiryReminders();
+  }, 60000); // 1 minute delay
+
+  // Schedule regular runs
+  setInterval(processExpiredBookings, 60 * 60 * 1000); // Every hour
+  setInterval(sendExpiryReminders, 6 * 60 * 60 * 1000); // Every 6 hours
+
+  // Daily cleanup at midnight (next day 00:00:00)
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
+  const timeUntilMidnight = nextMidnight - now.getTime();
+
+  setTimeout(() => {
+    cleanupOldBookings();
+    // Then run daily at midnight thereafter
+    setInterval(cleanupOldBookings, 24 * 60 * 60 * 1000); // Daily
+  }, timeUntilMidnight);
+
+  console.log('✅ Booking scheduler started successfully');
+};
 const startServer = async () => {
   try {
     // Try to connect to database, but don't fail if it doesn't work
@@ -76,6 +149,10 @@ const startServer = async () => {
 
     // Seed SMS templates after successful database connection
     await seedSMSTemplates();
+
+    // Start booking scheduler
+    console.log("🚀 Starting booking scheduler...");
+    startBookingScheduler();
   } catch (dbError) {
     console.warn("⚠️  Database connection failed, but server will start anyway");
     console.warn("📝 Some features may not work until database is available");
@@ -96,6 +173,9 @@ const startServer = async () => {
   app.use("/api/auth", authRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/notifications", notificationRoutes);
+  app.use("/api/bookings", bookingRoutes);
+  app.use("/api/invoices", invoiceRoutes);
+  app.use("/api/rooms", roomRoutes);
   app.use("/api/webhooks", webhookRoutes);
 
   app.use("/api", (req, res) => {
@@ -114,6 +194,9 @@ const startServer = async () => {
       endpoints: {
         auth: "/api/auth",
         admin: "/api/admin",
+        bookings: "/api/bookings",
+        invoices: "/api/invoices",
+        rooms: "/api/rooms",
         notifications: "/api/notifications",
         webhooks: "/api/webhooks",
         health: "/health",
@@ -174,6 +257,9 @@ const startServer = async () => {
 📊 Health check: http://localhost:${PORT}/health
 🔐 Auth API: http://localhost:${PORT}/api/auth
 📚 Admin API: http://localhost:${PORT}/api/admin
+📅 Bookings API: http://localhost:${PORT}/api/bookings
+🧾 Invoices API: http://localhost:${PORT}/api/invoices
+🏨 Rooms API: http://localhost:${PORT}/api/rooms
 📱 Webhooks: http://localhost:${PORT}/api/webhooks
     `);
   });

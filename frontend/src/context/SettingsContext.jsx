@@ -24,6 +24,12 @@ export const SettingsProvider = ({ children }) => {
       setSettings(response.data || {});
     } catch (err) {
       console.error('Failed to fetch settings:', err);
+      // Check if it's an authentication error (403)
+      if (err.status === 403 || err.response?.status === 403) {
+        console.log('Admin settings require authentication, using default settings');
+      } else {
+        console.error('Settings fetch error:', err);
+      }
       setError(err.message);
       // Set default settings if fetch fails
       setSettings({

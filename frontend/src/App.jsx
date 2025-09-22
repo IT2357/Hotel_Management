@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
+import { BookingProvider } from './context/BookingContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -14,6 +15,12 @@ import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
+import RoomsPage from './pages/RoomsPage.jsx';
+import BookingPage from './pages/BookingPage.jsx';
+import MyBookings from './pages/guest/MyBookings.jsx';
+import MyReviews from './pages/guest/MyReviews.jsx';
+import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
+import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -21,6 +28,7 @@ import UserManagementPage from './pages/admin/UserManagementPage.jsx';
 import AdminReportsPage from './pages/admin/AdminReportsPage.jsx';
 import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
+import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
@@ -31,9 +39,12 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <SettingsProvider>
-          <Routes>
-          {/* 🔒 Public Routes */}
-          <Route path="/" element={<HomePage />} />
+          <BookingProvider>
+            <Routes>
+          {/* 🔒 Booking Routes */}
+          <Route path="/booking" element={<GuestBookingFlow />} />
+          <Route path="/booking/guest" element={<GuestBookingFlow />} />
+          <Route path="/rooms" element={<RoomsPage />} />
           <Route
             path="/login"
             element={
@@ -87,6 +98,30 @@ const App = () => {
             element={
               <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guest/my-bookings"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <MyBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guest/my-reviews"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <MyReviews />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guest/favorites"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <FavoriteRooms />
               </ProtectedRoute>
             }
           />
@@ -159,6 +194,17 @@ const App = () => {
           />
 
           <Route
+            path="/admin/invoices"
+            element={
+              <ProtectedRoute roles={['admin']} permissions={["invoices:read"]}>
+                <DefaultAdminLayout>
+                  <AdminInvoicesPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/reports"
             element={
               <ProtectedRoute roles={['admin']} permissions={["reports:read"]}>
@@ -222,6 +268,7 @@ const App = () => {
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
           </Routes>
+        </BookingProvider>
         </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>

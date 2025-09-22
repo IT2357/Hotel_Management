@@ -781,11 +781,92 @@ export default function AdminSettingsPage() {
                 onChange={(value) => handleSettingChange("allowGuestBooking", value)}
               />
               <SettingsToggle
-                label="Require Admin Approval for Bookings"
-                description="All bookings need administrator approval"
-                checked={settings.requireApproval || false}
-                onChange={(value) => handleSettingChange("requireApproval", value)}
+                label="Require Admin Approval for All Bookings"
+                description="All bookings need administrator approval regardless of payment method"
+                checked={settings.requireApprovalForAllBookings || false}
+                onChange={(value) => handleSettingChange("requireApprovalForAllBookings", value)}
               />
+              <div className="border-t pt-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Payment Method Approval Settings</h4>
+                <div className="space-y-3">
+                  <SettingsToggle
+                    label="Require Approval for Cash Payments"
+                    description="Bookings with cash payment require admin approval"
+                    checked={settings.cashPaymentApprovalRequired || true}
+                    onChange={(value) => handleSettingChange("cashPaymentApprovalRequired", value)}
+                  />
+                  <SettingsToggle
+                    label="Require Approval for Bank Transfer Payments"
+                    description="Bookings with bank transfer payment require admin approval"
+                    checked={settings.bankTransferApprovalRequired || true}
+                    onChange={(value) => handleSettingChange("bankTransferApprovalRequired", value)}
+                  />
+                  <SettingsToggle
+                    label="Require Approval for Card Payments"
+                    description="Bookings with card payment require admin approval"
+                    checked={settings.cardPaymentApprovalRequired || false}
+                    onChange={(value) => handleSettingChange("cardPaymentApprovalRequired", value)}
+                  />
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Approval Workflow Settings</h4>
+                <SettingsGrid>
+                  <SettingsField label="Auto-Approval Threshold" description="Amount below which bookings are auto-approved">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={settings.autoApprovalThreshold || "5000"}
+                      onChange={(e) => handleSettingChange("autoApprovalThreshold", e.target.value)}
+                      placeholder="5000"
+                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </SettingsField>
+                  <SettingsField label="Approval Timeout" description="Hours after which pending bookings auto-expire">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={settings.approvalTimeoutHours || "24"}
+                      onChange={(e) => handleSettingChange("approvalTimeoutHours", e.target.value)}
+                      placeholder="24"
+                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </SettingsField>
+                </SettingsGrid>
+                <div className="space-y-3 mt-3">
+                  <SettingsToggle
+                    label="Allow Guest Booking Modifications"
+                    description="Guests can modify their bookings while pending approval"
+                    checked={settings.allowGuestBookingModifications || true}
+                    onChange={(value) => handleSettingChange("allowGuestBookingModifications", value)}
+                  />
+                  <SettingsToggle
+                    label="Show Approval Status to Guests"
+                    description="Guests can see their booking approval status"
+                    checked={settings.showApprovalStatusToGuests || true}
+                    onChange={(value) => handleSettingChange("showApprovalStatusToGuests", value)}
+                  />
+                  <SettingsToggle
+                    label="Enable Booking Reminders"
+                    description="Send reminders to guests about their bookings"
+                    checked={settings.enableBookingReminders || true}
+                    onChange={(value) => handleSettingChange("enableBookingReminders", value)}
+                  />
+                  <SettingsField label="Reminder Hours Before Check-in">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={settings.reminderHoursBeforeCheckIn || "48"}
+                      onChange={(e) => handleSettingChange("reminderHoursBeforeCheckIn", e.target.value)}
+                      placeholder="48"
+                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </SettingsField>
+                </div>
+              </div>
             </div>
           </SettingsSection>
         );

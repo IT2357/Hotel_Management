@@ -1,9 +1,10 @@
+import InvoiceService from "../payment/invoiceService.js";
+import NotificationService from "../notification/notificationService.js";
 import AdminSettings from "../../models/AdminSettings.js";
 import Booking from "../../models/Booking.js";
-import Room from "../../models/Room.js";
 import { User } from "../../models/User.js";
-import NotificationService from "../notification/notificationService.js";
-import { differenceInDays, parseISO, isAfter, isBefore, addDays } from "date-fns";
+import Room from "../../models/Room.js";
+import { parseISO, isBefore, isAfter, differenceInDays, addDays } from 'date-fns';
 
 class BookingService {
   constructor() {
@@ -66,10 +67,91 @@ class BookingService {
       errors.push('Check-out date must be after check-in date');
     }
 
-    // Check maximum advance booking
-    const maxBookingDate = addDays(today, settings.maxAdvanceBooking || 365);
-    if (isAfter(checkInDate, maxBookingDate)) {
-      errors.push(`Bookings can only be made up to ${settings.maxAdvanceBooking || 365} days in advance`);
+    // Validate operational hours
+    const operationalSettings = settings.operationalSettings || {};
+    if (operationalSettings.enabled) {
+      // Check if booking is within allowed days
+      const checkInDay = checkInDate.toLocaleLowerCase('en-US', { weekday: 'long' });
+      const allowedDays = operationalSettings.allowedDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+      if (!allowedDays.includes(checkInDay)) {
+        errors.push(`Bookings are not allowed on ${checkInDay.toUpperCase()}. Allowed days: ${allowedDays.join(', ')}`);
+      }
+
+      // Check if booking is within operational hours
+      const checkInTime = checkInDate.toTimeString().slice(0, 5); // HH:MM format
+      const checkOutTime = checkOutDate.toTimeString().slice(0, 5);
+
+      if (operationalSettings.startTime && operationalSettings.endTime) {
+        if (checkInTime < operationalSettings.startTime ||
+            checkInTime > operationalSettings.endTime) {
+          errors.push(`Check-in time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
+        }
+
+        if (checkOutTime < operationalSettings.startTime ||
+            checkOutTime > operationalSettings.endTime) {
+          errors.push(`Check-out time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
+        }
+      }
+
+      // Check check-in/check-out windows
+      if (operationalSettings.checkInWindowStart && operationalSettings.checkInWindowEnd) {
+        if (checkInTime < operationalSettings.checkInWindowStart ||
+            checkInTime > operationalSettings.checkInWindowEnd) {
+          errors.push(`Check-in must be between ${operationalSettings.checkInWindowStart} and ${operationalSettings.checkInWindowEnd}`);
+        }
+      }
+
+      if (operationalSettings.checkOutWindowStart && operationalSettings.checkOutWindowEnd) {
+        if (checkOutTime < operationalSettings.checkOutWindowStart ||
+            checkOutTime > operationalSettings.checkOutWindowEnd) {
+          errors.push(`Check-out must be between ${operationalSettings.checkOutWindowStart} and ${operationalSettings.checkOutWindowEnd}`);
+        }
+      }
+
+      // Check minimum stay hours
+      const stayHours = (checkOutDate - checkInDate) / (1000 * 60 * 60);
+      if (operationalSettings.minStayHours && stayHours < operationalSettings.minStayHours) {
+        errors.push(`Minimum stay is ${operationalSettings.minStayHours} hours`);
+      }
+
+      // Check maximum stay days
+      if (operationalSettings.maxStayDays && differenceInDays(checkOutDate, checkInDate) > operationalSettings.maxStayDays) {
+        errors.push(`Maximum stay is ${operationalSettings.maxStayDays} days`);
+      }
+
+      // Check maintenance days and special closures
+      const maintenanceDays = operationalSettings.maintenanceDays || [];
+      const specialClosures = operationalSettings.specialClosures || [];
+
+      // Check maintenance days
+      const isMaintenanceDay = maintenanceDays.some(day =>
+        day.isActive &&
+        new Date(day.date).toDateString() === checkInDate.toDateString()
+      );
+
+      if (isMaintenanceDay) {
+        errors.push('The hotel is closed for maintenance on the selected date');
+      }
+
+      // Check special closures
+      const isSpecialClosure = specialClosures.some(closure =>
+        closure.isActive &&
+        checkInDate >= new Date(closure.startDate) &&
+        checkInDate <= new Date(closure.endDate)
+      );
+
+      if (isSpecialClosure) {
+        errors.push('The hotel is closed during the selected period');
+      }
+
+      // Check advance booking days
+      if (operationalSettings.advanceBookingDays) {
+        const maxAdvanceDate = addDays(today, operationalSettings.advanceBookingDays);
+        if (isAfter(checkInDate, maxAdvanceDate)) {
+          errors.push(`Bookings can only be made up to ${operationalSettings.advanceBookingDays} days in advance`);
+        }
+      }
     }
 
     // Check stay duration
@@ -101,29 +183,39 @@ class BookingService {
     const settings = await this.getSettings();
     const checkInDate = typeof checkIn === 'string' ? parseISO(checkIn) : checkIn;
     const checkOutDate = typeof checkOut === 'string' ? parseISO(checkOut) : checkOut;
-    
+
+    if (!checkInDate || !checkOutDate || isNaN(checkInDate) || isNaN(checkOutDate)) {
+      throw new Error('Invalid check-in or check-out dates');
+    }
+
     const nights = differenceInDays(checkOutDate, checkInDate);
-    const subtotal = nights * roomRate;
-    
+
+    if (nights <= 0) {
+      throw new Error('Check-out date must be after check-in date');
+    }
+
+    const rate = parseFloat(roomRate) || 0;
+    const subtotal = nights * rate;
+
     const financialSettings = settings.financialSettings || {};
     const taxRate = (financialSettings.taxRate || 0) / 100;
     const serviceFeeRate = (financialSettings.serviceFee || 0) / 100;
-    
+
     const tax = subtotal * taxRate;
     const serviceFee = subtotal * serviceFeeRate;
     const total = subtotal + tax + serviceFee;
-    
+
     const depositRequired = financialSettings.depositRequired !== false;
     const depositAmount = financialSettings.depositAmount || 100;
     const depositType = financialSettings.depositType || 'fixed';
-    
+
     let deposit = 0;
     if (depositRequired) {
-      deposit = depositType === 'percentage' 
+      deposit = depositType === 'percentage'
         ? (total * depositAmount / 100)
         : depositAmount;
     }
-    
+
     return {
       nights,
       subtotal,
@@ -137,9 +229,17 @@ class BookingService {
   }
 
   // Create booking with settings integration
-  async createBooking(bookingData, userId) {
+  async createBooking(bookingData) {
     try {
       const settings = await this.getSettings();
+
+      // For now, we'll need userId from controller - this should be extracted from JWT
+      // The controller should pass userId from req.user._id
+      const userId = bookingData.userId;
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
       const user = await User.findById(userId);
       
       if (!user) {
@@ -158,15 +258,21 @@ class BookingService {
         throw new Error('Room not found');
       }
 
+      // Validate room pricing
+      if ((!room.basePrice && !room.price) && !bookingData.roomBasePrice) {
+        throw new Error('Room pricing information is not available');
+      }
+
       // Calculate cost
       const costBreakdown = await this.calculateBookingCost(
         bookingData.checkIn,
         bookingData.checkOut,
-        room.price
+        bookingData.roomBasePrice || room.basePrice || room.price || 0
       );
 
       // Create booking
       const booking = new Booking({
+        ...bookingData,
         userId,
         roomId: bookingData.roomId,
         checkIn: bookingData.checkIn,
@@ -174,15 +280,26 @@ class BookingService {
         guests: bookingData.guests,
         specialRequests: bookingData.specialRequests,
         costBreakdown,
-        status: settings.requireApproval ? 'pending_approval' : 'confirmed',
+        status: settings.requireApproval ? 'Pending Approval' : 'Confirmed',
         bookingSettings: {
           checkInTime: settings.defaultCheckInTime,
           checkOutTime: settings.defaultCheckOutTime,
-          cancellationPolicy: settings.cancellationPolicy
+          cancellationPolicy: settings.cancellationPolicy,
+          operationalHours: settings.operationalSettings || {}
         }
       });
 
       await booking.save();
+
+      // Create invoice for the booking
+      try {
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        booking.invoiceId = invoice._id;
+        await booking.save();
+      } catch (invoiceError) {
+        console.error('Failed to create invoice for booking:', invoiceError);
+        // Don't fail the booking creation if invoice creation fails
+      }
 
       // Send notifications based on settings
       if (settings.bookingConfirmations) {
@@ -191,7 +308,7 @@ class BookingService {
           userType: user.role,
           type: 'booking_confirmation',
           title: 'Booking Confirmation',
-          message: `Your booking for ${room.name} has been ${booking.status === 'confirmed' ? 'confirmed' : 'received and is pending approval'}.`,
+          message: `Your booking for ${room.name} has been ${booking.status === 'Confirmed' ? 'confirmed' : 'received and is pending approval'}.`,
           channel: 'email',
           metadata: {
             bookingId: booking._id,
@@ -253,12 +370,18 @@ class BookingService {
         let notificationType = 'booking_update';
         let message = `Your booking status has been updated to ${status}.`;
 
-        if (status === 'confirmed') {
+        if (status === 'Confirmed') {
           notificationType = 'booking_confirmation';
           message = `Your booking for ${booking.roomId.name} has been confirmed!`;
-        } else if (status === 'cancelled') {
+        } else if (status === 'Cancelled') {
           notificationType = 'booking_cancellation';
           message = `Your booking for ${booking.roomId.name} has been cancelled.`;
+        } else if (status === 'Rejected') {
+          notificationType = 'booking_rejection';
+          message = `Your booking for ${booking.roomId.name} has been rejected.`;
+        } else if (status === 'On Hold') {
+          notificationType = 'booking_on_hold';
+          message = `Your booking for ${booking.roomId.name} has been put on hold.`;
         }
 
         await NotificationService.sendNotification({

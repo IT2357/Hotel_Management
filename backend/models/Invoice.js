@@ -8,9 +8,15 @@ const invoiceSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     invoiceNumber: { type: String, unique: true, index: true },
     amount: Number,
+    totalAmount: Number,
     currency: { type: String, default: "LKR" },
     taxRate: Number,
     discountApplied: Number,
+    status: {
+      type: String,
+      enum: ["Draft", "Sent", "Paid", "Overdue", "Cancelled", "Pending"],
+      default: "Draft",
+    },
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Refunded", "Failed"],
@@ -22,8 +28,16 @@ const invoiceSchema = new mongoose.Schema(
       default: "Cash",
     },
     transactionId: String,
-    issuedAt: Date,
+    issuedAt: { type: Date, default: Date.now },
+    dueDate: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }, // 7 days from now
     paidAt: Date,
+    overdueAt: Date,
+    items: [{
+      description: String,
+      amount: Number,
+      quantity: { type: Number, default: 1 }
+    }],
+    statusNotes: String,
   },
   { timestamps: true }
 );

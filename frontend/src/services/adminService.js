@@ -47,7 +47,7 @@ const adminService = {
   approveRefund: (id) => api.post(`/admin/refunds/${id}/approve`),
   denyRefund: (id, reason) => api.post(`/admin/refunds/${id}/deny`, { reason }),
   requestMoreInfo: (id, message) =>
-    api.post(`/admin/refunds/${id}/request-info`, { message }),
+    api.post(`/admin/refunds/${id}/request-info`, { infoRequested: message }),
   processRefund: (id, originalPaymentId) =>
     api.post(`/admin/payment-gateway/refund`, {
       id,

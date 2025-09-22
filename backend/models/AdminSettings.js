@@ -192,27 +192,68 @@ const adminSettingsSchema = new mongoose.Schema(
     enableSocialRegistration: { type: Boolean, default: true },
     
     enableEmailNotifications: { type: Boolean, default: true },
-    enableSMSNotifications: { type: Boolean, default: false },
+    autoApprovalThreshold: { type: Number, default: 5000, min: 0 }, // Auto-approve bookings below this amount
     bookingConfirmations: { type: Boolean, default: true },
     promotionalEmails: { type: Boolean, default: true },
-    adminNotifications: { type: Boolean, default: true },
+    approvalTimeoutHours: { type: Number, default: 24, min: 1, max: 168 }, // Hours after which pending bookings auto-expire
     passwordMinLength: { type: Number, default: 8, min: 6, max: 20 },
     requireSpecialCharacters: { type: Boolean, default: true },
     sessionTimeout: { type: Number, default: 30, min: 5, max: 120 },
     maxLoginAttempts: { type: Number, default: 5, min: 3, max: 10 },
     twoFactorRequired: { type: Boolean, default: false },
     allowGuestBooking: { type: Boolean, default: true },
-    requireApproval: { type: Boolean, default: false },
+    requireApprovalForAllBookings: { type: Boolean, default: false },
     maxAdvanceBooking: { type: Number, default: 365, min: 1, max: 730 },
     cancellationPolicy: {
       type: String,
       default: "24 hours before check-in",
       trim: true,
     },
-    defaultCheckInTime: { type: String, default: "15:00" },
-    defaultCheckOutTime: { type: String, default: "11:00" },
-    maxGuestsPerRoom: { type: Number, default: 4 },
-    maintenanceMode: { type: Boolean, default: false },
+    // Auto-approval settings
+    autoApprovalSettings: {
+      enabled: { type: Boolean, default: false },
+      allowGuestBookingModifications: { type: Boolean, default: true },
+      maxGuests: { type: Number, default: 4, min: 1, max: 20 }, // Maximum guests for auto-approval
+      maxNights: { type: Number, default: 7, min: 1, max: 30 }, // Maximum nights for auto-approval
+      allowedRoomTypes: [{ type: String }], // Specific room types that can be auto-approved
+      requireApprovalForNewGuests: { type: Boolean, default: true }, // Require approval for first-time guests
+      requireApprovalOutsideHours: { type: Boolean, default: true }, // Require approval for out-of-hours bookings
+      reminderHoursBeforeCheckIn: { type: Number, default: 48, min: 1, max: 168 },
+    },
+    // Operational Time Settings
+    operationalSettings: {
+      enabled: { type: Boolean, default: true },
+      startTime: { type: String, default: "06:00" }, // HH:MM format
+      endTime: { type: String, default: "23:00" }, // HH:MM format
+      allowedDays: {
+        type: [String],
+        default: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+        enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+      },
+      checkInWindowStart: { type: String, default: "14:00" }, // Check-in window start
+      checkInWindowEnd: { type: String, default: "22:00" }, // Check-in window end
+      checkOutWindowStart: { type: String, default: "07:00" }, // Check-out window start
+      checkOutWindowEnd: { type: String, default: "12:00" }, // Check-out window end
+      advanceBookingDays: { type: Number, default: 365, min: 1, max: 730 }, // Max days in advance
+      minStayHours: { type: Number, default: 24, min: 1, max: 168 }, // Minimum stay in hours
+      maxStayDays: { type: Number, default: 30, min: 1, max: 365 }, // Maximum stay in days
+      cleaningBufferHours: { type: Number, default: 2, min: 0, max: 24 }, // Hours between bookings for cleaning
+      maintenanceDays: [{ // Days when hotel is closed for maintenance
+        date: Date,
+        reason: String,
+        isActive: { type: Boolean, default: true }
+      }],
+      specialClosures: [{ // Special closure periods
+        startDate: Date,
+        endDate: Date,
+        reason: String,
+        isActive: { type: Boolean, default: true }
+      }],
+      allowBookingsOutsideHours: { type: Boolean, default: false }, // Allow bookings even outside operational hours
+      requireApprovalOutsideHours: { type: Boolean, default: true }, // Require admin approval for out-of-hours bookings
+      autoCancelOutsideHours: { type: Boolean, default: false }, // Auto-cancel bookings outside operational hours
+      notificationThresholdMinutes: { type: Number, default: 60, min: 0, max: 1440 } // Notify admin X minutes before operational hours
+    },
     
     // Payment Gateway Settings
     paymentGateway: {
@@ -281,7 +322,7 @@ const adminSettingsSchema = new mongoose.Schema(
       breakDuration: { type: Number, default: 30, min: 15, max: 60 }, // minutes
       clockInGracePeriod: { type: Number, default: 15, min: 0, max: 30 }, // minutes
       performanceTracking: { type: Boolean, default: true },
-      trainingReminders: { type: Boolean, default: true },
+      reminderHoursBeforeCheckIn: { type: Number, default: 48, min: 1, max: 168 },
       certificationTracking: { type: Boolean, default: true }
     },
 
@@ -289,7 +330,7 @@ const adminSettingsSchema = new mongoose.Schema(
     financialSettings: {
       taxRate: { type: Number, default: 0, min: 0, max: 50 }, // percentage
       serviceFee: { type: Number, default: 0, min: 0, max: 30 }, // percentage
-      depositRequired: { type: Boolean, default: true },
+      approvalNotificationChannels: [{ type: String, enum: ['email', 'sms', 'push'], default: ['email'] }],
       depositAmount: { type: Number, default: 100, min: 0 }, // amount or percentage
       depositType: { type: String, default: "fixed", enum: ["fixed", "percentage"] },
       lateFeeEnabled: { type: Boolean, default: true },
@@ -365,21 +406,18 @@ const adminSettingsSchema = new mongoose.Schema(
       weekStart: { type: String, default: "sunday", enum: ["sunday", "monday"] }
     },
 
-    // Guest Experience Settings
     guestSettings: {
-      selfCheckIn: { type: Boolean, default: false },
-      mobileKeys: { type: Boolean, default: false },
       guestPortal: { type: Boolean, default: true },
-      feedbackSystem: { type: Boolean, default: true },
+      mobileKeys: { type: Boolean, default: false },
       loyaltyProgram: { type: Boolean, default: false },
       conciergeServices: { type: Boolean, default: true },
       roomServiceOrdering: { type: Boolean, default: false },
       wifiCredentials: {
-        network: { type: String, default: "", trim: true },
-        password: { type: String, default: "", trim: true }
+        network: { type: String, default: '', trim: true },
+        password: { type: String, default: '', trim: true }
       },
-      welcomeMessage: { type: String, default: "Welcome to our hotel!", trim: true },
-      checkoutInstructions: { type: String, default: "", trim: true }
+      welcomeMessage: { type: String, default: 'Welcome to our hotel!', trim: true },
+      checkoutInstructions: { type: String, default: '', trim: true }
     },
 
     lastUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

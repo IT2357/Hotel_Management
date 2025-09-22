@@ -50,17 +50,17 @@ const refundRequestSchema = new mongoose.Schema(
     },
 
     // Approval tracking
-    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     approvedAt: { type: Date },
 
     // Denial tracking
-    deniedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    deniedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     deniedAt: { type: Date },
     denialReason: { type: String },
 
     // Info request tracking
     infoRequested: { type: String },
-    infoRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    infoRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     infoRequestedAt: { type: Date },
 
     // Refund processing

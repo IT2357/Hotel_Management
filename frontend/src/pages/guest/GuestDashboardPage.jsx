@@ -24,9 +24,11 @@ export default function GuestDashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
-            { title: "My Bookings", to: "/dashboard/my-bookings", description: "View and manage bookings." },
-            { title: "Favorite Rooms", to: "/dashboard/favorites", description: "Browse your favorites." },
-            { title: "My Reviews", to: "/dashboard/reviews", description: "Edit or delete reviews." },
+            { title: "Book a Room", to: "/booking", description: "Find and book rooms." },
+            { title: "Browse Rooms", to: "/rooms", description: "View all available rooms." },
+            { title: "My Bookings", to: "/guest/my-bookings", description: "View and manage bookings." },
+            { title: "Favorite Rooms", to: "/guest/favorites", description: "Browse your favorites." },
+            { title: "My Reviews", to: "/guest/my-reviews", description: "Edit or delete reviews." },
             { title: "My Profile", to: "/profile", description: "Update your details." }
           ].map(({ title, description, to }) => (
             <DashboardCard key={title} title={title} description={description} to={to} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
@@ -33,25 +33,45 @@ const AdminRefundManagementPage = () => {
   const [activeTab, setActiveTab] = useState('all');
 
   const tabs = [
-    { id: 'all', label: 'All Refunds', icon: '📋' },
+    { id: 'all', label: 'All', icon: '📋' },
     { id: 'pending', label: 'Pending', icon: '⏳' },
     { id: 'approved', label: 'Approved', icon: '✅' },
-    { id: 'processed', label: 'Processed', icon: '✨' },
+    { id: 'processed', label: 'Processed', icon: '🚀' },
     { id: 'denied', label: 'Denied', icon: '❌' },
   ];
 
-  const stats = refunds.reduce(
-    (acc, refund) => {
-      acc.total++;
-      acc[refund.status] = (acc[refund.status] || 0) + 1;
-      return acc;
-    },
-    { total: 0, pending: 0, approved: 0, processed: 0, denied: 0, info_requested: 0 }
-  );
+  const stats = useMemo(() => {
+    if (!Array.isArray(refunds) || refunds.length === 0) {
+      return { total: 0, pending: 0, approved: 0, processed: 0, denied: 0, info_requested: 0 };
+    }
+
+    return refunds.reduce(
+      (acc, refund) => {
+        acc.total++;
+        acc[refund.status] = (acc[refund.status] || 0) + 1;
+        return acc;
+      },
+      { total: 0, pending: 0, approved: 0, processed: 0, denied: 0, info_requested: 0 }
+    );
+  }, [refunds]);
 
   useEffect(() => {
     loadRefunds();
   }, [activeTab, debouncedSearch]);
+
+  // Debug effect to monitor refunds state
+  useEffect(() => {
+    console.log('📋 Refunds state changed:', {
+      refundsLength: refunds.length,
+      refundsArray: refunds,
+      firstRefund: refunds[0] ? {
+        id: refunds[0]._id,
+        status: refunds[0].status,
+        bookingNumber: refunds[0].bookingId?.bookingNumber,
+        guestName: refunds[0].guestId?.name
+      } : null
+    });
+  }, [refunds]);
 
   const loadRefunds = async () => {
     try {
@@ -67,7 +87,34 @@ const AdminRefundManagementPage = () => {
       }
 
       const response = await adminService.getRefunds(params);
-      let filteredRefunds = response.data.data || response.data || [];
+
+      // Debug the actual response structure
+      console.log('📋 Raw API Response Structure:', {
+        'response.data': response.data,
+        'response.data.refunds': response.data.refunds,
+        'typeof response.data.refunds': typeof response.data.refunds,
+        'Array.isArray(response.data.refunds)': Array.isArray(response.data.refunds),
+        'response.data.data': response.data.data,
+        'typeof response.data.data': typeof response.data.data,
+        'response.data.data.refunds': response.data.data?.refunds
+      });
+
+      // Fix API response parsing - the correct path is response.data.data.refunds
+      let filteredRefunds = response.data.data?.refunds || response.data.refunds || response.data || [];
+
+      // Ensure filteredRefunds is always an array
+      if (!Array.isArray(filteredRefunds)) {
+        console.log('📋 filteredRefunds is not an array, converting...');
+        if (typeof filteredRefunds === 'object' && filteredRefunds !== null) {
+          // If it's a single object, wrap it in an array
+          filteredRefunds = [filteredRefunds];
+          console.log('📋 Converted single object to array');
+        } else {
+          // If it's something else, use empty array
+          filteredRefunds = [];
+          console.log('📋 Set to empty array');
+        }
+      }
 
       // Additional client-side filtering if needed (for search within results)
       if (filters.search && filteredRefunds.length > 0) {
@@ -81,6 +128,9 @@ const AdminRefundManagementPage = () => {
       }
 
       setRefunds(filteredRefunds);
+
+      console.log('📋 State updated - refunds length:', filteredRefunds.length);
+      console.log('📋 Current refunds state after update:', refunds);
     } catch (error) {
       console.error('Failed to load refunds:', error);
       alert(error.response?.data?.message || 'Failed to load refunds.');
@@ -388,7 +438,10 @@ const AdminRefundManagementPage = () => {
 };
 
 function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatusColor, formatAmount }) {
-  if (refunds.length === 0) {
+  // Ensure refunds is always an array
+  const safeRefunds = Array.isArray(refunds) ? refunds : [];
+
+  if (safeRefunds.length === 0) {
     return (
       <Card className="bg-white shadow-xl rounded-2xl border-0 text-center py-16">
         <div className="flex flex-col items-center">
@@ -408,23 +461,23 @@ function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatu
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">📋 Refund Requests</h2>
           <div className="text-sm text-gray-500">
-            {refunds.length} {refunds.length === 1 ? 'refund' : 'refunds'} found
+            {safeRefunds.length} {safeRefunds.length === 1 ? 'refund' : 'refunds'} found
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {refunds.map((refund) => (
+          {safeRefunds.map((refund) => (
             <div
               key={refund._id}
               className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
-              <div className={`${getStatusColor(refund.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
+              <div className={`${getStatusColor(refund.status || 'pending')} rounded-xl p-4 text-white mb-4 shadow-lg`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{refund.bookingId?.bookingNumber || 'N/A'}</h3>
                     <p className="text-white/90 text-sm">{refund.guestId?.name || 'N/A'}</p>
                   </div>
                   <Badge className={`${getStatusColor(refund.status)} bg-white/20 text-white border-white/30`}>
-                    {refund.status.replace('_', ' ').toUpperCase()}
+                    {refund.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                   </Badge>
                 </div>
               </div>
