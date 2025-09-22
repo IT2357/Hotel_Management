@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import adminService from "../../services/adminService";
-import Input from "../../components/ui/Input";
-import Select from "../../components/ui/Select";
-import Button from "../../components/ui/Button";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 const amenityOptions = [
   "WiFi",

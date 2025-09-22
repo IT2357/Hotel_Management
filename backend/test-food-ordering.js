@@ -16,7 +16,7 @@ const API_BASE = `${BASE_URL}/api`;
 
 // Test user credentials (replace with actual test user)
 const TEST_USER = {
-  email: 'test@example.com',
+  email: 'guest@test.com',
   password: 'password123'
 };
 

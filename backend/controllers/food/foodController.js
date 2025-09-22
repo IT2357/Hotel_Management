@@ -1,4 +1,5 @@
 import MenuItem from '../../models/MenuItem.js';
+import Category from '../../models/Category.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 import mongoose from 'mongoose';
