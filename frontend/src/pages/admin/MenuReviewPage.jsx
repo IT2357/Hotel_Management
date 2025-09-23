@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Edit3,
   Save,
@@ -46,24 +46,33 @@ const MenuReviewPage = () => {
   // Load menu data
   useEffect(() => {
     const loadMenuData = async () => {
+      console.log('🔍 DEBUG: MenuReviewPage - Loading menu data for ID:', id);
+      console.log('🔍 DEBUG: Location state:', location.state);
+
       try {
         if (location.state?.menuData) {
+          console.log('🔍 DEBUG: Using menu data from navigation state');
           // Use data from navigation state
           setMenuData(location.state.menuData);
           setStats(location.state.stats);
         } else {
+          console.log('🔍 DEBUG: Fetching menu data from API:', `/menu/${id}`);
           // Fetch from API
-          const response = await api.get(`/uploadMenu/${id}`);
-          setMenuData(response.data.data);
+          const response = await api.get(`/menu/${id}`);
+          console.log('🔍 DEBUG: API response:', response);
+          console.log('🔍 DEBUG: Menu data:', response.data.menu);
+
+          setMenuData(response.data.menu);
           setStats({
-            totalCategories: response.data.data.totalCategories,
-            totalItems: response.data.data.totalItems,
-            confidence: response.data.data.confidence,
-            extractionMethod: response.data.data.extractionMethod
+            totalCategories: response.data.menu.totalCategories,
+            totalItems: response.data.menu.totalItems,
+            confidence: response.data.menu.confidence,
+            extractionMethod: response.data.menu.extractionMethod
           });
         }
       } catch (error) {
-        console.error('Error loading menu data:', error);
+        console.error('❌ Error loading menu data:', error);
+        console.error('❌ Error response:', error.response);
         toast.error('Failed to load menu data');
         navigate('/admin/dashboard');
       } finally {
@@ -206,7 +215,7 @@ const MenuReviewPage = () => {
       
       // Update the extracted menu status
       console.log('🔍 DEBUG: Updating menu status for ID:', id);
-      await api.put(`/uploadMenu/${id}`, {
+      await api.put(`/menu/${id}`, {
         ...menuData,
         processingStatus: 'completed'
       });
@@ -227,7 +236,7 @@ const MenuReviewPage = () => {
   const updateExtractedMenu = async () => {
     try {
       setSaving(true);
-      await api.put(`/uploadMenu/${id}`, menuData);
+      await api.put(`/menu/${id}`, menuData);
       toast.success('Menu data updated successfully');
     } catch (error) {
       console.error('Update error:', error);

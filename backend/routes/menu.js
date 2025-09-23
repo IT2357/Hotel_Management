@@ -77,17 +77,6 @@ router.post('/save',
 );
 
 /**
- * @route   GET /api/menu/:id
- * @desc    Get saved menu by ID
- * @access  Protected (Admin/Manager)
- */
-router.get('/:id', 
-  protect, 
-  authorizeRoles(['admin', 'manager']), 
-  getMenu
-);
-
-/**
  * @route   GET /api/menu/image/:imageId
  * @desc    Get image from storage (GridFS or Cloudinary)
  * @access  Public (for displaying images)
@@ -100,21 +89,10 @@ router.get('/image/:imageId', getMenuImage);
  * @access  Protected (Admin/Manager)
  * @query   page, limit, source, status, sortBy, sortOrder
  */
-router.get('/', 
-  protect, 
-  authorizeRoles(['admin', 'manager']), 
+router.get('/',
+  protect,
+  authorizeRoles(['admin', 'manager']),
   listMenus
-);
-
-/**
- * @route   DELETE /api/menu/:id
- * @desc    Delete menu by ID
- * @access  Protected (Admin/Manager)
- */
-router.delete('/:id', 
-  protect, 
-  authorizeRoles(['admin', 'manager']), 
-  deleteMenu
 );
 
 /**
@@ -185,6 +163,28 @@ router.get('/items', async (req, res) => {
 });
 
 /**
+ * @route   GET /api/menu/:id
+ * @desc    Get saved menu by ID
+ * @access  Protected (Admin/Manager)
+ */
+router.get('/:id',
+  protect,
+  authorizeRoles(['admin', 'manager']),
+  getMenu
+);
+
+/**
+ * @route   DELETE /api/menu/:id
+ * @desc    Delete menu by ID
+ * @access  Protected (Admin/Manager)
+ */
+router.delete('/:id',
+  protect,
+  authorizeRoles(['admin', 'manager']),
+  deleteMenu
+);
+
+/**
  * @route   GET /api/menu/items/:id
  * @desc    Get single menu item
  * @access  Public
@@ -229,24 +229,74 @@ router.post('/items', protect, authorizeRoles(['admin', 'manager']), uploadSingl
   try {
     const menuItemData = { ...req.body };
 
+    // Handle category: convert string to ObjectId
+    if (menuItemData.category && typeof menuItemData.category === 'string') {
+      let category = await Category.findOne({ name: menuItemData.category });
+      if (!category) {
+        // Create new category if it doesn't exist
+        category = await Category.create({
+          name: menuItemData.category,
+          description: `Menu category: ${menuItemData.category}`,
+          isActive: true
+        });
+        console.log(`✅ Created new category: ${menuItemData.category}`);
+      }
+      menuItemData.category = category._id;
+    }
+
     // Handle image upload
     if (req.file) {
-      menuItemData.image = {
-        data: req.file.buffer,
-        contentType: req.file.mimetype
-      };
+      // Store image in GridFS and set imageId
+      try {
+        const imageStorageService = (await import('../services/imageStorageService.js')).default;
+        const imageId = await imageStorageService.uploadImage(req.file.buffer, req.file.originalname, {
+          contentType: req.file.mimetype,
+          menuItem: true
+        });
+        menuItemData.imageId = imageId;
+        menuItemData.image = `/api/menu/image/${imageId}`; // Set image URL
+      } catch (imageError) {
+        console.warn('⚠️ Failed to store image:', imageError.message);
+        // Continue without image if storage fails
+      }
+    } else if (menuItemData.imageUrl) {
+      // Handle image URL
+      menuItemData.image = menuItemData.imageUrl;
     }
 
     // Parse JSON fields
-    ['customizationOptions', 'allergens', 'nutritionalInfo'].forEach(field => {
+    ['ingredients', 'dietaryTags', 'allergens', 'nutritionalInfo', 'customizations'].forEach(field => {
       if (menuItemData[field] && typeof menuItemData[field] === 'string') {
         try {
           menuItemData[field] = JSON.parse(menuItemData[field]);
         } catch (e) {
+          console.warn(`⚠️ Failed to parse ${field} JSON:`, e.message);
           // Keep as string if parsing fails
         }
       }
     });
+
+    // Ensure arrays are arrays
+    ['ingredients', 'dietaryTags', 'allergens', 'customizations'].forEach(field => {
+      if (!Array.isArray(menuItemData[field])) {
+        menuItemData[field] = menuItemData[field] ? [menuItemData[field]] : [];
+      }
+    });
+
+    // Convert boolean strings to actual booleans
+    ['isAvailable', 'isVeg', 'isSpicy', 'isPopular'].forEach(field => {
+      if (typeof menuItemData[field] === 'string') {
+        menuItemData[field] = menuItemData[field] === 'true';
+      }
+    });
+
+    // Convert numeric strings to numbers
+    if (typeof menuItemData.price === 'string') {
+      menuItemData.price = parseFloat(menuItemData.price) || 0;
+    }
+    if (typeof menuItemData.cookingTime === 'string') {
+      menuItemData.cookingTime = parseInt(menuItemData.cookingTime) || 15;
+    }
 
     const menuItem = new MenuItem(menuItemData);
     const savedItem = await menuItem.save();
@@ -275,24 +325,74 @@ router.put('/items/:id', protect, authorizeRoles(['admin', 'manager']), uploadSi
   try {
     const menuItemData = { ...req.body };
 
+    // Handle category: convert string to ObjectId
+    if (menuItemData.category && typeof menuItemData.category === 'string') {
+      let category = await Category.findOne({ name: menuItemData.category });
+      if (!category) {
+        // Create new category if it doesn't exist
+        category = await Category.create({
+          name: menuItemData.category,
+          description: `Menu category: ${menuItemData.category}`,
+          isActive: true
+        });
+        console.log(`✅ Created new category: ${menuItemData.category}`);
+      }
+      menuItemData.category = category._id;
+    }
+
     // Handle image upload
     if (req.file) {
-      menuItemData.image = {
-        data: req.file.buffer,
-        contentType: req.file.mimetype
-      };
+      // Store image in GridFS and set imageId
+      try {
+        const imageStorageService = (await import('../services/imageStorageService.js')).default;
+        const imageId = await imageStorageService.uploadImage(req.file.buffer, req.file.originalname, {
+          contentType: req.file.mimetype,
+          menuItem: true
+        });
+        menuItemData.imageId = imageId;
+        menuItemData.image = `/api/menu/image/${imageId}`; // Set image URL
+      } catch (imageError) {
+        console.warn('⚠️ Failed to store image:', imageError.message);
+        // Continue without image if storage fails
+      }
+    } else if (menuItemData.imageUrl) {
+      // Handle image URL
+      menuItemData.image = menuItemData.imageUrl;
     }
 
     // Parse JSON fields
-    ['customizationOptions', 'allergens', 'nutritionalInfo'].forEach(field => {
+    ['ingredients', 'dietaryTags', 'allergens', 'nutritionalInfo', 'customizations'].forEach(field => {
       if (menuItemData[field] && typeof menuItemData[field] === 'string') {
         try {
           menuItemData[field] = JSON.parse(menuItemData[field]);
         } catch (e) {
+          console.warn(`⚠️ Failed to parse ${field} JSON:`, e.message);
           // Keep as string if parsing fails
         }
       }
     });
+
+    // Ensure arrays are arrays
+    ['ingredients', 'dietaryTags', 'allergens', 'customizations'].forEach(field => {
+      if (!Array.isArray(menuItemData[field])) {
+        menuItemData[field] = menuItemData[field] ? [menuItemData[field]] : [];
+      }
+    });
+
+    // Convert boolean strings to actual booleans
+    ['isAvailable', 'isVeg', 'isSpicy', 'isPopular'].forEach(field => {
+      if (typeof menuItemData[field] === 'string') {
+        menuItemData[field] = menuItemData[field] === 'true';
+      }
+    });
+
+    // Convert numeric strings to numbers
+    if (typeof menuItemData.price === 'string') {
+      menuItemData.price = parseFloat(menuItemData.price) || 0;
+    }
+    if (typeof menuItemData.cookingTime === 'string') {
+      menuItemData.cookingTime = parseInt(menuItemData.cookingTime) || 15;
+    }
 
     const updatedItem = await MenuItem.findByIdAndUpdate(
       req.params.id,

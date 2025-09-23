@@ -176,6 +176,7 @@ MenuSchema.statics.validateMenuStructure = function(menuData) {
 MenuSchema.methods.toAPIResponse = function() {
   return {
     id: this._id,
+    title: this.title,
     source: this.source,
     categories: this.categories,
     rawText: this.rawText,

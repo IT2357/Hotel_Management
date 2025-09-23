@@ -28,6 +28,7 @@ import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
 // Food-related admin pages
 import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
+import MenuReviewPage from './pages/admin/MenuReviewPage.jsx';
 import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
@@ -233,6 +234,15 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']}>
                 <MenuUploadPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/menu-review/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <MenuReviewPage />
               </ProtectedRoute>
             }
           />
