@@ -1,95 +1,74 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, CreditCard } from 'lucide-react';
 
-export default function PayHereRedirectPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-
+const PayHereRedirectPage = () => {
   useEffect(() => {
-    // Simulate payment processing
-    const timer = setTimeout(() => {
-      const status = searchParams.get('status');
-      const orderId = searchParams.get('order_id');
+    // Get payment data from sessionStorage
+    const paymentData = sessionStorage.getItem('payhere_payment');
 
-      if (status === 'success') {
-        navigate(`/food/order/success?order_id=${orderId || 'VAL' + Date.now()}`);
-      } else {
-        navigate('/food/order/cancel');
-      }
-    }, 2000);
+    if (paymentData) {
+      const { gatewayUrl, paymentParams } = JSON.parse(paymentData);
 
-    return () => clearTimeout(timer);
-  }, [searchParams, navigate]);
+      // Clear the sessionStorage
+      sessionStorage.removeItem('payhere_payment');
+
+      // Create a form and submit it to PayHere
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = gatewayUrl;
+      form.style.display = 'none';
+
+      // Add payment parameters as hidden inputs
+      Object.keys(paymentParams).forEach(key => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = paymentParams[key];
+        form.appendChild(input);
+      });
+
+      // Add form to body and submit
+      document.body.appendChild(form);
+      form.submit();
+    } else {
+      // No payment data found, redirect to checkout
+      window.location.href = '/checkout';
+    }
+  }, []);
 
   return (
-    <div style={{ fontFamily: "'Rubik', sans-serif", minHeight: '100vh', backgroundColor: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', maxWidth: '500px', padding: '2rem' }}>
-        {/* Processing Icon */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <CreditCard size={80} color="#C41E3A" />
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-              <Loader2 size={40} color="#FFD700" style={{ animation: 'spin 1s linear infinite' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Processing Message */}
-        <h1 style={{ fontSize: '2rem', color: '#333', marginBottom: '1rem', fontWeight: 'bold' }}>
-          Processing Payment
-        </h1>
-
-        <p style={{ fontSize: '1.1rem', color: '#666', marginBottom: '2rem', lineHeight: '1.6' }}>
-          Please wait while we process your payment with PayHere...
-        </p>
-
-        {/* Loading Indicator */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: '200px',
-            height: '4px',
-            backgroundColor: '#e0e0e0',
-            borderRadius: '2px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              background: 'linear-gradient(45deg, #C41E3A, #FFD700)',
-              borderRadius: '2px',
-              animation: 'loading 2s ease-in-out infinite'
-            }}></div>
-          </div>
-        </div>
-
-        {/* VALDORA Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(45deg, #C41E3A, #FFD700)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
-            V
-          </div>
-          <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>VALDORA</span>
-        </div>
-
-        <p style={{ fontSize: '0.9rem', color: '#999', marginTop: '1rem' }}>
-          Authentic Jaffna Tamil Cuisine
-        </p>
+    <div style={{
+      fontFamily: "'Rubik', sans-serif",
+      margin: 0,
+      padding: 0,
+      lineHeight: '1.6',
+      color: '#333',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f9f9f9'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #C41E3A',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          margin: '0 auto 20px'
+        }}></div>
+        <h2>Redirecting to Payment Gateway...</h2>
+        <p>Please wait while we redirect you to PayHere for secure payment.</p>
       </div>
-
-      {/* CSS Animations */}
-      <style>
-        {`
-          @keyframes spin {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-          }
-
-          @keyframes loading {
-            0% { width: 0%; }
-            50% { width: 100%; }
-            100% { width: 0%; }
-          }
-        `}
-      </style>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
-}
+};
+
+export default PayHereRedirectPage;
