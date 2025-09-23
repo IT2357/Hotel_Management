@@ -16,6 +16,8 @@ export default function AdminInvitationPage() {
   const { user } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("staff");
+  const [department, setDepartment] = useState("");
+  const [position, setPosition] = useState("");
   const [expiresInHours, setExpiresInHours] = useState(24);
   const [permissions, setPermissions] = useState([]);
   const [showPerms, setShowPerms] = useState(false);
@@ -108,6 +110,7 @@ export default function AdminInvitationPage() {
         email,
         role,
         expiresInHours,
+        ...(role === "staff" ? { department, position } : {}),
         ...(role === "admin" && showPerms && permissions.length ? { permissions } : {}),
       };
       const response = await adminService.sendInvitation(payload);
@@ -115,6 +118,8 @@ export default function AdminInvitationPage() {
         setStatus({ type: "success", message: "✅ Invitation sent successfully!" });
         setEmail("");
         setRole("staff");
+        setDepartment("");
+        setPosition("");
         setExpiresInHours(24);
         setPermissions([]);
         setShowPerms(false);
@@ -311,43 +316,74 @@ export default function AdminInvitationPage() {
                     <option value="manager">👨‍💻 Manager</option>
                   </Select>
                 </div>
+                {role === "staff" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">🏢 Department</label>
+                      <Select
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        required
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Housekeeping">🏠 Housekeeping</option>
+                        <option value="Kitchen">👨‍🍳 Kitchen</option>
+                        <option value="Maintenance">🔧 Maintenance</option>
+                        <option value="Service">🍽️ Service</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">💼 Position</label>
+                      <Input
+                        type="text"
+                        required
+                        value={position}
+                        onChange={(e) => setPosition(e.target.value)}
+                        placeholder="e.g., Housekeeper, Chef, Technician"
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </>
+                )}
+                {role === "admin" && (
+                  <div className="space-y-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                        checked={showPerms}
+                        onChange={(e) => setShowPerms(e.target.checked)}
+                      />
+                      Show granular permissions
+                    </label>
+                    {showPerms && (
+                      <>
+                        <div className="text-sm text-gray-600">
+                          Optional: assign granular permissions for the invited admin.
+                        </div>
+                        <div className="max-h-96 overflow-y-auto">
+                          <PermissionSelector
+                            selectedPermissions={permissions}
+                            onPermissionChange={setPermissions}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">⏳ Expires In (Hours)</label>
                   <Input
                     type="number"
                     min="1"
+                    max="24"
                     value={expiresInHours}
                     onChange={(e) => setExpiresInHours(e.target.value)}
                     className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
               </div>
-              {role === "admin" && (
-                <div className="space-y-4">
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600"
-                      checked={showPerms}
-                      onChange={(e) => setShowPerms(e.target.checked)}
-                    />
-                    Show granular permissions
-                  </label>
-                  {showPerms && (
-                    <>
-                      <div className="text-sm text-gray-600">
-                        Optional: assign granular permissions for the invited admin.
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        <PermissionSelector
-                          selectedPermissions={permissions}
-                          onPermissionChange={setPermissions}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -502,6 +538,13 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
                     Token: {inv.token}
                   </span>
                 </div>
+                {inv.role === "staff" && (inv.department || inv.position) && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold mb-1">Staff Details:</div>
+                    <div>🏢 Department: {inv.department || 'Not specified'}</div>
+                    <div>💼 Position: {inv.position || 'Not specified'}</div>
+                  </div>
+                )}
                 {inv.role === "admin" && inv.permissions?.length > 0 && (
                   <div className="text-xs text-gray-600">
                     <div className="font-semibold mb-1">Permissions:</div>

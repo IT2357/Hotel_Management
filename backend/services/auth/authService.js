@@ -34,7 +34,7 @@ class AuthService {
   }
 
   // Create role-specific profile
-  async createRoleProfile(userId, role, permissions = null) {
+  async createRoleProfile(userId, role, permissions = null, staffDetails = null) {
     switch (role) {
       case "guest":
         return await GuestProfile.create({
@@ -45,8 +45,8 @@ class AuthService {
         return await StaffProfile.create({
           userId,
           isActive: true,
-          department: "Service", // Default department
-          position: "Staff Member", // Default position
+          department: staffDetails?.department || "Service",
+          position: staffDetails?.position || "Staff Member",
         });
       case "manager":
         return await ManagerProfile.create({
@@ -173,32 +173,79 @@ class AuthService {
     // Sanitize invitation permissions first
     let sanitizedPerms = null;
     if (Array.isArray(invitation.permissions) && invitation.permissions.length > 0) {
+      const validModules = [
+        "invitations",
+        "notification",
+        "users",
+        "rooms",
+        "bookings",
+        "inventory",
+        "staff",
+        "finance",
+        "reports",
+        "system",
+      ];
+      const validActions = [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "approve",
+        "reject",
+        "export",
+        "manage",
+      ];
+
       const first = invitation.permissions[0];
       if (typeof first === "string") {
         const grouped = {};
         for (const entry of invitation.permissions) {
           if (typeof entry !== "string") continue;
           const [module, action] = entry.split(":");
-          if (!module) continue;
+          if (!module || !validModules.includes(module)) continue;
           if (!grouped[module]) grouped[module] = new Set();
-          if (action) grouped[module].add(action);
+          if (action && validActions.includes(action)) grouped[module].add(action);
         }
         sanitizedPerms = Object.entries(grouped).map(([module, actions]) => ({
           module,
           actions: Array.from(actions),
         }));
       } else if (typeof first === "object" && first && ("module" in first)) {
-        sanitizedPerms = invitation.permissions;
+        // Validate all permission objects
+        const validatedPerms = [];
+        for (const perm of invitation.permissions) {
+          if (
+            typeof perm === "object" &&
+            perm &&
+            typeof perm.module === "string" &&
+            validModules.includes(perm.module) &&
+            Array.isArray(perm.actions)
+          ) {
+            // Filter out invalid actions
+            const validPermActions = perm.actions.filter(action =>
+              typeof action === "string" && validActions.includes(action)
+            );
+            if (validPermActions.length > 0) {
+              validatedPerms.push({
+                module: perm.module,
+                actions: validPermActions,
+              });
+            }
+          }
+          // Skip invalid permission objects
+        }
+        sanitizedPerms = validatedPerms.length > 0 ? validatedPerms : null;
       } else {
         sanitizedPerms = null; // invalid shape
       }
     }
 
-    // Create role-specific profile (apply permissions for admin invites)
+    // Create role-specific profile (apply permissions for admin invites, staff details for staff invites)
     await this.createRoleProfile(
       user._id,
       invitation.role,
-      invitation.role === "admin" ? sanitizedPerms : null
+      invitation.role === "admin" ? sanitizedPerms : null,
+      invitation.role === "staff" ? { department: invitation.department, position: invitation.position } : null
     );
 
     // Persist sanitized permissions back to invitation to avoid validation errors
@@ -390,19 +437,34 @@ class AuthService {
 
       try {
         user.lastLogin = new Date();
+        // Ensure loginHistory array exists
+        if (!user.loginHistory) {
+          user.loginHistory = [];
+        }
         user.loginHistory.push({
           ipAddress: ipAddress || "Unknown",
           device: userAgent || "Unknown",
         });
         await user.save();
         console.log("🔐 Login history saved for user:", email);
-      } catch (error) {
+      } catch (historyError) {
         console.error("🔐 Error saving login history:", {
-          error: error.message,
-          stack: error.stack,
+          error: historyError.message,
+          stack: historyError.stack,
         });
-        logger.error("Error saving login history", { email, error });
-        throw new Error("Failed to update login history");
+        logger.error("Error saving login history", { email, error: historyError });
+        // Try to save just the lastLogin without history
+        try {
+          user.lastLogin = new Date();
+          await user.save();
+          console.log("🔐 Last login updated (without history) for user:", email);
+        } catch (lastLoginError) {
+          console.error("🔐 Error updating last login:", {
+            error: lastLoginError.message,
+          });
+          logger.error("Error updating last login", { email, error: lastLoginError });
+          // Continue with login even if history update fails
+        }
       }
 
       const token = this.generateToken(user);

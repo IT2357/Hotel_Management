@@ -95,7 +95,7 @@ export const approveUser = async (req, res) => {
 // Create invitation
 export const createInvitation = async (req, res) => {
   try {
-    const { email, role, permissions, expiresInHours = 24 } = req.body;
+    const { email, role, department, position, permissions, expiresInHours = 24 } = req.body;
 
     // Input validation
     if (!email || !role) {
@@ -105,9 +105,19 @@ export const createInvitation = async (req, res) => {
       });
     }
 
+    // Additional validation for staff role
+    if (role === "staff" && (!department || !position)) {
+      return res.status(400).json({
+        success: false,
+        message: "Department and position are required for staff invites",
+      });
+    }
+
     const result = await AdminService.createInvitation({
       email,
       role,
+      department,
+      position,
       permissions,
       expiresInHours,
       createdBy: req.user._id,

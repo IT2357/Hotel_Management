@@ -175,23 +175,32 @@ export default function UserManagementPage() {
 
   const openEditModal = async (user) => {
     setSelectedUser(user);
-    setEditFormData({
-      name: user.name,
-      phone: user.phone || '',
-      address: user.address || {},
-      profile: user.profile || {},
-    });
-    // Load current permissions for admin users
-    if (user.role === 'admin') {
-      try {
-        const res = await adminService.getUserDetails(user._id);
-        const current = res.data.data?.profile?.permissions || [];
-        setEditPermissions(current);
-      } catch (e) {
-        console.error('Failed to load admin permissions:', e);
+    // Load full user details including profile for all role types
+    try {
+      const res = await adminService.getUserDetails(user._id);
+      const fullUserData = res.data.data;
+      setEditFormData({
+        name: fullUserData.user.name,
+        phone: fullUserData.user.phone || '',
+        address: fullUserData.user.address || {},
+        profile: fullUserData.profile || {},
+      });
+
+      // Load permissions for admin users
+      if (user.role === 'admin') {
+        setEditPermissions(fullUserData.profile?.permissions || []);
+      } else {
         setEditPermissions([]);
       }
-    } else {
+    } catch (e) {
+      console.error('Failed to load user details:', e);
+      // Fallback to basic user data
+      setEditFormData({
+        name: user.name,
+        phone: user.phone || '',
+        address: user.address || {},
+        profile: user.profile || {},
+      });
       setEditPermissions([]);
     }
     setShowEditModal(true);
@@ -669,6 +678,22 @@ function UsersList({
                   </svg>
                   <span>{user.email}</span>
                 </div>
+                {user.profile && (
+                  <>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span>{user.profile.department || 'No Department'}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v6a2 2 0 01-2 2H10a2 2 0 01-2-2V6m8 0H8" />
+                      </svg>
+                      <span>{user.profile.position || 'No Position'}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center text-sm text-gray-600">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -992,6 +1017,16 @@ function UserDetailsModal({ isOpen, user, onClose }) {
           </InfoCard>
 
           {/* Role-Specific Information */}
+          {userData.role === 'staff' && (
+            <InfoCard>
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Staff Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DetailItem icon={'🏢'} label="Department" value={profile?.department} />
+                <DetailItem icon={'💼'} label="Position" value={profile?.position} />
+              </div>
+            </InfoCard>
+          )}
+
           {userData.role === 'guest' && (
             <InfoCard>
               <h3 className="text-xl font-bold text-gray-800 mb-6">Booking History</h3>
@@ -1078,6 +1113,8 @@ function EditUserModal({ isOpen, user, formData, setFormData, permissions, setPe
     const updates = { ...formData };
     if (user.role === 'admin') {
       updates.profile = { ...(formData.profile || {}), permissions };
+    } else if (user.role === 'staff') {
+      updates.profile = { ...(formData.profile || {}) };
     }
     onSave(updates);
   };
@@ -1130,6 +1167,42 @@ function EditUserModal({ isOpen, user, formData, setFormData, permissions, setPe
           {/* Role & Permissions */}
           {user.role !== 'guest' && (
             <div className="md:col-span-2">
+              {user.role === 'staff' && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Staff Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">🏢 Department</label>
+                      <Select
+                        value={formData.profile?.department || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: { ...formData.profile, department: e.target.value }
+                        })}
+                        className="rounded-xl"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Housekeeping">🏠 Housekeeping</option>
+                        <option value="Kitchen">👨‍🍳 Kitchen</option>
+                        <option value="Maintenance">🔧 Maintenance</option>
+                        <option value="Service">🍽️ Service</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">💼 Position</label>
+                      <Input
+                        value={formData.profile?.position || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: { ...formData.profile, position: e.target.value }
+                        })}
+                        placeholder="e.g., Housekeeper, Chef, Technician"
+                        className="rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               {user.role === 'admin' && (
                 <div className="mt-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">🔑 Permissions</label>

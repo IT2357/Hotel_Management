@@ -10,7 +10,7 @@ export const PERMISSION_MODULES = [
   "staff",
   "finance",
   "reports",
-  "settings",
+  "system",
 ];
 
 export const PERMISSION_ACTIONS = [

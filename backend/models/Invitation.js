@@ -44,6 +44,15 @@ const invitationSchema = new mongoose.Schema({
     required: true,
     enum: ["staff", "manager", "admin"],
   },
+  // Optional staff-specific fields
+  department: {
+    type: String,
+    enum: ["Housekeeping", "Kitchen", "Maintenance", "Service"],
+  },
+  position: {
+    type: String,
+    trim: true,
+  },
   // Optional granular permissions for admin invites
   permissions: { type: [permissionSchema], default: undefined },
   token: { type: String, required: true, unique: true },
