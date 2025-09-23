@@ -113,7 +113,7 @@ router.get('/stats',
  * @desc    Get all menu items with filters
  * @access  Public for viewing, Protected for admin actions
  */
-router.get('/items', async (req, res) => {
+router.get('/items', protect, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const { category, search, isAvailable } = req.query;
 
@@ -136,6 +136,7 @@ router.get('/items', async (req, res) => {
     }
 
     const menuItems = await MenuItem.find(filter)
+      .populate('category', 'name')
       .sort({ createdAt: -1 });
 
     // Add imageUrl to each menu item for frontend display

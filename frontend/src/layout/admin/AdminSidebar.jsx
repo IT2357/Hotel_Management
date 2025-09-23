@@ -16,7 +16,9 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     { label: 'Refunds', to: '/admin/refunds' },
     { label: 'Reports', to: '/admin/reports' },
     { label: 'Settings', to: '/admin/settings' },
-    { label: 'Rooms', to: '/admin/rooms' }
+    { label: 'Rooms', to: '/admin/rooms' },
+    { label: 'Food Orders', to: '/admin/food/orders' },
+    { label: 'Food Menu', to: '/admin/food/menu' }
   ];
 
   useEffect(() => {

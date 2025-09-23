@@ -1,3 +1,4 @@
+import imageStorageService from "../../services/imageStorageService.js";
 // 📁 backend/controllers/food/menuController.js
 import MenuItem from "../../models/MenuItem.js";
 import Category from "../../models/Category.js";
@@ -174,7 +175,7 @@ export const createMenuItem = async (req, res) => {
       description,
       price: parseFloat(price),
       category,
-      image: image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
+      image: imageUrl,
       ingredients: ingredients || [],
       allergens: allergens || [],
       nutritionalInfo: nutritionalInfo || {},

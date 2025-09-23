@@ -4,16 +4,17 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: (() => {
+    // Always use the backend server for API calls
     const envUrl = import.meta.env.VITE_API_BASE_URL;
+    
+    // Default to localhost:5000/api (main backend server)
+    if (!envUrl) {
+      return "http://localhost:5000/api";
+    }
 
     // Handle double /api issue
     if (envUrl && envUrl.includes('/api/api')) {
       return envUrl.replace('/api/api', '/api');
-    }
-
-    // Default to localhost:5000/api (main backend server)
-    if (!envUrl) {
-      return "http://localhost:5000/api";
     }
 
     // If env var doesn't end with /api, add it

@@ -4,7 +4,8 @@ import {
   getMenuForSelection,
   updateItemCustomizations,
   deleteExtractedMenu,
-  getSelectionStats
+  getSelectionStats,
+  generateValampuriMenu
 } from '../controllers/menuSelectionController.js';
 import { authenticateToken as protect } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
@@ -16,6 +17,9 @@ router.use(protect);
 
 // Get selection statistics (Admin/Manager only) - Must be before /:menuId route
 router.get('/stats', authorizeRoles(['admin', 'manager']), getSelectionStats);
+
+// Generate Valampuri menu (Admin/Manager only)
+router.post('/generate-valampuri-menu', authorizeRoles(['admin', 'manager']), generateValampuriMenu);
 
 // Save selected items to MenuItem collection (Admin/Manager only)
 router.post('/save-selected', authorizeRoles(['admin', 'manager']), saveSelectedItems);

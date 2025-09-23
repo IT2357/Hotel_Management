@@ -17,7 +17,9 @@ import {
   Clock,
   DollarSign,
   Image as ImageIcon,
-  ChefHat
+  ChefHat,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -32,7 +34,7 @@ const FoodMenuManagement = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
-
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -83,25 +85,18 @@ const FoodMenuManagement = () => {
   const fetchMenuData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔍 DEBUG: Fetching menu data...');
-      console.log('🔍 DEBUG: API endpoints being called:');
-      console.log('🔍 DEBUG: - GET /food/menu/items');
-      console.log('🔍 DEBUG: - GET /food/menu/categories');
-
+    
       const [itemsRes, categoriesRes] = await Promise.all([
         api.get('/food/menu/items'),
         api.get('/food/menu/categories')
       ]);
 
-      console.log('✅ DEBUG: Menu data fetched successfully');
-      console.log('✅ DEBUG: Items response:', {
         status: itemsRes.status,
         hasData: !!itemsRes.data,
         dataKeys: itemsRes.data ? Object.keys(itemsRes.data) : [],
         itemsCount: itemsRes.data?.data?.items?.length || 0,
         itemsData: itemsRes.data?.data?.items
       });
-      console.log('✅ DEBUG: Categories response:', {
         status: categoriesRes.status,
         hasData: !!categoriesRes.data,
         dataKeys: categoriesRes.data ? Object.keys(categoriesRes.data) : [],
@@ -109,20 +104,26 @@ const FoodMenuManagement = () => {
         categoriesData: categoriesRes.data?.data
       });
 
+      // Handle different response structures
+      let items = [];
       if (itemsRes.data?.data?.items) {
-        setMenuItems(itemsRes.data.data.items);
-      } else {
-        setMenuItems([]);
+        items = itemsRes.data.data.items;
+      } else if (itemsRes.data?.data && Array.isArray(itemsRes.data.data)) {
+        items = itemsRes.data.data;
+      } else if (Array.isArray(itemsRes.data)) {
+        items = itemsRes.data;
       }
 
-      if (categoriesRes.data?.data) {
-        setCategories(categoriesRes.data.data);
-      } else {
-        setCategories([]);
+      let cats = [];
+      if (categoriesRes.data?.data && Array.isArray(categoriesRes.data.data)) {
+        cats = categoriesRes.data.data;
+      } else if (Array.isArray(categoriesRes.data)) {
+        cats = categoriesRes.data;
       }
+
+      setMenuItems(items);
+      setCategories(cats);
     } catch (error) {
-      console.error('❌ DEBUG: Error fetching menu data:', error);
-      console.error('❌ DEBUG: Error details:', {
         message: error.message,
         status: error.response?.status,
         statusText: error.response?.statusText,
@@ -133,9 +134,6 @@ const FoodMenuManagement = () => {
 
       // Check if it's a 404 - endpoint doesn't exist
       if (error.response?.status === 404) {
-        console.error('❌ DEBUG: API endpoint not found! This suggests the backend routes are not properly configured.');
-        console.error('❌ DEBUG: Expected routes: /food/menu/items, /food/menu/categories');
-        console.error('❌ DEBUG: Check backend/routes/ directory for proper route definitions.');
       }
     } finally {
       setLoading(false);
@@ -154,7 +152,7 @@ const FoodMenuManagement = () => {
     try {
       // Create FormData for multipart upload
       const formDataToSend = new FormData();
-
+    
       // Add all form fields
       const payload = {
         ...formData,
@@ -205,6 +203,7 @@ const FoodMenuManagement = () => {
 
       await fetchMenuData();
       resetForm();
+      // Keep modal open for adding multiple items
     } catch (error) {
       console.error('Error saving menu item:', error);
       toast.error('Failed to save menu item: ' + (error.response?.data?.message || error.message));
@@ -219,6 +218,23 @@ const FoodMenuManagement = () => {
       } catch (error) {
         console.error('Error deleting menu item:', error);
       }
+    }
+  }, [fetchMenuData]);
+
+  const handleToggleAvailability = useCallback(async (itemId, currentStatus) => {
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('isAvailable', (!currentStatus).toString());
+      
+      await api.put(`/food/menu/items/${itemId}`, formDataToSend, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      await fetchMenuData();
+      toast.success(`Menu item ${!currentStatus ? 'enabled' : 'disabled'} successfully!`);
+    } catch (error) {
+      console.error('Error toggling availability:', error);
+      toast.error('Failed to update item availability');
     }
   }, [fetchMenuData]);
 
@@ -246,7 +262,7 @@ const FoodMenuManagement = () => {
       dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [],
       spiceLevel: item.spiceLevel || 'mild',
       cookingTime: item.cookingTime ? item.cookingTime.toString() : '',
-      portions: Array.isArray(item.portions) && item.portions.length > 0 
+      portions: Array.isArray(item.portions) && item.portions.length > 0
         ? item.portions.map(p => ({
             name: p.name || 'Regular',
             price: p.price ? p.price.toString() : ''
@@ -284,11 +300,17 @@ const FoodMenuManagement = () => {
     });
     setSelectedImageFile(null);
     setEditingItem(null);
-    setShowAddModal(false);
+    // Don't close modal automatically - let user add multiple items
   }, []);
 
 // Memoized Menu Item Card Component for better performance
-const MenuItemCard = memo(({ item, onEdit, onDelete }) => {
+const MenuItemCard = memo(({ item, onEdit, onDelete, onToggleAvailability }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
@@ -298,13 +320,14 @@ const MenuItemCard = memo(({ item, onEdit, onDelete }) => {
       {/* Image */}
       <div className="relative h-48">
         <img
-          src={item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item"}
+          src={imageError ? "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item" : (item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item")}
           alt={item.name}
           className="w-full h-full object-cover"
           loading="lazy"
+          onError={handleImageError}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
+        
         {/* Status Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1">
           {item.isFeatured && (
@@ -324,8 +347,23 @@ const MenuItemCard = memo(({ item, onEdit, onDelete }) => {
           )}
         </div>
 
-        {/* Actions */}
-        <div className="absolute top-3 right-3 flex gap-2">
+        {/* Availability Toggle - Properly aligned within card */}
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          <button
+            onClick={() => onToggleAvailability(item._id, item.isAvailable)}
+            className={`p-2 rounded-full transition-colors ${
+              item.isAvailable 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'bg-gray-600 hover:bg-gray-700 text-white'
+            }`}
+            title={item.isAvailable ? 'Click to disable' : 'Click to enable'}
+          >
+            {item.isAvailable ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="absolute top-16 right-3 flex flex-col gap-2">
           <button
             onClick={() => onEdit(item)}
             className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
@@ -370,16 +408,16 @@ const MenuItemCard = memo(({ item, onEdit, onDelete }) => {
 });
 
 MenuItemCard.displayName = 'MenuItemCard';
-
+  
   const filteredItems = useMemo(() => {
     return menuItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' ||
-        (item.category && item.category._id === selectedCategory);
+      const matchesCategory = selectedCategory === 'all' || 
+        item.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
   }, [menuItems, searchTerm, selectedCategory]);
-
+  
   const addPortion = () => {
     setFormData(prev => ({
       ...prev,
@@ -406,7 +444,7 @@ MenuItemCard.displayName = 'MenuItemCard';
   const handleCreateCategory = async (categoryData) => {
     try {
       await api.post('/food/menu/categories', categoryData);
-      await fetchMenuData(); // Refresh categories
+      await fetchMenuData();
       setShowCategoryModal(false);
       toast.success('Category created successfully!');
     } catch (error) {
@@ -415,38 +453,51 @@ MenuItemCard.displayName = 'MenuItemCard';
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Food Menu Management
               </h1>
               <p className="text-gray-400">
                 Manage your restaurant's menu items and categories
               </p>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              Add Menu Item
-            </button>
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              Add Category
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Add Menu Item
+              </button>
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Add Category
+              </button>
+            </div>
           </div>
         </motion.div>
 
@@ -497,10 +548,23 @@ MenuItemCard.displayName = 'MenuItemCard';
                 item={item}
                 onEdit={startEdit}
                 onDelete={handleDelete}
+                onToggleAvailability={handleToggleAvailability}
               />
             ))}
           </motion.div>
         </LazyMotion>
+
+        {filteredItems.length === 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <ChefHat className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-400 mb-2">No menu items found</h3>
+            <p className="text-gray-500">Create your first menu item to get started</p>
+          </motion.div>
+        )}
 
         {/* Add/Edit Modal */}
         <AnimatePresence>
@@ -523,28 +587,17 @@ MenuItemCard.displayName = 'MenuItemCard';
                     {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
                   </h2>
                   <button
-                    onClick={resetForm}
-                    className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-slate-700"
+                    onClick={() => setShowAddModal(false)}
+                    className="p-2 text-gray-400 hover:text-white transition-colors"
                   >
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
-                {/* Scrollable Form Content */}
+                {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-6">
-                  <form onSubmit={handleSubmit} className="space-y-8" id="menu-form">
-                  {/* Basic Information Section */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 shadow-xl"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                      <div className="p-2 bg-purple-500/20 rounded-lg">
-                        <ChefHat className="w-6 h-6 text-purple-400" />
-                      </div>
-                      Basic Information
-                    </h3>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Basic Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-white font-medium mb-2">
@@ -555,28 +608,9 @@ MenuItemCard.displayName = 'MenuItemCard';
                           required
                           value={formData.name}
                           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
                           placeholder="e.g., Chicken Biryani"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Category *
-                        </label>
-                        <select
-                          required
-                          value={formData.category}
-                          onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                        >
-                          <option value="">Select Category</option>
-                          {categories.map(category => (
-                            <option key={category._id} value={category._id}>
-                              {category.name}
-                            </option>
-                          ))}
-                        </select>
                       </div>
 
                       <div>
@@ -585,293 +619,108 @@ MenuItemCard.displayName = 'MenuItemCard';
                         </label>
                         <input
                           type="number"
-                          step="0.01"
                           required
+                          step="0.01"
+                          min="0"
                           value={formData.price}
                           onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                          placeholder="0.00"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Cooking Time (minutes)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.cookingTime}
-                          onChange={(e) => setFormData(prev => ({ ...prev, cookingTime: e.target.value }))}
-                          placeholder="15"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                          placeholder="250.00"
                         />
                       </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div>
+                      <label className="block text-white font-medium mb-2">
+                        Category *
+                      </label>
+                      <select
+                        required
+                        value={formData.category}
+                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map(category => (
+                          <option key={category._id} value={category._id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
                       <label className="block text-white font-medium mb-2">
                         Description *
                       </label>
                       <textarea
                         required
-                        rows={4}
+                        rows={3}
                         value={formData.description}
                         onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe the dish, its flavors, and special characteristics..."
-                        className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
+                        className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                        placeholder="Describe your menu item..."
                       />
                     </div>
-                  </motion.div>
 
-                  {/* Ingredients & Details Section */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 shadow-xl"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                      <div className="p-2 bg-yellow-500/20 rounded-lg">
-                        <Star className="w-6 h-6 text-yellow-400" />
-                      </div>
-                      Ingredients & Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Ingredients (comma-separated)
-                        </label>
-                        <textarea
-                          rows={4}
-                          value={formData.ingredients.join(', ')}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            ingredients: e.target.value.split(',').map(item => item.trim()).filter(item => item)
-                          }))}
-                          placeholder="e.g., Chicken, Rice, Spices, Onions, Tomatoes"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
+                    {/* Image Upload */}
+                    <div>
+                      <label className="block text-white font-medium mb-2">
+                        Item Image
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                          id="image-upload"
                         />
-                        <p className="text-xs text-gray-400 mt-1">Separate ingredients with commas</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Allergens (comma-separated)
-                        </label>
-                        <textarea
-                          rows={4}
-                          value={formData.allergens.join(', ')}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            allergens: e.target.value.split(',').map(item => item.trim()).filter(item => item)
-                          }))}
-                          placeholder="e.g., Nuts, Dairy, Gluten"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">Separate allergens with commas</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Spice Level
-                        </label>
-                        <select
-                          value={formData.spiceLevel}
-                          onChange={(e) => setFormData(prev => ({ ...prev, spiceLevel: e.target.value }))}
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        <label
+                          htmlFor="image-upload"
+                          className="flex items-center gap-2 px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white cursor-pointer hover:bg-slate-600 transition-colors"
                         >
-                          <option value="mild">🌶️ Mild</option>
-                          <option value="medium">🌶️🌶️ Medium</option>
-                          <option value="hot">🌶️🌶️🌶️ Hot</option>
-                          <option value="very-hot">🌶️🌶️🌶️🌶️ Very Hot</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Dietary Tags (comma-separated)
+                          <Upload className="w-5 h-5" />
+                          Choose Image
                         </label>
-                        <input
-                          type="text"
-                          value={formData.dietaryTags.join(', ')}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            dietaryTags: e.target.value.split(',').map(item => item.trim()).filter(item => item)
-                          }))}
-                          placeholder="e.g., Vegetarian, Gluten-Free, Halal"
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                        />
+                        {selectedImageFile && (
+                          <span className="text-green-400 text-sm">
+                            {selectedImageFile.name}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </motion.div>
 
-                  {/* Nutritional Information Section */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 shadow-xl"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                      <div className="p-2 bg-green-500/20 rounded-lg">
-                        <Award className="w-6 h-6 text-green-400" />
-                      </div>
-                      Nutritional Information (per serving)
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-white font-medium mb-2 text-sm">
-                          Calories
-                        </label>
+                    {/* Status Options */}
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 text-white cursor-pointer">
                         <input
-                          type="number"
-                          value={formData.nutritionalInfo.calories}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            nutritionalInfo: { ...prev.nutritionalInfo, calories: e.target.value }
-                          }))}
-                          placeholder="0"
-                          className="w-full px-3 py-2 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 text-sm"
+                          type="checkbox"
+                          checked={formData.isAvailable}
+                          onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
+                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
                         />
-                      </div>
-                      <div>
-                        <label className="block text-white font-medium mb-2 text-sm">
-                          Protein (g)
-                        </label>
+                        <span className="text-sm">Available for Order</span>
+                      </label>
+                      <label className="flex items-center gap-3 text-white cursor-pointer">
                         <input
-                          type="number"
-                          step="0.1"
-                          value={formData.nutritionalInfo.protein}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            nutritionalInfo: { ...prev.nutritionalInfo, protein: e.target.value }
-                          }))}
-                          placeholder="0"
-                          className="w-full px-3 py-2 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 text-sm"
+                          type="checkbox"
+                          checked={formData.isPopular}
+                          onChange={(e) => setFormData(prev => ({ ...prev, isPopular: e.target.checked }))}
+                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
                         />
-                      </div>
-                      <div>
-                        <label className="block text-white font-medium mb-2 text-sm">
-                          Carbs (g)
-                        </label>
+                        <span className="text-sm">Mark as Popular</span>
+                      </label>
+                      <label className="flex items-center gap-3 text-white cursor-pointer">
                         <input
-                          type="number"
-                          step="0.1"
-                          value={formData.nutritionalInfo.carbs}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            nutritionalInfo: { ...prev.nutritionalInfo, carbs: e.target.value }
-                          }))}
-                          placeholder="0"
-                          className="w-full px-3 py-2 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 text-sm"
+                          type="checkbox"
+                          checked={formData.isFeatured}
+                          onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
+                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
                         />
-                      </div>
-                      <div>
-                        <label className="block text-white font-medium mb-2 text-sm">
-                          Fat (g)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={formData.nutritionalInfo.fat}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            nutritionalInfo: { ...prev.nutritionalInfo, fat: e.target.value }
-                          }))}
-                          placeholder="0"
-                          className="w-full px-3 py-2 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 text-sm"
-                        />
-                      </div>
+                        <span className="text-sm">Mark as Featured</span>
+                      </label>
                     </div>
-                  </motion.div>
-
-                  {/* Media & Status Section */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 shadow-xl"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <ImageIcon className="w-6 h-6 text-blue-400" />
-                      </div>
-                      Media & Status
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Image Upload
-                        </label>
-                        <div className="space-y-3">
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleImageSelect}
-                              className="hidden"
-                              id="image-upload"
-                            />
-                            <label
-                              htmlFor="image-upload"
-                              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all cursor-pointer"
-                            >
-                              <Upload className="w-4 h-4" />
-                              Choose Image
-                            </label>
-                            {(selectedImageFile || formData.image) && (
-                              <div className="flex items-center gap-2">
-                                <img
-                                  src={selectedImageFile ? URL.createObjectURL(selectedImageFile) : formData.image}
-                                  alt="Preview"
-                                  className="w-16 h-16 object-cover rounded-lg border-2 border-gray-600"
-                                />
-                                <span className="text-gray-400 text-sm">
-                                  {selectedImageFile ? selectedImageFile.name : 'Current image'}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-400">Max file size: 5MB. Supported formats: JPEG, PNG, WebP</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <label className="block text-white font-medium mb-3">
-                          Status Options
-                        </label>
-                        <div className="space-y-3">
-                          <label className="flex items-center gap-3 text-white cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.isAvailable}
-                              onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
-                              className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                            />
-                            <span className="text-sm">Available for Order</span>
-                          </label>
-                          <label className="flex items-center gap-3 text-white cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.isPopular}
-                              onChange={(e) => setFormData(prev => ({ ...prev, isPopular: e.target.checked }))}
-                              className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                            />
-                            <span className="text-sm">Mark as Popular</span>
-                          </label>
-                          <label className="flex items-center gap-3 text-white cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.isFeatured}
-                              onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
-                              className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                            />
-                            <span className="text-sm">Mark as Featured</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
                   </form>
                 </div>
 
@@ -879,13 +728,14 @@ MenuItemCard.displayName = 'MenuItemCard';
                 <div className="flex justify-end gap-4 p-6 border-t border-gray-700 bg-slate-800/95 backdrop-blur-sm flex-shrink-0">
                   <button
                     type="button"
-                    onClick={resetForm}
+                    onClick={() => setShowAddModal(false)}
                     className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
+                    onClick={handleSubmit}
                     className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all font-medium shadow-lg"
                   >
                     <Save className="w-5 h-5" />

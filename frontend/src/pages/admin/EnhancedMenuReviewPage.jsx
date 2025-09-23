@@ -6,8 +6,6 @@ import {
   Edit3,
   Save,
   X,
-  Plus,
-  Minus,
   CheckCircle,
   AlertCircle,
   Eye,
@@ -28,7 +26,14 @@ import {
   ArrowLeft,
   Filter,
   Search,
-  Settings
+  Settings,
+  Camera,
+  Zap,
+  Target,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -36,7 +41,7 @@ const EnhancedMenuReviewPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [menuData, setMenuData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,6 +54,8 @@ const EnhancedMenuReviewPage = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [aiCorrections, setAiCorrections] = useState(true);
   const [culturalContext, setCulturalContext] = useState('colombo');
+  const [showDetails, setShowDetails] = useState(false);
+  const [selectedItemDetails, setSelectedItemDetails] = useState(null);
 
   // Load menu data for selection
   useEffect(() => {
@@ -223,27 +230,47 @@ const EnhancedMenuReviewPage = () => {
     }
   };
 
+  // Handle item details view
+  const handleItemDetails = (categoryName, itemIndex) => {
+    const category = menuData.categories.find(cat => cat.name === categoryName);
+    const item = category.items[itemIndex];
+
+    setSelectedItemDetails({
+      ...item,
+      categoryName,
+      itemIndex,
+      image: menuData.imageUrl || item.image
+    });
+    setShowDetails(true);
+  };
+
+  // Close item details
+  const closeItemDetails = () => {
+    setShowDetails(false);
+    setSelectedItemDetails(null);
+  };
+
   // Filter items based on search and category
   const getFilteredCategories = () => {
     if (!menuData) return [];
-    
+
     return menuData.categories.filter(category => {
       if (filterCategory !== 'all' && category.name !== filterCategory) {
         return false;
       }
-      
+
       if (searchTerm) {
-        return category.items.some(item => 
+        return category.items.some(item =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.description?.toLowerCase().includes(searchTerm.toLowerCase())
         );
       }
-      
+
       return true;
     }).map(category => ({
       ...category,
-      items: category.items.filter(item => 
-        !searchTerm || 
+      items: category.items.filter(item =>
+        !searchTerm ||
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description?.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -296,24 +323,25 @@ const EnhancedMenuReviewPage = () => {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-white">🤖 AI-Enhanced Menu Review & Selection</h1>
+                <h1 className="text-3xl font-bold text-white flex items-center space-x-2">
+                  <Camera className="w-8 h-8 text-purple-400" />
+                  <span>Google Lens Food Analysis</span>
+                </h1>
                 <p className="text-gray-300 mt-1">
-                  Select items to add to your restaurant menu • {totalItems} items extracted
-                  {aiCorrections && (
-                    <span className="ml-2 px-2 py-1 bg-purple-600/20 text-purple-300 text-xs rounded">
-                      AI Food ID: {culturalContext.toUpperCase()}
-                    </span>
-                  )}
+                  AI-powered food recognition • {totalItems} dishes detected
+                  <span className="ml-2 px-2 py-1 bg-green-600/20 text-green-300 text-xs rounded">
+                    {menuData?.extractionMethod?.toUpperCase() || 'AI-ANALYZED'}
+                  </span>
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm text-gray-400">Selected Items</p>
+                <p className="text-sm text-gray-400">Selected for Menu</p>
                 <p className="text-2xl font-bold text-purple-400">{selectedCount}</p>
               </div>
-              
+
               <button
                 onClick={handleSaveSelected}
                 disabled={selectedCount === 0 || saving}
@@ -326,8 +354,8 @@ const EnhancedMenuReviewPage = () => {
                   </>
                 ) : (
                   <>
-                    <Save className="w-5 h-5" />
-                    <span>Save Selected ({selectedCount})</span>
+                    <ShoppingCart className="w-5 h-5" />
+                    <span>Add to Menu ({selectedCount})</span>
                   </>
                 )}
               </button>
@@ -336,301 +364,445 @@ const EnhancedMenuReviewPage = () => {
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Google Lens-like Interface */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            {/* Search and Filter */}
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search items..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
-                />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Panel - Image Analysis (Google Lens style) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Analyzed Image Display - Google Lens Style */}
+            <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 overflow-hidden">
+              <div className="p-4 border-b border-purple-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Camera className="w-5 h-5 text-purple-400" />
+                    <h2 className="text-lg font-semibold text-white">Google Lens Analysis</h2>
+                    <span className="px-2 py-1 bg-green-600/20 text-green-300 text-xs rounded">
+                      {menuData?.extractionMethod?.replace('-', ' ').toUpperCase() || 'AI ANALYSIS'}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-400">Confidence:</span>
+                    <span className="text-lg font-bold text-green-400">{menuData?.confidence || 95}%</span>
+                  </div>
+                </div>
               </div>
-              
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-              >
-                <option value="all">All Categories</option>
-                {menuData.categories.map(category => (
-                  <option key={category.name} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+
+              <div className="relative">
+                {/* Placeholder image for now - in production this would be the actual analyzed image */}
+                <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 aspect-video flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="relative">
+                      <Camera className="w-20 h-20 text-purple-400 mx-auto mb-4" />
+                      {/* AI Detection Animation */}
+                      <div className="absolute -top-2 -right-2">
+                        <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center animate-pulse">
+                          <Zap className="w-3 h-3 text-white" />
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Menu Image Analyzed</h3>
+                    <p className="text-gray-300 mb-4">AI has successfully identified {totalItems} dishes from your menu image</p>
+
+                    {/* Analysis Stats */}
+                    <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                      <div className="bg-black/40 rounded-lg p-3">
+                        <div className="text-2xl font-bold text-purple-400">{menuData?.categories?.length || 0}</div>
+                        <div className="text-xs text-gray-400">Categories</div>
+                      </div>
+                      <div className="bg-black/40 rounded-lg p-3">
+                        <div className="text-2xl font-bold text-green-400">{totalItems}</div>
+                        <div className="text-xs text-gray-400">Items Found</div>
+                      </div>
+                      <div className="bg-black/40 rounded-lg p-3">
+                        <div className="text-2xl font-bold text-blue-400">{selectedCount}</div>
+                        <div className="text-xs text-gray-400">Selected</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Floating AI Analysis Indicators */}
+                  <div className="absolute top-4 right-4 space-y-2">
+                    <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                      <div className="flex items-center space-x-2 text-white text-sm">
+                        <Target className="w-4 h-4 text-green-400" />
+                        <span>Objects Detected</span>
+                      </div>
+                    </div>
+                    <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                      <div className="flex items-center space-x-2 text-white text-sm">
+                        <Zap className="w-4 h-4 text-purple-400" />
+                        <span>AI Processing</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* AI Corrections & Cultural Context */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="aiCorrections"
-                  checked={aiCorrections}
-                  onChange={(e) => setAiCorrections(e.target.checked)}
-                  className="rounded border-gray-600 text-purple-600 focus:ring-purple-500"
-                />
-                <label htmlFor="aiCorrections" className="text-sm text-purple-300">
-                  🤖 AI Food Identification
-                </label>
+            {/* AI Detection Results - Google Lens Style */}
+            <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20">
+              <div className="p-4 border-b border-purple-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Target className="w-5 h-5 text-purple-400" />
+                    <h2 className="text-lg font-semibold text-white">Detected Food Items</h2>
+                    <span className="px-2 py-1 bg-blue-600/20 text-blue-300 text-xs rounded">
+                      {totalItems} found
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleSelectAll}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        selectAll
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'
+                      }`}
+                    >
+                      {selectAll ? 'Deselect All' : 'Select All'}
+                    </button>
+                    <button
+                      onClick={() => setShowDetails(!showDetails)}
+                      className="flex items-center space-x-1 px-3 py-1 bg-gray-600/20 text-gray-300 rounded text-sm hover:bg-gray-600/30 transition-colors"
+                    >
+                      <Info className="w-4 h-4" />
+                      <span>{showDetails ? 'Hide' : 'Show'} Details</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              
+
+              <div className="p-4">
+                {/* Category-based organization */}
+                <div className="space-y-6">
+                  {menuData?.categories?.map((category, catIndex) => (
+                    <div key={category.name} className="space-y-3">
+                      {/* Category Header */}
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-md font-semibold text-white">{category.name}</h3>
+                        <span className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded">
+                          {category.items?.length || 0} items
+                        </span>
+                      </div>
+
+                      {/* Items Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {category.items?.map((item, itemIndex) => {
+                          const isSelected = isItemSelected(category.name, itemIndex);
+                          const globalIndex = menuData.categories.slice(0, catIndex).reduce((sum, cat) => sum + cat.items.length, 0) + itemIndex;
+
+                          return (
+                            <motion.div
+                              key={`${category.name}-${itemIndex}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: globalIndex * 0.03 }}
+                              className={`relative bg-gray-800/50 rounded-lg border-2 transition-all duration-200 cursor-pointer group ${
+                                isSelected
+                                  ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/20'
+                                  : 'border-gray-600 hover:border-purple-400 hover:bg-purple-500/5'
+                              }`}
+                              onClick={() => handleItemDetails(category.name, itemIndex)}
+                            >
+                              {/* Selection Checkbox */}
+                              <div className="absolute top-2 left-2 z-10">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleItemSelection(category.name, itemIndex, !isSelected);
+                                  }}
+                                  className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                    isSelected
+                                      ? 'bg-purple-600 border-purple-600 text-white shadow-lg'
+                                      : 'border-gray-400 hover:border-purple-400 bg-black/50'
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3" />}
+                                </button>
+                              </div>
+
+                              {/* Item Number Badge */}
+                              <div className="absolute top-2 right-2 z-10">
+                                <span className="px-2 py-1 bg-black/70 text-white text-xs rounded font-mono backdrop-blur-sm">
+                                  #{globalIndex + 1}
+                                </span>
+                              </div>
+
+                              {/* AI Confidence Indicator */}
+                              <div className="absolute bottom-2 left-2 z-10">
+                                <div className="flex items-center space-x-1 bg-black/70 rounded px-2 py-1 backdrop-blur-sm">
+                                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                  <span className="text-xs text-white font-medium">
+                                    {item.confidence || 95}%
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Item Content */}
+                              <div className="p-4">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h4 className="font-semibold text-white text-sm flex-1 line-clamp-1">
+                                    {item.name}
+                                  </h4>
+                                  <span className="text-purple-400 font-bold text-sm ml-2">
+                                    ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                                  </span>
+                                </div>
+
+                                <p className="text-gray-300 text-xs mb-3 line-clamp-2">
+                                  {item.description || 'AI-detected food item with traditional preparation'}
+                                </p>
+
+                                {/* Item Tags */}
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {item.isVeg && (
+                                    <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                                      Vegetarian
+                                    </span>
+                                  )}
+                                  {item.isSpicy && (
+                                    <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">
+                                      Spicy
+                                    </span>
+                                  )}
+                                  {item.isPopular && (
+                                    <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
+                                      Popular
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Tamil Name if available */}
+                                {item.tamilName && (
+                                  <div className="text-purple-300 text-xs font-medium">
+                                    {item.tamilName}
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel - Controls & Details */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={handleSelectAll}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-purple-600/20 border border-purple-500/30 rounded-lg text-purple-300 hover:bg-purple-600/30 transition-colors"
+                >
+                  <span>{selectAll ? 'Deselect All' : 'Select All'}</span>
+                  {selectAll ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                </button>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search dishes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="all">All Categories</option>
+                  {menuData?.categories?.map(category => (
+                    <option key={category.name} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* AI Analysis Summary */}
+            <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Analysis Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Total Dishes</span>
+                  <span className="text-white font-semibold">{totalItems}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Selected</span>
+                  <span className="text-purple-400 font-semibold">{selectedCount}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Categories</span>
+                  <span className="text-white font-semibold">{menuData?.categories?.length || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">AI Method</span>
+                  <span className="text-green-400 text-sm">
+                    {menuData?.extractionMethod === 'openai-vision' ? 'OpenAI Vision' :
+                     menuData?.extractionMethod === 'google-vision' ? 'Google AI' :
+                     'AI Analysis'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Cultural Context */}
+            <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Cultural Context</h3>
               <select
                 value={culturalContext}
                 onChange={(e) => setCulturalContext(e.target.value)}
-                className="px-3 py-1 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-purple-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white text-sm focus:border-purple-500 focus:outline-none"
               >
-                <option value="colombo">🏙️ Colombo</option>
-                <option value="jaffna">🌴 Jaffna Tamil</option>
-                <option value="kandy">⛰️ Kandy</option>
-                <option value="galle">🏖️ Galle</option>
+                <option value="colombo">🏙️ Colombo (Urban)</option>
+                <option value="jaffna">🌴 Jaffna Tamil (Traditional)</option>
+                <option value="kandy">⛰️ Kandy (Hill Country)</option>
+                <option value="galle">🏖️ Galle (Coastal)</option>
               </select>
-
-              <button
-                onClick={handleSelectAll}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-lg text-purple-300 hover:bg-purple-600/30 transition-colors"
-              >
-                {selectAll ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
-                <span>{selectAll ? 'Deselect All' : 'Select All'}</span>
-              </button>
+              <p className="text-xs text-gray-400 mt-2">
+                AI considers regional cuisine preferences and pricing
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Menu Categories */}
-        <div className="space-y-8">
-          {filteredCategories.map((category, categoryIndex) => (
+        {/* Item Details Modal */}
+        <AnimatePresence>
+          {showDetails && selectedItemDetails && (
             <motion.div
-              key={category.name}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: categoryIndex * 0.1 }}
-              className="bg-black/20 backdrop-blur-sm rounded-xl border border-purple-500/20 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={closeItemDetails}
             >
-              {/* Category Header */}
-              <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 p-6 border-b border-purple-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">{category.name}</h2>
-                    <p className="text-gray-300 mt-1">{category.items.length} items</p>
-                  </div>
-                  
-                  {/* Category Mapping */}
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-400">Map to:</span>
-                    <select
-                      value={categoryMappings[category.name] || category.name}
-                      onChange={(e) => handleCategoryMapping(category.name, e.target.value)}
-                      className="px-3 py-1 bg-gray-800/50 border border-gray-600 rounded text-white text-sm focus:border-purple-500 focus:outline-none"
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-gray-900 rounded-xl border border-purple-500/20 max-w-2xl w-full max-h-[90vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 border-b border-purple-500/20">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-white">AI Analysis Details</h3>
+                    <button
+                      onClick={closeItemDetails}
+                      className="p-2 text-gray-400 hover:text-white transition-colors"
                     >
-                      <option value={category.name}>{category.name} (New)</option>
-                      {menuData.existingCategories?.map(existingCat => (
-                        <option key={existingCat.slug} value={existingCat.name}>
-                          {existingCat.name} (Existing)
-                        </option>
-                      ))}
-                    </select>
+                      <X className="w-6 h-6" />
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* Items Grid */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {category.items.map((item, itemIndex) => {
-                    const isSelected = isItemSelected(category.name, itemIndex);
-                    const isEditing = editingItem === `${category.name}-${itemIndex}`;
-                    
-                    return (
-                      <motion.div
-                        key={itemIndex}
-                        layout
-                        className={`relative bg-gray-800/30 rounded-lg border-2 transition-all duration-200 ${
-                          isSelected 
-                            ? 'border-purple-500 bg-purple-500/10' 
-                            : 'border-gray-600 hover:border-gray-500'
-                        }`}
-                      >
-                        {/* Selection Checkbox */}
-                        <div className="absolute top-3 left-3 z-10">
-                          <button
-                            onClick={() => handleItemSelection(category.name, itemIndex, !isSelected)}
-                            className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'bg-purple-600 border-purple-600 text-white'
-                                : 'border-gray-400 hover:border-purple-400'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-4 h-4" />}
-                          </button>
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Item Image */}
+                    <div>
+                      {selectedItemDetails.image ? (
+                        <img
+                          src={selectedItemDetails.image}
+                          alt={selectedItemDetails.name}
+                          className="w-full rounded-lg object-cover"
+                          onError={(e) => {
+                            e.target.src = 'https://dummyimage.com/400x300/cccccc/000000&text=Analyzed+Food';
+                          }}
+                        />
+                      ) : (
+                        <div className="aspect-square bg-gray-800 rounded-lg flex items-center justify-center">
+                          <Utensils className="w-16 h-16 text-gray-600" />
                         </div>
+                      )}
+                    </div>
 
-                        {/* Edit Button */}
-                        <div className="absolute top-3 right-3 z-10">
-                          <button
-                            onClick={() => handleEditItem(category.name, itemIndex)}
-                            className="w-8 h-8 bg-gray-700/80 rounded-full flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-600/80 transition-colors"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
+                    {/* Item Details */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-lg font-semibold text-white mb-2">{selectedItemDetails.name}</h4>
+                        {selectedItemDetails.tamilName && (
+                          <p className="text-purple-300 text-sm mb-2">{selectedItemDetails.tamilName}</p>
+                        )}
+                        <p className="text-gray-300 text-sm">{selectedItemDetails.description}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm text-gray-400">Price</span>
+                          <p className="text-2xl font-bold text-purple-400">
+                            ${typeof selectedItemDetails.price === 'number' ? selectedItemDetails.price.toFixed(2) : selectedItemDetails.price}
+                          </p>
                         </div>
+                        <div>
+                          <span className="text-sm text-gray-400">Confidence</span>
+                          <p className="text-lg font-semibold text-green-400">
+                            {selectedItemDetails.confidence || 85}%
+                          </p>
+                        </div>
+                      </div>
 
-                        {/* Item Image */}
-                        <div className="aspect-video bg-gray-700 rounded-t-lg overflow-hidden">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.src = 'https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Utensils className="w-12 h-12 text-gray-500" />
-                            </div>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {selectedItemDetails.isVeg && (
+                            <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">Vegetarian</span>
+                          )}
+                          {selectedItemDetails.isSpicy && (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">Spicy</span>
+                          )}
+                          {selectedItemDetails.isPopular && (
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded">Popular</span>
                           )}
                         </div>
 
-                        {/* Item Details */}
-                        <div className="p-4">
-                          {isEditing ? (
-                            <div className="space-y-3">
-                              <input
-                                type="text"
-                                value={editForm.name}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
-                                placeholder="Item name"
-                              />
-                              
-                              <textarea
-                                value={editForm.description}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none resize-none"
-                                rows="2"
-                                placeholder="Description"
-                              />
-                              
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editForm.price}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:outline-none"
-                                placeholder="Price"
-                              />
-                              
-                              {/* Checkboxes */}
-                              <div className="grid grid-cols-2 gap-2">
-                                {[
-                                  { key: 'isVeg', label: 'Vegetarian' },
-                                  { key: 'isSpicy', label: 'Spicy' },
-                                  { key: 'isPopular', label: 'Popular' },
-                                  { key: 'isAvailable', label: 'Available' }
-                                ].map(({ key, label }) => (
-                                  <label key={key} className="flex items-center space-x-2 text-sm text-gray-300">
-                                    <input
-                                      type="checkbox"
-                                      checked={editForm[key]}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, [key]: e.target.checked }))}
-                                      className="rounded border-gray-600 text-purple-600 focus:ring-purple-500"
-                                    />
-                                    <span>{label}</span>
-                                  </label>
-                                ))}
-                              </div>
-                              
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={handleSaveEdit}
-                                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
-                                >
-                                  <Save className="w-4 h-4" />
-                                  <span>Save</span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingItem(null);
-                                    setEditForm({});
-                                  }}
-                                  className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="font-semibold text-white text-lg mb-2">{item.name}</h3>
-                              {item.description && (
-                                <p className="text-gray-300 text-sm mb-3 line-clamp-2">{item.description}</p>
-                              )}
-                              
-                              <div className="flex items-center justify-between">
-                                <span className="text-2xl font-bold text-purple-400">
-                                  ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                        {selectedItemDetails.ingredients && selectedItemDetails.ingredients.length > 0 && (
+                          <div>
+                            <span className="text-sm text-gray-400">Ingredients</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {selectedItemDetails.ingredients.map((ingredient, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded">
+                                  {ingredient}
                                 </span>
-                                
-                                <div className="flex items-center space-x-2">
-                                  {item.customizations?.isVeg && (
-                                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">Veg</span>
-                                  )}
-                                  {item.customizations?.isSpicy && (
-                                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">Spicy</span>
-                                  )}
-                                  {item.customizations?.isPopular && (
-                                    <Star className="w-4 h-4 text-yellow-400" />
-                                  )}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-        {/* Bottom Action Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm border-t border-purple-500/20 p-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="text-white">
-              <p className="text-lg font-semibold">{selectedCount} items selected</p>
-              <p className="text-sm text-gray-400">Ready to add to your menu</p>
-            </div>
-            
-            <button
-              onClick={handleSaveSelected}
-              disabled={selectedCount === 0 || saving}
-              className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Saving to Menu...</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>Add to Menu ({selectedCount})</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+                        {selectedItemDetails.nutritionalInfo && (
+                          <div>
+                            <span className="text-sm text-gray-400">Nutrition (per serving)</span>
+                            <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
+                              <div>Calories: {selectedItemDetails.nutritionalInfo.calories || 'N/A'}</div>
+                              <div>Protein: {selectedItemDetails.nutritionalInfo.protein || 'N/A'}g</div>
+                              <div>Carbs: {selectedItemDetails.nutritionalInfo.carbs || 'N/A'}g</div>
+                              <div>Fat: {selectedItemDetails.nutritionalInfo.fat || 'N/A'}g</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedItemDetails.cookingTime && (
+                          <div>
+                            <span className="text-sm text-gray-400">Cooking Time</span>
+                            <p className="text-white">{selectedItemDetails.cookingTime} minutes</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

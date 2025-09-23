@@ -1,3 +1,4 @@
+import { uploadSingle, handleMulterError } from "../middleware/upload.js";
 // 📁 backend/routes/food/menuRoutes.js
 import express from "express";
 import {
@@ -27,9 +28,9 @@ router.get("/popular", getPopularItems);
 
 // Protected routes (admin/manager only)
 router.post("/categories", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuCategory, createCategory);
-router.post("/items", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuItem, createMenuItem);
+router.post("/items", authenticateToken, authorizeRoles(["admin", "manager"]), uploadSingle, handleMulterError, validateMenuItem, createMenuItem);
 router.post("/batch", authenticateToken, authorizeRoles(["admin", "manager"]), batchCreateMenuItems);
-router.put("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuItem, updateMenuItem);
+router.put("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), uploadSingle, handleMulterError, validateMenuItem, updateMenuItem);
 router.delete("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), deleteMenuItem);
 
 export default router;

@@ -354,6 +354,20 @@ const [formData, setFormData] = useState({
     }
   };
 
+  // Handle toggling item availability
+  const handleToggleAvailability = async (itemId, isAvailable) => {
+    try {
+      const response = await api.put(`/menu/items/${itemId}`, { isAvailable });
+      setFoodItems((foodItems || []).map(item =>
+        item._id === itemId ? response.data.data : item
+      ));
+      toast.success(`Menu item ${isAvailable ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating menu item availability:', error);
+      toast.error('Failed to update item availability');
+    }
+  };
+
   // Reset form to initial state
   const resetForm = () => {
     setFormData({
@@ -415,9 +429,18 @@ const [formData, setFormData] = useState({
     setIsEditDialogOpen(true);
   };
 
+  // Use real data if available, otherwise show empty state
+  const displayMenuItems = foodItems;
+
+  // Generate dynamic categories from menu items
+  const dynamicCategories = ['all', ...new Set(displayMenuItems.map(item =>
+    typeof item.category === 'object' ? item.category?.name : item.category
+  ).filter(Boolean))];
+
   // Filter items based on search and category
   const filteredItems = (foodItems || []).filter(item => {
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    const itemCategory = typeof item.category === 'object' ? item.category?.name : item.category;
+    const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -573,30 +596,6 @@ const [formData, setFormData] = useState({
   return (
     <div className="menu-management-page min-h-screen p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Modern Page Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl mb-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">🍽️ Food Menu Management</h1>
-              <p className="text-indigo-100 text-lg">
-                Manage your restaurant's menu items, categories, and AI-powered features
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={() => fetchFoodItems()}
-                variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </div>
-
         {/* Modern Statistics Dashboard */}
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
           <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200 shadow-sm">
@@ -629,7 +628,7 @@ const [formData, setFormData] = useState({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-600 text-sm font-medium">Categories</p>
-                <p className="text-3xl font-bold text-blue-900">{new Set((foodItems || []).map(item => item.category).filter(Boolean)).size}</p>
+                <p className="text-3xl font-bold text-blue-900">{new Set((foodItems || []).map(item => typeof item.category === 'object' ? item.category?.name : item.category).filter(Boolean)).size}</p>
               </div>
               <div className="p-3 bg-blue-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -679,41 +678,8 @@ const [formData, setFormData] = useState({
           </div>
         </div>
 
-        {/* Modern Tab Navigation */}
-        <Card className="bg-white shadow-xl rounded-2xl border-0 p-6 mb-6">
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setActiveTab('manage')}
-              className={`px-6 py-3 rounded-full font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'manage'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg transform scale-105'
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100 hover:scale-102 border border-gray-200'
-              }`}
-            >
-              <span className="mr-2">🍽️</span>
-              Manage Menu Items
-            </button>
-            <button
-              onClick={() => navigate('/admin/menu-upload')}
-              className={`px-6 py-3 rounded-full font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'ai-generate'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg transform scale-105'
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100 hover:scale-102 border border-gray-200'
-              }`}
-            >
-              <span className="mr-2">🤖</span>
-              AI Menu Extractor
-            </button>
-          </div>
-        </Card>
-
         {/* Header */}
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
+        <div className="mb-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -724,6 +690,16 @@ const [formData, setFormData] = useState({
               </p>
             </div>
             <div className="mt-4 md:mt-0 flex space-x-3">
+              <Button
+                onClick={() => fetchFoodItems()}
+                variant="outline"
+                className="border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </Button>
               <Dialog open={isAIDialogOpen} onOpenChange={(open) => {
                 if (!open) resetAIDialog();
                 setIsAIDialogOpen(open);
@@ -1320,9 +1296,10 @@ const [formData, setFormData] = useState({
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
+                <SelectItem value="all">All Categories</SelectItem>
+                {dynamicCategories.slice(1).map((categoryName) => (
+                  <SelectItem key={categoryName} value={categoryName}>
+                    {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1368,10 +1345,10 @@ const [formData, setFormData] = useState({
                               <div>
                                 <h3 className="font-bold text-lg">{item.name || 'Unnamed Item'}</h3>
                                 <p className="text-white/90 text-sm">
-                                  {item.category || 'Uncategorized'}
+                                  {typeof item.category === 'object' ? item.category?.name : item.category || 'Uncategorized'}
                                 </p>
                               </div>
-                              <Badge className={`${item.isAvailable ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+                              <Badge className={`${item.isAvailable ? 'bg-white/20 text-white border-white/30' : 'bg-red-500/80 text-white border-red-400/50'}`}>
                                 {item.isAvailable ? 'Available' : 'Unavailable'}
                               </Badge>
                             </div>
@@ -1379,28 +1356,36 @@ const [formData, setFormData] = useState({
 
                           {/* Food Image */}
                           <div className="relative h-48 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden mb-4">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                            ) : item.image ? (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div className={`w-full h-full flex items-center justify-center text-gray-400 ${item.imageUrl || item.image ? 'hidden' : ''}`}>
+                            {(() => {
+                              // Handle different image formats: base64, URL, or relative path
+                              let imageSrc = null;
+                              if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+                                // Base64 image
+                                imageSrc = item.imageUrl;
+                              } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
+                                // Full URL
+                                imageSrc = item.imageUrl;
+                              } else if (item.image && item.image.startsWith('http')) {
+                                // Full URL in image field
+                                imageSrc = item.image;
+                              } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
+                                // Relative path - construct full URL
+                                imageSrc = `${api.defaults.baseURL.replace('/api', '')}${item.image}`;
+                              }
+
+                              return imageSrc ? (
+                                <img
+                                  src={imageSrc}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null;
+                            })()}
+                            <div className={`w-full h-full flex items-center justify-center text-gray-400 ${(item.imageUrl || item.image) ? 'hidden' : ''}`}>
                               <ChefHat className="h-12 w-12" />
                             </div>
                             <div className="absolute top-2 right-2 flex gap-1">
@@ -1442,6 +1427,14 @@ const [formData, setFormData] = useState({
                           <div className="flex gap-2 flex-wrap">
                             <Button
                               size="sm"
+                              variant={item.isAvailable ? "outline" : "destructive"}
+                              onClick={() => handleToggleAvailability(item._id, !item.isAvailable)}
+                              className={`flex-1 rounded-full ${item.isAvailable ? 'border-green-300 hover:border-green-500 hover:text-green-600' : 'border-red-300 hover:border-red-500'}`}
+                            >
+                              {item.isAvailable ? '✅ Available' : '❌ Unavailable'}
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => openEditDialog(item)}
                               className="flex-1 rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
@@ -1459,6 +1452,398 @@ const [formData, setFormData] = useState({
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    {/* Add Menu Item Button at Bottom */}
+                    <div className="mt-8 flex justify-center">
+                      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                            <Plus className="h-5 w-5 mr-2" />
+                            Add New Menu Item
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-6 -m-6 mb-6">
+                            <DialogTitle className="text-2xl font-bold flex items-center">
+                              <ChefHat className="h-6 w-6 mr-3" />
+                              Add New Menu Item
+                            </DialogTitle>
+                            <p className="text-indigo-100 mt-2">Create a delicious new item for your menu</p>
+                          </DialogHeader>
+
+                          <div className="space-y-6 p-6">
+                            {/* Basic Information Section */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <ChefHat className="h-5 w-5 mr-2 text-blue-600" />
+                                Basic Information
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="name" className="text-sm font-medium text-gray-700">Item Name *</Label>
+                                  <Input
+                                    id="name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="e.g., Spaghetti Carbonara"
+                                    className={`transition-all duration-200 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                                  />
+                                  {formErrors.name && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.name}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="category" className="text-sm font-medium text-gray-700">Category *</Label>
+                                  <Select
+                                    value={formData.category}
+                                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                                  >
+                                    <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
+                                      <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {categories.slice(1).map((category) => (
+                                        <SelectItem key={category.value} value={category.value}>
+                                          {category.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  {formErrors.category && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.category}</p>}
+                                </div>
+                              </div>
+                              <div className="space-y-2 mt-4">
+                                <Label htmlFor="description" className="text-sm font-medium text-gray-700">Description *</Label>
+                                <Textarea
+                                  id="description"
+                                  value={formData.description}
+                                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                  placeholder="A brief description of the menu item"
+                                  rows={3}
+                                  className={`transition-all duration-200 ${formErrors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                                />
+                                {formErrors.description && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.description}</p>}
+                              </div>
+                            </div>
+
+                            {/* Image Upload Section */}
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <Upload className="h-5 w-5 mr-2 text-purple-600" />
+                                Image Upload *
+                              </h3>
+
+                              {/* Drag & Drop Area */}
+                              <div
+                                {...getFormImageRootProps()}
+                                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${
+                                  isFormImageDragActive
+                                    ? 'border-purple-500 bg-purple-50 scale-105'
+                                    : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50/50'
+                                } ${formErrors.image ? 'border-red-500 bg-red-50' : ''}`}
+                              >
+                                <input {...getFormImageInputProps()} />
+                                <div className="space-y-4">
+                                  <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 flex items-center justify-center">
+                                    <Upload className="h-8 w-8 text-purple-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-gray-900 text-lg">
+                                      {isFormImageDragActive ? 'Drop the image here' : 'Drag & drop an image here'}
+                                    </p>
+                                    <p className="text-sm text-gray-500 mt-2">
+                                      or click to browse files (JPG, PNG, WEBP up to 5MB)
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Image Preview */}
+                              {formData.imagePreview && (
+                                <div className="mt-6">
+                                  <h4 className="text-sm font-medium text-gray-700 mb-3">Image Preview</h4>
+                                  <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
+                                    <img
+                                      src={formData.imagePreview}
+                                      alt="Preview"
+                                      className="w-full h-48 object-cover"
+                                    />
+                                    <button
+                                      onClick={() => setFormData(prev => ({ ...prev, imageFile: null, imagePreview: null, image: '' }))}
+                                      className="absolute top-3 right-3 p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Alternative: URL Input */}
+                              <div className="mt-4 pt-4 border-t border-gray-200">
+                                <p className="text-sm text-gray-600 mb-3">Or enter an image URL:</p>
+                                <Input
+                                  type="url"
+                                  value={formData.image}
+                                  onChange={(e) => setFormData({ ...formData, image: e.target.value, imageFile: null, imagePreview: null })}
+                                  placeholder="https://example.com/image.jpg"
+                                  className="transition-all duration-200 focus:ring-indigo-500"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Valid formats: JPG, PNG, WEBP, GIF
+                                </p>
+                              </div>
+                              {formErrors.image && <p className="text-sm text-red-600 flex items-center mt-2"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.image}</p>}
+                            </div>
+
+                            {/* Pricing & Timing Section */}
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <DollarSign className="h-5 w-5 mr-2 text-green-600" />
+                                Pricing & Timing
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="price" className="text-sm font-medium text-gray-700">Price ($) *</Label>
+                                  <Input
+                                    id="price"
+                                    type="number"
+                                    value={formData.price}
+                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                    placeholder="0.00"
+                                    step="0.01"
+                                    min="0"
+                                    className={`transition-all duration-200 ${formErrors.price ? 'border-red-500 focus:ring-red-500' : 'focus:ring-green-500'}`}
+                                  />
+                                  {formErrors.price && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.price}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="cookingTime" className="text-sm font-medium text-gray-700">Cooking Time (minutes)</Label>
+                                  <Input
+                                    id="cookingTime"
+                                    type="number"
+                                    value={formData.cookingTime}
+                                    onChange={(e) => setFormData({ ...formData, cookingTime: e.target.value })}
+                                    placeholder="e.g., 15"
+                                    min="0"
+                                    className="transition-all duration-200 focus:ring-green-500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ingredients Section */}
+                            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <ChefHat className="h-5 w-5 mr-2 text-orange-600" />
+                                Ingredients *
+                              </h3>
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium text-gray-700">Ingredients (comma-separated)</Label>
+                                <Input
+                                  value={(formData.ingredients || []).join(', ')}
+                                  onChange={(e) => setFormData({
+                                    ...formData,
+                                    ingredients: e.target.value.split(',').map(i => i.trim()).filter(i => i)
+                                  })}
+                                  placeholder="e.g., tomatoes, onions, garlic, olive oil"
+                                  className={`transition-all duration-200 ${formErrors.ingredients ? 'border-red-500 focus:ring-red-500' : 'focus:ring-orange-500'}`}
+                                />
+                                {formErrors.ingredients && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.ingredients}</p>}
+                              </div>
+                            </div>
+
+                            {/* Nutritional Information Section */}
+                            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <Star className="h-5 w-5 mr-2 text-cyan-600" />
+                                Nutritional Information (Optional)
+                              </h3>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="calories" className="text-sm font-medium text-gray-700">Calories</Label>
+                                  <Input
+                                    id="calories"
+                                    type="number"
+                                    value={formData.nutritionalInfo.calories}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      nutritionalInfo: { ...formData.nutritionalInfo, calories: e.target.value }
+                                    })}
+                                    placeholder="250"
+                                    min="0"
+                                    className="transition-all duration-200 focus:ring-cyan-500"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="protein" className="text-sm font-medium text-gray-700">Protein (g)</Label>
+                                  <Input
+                                    id="protein"
+                                    type="number"
+                                    value={formData.nutritionalInfo.protein}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      nutritionalInfo: { ...formData.nutritionalInfo, protein: e.target.value }
+                                    })}
+                                    placeholder="15"
+                                    min="0"
+                                    className="transition-all duration-200 focus:ring-cyan-500"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="carbs" className="text-sm font-medium text-gray-700">Carbs (g)</Label>
+                                  <Input
+                                    id="carbs"
+                                    type="number"
+                                    value={formData.nutritionalInfo.carbs}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      nutritionalInfo: { ...formData.nutritionalInfo, carbs: e.target.value }
+                                    })}
+                                    placeholder="30"
+                                    min="0"
+                                    className="transition-all duration-200 focus:ring-cyan-500"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="fat" className="text-sm font-medium text-gray-700">Fat (g)</Label>
+                                  <Input
+                                    id="fat"
+                                    type="number"
+                                    value={formData.nutritionalInfo.fat}
+                                    onChange={(e) => setFormData({
+                                      ...formData,
+                                      nutritionalInfo: { ...formData.nutritionalInfo, fat: e.target.value }
+                                    })}
+                                    placeholder="10"
+                                    min="0"
+                                    className="transition-all duration-200 focus:ring-cyan-500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dietary & Properties Section */}
+                            <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-200">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <Users className="h-5 w-5 mr-2 text-pink-600" />
+                                Dietary Information & Properties
+                              </h3>
+
+                              {/* Dietary Tags */}
+                              <div className="mb-6">
+                                <Label className="text-sm font-medium text-gray-700 mb-3 block">Dietary Tags</Label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                  {dietaryOptions.map((option) => (
+                                    <div key={option} className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        id={`dietary-${option}`}
+                                        checked={formData.dietaryTags.includes(option)}
+                                        onChange={(e) => {
+                                          const newTags = e.target.checked
+                                            ? [...formData.dietaryTags, option]
+                                            : formData.dietaryTags.filter((tag) => tag !== option);
+                                          setFormData({ ...formData, dietaryTags: newTags });
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                                      />
+                                      <label htmlFor={`dietary-${option}`} className="text-sm text-gray-700 cursor-pointer">
+                                        {option}
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Item Properties */}
+                              <div>
+                                <Label className="text-sm font-medium text-gray-700 mb-3 block">Item Properties</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                                    <input
+                                      type="checkbox"
+                                      id="isVeg"
+                                      checked={formData.isVeg}
+                                      onChange={(e) => setFormData({ ...formData, isVeg: e.target.checked })}
+                                      className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    <div>
+                                      <Label htmlFor="isVeg" className="text-sm font-medium text-gray-700 cursor-pointer">Vegetarian</Label>
+                                      <p className="text-xs text-gray-500">Contains no meat</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                                    <input
+                                      type="checkbox"
+                                      id="isSpicy"
+                                      checked={formData.isSpicy}
+                                      onChange={(e) => setFormData({ ...formData, isSpicy: e.target.checked })}
+                                      className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                    />
+                                    <div>
+                                      <Label htmlFor="isSpicy" className="text-sm font-medium text-gray-700 cursor-pointer">Spicy</Label>
+                                      <p className="text-xs text-gray-500">Contains spicy ingredients</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                                    <input
+                                      type="checkbox"
+                                      id="isPopular"
+                                      checked={formData.isPopular}
+                                      onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+                                      className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                    />
+                                    <div>
+                                      <Label htmlFor="isPopular" className="text-sm font-medium text-gray-700 cursor-pointer">Popular</Label>
+                                      <p className="text-xs text-gray-500">Featured item</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                                    <input
+                                      type="checkbox"
+                                      id="isAvailable"
+                                      checked={formData.isAvailable}
+                                      onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
+                                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                      <Label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 cursor-pointer">Available</Label>
+                                      <p className="text-xs text-gray-500">Currently in stock</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                              <Button
+                                variant="outline"
+                                onClick={() => setIsCreateDialogOpen(false)}
+                                className="px-6 py-2 rounded-lg border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={handleCreateItem}
+                                disabled={isSubmitting}
+                                className="px-8 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                              >
+                                {isSubmitting ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="h-4 w-4 mr-2" />
+                                    Create Menu Item
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 </Card>
@@ -1522,7 +1907,7 @@ const [formData, setFormData] = useState({
               </Card>
             </TabsContent>
           </Tabs>
-        </motion.div>
+    </div>
       </div>
     </div>
   );
