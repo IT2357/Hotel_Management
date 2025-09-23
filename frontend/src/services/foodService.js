@@ -24,6 +24,12 @@ class FoodService {
       const url = `${FOOD_API_BASE}/items${queryString ? `?${queryString}` : ''}`;
 
       const response = await api.get(url);
+      // Handle different response formats
+      if (response.data && response.data.data) {
+        // New format with success/data structure
+        return { ...response, data: response.data.data };
+      }
+      // Legacy format or direct array
       return response;
     } catch (error) {
       console.error('Error fetching menu items:', error);

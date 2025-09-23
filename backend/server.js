@@ -18,6 +18,8 @@ import roomsRoutes from "./routes/rooms.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
 import bookings from "./routes/bookings.js";
+import foodRoutes from "./routes/food.js";
+import menuRoutes from "./routes/menu.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -80,6 +82,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/rooms", roomsRoutes);
 app.use("/api/bookings",bookings);
+app.use("/api/food", foodRoutes);
+app.use("/api/menu", menuRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api", (req, res) => {

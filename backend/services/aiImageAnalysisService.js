@@ -12,9 +12,10 @@ class AIImageAnalysisService {
    * @param {Buffer|string} imageBuffer - Image buffer or file path
    * @param {string} mimeType - MIME type of the image
    * @param {string} originalName - Original filename
+   * @param {Object} options - Additional options including detailLevel
    * @returns {Promise<Object>} Analysis result
    */
-  async analyzeFoodImage(imageBuffer, mimeType, originalName) {
+  async analyzeFoodImage(imageBuffer, mimeType, originalName, options = {}) {
     try {
       console.log('🤖 Starting AI image analysis...');
       console.log('🤖 Image type:', mimeType);
@@ -37,10 +38,17 @@ class AIImageAnalysisService {
 
         console.log('🤖 AI description generated successfully');
 
-        // Generate menu items from description
+        // Generate menu items from description with configurable detail level
+        const { detailLevel = 'standard' } = options;
         const menuItems = await this.geminiService.generateMenuItemsFromDescription(description, {
-          cuisineType: 'Sri Lankan',
-          dietaryRestrictions: []
+          cuisineType: 'Sri Lankan Jaffna Tamil Valampuri-style',
+          culturalContext: 'Jaffna Tamil restaurant menu with categories like Biriyanies, Naans and Chapathis, Kottu, Noodles & mee goreng, Bites and Curries, Appetizers & Salads, Soups, Sandwiches, Dosa and Others, Desserts, Soft drinks, Fried Rice, Cakes, Rice & Curry, Nasi goreng, Pulao rice, INDIAN MUTTON CURRY, INDIAN VEGETARIAN, INDIAN BEEF CURRY, INDIAN PRAWNS CURRY, PANEER, Tea&Coffee, Indian paratha, Soup, Indian sea food, Snacks, Jaffna style curries',
+          dietaryRestrictions: [],
+          regionSpecific: 'Focus on Valampuri restaurant menu structure with authentic Jaffna Tamil cuisine. Provide detailed descriptions for each dish including: cultural significance, traditional preparation methods, key ingredients, regional variations, historical context, and serving traditions. Include nutritional information, spice levels, vegetarian/non-vegetarian classification, and typical accompaniments. Recognize local ingredients like fresh fish, coconut, spices, and traditional cooking methods. Categorize items exactly like Valampuri menu categories.',
+          detailLevel,
+          includeContext: detailLevel === 'wikipedia' ?
+            'For each dish, provide comprehensive information similar to a Wikipedia entry: origin, cultural importance, traditional recipes, modern adaptations, nutritional value, and regional significance in Jaffna Tamil cuisine.' :
+            'Provide standard restaurant menu information with appealing descriptions.'
         });
 
         console.log('🤖 Generated menu items:', menuItems.length);

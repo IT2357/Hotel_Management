@@ -222,7 +222,16 @@ class GeminiService {
         throw new Error('Gemini AI is not properly configured');
       }
 
-      const { cuisineType = 'General', dietaryRestrictions = [] } = options;
+      const {
+        cuisineType = 'General',
+        dietaryRestrictions = [],
+        culturalContext = '',
+        regionSpecific = '',
+        detailLevel = 'standard',
+        includeContext = ''
+      } = options;
+
+      const isWikipediaLevel = detailLevel === 'wikipedia';
 
       const prompt = `Based on this image description, generate 3-5 detailed menu items that could be created based on what's shown:
 
@@ -230,19 +239,30 @@ class GeminiService {
 
       Please generate menu items with the following structure for each item:
       - name: A creative, appealing name for the dish
-      - description: A detailed description based on the image analysis
-      - price: A reasonable price between $8-25
-      - category: Appropriate category (Appetizers, Main Course, Desserts, Beverages, etc.)
-      - ingredients: Array of key ingredients identified or inferred
+      - description: ${isWikipediaLevel ?
+        'A comprehensive Wikipedia-like description including: cultural significance, traditional preparation methods, historical context, regional variations, typical accompaniments, and serving traditions' :
+        'A detailed description based on the image analysis'}
+      - price: A reasonable price between Rs.150-800 (Sri Lankan Rupees, appropriate for Jaffna market)
+      - category: Appropriate category from the specified cuisine categories
+      - ingredients: Array of key ingredients identified or inferred, including traditional Jaffna ingredients
       - isVeg: Boolean indicating if it's vegetarian
-      - isSpicy: Boolean indicating if it appears spicy
+      - isSpicy: Boolean indicating if it appears spicy (consider Jaffna spice levels)
       - cookingTime: Estimated cooking time in minutes
-      - nutritionalInfo: Object with calories, protein, carbs, fat estimates
+      - nutritionalInfo: Object with detailed calories, protein, carbs, fat estimates
+      ${isWikipediaLevel ? `- culturalSignificance: Historical and cultural importance in Jaffna Tamil cuisine
+      - traditionalRecipe: Traditional preparation methods
+      - regionalVariations: How this dish varies across Jaffna regions
+      - servingTraditions: Traditional ways of serving and eating this dish` : ''}
 
-      Consider the cuisine type: ${cuisineType}
+      Cuisine type: ${cuisineType}
+      ${culturalContext ? `Cultural context: ${culturalContext}` : ''}
+      ${regionSpecific ? `Regional specialties: ${regionSpecific}` : ''}
+      ${includeContext ? `Additional context: ${includeContext}` : ''}
       Dietary restrictions to consider: ${dietaryRestrictions.join(', ') || 'None'}
 
-      Make the items sound appealing and professional for a restaurant menu.`;
+      ${isWikipediaLevel ?
+        'Provide encyclopedic-level detail for each dish, similar to a Wikipedia entry. Include historical context, cultural significance, traditional recipes, and regional importance in Jaffna Tamil cuisine.' :
+        'Make the items sound appealing and professional for a restaurant menu. Focus on authentic regional cuisine and traditional cooking methods.'}`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -288,7 +308,12 @@ class GeminiService {
                   protein: parseInt(item.nutritionalInfo?.protein) || 15,
                   carbs: parseInt(item.nutritionalInfo?.carbs) || 25,
                   fat: parseInt(item.nutritionalInfo?.fat) || 12
-                }
+                },
+                // Wikipedia-level additional fields
+                culturalSignificance: item.culturalSignificance || '',
+                traditionalRecipe: item.traditionalRecipe || '',
+                regionalVariations: item.regionalVariations || '',
+                servingTraditions: item.servingTraditions || ''
               });
             }
           } catch (parseError) {

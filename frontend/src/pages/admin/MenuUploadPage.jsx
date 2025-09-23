@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Upload,
   Link,
@@ -30,6 +30,7 @@ const MenuUploadPage = () => {
   });
   const [dragActive, setDragActive] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [detailLevel, setDetailLevel] = useState('standard'); // 'standard' or 'wikipedia'
 
   // Handle file selection
   const handleFileSelect = (file) => {
@@ -107,6 +108,7 @@ const MenuUploadPage = () => {
       // Create FormData for the extraction request
       const submitFormData = new FormData();
       submitFormData.append('title', formData.title);
+      submitFormData.append('detailLevel', detailLevel);
 
       // Handle different input types
       if (activeTab === 'upload' && formData.file) {
@@ -119,13 +121,13 @@ const MenuUploadPage = () => {
       }
 
       // Call the extraction endpoint directly
-      console.log('🔄 Making API call to /uploadMenu/upload with data:', {
+      console.log('🔄 Making API call to /menu/extract with data:', {
         title: formData.title,
         hasFile: !!formData.file,
         hasUrl: !!formData.url,
         hasPath: !!formData.filePath
       });
-      const response = await api.post('/uploadMenu/upload', submitFormData);
+      const response = await api.post('/menu/extract', submitFormData);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -165,8 +167,8 @@ const MenuUploadPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
           className="text-center mb-8"
@@ -174,32 +176,30 @@ const MenuUploadPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="flex items-center justify-center mb-4">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-white mb-4 flex items-center justify-center space-x-3">
-                <Sparkles className="w-10 h-10 text-purple-400" />
-                <span>🤖 AI Food Analyzer</span>
-              </h1>
-              <p className="text-gray-300 text-lg">
-                Analyze any food image like Google Lens - Upload photos and get detailed menu information with AI
-              </p>
-              <div className="flex items-center justify-center space-x-6 mt-4 text-sm text-purple-300">
-                <div className="flex items-center space-x-2">
-                  <Eye className="w-4 h-4" />
-                  <span>Visual Food Recognition</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4" />
-                  <span>Smart Menu Generation</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Instant Results</span>
-                </div>
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-8 text-white shadow-xl">
+            <div className="flex items-center justify-center mb-4">
+              <Sparkles className="w-12 h-12 text-purple-200 mr-3" />
+              <h1 className="text-4xl font-bold">🤖 AI Food Analyzer</h1>
+            </div>
+            <p className="text-purple-100 text-lg mb-6 max-w-2xl mx-auto">
+              Analyze any food image like Google Lens - Upload photos and get detailed menu information with AI
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-purple-200">
+              <div className="flex items-center space-x-2">
+                <Eye className="w-4 h-4" />
+                <span>Visual Food Recognition</span>
               </div>
-              <div className="mt-4 text-xs text-purple-200 opacity-75">
-                <p>💡 AI services not configured - using fallback analysis</p>
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Smart Menu Generation</span>
               </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-4 h-4" />
+                <span>Instant Results</span>
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-purple-300 opacity-75">
+              <p>💡 AI services not configured - using fallback analysis</p>
             </div>
           </div>
         </motion.div>
@@ -212,8 +212,8 @@ const MenuUploadPage = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
         >
           {/* Tab Navigation */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="flex space-x-8 px-6">
+          <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <nav className="flex justify-center">
               {[
                 { id: 'upload', label: 'Upload Image', icon: Upload },
                 { id: 'url', label: 'From URL', icon: Globe },
@@ -222,9 +222,9 @@ const MenuUploadPage = () => {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
+                  className={`py-4 px-6 font-medium text-sm flex items-center space-x-2 transition-colors border-b-2 ${
                     activeTab === id
-                      ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                      ? 'border-purple-500 text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -236,20 +236,93 @@ const MenuUploadPage = () => {
           </div>
 
           {/* Form Content */}
-          <form onSubmit={handleSubmit} className="p-6">
+          <form onSubmit={handleSubmit} className="p-8">
             {/* Menu Title */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Menu Title *
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter a descriptive title for this menu"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Enter a descriptive title for this menu (e.g., 'Valampuri Special Menu')"
+                className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 text-base"
                 required
               />
+            </div>
+
+            {/* Detail Level */}
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                Analysis Detail Level
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className={`relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  detailLevel === 'standard'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md'
+                    : 'border-gray-200 dark:border-gray-600 hover:border-purple-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="detailLevel"
+                    value="standard"
+                    checked={detailLevel === 'standard'}
+                    onChange={(e) => setDetailLevel(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 border-2 rounded-full mr-3 flex items-center justify-center ${
+                      detailLevel === 'standard'
+                        ? 'border-purple-500 bg-purple-500'
+                        : 'border-gray-300'
+                    }`}>
+                      {detailLevel === 'standard' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">Standard</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Basic menu information</div>
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  detailLevel === 'wikipedia'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md'
+                    : 'border-gray-200 dark:border-gray-600 hover:border-purple-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="detailLevel"
+                    value="wikipedia"
+                    checked={detailLevel === 'wikipedia'}
+                    onChange={(e) => setDetailLevel(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 border-2 rounded-full mr-3 flex items-center justify-center ${
+                      detailLevel === 'wikipedia'
+                        ? 'border-purple-500 bg-purple-500'
+                        : 'border-gray-300'
+                    }`}>
+                      {detailLevel === 'wikipedia' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">Wikipedia</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Cultural & historical details</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Wikipedia level</strong> provides comprehensive descriptions including cultural significance, traditional recipes, regional variations, and historical context - perfect for authentic Jaffna Tamil cuisine documentation.
+                </p>
+              </div>
             </div>
 
             {/* Tab Content */}
@@ -258,12 +331,13 @@ const MenuUploadPage = () => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
+                className="space-y-6"
               >
                 <div
-                  className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 ${
                     dragActive
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-purple-400'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-lg'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
@@ -276,42 +350,60 @@ const MenuUploadPage = () => {
                     onChange={(e) => handleFileSelect(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  
+
                   {previewImage ? (
-                    <div className="space-y-4">
-                      <img
-                        src={previewImage}
-                        alt="Preview"
-                        className="max-w-full max-h-64 mx-auto rounded-lg shadow-md"
-                      />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formData.file?.name}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, file: null }));
-                          setPreviewImage(null);
-                        }}
-                        className="text-red-600 hover:text-red-700 text-sm"
-                      >
-                        Remove Image
-                      </button>
+                    <div className="space-y-6">
+                      <div className="relative inline-block">
+                        <img
+                          src={previewImage}
+                          alt="Preview"
+                          className="max-w-full max-h-80 mx-auto rounded-xl shadow-lg border-4 border-white dark:border-gray-700"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, file: null }));
+                            setPreviewImage(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-lg font-medium text-gray-900 dark:text-white">
+                          {formData.file?.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Image ready for analysis
+                        </p>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <Image className="h-16 w-16 text-gray-400 mx-auto" />
-                      <div>
-                        <p className="text-lg font-medium text-gray-900 dark:text-white">
+                    <div className="space-y-6">
+                      <div className="mx-auto w-20 h-20 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                        <Image className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xl font-semibold text-gray-900 dark:text-white">
                           Drop your menu image here
                         </p>
                         <p className="text-gray-600 dark:text-gray-400">
-                          or click to browse files
+                          or click to browse files from your device
                         </p>
                       </div>
-                      <p className="text-sm text-gray-500">
-                        Supports: JPG, PNG, WEBP, GIF (Max 15MB)
-                      </p>
+                      <div className="flex items-center justify-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center space-x-1">
+                          <CheckCircle className="w-4 h-4" />
+                          <span>JPG, PNG, WEBP, GIF</span>
+                        </span>
+                        <span className="flex items-center space-x-1">
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Max 15MB</span>
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -397,50 +489,57 @@ const MenuUploadPage = () => {
             {/* Progress Bar */}
             {loading && (
               <motion.div
-                className="mt-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-200 dark:border-purple-800"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Processing Menu...
-                  </span>
-                  <span className="text-sm text-gray-500">{uploadProgress}%</span>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Processing Menu...
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold text-purple-600">{uploadProgress}%</span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                   <div
-                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 h-3 rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 text-center">
+                  AI is analyzing your image and extracting menu details...
+                </p>
               </motion.div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center mt-8">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={clearForm}
-                className="px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="px-6 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors font-medium"
                 disabled={loading}
               >
                 Clear Form
               </button>
-              
-              <div className="flex space-x-4">
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => navigate('/admin/dashboard')}
-                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
                   disabled={loading}
                 >
                   Cancel
                 </button>
-                
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2"
+                  className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 font-medium shadow-lg"
                 >
                   {loading ? (
                     <>
@@ -461,7 +560,7 @@ const MenuUploadPage = () => {
 
         {/* Features Info */}
         <motion.div
-          className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6"
+          className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
@@ -470,28 +569,33 @@ const MenuUploadPage = () => {
             {
               icon: Sparkles,
               title: 'AI-Powered Extraction',
-              description: 'Advanced OCR and AI to accurately extract menu items, prices, and descriptions'
+              description: 'Advanced computer vision and AI to accurately extract menu items, prices, and descriptions from any food image',
+              color: 'text-purple-600'
             },
             {
               icon: CheckCircle,
               title: 'Smart Categorization',
-              description: 'Automatically organizes menu items into logical categories like appetizers, mains, desserts'
+              description: 'Automatically organizes menu items into Valampuri-style categories with Jaffna Tamil cuisine recognition',
+              color: 'text-green-600'
             },
             {
               icon: Eye,
               title: 'Review & Edit',
-              description: 'Review extracted data and make edits before saving to your menu database'
+              description: 'Interactive review interface to edit extracted data before saving to your menu database',
+              color: 'text-blue-600'
             }
           ].map((feature, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md"
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow duration-200"
             >
-              <feature.icon className="h-8 w-8 text-purple-600 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <div className={`inline-flex p-3 rounded-lg bg-gray-50 dark:bg-gray-700 mb-4`}>
+                <feature.icon className={`h-6 w-6 ${feature.color}`} />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
                 {feature.title}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                 {feature.description}
               </p>
             </div>

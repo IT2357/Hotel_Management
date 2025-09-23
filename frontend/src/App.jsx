@@ -26,6 +26,10 @@ import AdminAddRoomPage from './pages/admin/AdminAddRooms.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
+// Food-related admin pages
+import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
+import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
+import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
@@ -218,6 +222,49 @@ const App = () => {
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminEditRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Food Management Routes */}
+          <Route
+            path="/admin/menu-upload"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <MenuUploadPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food/orders"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodOrderManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodMenuManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food/menu"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodMenuManagementPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }

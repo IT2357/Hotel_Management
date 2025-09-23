@@ -176,7 +176,11 @@ class HTMLParser {
 
       // Specific to foodorders.lk and similar platforms
       '.food-item-card', '.menu-item-card', '.restaurant-card',
-      '.foodorders-card', '.valampuri-card', '.menu-section-card'
+      '.foodorders-card', '.valampuri-card', '.menu-section-card',
+
+      // Valampuri specific selectors (from analysis)
+      '.category', '.menu-group', '.food-group', '.dish-group',
+      '.menu-container', '.food-container', '.item-container'
     ];
 
     const priceSelectors = [
@@ -307,6 +311,15 @@ class HTMLParser {
       'appetizer', 'starter', 'soup', 'salad', 'main', 'entree', 'pasta', 'pizza',
       'dessert', 'beverage', 'drink', 'coffee', 'tea', 'wine', 'beer', 'cocktail',
       'breakfast', 'lunch', 'dinner', 'special', 'combo', 'platter', 'menu',
+
+      // Valampuri specific categories (from analysis)
+      'biriyanies', 'naans and chapathis', 'kottu', 'noodles & mee goreng',
+      'bites and curries', 'appetizers & salads', 'soups', 'sandwiches',
+      'dosa and others', 'desserts', 'soft drinks', 'fried rice', 'cakes',
+      'rice & curry', 'nasi goreng', 'pulao rice', 'indian mutton curry',
+      'indian vegetarian', 'indian beef curry', 'indian prawns curry',
+      'paneer', 'tea&coffee', 'indian paratha', 'indian sea food', 'snacks',
+      'jaffna style curries',
 
       // Jaffna/Sri Lankan Tamil categories
       'thosai', 'dosa', 'idiyappam', 'puttu', 'idli', 'vada', 'bonda', 'pakora',

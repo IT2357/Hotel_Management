@@ -127,7 +127,10 @@ export const extractMenu = async (req, res) => {
 
           // Use AI Image Analysis Service (like Google Lens)
           console.log('🤖 Analyzing food image with AI...');
-          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname);
+          const detailLevel = req.body.detailLevel || 'standard';
+          console.log('📚 Detail level:', detailLevel);
+
+          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname, { detailLevel });
           
           if (aiAnalysis.success) {
             console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
@@ -260,8 +263,25 @@ export const extractMenu = async (req, res) => {
       extractionData.source = { type: 'url', value: url };
 
       try {
+        // Special handling for Google Images URLs
+        let processedUrl = url;
+        if (url.includes('google.com') && (url.includes('imgurl=') || url.includes('imgres'))) {
+          console.log('🔍 Detected Google Images URL, extracting actual image URL...');
+          try {
+            // Extract the actual image URL from Google Images parameters
+            const urlObj = new URL(url);
+            const imgUrl = urlObj.searchParams.get('imgurl') || urlObj.searchParams.get('imgres');
+            if (imgUrl) {
+              processedUrl = decodeURIComponent(imgUrl);
+              console.log('✅ Extracted actual image URL:', processedUrl);
+            }
+          } catch (googleUrlError) {
+            console.warn('⚠️ Failed to extract URL from Google Images link:', googleUrlError.message);
+          }
+        }
+
         // Check if URL is an image URL
-        const urlIsImage = await isImageUrl(url);
+        const urlIsImage = await isImageUrl(processedUrl);
 
         if (urlIsImage) {
           console.log('🖼️ Detected image URL, processing as image upload...');
@@ -298,7 +318,9 @@ export const extractMenu = async (req, res) => {
 
           // Use AI Image Analysis Service (same as file upload)
           console.log('🤖 Analyzing food image from URL with AI...');
-          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url);
+          const detailLevel = req.body.detailLevel || 'standard';
+          console.log('📚 Detail level:', detailLevel);
+          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url, { detailLevel });
 
           if (aiAnalysis.success) {
             console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
