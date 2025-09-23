@@ -6,6 +6,9 @@ module.exports = {
     "./src/**/*.{js,ts,jsx,tsx}",
     "./src/**/*.{html,js,ts,jsx,tsx}",
   ],
+  corePlugins: {
+    preflight: false,
+  },
   theme: {
     fontSize: {
       sm: "0.875rem",

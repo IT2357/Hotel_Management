@@ -31,6 +31,12 @@ import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
 import MenuReviewPage from './pages/admin/MenuReviewPage.jsx';
 import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
+// Public pages
+import MenuPage from './pages/MenuPage.jsx';
+import Gallery from './pages/Gallery.jsx';
+import Blog from './pages/Blog.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
@@ -87,15 +93,15 @@ const App = () => {
             }
           />
 
+          {/* Public Pages */}
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/reservations" element={<GuestDashboardPage />} />
+
           {/* 🔐 Protected Routes */}
-          <Route
-            path="/guest/dashboard"
-            element={
-              <ProtectedRoute roles={['guest']}>
-                <GuestDashboardPage />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/admin/profile"
             element={

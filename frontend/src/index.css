@@ -1,4 +1,80 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@theme {
+  --font-display: "Playfair Display", serif;
+  --font-body: "Inter", sans-serif;
+
+  /* White Blue Premium Theme */
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222 84% 5%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222 84% 5%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222 84% 5%);
+
+  /* Premium Blue Primary */
+  --color-primary: hsl(217 91% 60%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-primary-glow: hsl(217 91% 75%);
+
+  /* Light Blue Secondary */
+  --color-secondary: hsl(210 40% 96%);
+  --color-secondary-foreground: hsl(222 84% 5%);
+
+  /* Light Gray Muted */
+  --color-muted: hsl(210 40% 96%);
+  --color-muted-foreground: hsl(215 16% 47%);
+
+  /* Bright Blue Accent */
+  --color-accent: hsl(217 91% 60%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-accent-light: hsl(217 91% 85%);
+
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(214 32% 91%);
+  --color-input: hsl(214 32% 91%);
+  --color-ring: hsl(217 91% 60%);
+
+  /* Sidebar */
+  --color-sidebar-background: hsl(0 0% 98%);
+  --color-sidebar-foreground: hsl(222 84% 5%);
+  --color-sidebar-primary: hsl(217 91% 60%);
+  --color-sidebar-primary-foreground: hsl(0 0% 100%);
+  --color-sidebar-accent: hsl(210 40% 96%);
+  --color-sidebar-accent-foreground: hsl(222 84% 5%);
+  --color-sidebar-border: hsl(214 32% 91%);
+  --color-sidebar-ring: hsl(217 91% 60%);
+
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* Gradients */
+  --gradient-luxury: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 75%));
+  --gradient-sunset: linear-gradient(135deg, hsl(217 91% 60%), hsl(204 94% 94%));
+  --gradient-ocean: linear-gradient(135deg, hsl(210 40% 96%), hsl(217 91% 60%));
+  --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%), hsl(210 40% 96%));
+
+  /* Shadows */
+  --shadow-luxury: 0 20px 40px -12px hsl(217 91% 60% / 0.3);
+  --shadow-card: 0 8px 32px -8px hsl(217 91% 60% / 0.1);
+  --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.6);
+
+  /* Transitions */
+  --transition-luxury: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing */
+  --space-luxury: 2.5rem;
+  --space-section: 5rem;
+}
 
 html {
     font-size: 16px;
