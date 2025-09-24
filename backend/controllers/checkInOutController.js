@@ -149,7 +149,8 @@ export const checkOutGuest = async (req, res) => {
       return res.status(400).json({ message: 'Invalid check-in record or guest already checked out' });
     }
 
-    checkInOut.checkOutTime = new Date();
+    const checkoutTime = new Date();
+    checkInOut.checkOutTime = checkoutTime;
     checkInOut.checkedOutBy = req.user.id;
     checkInOut.damageReport = damageReport;
     checkInOut.keyCardReturned = keyCardReturned || false;
@@ -158,7 +159,6 @@ export const checkOutGuest = async (req, res) => {
     await checkInOut.save();
 
     // Return/deactivate the key card if it exists; otherwise, deactivate any active card for this guest/room
-    const checkoutTime = checkInOut.checkOutTime || new Date();
     let deactivated = false;
     if (checkInOut.keyCard) {
       const keyCard = await KeyCard.findById(checkInOut.keyCard);
@@ -199,36 +199,60 @@ export const checkOutGuest = async (req, res) => {
       }
     }
 
-    // Update room status to Cleaning
+    // Determine if this is an early checkout and update booking + room accordingly
     const room = await Room.findById(checkInOut.room);
-    if (room) {
+    const booking = await Booking.findById(checkInOut.booking);
+
+    if (booking) {
+      const scheduledCheckout = new Date(booking.checkOut);
+      const isEarlyCheckout = checkoutTime < scheduledCheckout;
+
+      // Mark booking as Completed on checkout (early or on-time)
+      booking.status = 'Completed';
+      // If early checkout, persist the actual checkout timestamp for auditing
+      if (isEarlyCheckout) {
+        booking.checkOut = checkoutTime;
+      }
+      booking.lastStatusChange = new Date();
+      await booking.save();
+
+      // Free the room immediately if early checkout, otherwise keep Cleaning workflow
+      if (room) {
+        room.status = isEarlyCheckout ? 'Available' : 'Cleaning';
+        await room.save();
+      }
+
+      // Always create a cleaning task (even on early checkout)
+      if (room) {
+        try {
+          const cleaningTask = new StaffTask({
+            title: `Clean Room ${room.roomNumber}`,
+            description: `Room cleaning required after guest checkout. Guest: ${checkInOut.guest.firstName} ${checkInOut.guest.lastName}`,
+            department: 'Housekeeping',
+            priority: 'high',
+            category: 'deep_cleaning',
+            location: 'room',
+            roomNumber: room.roomNumber,
+            dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+            estimatedDuration: 60, // 60 minutes
+            assignedBy: req.user.id,
+            tags: ['checkout', 'cleaning']
+          });
+
+          await cleaningTask.save();
+          console.log('✅ Cleaning task created for room:', room.roomNumber);
+
+          // Schedule hourly priority escalation until completed/cancelled or reaches urgent
+          schedulePriorityEscalation(cleaningTask._id);
+        } catch (taskError) {
+          console.error('❌ Failed to create cleaning task:', taskError);
+          // Don't fail the checkout if task creation fails
+        }
+      }
+    } else if (room) {
+      // Fallback: if no booking found, at least move room to Cleaning to avoid blocking
       room.status = 'Cleaning';
       await room.save();
-    }
-
-    // Create cleaning task for housekeeping
-    if (room) {
-      try {
-        const cleaningTask = new StaffTask({
-          title: `Clean Room ${room.roomNumber}`,
-          description: `Room cleaning required after guest checkout. Guest: ${checkInOut.guest.firstName} ${checkInOut.guest.lastName}`,
-          department: 'Housekeeping',
-          priority: 'high',
-          category: 'deep_cleaning',
-          location: 'room',
-          roomNumber: room.roomNumber,
-          dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-          estimatedDuration: 60, // 60 minutes
-          assignedBy: req.user.id,
-          tags: ['checkout', 'cleaning']
-        });
-
-        await cleaningTask.save();
-        console.log('✅ Cleaning task created for room:', room.roomNumber);
-      } catch (taskError) {
-        console.error('❌ Failed to create cleaning task:', taskError);
-        // Don't fail the checkout if task creation fails
-      }
     }
 
     res.status(200).json(checkInOut);
@@ -236,6 +260,40 @@ export const checkOutGuest = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Schedules hourly priority escalation for a StaffTask until it reaches 'urgent' or is completed/cancelled
+function schedulePriorityEscalation(taskId) {
+  const ONE_HOUR = 60 * 60 * 1000;
+  const ladder = ['low', 'medium', 'high', 'urgent'];
+
+  const escalate = async () => {
+    try {
+      const task = await StaffTask.findById(taskId);
+      if (!task) return; // Task deleted
+      if (['completed', 'cancelled'].includes(task.status)) return; // Stop escalating
+
+      const current = task.priority || 'medium';
+      const idx = ladder.indexOf(current);
+      if (idx >= 0 && idx < ladder.length - 1) {
+        task.priority = ladder[idx + 1];
+        await task.save();
+        console.log(`⬆️ Escalated task ${task._id} priority to ${task.priority}`);
+      }
+
+      // Re-schedule if not yet urgent and still not completed
+      if (task.priority !== 'urgent' && !['completed', 'cancelled'].includes(task.status)) {
+        setTimeout(escalate, ONE_HOUR);
+      }
+    } catch (err) {
+      console.error('❌ Failed to escalate task priority:', err.message);
+      // Try again in one hour to be resilient
+      setTimeout(escalate, ONE_HOUR);
+    }
+  };
+
+  // Initial schedule
+  setTimeout(escalate, ONE_HOUR);
+}
 
 // List eligible bookings for the authenticated guest to self check-in
 export const getEligibleBookingsForGuest = async (req, res) => {
