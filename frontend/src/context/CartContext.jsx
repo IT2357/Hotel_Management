@@ -118,16 +118,38 @@ export const CartProvider = ({ children, userRole = 'guest' }) => {
     if (savedCart) {
       try {
         const cartData = JSON.parse(savedCart);
-        // Restore cart items
-        cartData.items.forEach(item => {
+        // Validate and restore cart items (prefer MongoDB ObjectIds)
+        const validItems = cartData.items.filter(item => {
+          // Check if item has a valid id
+          if (!item.id) return false;
+
+          // If it has a _id field, use that for validation
+          const itemId = item._id || item.id;
+
+          // Check if it's a valid MongoDB ObjectId (24 hex characters)
+          const isValidObjectId = /^[a-f\d]{24}$/i.test(itemId);
+
+          // Allow valid ObjectIds or reasonable string IDs
+          return isValidObjectId || (typeof itemId === 'string' && itemId.length > 0);
+        });
+
+        if (validItems.length !== cartData.items.length) {
+          console.warn('Some cart items had invalid IDs and were removed');
+        }
+
+        // Restore valid cart items
+        validItems.forEach(item => {
           dispatch({ type: ADD_TO_CART, payload: item });
         });
+
         // Restore takeaway setting
         if (cartData.isTakeaway) {
           dispatch({ type: TOGGLE_TAKEAWAY });
         }
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
+        // Clear invalid cart data
+        localStorage.removeItem('foodCart');
       }
     }
   }, []);
@@ -140,12 +162,12 @@ export const CartProvider = ({ children, userRole = 'guest' }) => {
   // Cart actions
   const addToCart = (item) => {
     console.log('Adding item to cart:', item); // Debug log
-    console.log('Item image field:', item.image); // Debug log
-    console.log('Item imageUrl field:', item.imageUrl); // Debug log
+    console.log('Item _id:', item._id, 'Item id:', item.id, 'Item name:', item.name); // Debug log
     dispatch({
       type: ADD_TO_CART,
       payload: {
-        id: item._id || item.id,
+        id: item._id || item.id || item.name, // Use _id, or id, or name as fallback for uniqueness
+        _id: item._id, // Store the MongoDB _id separately
         name: item.name,
         price: item.price,
         imageUrl: item.image, // Fix: use item.image instead of item.imageUrl

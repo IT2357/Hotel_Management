@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut, AlertCircle, Plus, Minus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
@@ -12,6 +12,7 @@ export default function MenuPage() {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [menuAvailable, setMenuAvailable] = useState(false);
+  const [cartQuantities, setCartQuantities] = useState({});
   const { user, logout } = useAuth();
   const { addToCart } = useCart();
   const navigate = useNavigate();
@@ -52,7 +53,31 @@ export default function MenuPage() {
 
           setMenuCategories(categories);
         } else {
-          setMenuAvailable(false);
+          // Fall back to legacy items if API returns empty
+          console.log('🔄 Falling back to legacy menu items');
+          setMenuItems(legacyMenuItems);
+          setMenuAvailable(true);
+
+          // Generate categories from legacy items
+          const categoryMap = {};
+          legacyMenuItems.forEach(item => {
+            const cat = item.category;
+            if (!categoryMap[cat]) {
+              categoryMap[cat] = { name: cat.charAt(0).toUpperCase() + cat.slice(1), count: 0 };
+            }
+            categoryMap[cat].count++;
+          });
+
+          const categories = [
+            { id: 'all', name: 'All Items', count: legacyMenuItems.length },
+            ...Object.entries(categoryMap).map(([id, data]) => ({
+              id: id,
+              name: data.name,
+              count: data.count
+            }))
+          ];
+
+          setMenuCategories(categories);
         }
       } catch (error) {
         console.error('Error loading menu items:', error);
@@ -332,10 +357,24 @@ export default function MenuPage() {
     navigate('/login');
   };
 
-  const handleAddToCart = (item) => {
-    addToCart(item);
-    // Optional: Show a success message or navigate to cart
-    // For now, just add to cart silently
+  // Handle quantity changes
+  const handleQuantityChange = (itemId, change) => {
+    setCartQuantities(prev => {
+      const current = prev[itemId] || 0;
+      const newQuantity = Math.max(0, current + change);
+      return { ...prev, [itemId]: newQuantity };
+    });
+  };
+
+  // Add item to cart with quantity
+  const handleAddToCart = (item, quantity = 1) => {
+    if (quantity <= 0) return;
+
+    for (let i = 0; i < quantity; i++) {
+      addToCart(item);
+    }
+    // Reset quantity after adding to cart
+    setCartQuantities(prev => ({ ...prev, [item._id || item.id]: 0 }));
   };
 
   // Show loading state
@@ -656,14 +695,60 @@ export default function MenuPage() {
                   {item.description || 'Delicious dish prepared with fresh ingredients'}
                 </p>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>
+                {/* Quantity Selector & Add to Cart */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleQuantityChange(item._id || item.id, -1)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          border: '2px solid #C41E3A',
+                          backgroundColor: 'white',
+                          color: '#C41E3A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', minWidth: '24px', textAlign: 'center' }}>
+                        {cartQuantities[item._id || item.id] || 0}
+                      </span>
+                      <button
+                        onClick={() => handleQuantityChange(item._id || item.id, 1)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          border: '2px solid #C41E3A',
+                          backgroundColor: 'white',
+                          color: '#C41E3A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#C41E3A' }}>
                       LKR {item.price}
                     </span>
                   </div>
+
                   <button
-                    onClick={() => handleAddToCart(item)}
+                    onClick={() => handleAddToCart(item, cartQuantities[item._id || item.id] || 1)}
+                    disabled={(cartQuantities[item._id || item.id] || 0) === 0}
                     style={{
                       backgroundColor: '#C41E3A',
                       color: 'white',
@@ -674,14 +759,19 @@ export default function MenuPage() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.3s ease'
+                      cursor: (cartQuantities[item._id || item.id] || 0) === 0 ? 'not-allowed' : 'pointer',
+                      transition: 'background-color 0.3s ease',
+                      opacity: (cartQuantities[item._id || item.id] || 0) === 0 ? 0.5 : 1
                     }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#A91E2A'}
+                    onMouseOver={(e) => {
+                      if ((cartQuantities[item._id || item.id] || 0) > 0) {
+                        e.target.style.backgroundColor = '#A91E2A';
+                      }
+                    }}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#C41E3A'}
                   >
                     <ShoppingCart size={16} />
-                    Add to Cart
+                    <span>Add {(cartQuantities[item._id || item.id] || 0) > 1 ? `(${cartQuantities[item._id || item.id]})` : ''}</span>
                   </button>
                 </div>
               </div>

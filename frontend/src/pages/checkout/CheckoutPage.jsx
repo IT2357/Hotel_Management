@@ -5,9 +5,10 @@ import { ArrowLeft, ShoppingCart, User, Phone, Mail, MapPin, CreditCard, Clock }
 import { useNavigate } from 'react-router-dom';
 import { menuService } from '../../services/menuService';
 import { paymentService } from '../../services/paymentService';
+import api from '../../services/api';
 
 const CheckoutPage = () => {
-  const { cart, clearCart, cartSubtotal } = useCart();
+  const { items, total: cartTotal, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (cart.items && cart.items.length === 0) {
+    if (items && items.length === 0) {
       navigate('/menu');
     }
     
@@ -48,7 +49,7 @@ const CheckoutPage = () => {
         }
       }));
     }
-  }, [cart.items, navigate, isAuthenticated, user]);
+  }, [items, navigate, isAuthenticated, user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -134,7 +135,7 @@ const CheckoutPage = () => {
   };
 
   const calculateTotals = () => {
-    const subtotal = cartSubtotal;
+    const subtotal = cartTotal;
     const tax = Math.round(subtotal * 0.125 * 100) / 100; // 12.5%
     const serviceCharge = Math.round(subtotal * 0.10 * 100) / 100; // 10%
     const total = Math.round((subtotal + tax + serviceCharge) * 100) / 100;
@@ -158,40 +159,43 @@ const CheckoutPage = () => {
       console.log('Cart data:', cart);
       console.log('Cart items:', cart.items);
       
-      if (!cart.items || cart.items.length === 0) {
+      if (!items || items.length === 0) {
         setErrors({ submit: 'Your cart is empty. Please add items before placing an order.' });
         setLoading(false);
         return;
       }
       
       // Transform cart items for API
-      const items = cart.items.map(item => {
+      const orderItems = items.map(item => {
         console.log('Processing cart item:', item);
         return {
-          // `menuService.createOrder` maps `menuItem` or `menuItemId` to backend
-          menuItem: item.menuItem,
-          name: item.name,
+          foodId: item.id, // Use id for menu item lookup
           quantity: item.quantity,
-          price: item.portion.price,
-          selectedPortion: item.portion?.name || null,
-          specialInstructions: item.specialInstructions || null
+          price: item.price,
+          name: item.name
         };
       });
-      
+
+      // Map payment method to backend format
+      const paymentMethodMap = {
+        'Card': 'card',
+        'Cash': 'cash',
+        'Mobile Wallet': 'wallet'
+      };
+
       const orderData = {
-        items,
-        customerInfo: formData.customerInfo,
+        items: orderItems,
+        totalPrice: total,
         orderType: formData.orderType,
-        tableNumber: formData.orderType === 'dine-in' ? formData.tableNumber : null,
-        specialInstructions: formData.specialInstructions || null,
-        paymentMethod: formData.paymentMethod,
-        paymentProvider: formData.paymentProvider || '',
-        userId: isAuthenticated ? user?._id : null,
-        // Include totals for backend-side verification
-        subtotal,
-        tax,
-        serviceCharge,
-        total
+        isTakeaway: formData.orderType === 'takeaway',
+        customerDetails: {
+          customerName: formData.customerInfo.name,
+          customerEmail: formData.customerInfo.email,
+          customerPhone: formData.customerInfo.phone,
+          deliveryAddress: formData.orderType === 'dine-in' ? formData.tableNumber : ''
+        },
+        paymentMethod: paymentMethodMap[formData.paymentMethod] || 'cash',
+        specialInstructions: formData.specialInstructions || null
       };
       
       console.log('Sending order data:', orderData);
@@ -217,7 +221,7 @@ const CheckoutPage = () => {
       }
 
       // Cash flow: place order immediately
-      const result = await menuService.createOrder(orderData);
+      const result = await api.post('/api/food/orders/create', orderData);
 
       if (result.success) {
         setOrderDetails(result.data);
@@ -595,7 +599,7 @@ const CheckoutPage = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || cart.items.length === 0}
+                disabled={loading || items.length === 0}
                 className="w-full bg-yellow-400 text-black py-4 rounded-lg hover:bg-yellow-500 transition duration-300 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {loading ? (
@@ -618,17 +622,14 @@ const CheckoutPage = () => {
             <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
             
             <div className="space-y-4 mb-6">
-              {cart.items.map((item) => (
+              {items.map((item) => (
                 <div key={item.id} className="flex justify-between items-start">
                   <div className="flex-1">
                     <h3 className="text-white font-semibold">{item.name}</h3>
-                    {item.portion && (
-                      <p className="text-gray-400 text-sm">Portion: {item.portion.name}</p>
-                    )}
                     <p className="text-gray-400 text-sm">Qty: {item.quantity}</p>
                   </div>
                   <div className="text-yellow-400 font-semibold">
-                    LKR {(item.portion.price * item.quantity)}
+                    LKR {(item.price * item.quantity)}
                   </div>
                 </div>
               ))}

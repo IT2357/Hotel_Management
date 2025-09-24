@@ -1,9 +1,11 @@
 import express from 'express';
 import { processMenuImage, createBatchMenuItems, generateMenuItems, generateMenuFromImage, createMenuItem, updateMenuItem, getMenuItemImage } from '../controllers/menuController.js';
+import { extractMenu } from '../controllers/menuExtractionController.js';
 import MenuItem from '../models/MenuItem.js';
 import { authenticateToken as protect } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import { uploadSingle, handleMulterError } from '../middleware/upload.js';
+import { uploadSingle as uploadSingleGridFS, uploadToGridFS, handleMulterError as handleGridFSMulterError } from '../middleware/gridfsUpload.js';
 
 const router = express.Router();
 
@@ -131,5 +133,8 @@ router.post('/generate-from-image', protect, authorizeRoles(['admin', 'manager']
 
 // Process menu image (OCR)
 router.post('/process-image', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, processMenuImage);
+
+// AI Menu Extraction (supports file upload, URL, and file path)
+router.post('/extract', protect, authorizeRoles(['admin', 'manager']), uploadSingleGridFS, handleGridFSMulterError, uploadToGridFS, extractMenu);
 
 export default router;

@@ -21,6 +21,7 @@ import bookings from "./routes/bookings.js";
 import foodRoutes from "./routes/food.js";
 import menuRoutes from "./routes/menu.js";
 import menuSelectionRoutes from "./routes/menuSelectionRoutes.js";
+import paymentsRoutes from "./routes/payments.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -86,6 +87,7 @@ app.use("/api/bookings",bookings);
 app.use("/api/food", foodRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/menu-selection", menuSelectionRoutes);
+app.use("/api/payments", paymentsRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api", (req, res) => {

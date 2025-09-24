@@ -173,9 +173,41 @@ export const createFoodOrder = catchAsync(async (req, res) => {
  let calculatedSubtotal = 0;
 
  for (const item of items) {
-   const menuItem = await MenuItem.findById(item.foodId || item.id);
+   const foodId = item.foodId || item.id;
+   let menuItem = null;
+
+   // Try multiple lookup strategies
+   if (foodId) {
+     // Strategy 1: Try to find by _id (MongoDB ObjectId)
+     try {
+       if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
+         menuItem = await MenuItem.findById(foodId);
+       }
+     } catch (error) {
+       // Ignore cast errors
+     }
+
+     // Strategy 2: Try to find by id field (numeric ID)
+     if (!menuItem) {
+       const numericId = typeof foodId === 'string' ? parseInt(foodId, 10) : foodId;
+       if (!isNaN(numericId)) {
+         menuItem = await MenuItem.findOne({ id: numericId });
+       }
+     }
+
+     // Strategy 3: Try to find by slug
+     if (!menuItem && typeof foodId === 'string') {
+       menuItem = await MenuItem.findOne({ slug: foodId });
+     }
+
+     // Strategy 4: Try to find by name (fallback)
+     if (!menuItem && typeof foodId === 'string') {
+       menuItem = await MenuItem.findOne({ name: { $regex: new RegExp(`^${foodId}$`, 'i') } });
+     }
+   }
+
    if (!menuItem) {
-     throw new AppError(`Menu item with ID ${item.foodId || item.id} not found`, 404);
+     throw new AppError(`Menu item with ID ${foodId} not found`, 404);
    }
 
    if (!menuItem.isAvailable) {
@@ -238,7 +270,6 @@ export const createFoodOrder = catchAsync(async (req, res) => {
 
  // Create order object
  const orderData = {
-   userId: req.user.id,
    items: validatedItems,
    totalPrice: calculatedTotal,
    subtotal: calculatedSubtotal,
@@ -262,6 +293,11 @@ export const createFoodOrder = catchAsync(async (req, res) => {
    deliveryLocation: isTakeaway ? customerDetails.deliveryAddress : `Table/Room: ${customerDetails.deliveryAddress || 'N/A'}`
  };
 
+ // Only add userId if user is authenticated
+ if (req.user && req.user.id) {
+   orderData.userId = req.user.id;
+ }
+
  // Create the order
  const order = await FoodOrder.create(orderData);
 
@@ -271,7 +307,7 @@ export const createFoodOrder = catchAsync(async (req, res) => {
 
  logger.info('Food order created successfully', {
    orderId: order._id,
-   userId: req.user.id,
+   userId: req.user ? req.user.id : null,
    totalPrice: calculatedTotal,
    subtotal: calculatedSubtotal,
    tax: tax,

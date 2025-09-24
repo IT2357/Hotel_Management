@@ -14,6 +14,7 @@ import {
   updateCategory,
   deleteCategory
 } from '../controllers/food/foodController.js';
+import { getCurrentMeal } from '../utils/timeUtils.js';
 import {
   getAllFoodOrders,
   getFoodOrder,
@@ -22,23 +23,59 @@ import {
   createFoodOrder,
   getCustomerOrders
 } from '../controllers/food/foodOrderController.js';
+import menuRoutes from './food/menuRoutes.js';
 
 const router = express.Router();
 
-// Public routes - no authentication required for viewing menu items
-router.get('/menu/items', getAllFoodItems);
-router.get('/menu/items/:id', getFoodItem);
-router.get('/menu/categories', getAllCategories);
-router.get('/menu/categories/:id', getCategory);
-router.post('/menu/categories', authorizeRoles(['admin', 'manager']), createCategory);
-router.put('/menu/categories/:id', authorizeRoles(['admin', 'manager']), updateCategory);
-router.delete('/menu/categories/:id', authorizeRoles(['admin', 'manager']), deleteCategory);
+// Mount food menu routes (includes all menu CRUD operations)
+router.use('/menu', menuRoutes);
+
+// Public routes (no authentication required)
+router.get('/current-meal', async (req, res) => {
+  try {
+    const currentMeal = await getCurrentMeal();
+    res.json({
+      success: true,
+      currentMeal,
+      message: `Current meal type: ${currentMeal}`
+    });
+  } catch (error) {
+    console.error('Error getting current meal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get current meal type',
+      error: error.message
+    });
+  }
+});
+
+router.get('/time-slots', async (req, res) => {
+  try {
+    const TimeSlots = (await import('../models/TimeSlots.js')).default;
+    const timeSlots = await TimeSlots.find();
+    res.json({
+      success: true,
+      timeSlots: timeSlots.map(slot => ({
+        meal: slot.meal,
+        start: slot.start,
+        end: slot.end
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting time slots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get time slots',
+      error: error.message
+    });
+  }
+});
+
+// Public route for creating orders (supports both authenticated and guest users)
+router.post('/orders/create', createFoodOrder);
 
 // Protected routes for authenticated users
 router.use(protect);
-
-// Customer order routes
-router.post('/orders/create', createFoodOrder);
 router.get('/orders/my-orders', getCustomerOrders);
 
 // Admin only routes for food management

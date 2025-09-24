@@ -1,7 +1,7 @@
 // 📁 backend/controllers/payments/payhereController.js
 import Order from '../../models/Order.js';
 import Food from '../../models/Food.js';
-import { buildPayHereInitParams, verifyPayHereIPN } from '../../services/payment/paymentService.js';
+import paymentService from '../../services/payment/paymentService.js';
 
 // POST /api/payments/payhere/init
 // Creates an Order with paymentStatus 'Processing' and returns PayHere params
@@ -65,19 +65,25 @@ export const initPayment = async (req, res) => {
     const created = await Order.findById(order._id);
 
     // Build params for PayHere
-    const params = buildPayHereInitParams({
+    const paymentResult = await paymentService.processOrderPayment({
       orderId: created.orderNumber,
       amount: created.total,
-      customerInfo,
+      currency: 'LKR',
+      paymentMethod: paymentMethod.toLowerCase(),
+      customerDetails: customerInfo,
       returnUrl: process.env.PAYHERE_RETURN_URL,
       cancelUrl: process.env.PAYHERE_CANCEL_URL,
       notifyUrl: process.env.PAYHERE_NOTIFY_URL,
-      items: created.items,
-      meta: {
-        paymentMethod: paymentMethod,
-        paymentProvider: paymentProvider,
-      },
     });
+
+    if (!paymentResult.success) {
+      return res.status(400).json({ success: false, message: paymentResult.error || 'Payment initialization failed' });
+    }
+
+    const params = {
+      action: paymentResult.gatewayUrl,
+      params: paymentResult.paymentParams
+    };
 
     return res.status(201).json({ success: true, message: 'Payment initialized', data: { order, payhere: params } });
   } catch (err) {
@@ -93,7 +99,7 @@ export const handleIPN = async (req, res) => {
     const payload = req.body || {};
 
     // Verify signature/hash (best-effort; ensure this matches PayHere docs)
-    const verified = verifyPayHereIPN(payload);
+    const verified = paymentService.validateWebhookSignature(payload, payload.hash);
     if (!verified) {
       return res.status(400).json({ success: false, message: 'Invalid signature' });
     }

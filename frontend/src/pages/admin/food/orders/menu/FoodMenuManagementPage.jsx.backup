@@ -396,101 +396,64 @@ const FoodMenuManagementPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Statistics Dashboard */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <StatisticsCard
+            title="Total Items"
+            value={stats.total}
+            icon={ChefHat}
+            color="orange"
+          />
+          <StatisticsCard
+            title="Available"
+            value={stats.available}
+            icon={CheckCircle2}
+            color="green"
+          />
+          <StatisticsCard
+            title="Categories"
+            value={stats.categories}
+            icon={RefreshCw}
+            color="blue"
+          />
+          <StatisticsCard
+            title="Popular"
+            value={stats.popular}
+            icon={Star}
+            color="purple"
+          />
+          <StatisticsCard
+            title="Vegetarian"
+            value={stats.vegetarian}
+            icon={ChefHat}
+            color="red"
+          />
+          <StatisticsCard
+            title="Spicy"
+            value={stats.spicy}
+            icon={AlertCircle}
+            color="yellow"
+          />
+        </div>
+
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Menu Management</h1>
-          <p className="text-gray-600">Manage your restaurant's menu items and categories</p>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <ChefHat className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Total Items</p>
-                <p className="text-2xl font-bold text-white">{stats.total}</p>
-              </div>
-            </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Food Menu Management</h1>
+            <p className="mt-1 text-sm text-gray-600">Manage your restaurant's menu items and categories</p>
           </div>
-
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Available</p>
-                <p className="text-2xl font-bold text-white">{stats.available}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <RefreshCw className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Categories</p>
-                <p className="text-2xl font-bold text-white">{stats.categories}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <Star className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Popular</p>
-                <p className="text-2xl font-bold text-white">{stats.popular}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <ChefHat className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Vegetarian</p>
-                <p className="text-2xl font-bold text-white">{stats.vegetarian}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
-            <div className="flex items-center">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                <AlertCircle className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-white/80">Spicy</p>
-                <p className="text-2xl font-bold text-white">{stats.spicy}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={fetchMenuData} variant="outline" className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" />
+          <div className="mt-4 md:mt-0 flex space-x-3">
+            <Button onClick={fetchMenuData} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
 
             <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="button-gradient text-white flex items-center gap-2 shadow-lg">
-                  <Sparkles className="h-4 w-4" />
+                <Button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
+                  <Sparkles className="h-4 w-4 mr-2" />
                   AI Add Items
                 </Button>
               </DialogTrigger>
@@ -606,8 +569,8 @@ const FoodMenuManagementPage = () => {
 
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <Plus className="h-4 w-4" />
+                <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Menu Item
                 </Button>
               </DialogTrigger>
@@ -996,231 +959,259 @@ const FoodMenuManagementPage = () => {
               </Dialog>
             </div>
           </div>
-  
+
           {/* Search and Filter */}
-          <div className="search-container mb-8">
-            <div className="p-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="search"
-                    placeholder="Search menu items..."
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[200px] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categoriesList.slice(1).map((categoryName) => (
-                      <SelectItem key={categoryName} value={categoryName}>
-                        {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                type="search"
+                placeholder="Search menu items..."
+                className="pl-10 w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categoriesList.slice(1).map((categoryName) => (
+                  <SelectItem key={categoryName} value={categoryName}>
+                    {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6">
+          <div>
             <Tabs defaultValue="manage" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 p-1 rounded-lg">
-                <TabsTrigger value="manage" className="flex items-center gap-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  <ChefHat className="h-4 w-4" />
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="manage" className="flex items-center">
+                  <ChefHat className="h-4 w-4 mr-2" />
                   Manage Menu Items
                 </TabsTrigger>
-                <TabsTrigger value="ai-generate" className="flex items-center gap-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                  <Sparkles className="h-4 w-4" />
+                <TabsTrigger value="ai-generate" className="flex items-center">
+                  <Sparkles className="h-4 w-4 mr-2" />
                   AI Generate Menu
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="manage" className="mt-0">
+              <TabsContent value="manage" className="mt-6">
+                {/* Menu Items Grid */}
                 {loading ? (
-                  <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+                  <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
                   </div>
                 ) : filteredItems.length > 0 ? (
-                  <div>
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900">Menu Items</h3>
-                      <span className="text-sm text-gray-500">
-                        {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {filteredItems.map((item) => (
-                        <div key={item._id} className="menu-card bg-white border border-gray-200 rounded-xl overflow-hidden">
-                          {/* Image */}
-                          <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
-                            {(() => {
-                              let imageSrc = null;
-                              if (item.imageUrl && item.imageUrl.startsWith('data:')) {
-                                imageSrc = item.imageUrl;
-                              } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
-                                imageSrc = item.imageUrl;
-                              } else if (item.image && item.image.startsWith('http')) {
-                                imageSrc = item.image;
-                              } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
-                                const baseUrl = api.defaults.baseURL.endsWith('/api') ? api.defaults.baseURL.slice(0, -4) : api.defaults.baseURL;
-                                imageSrc = `${baseUrl}${item.image}`;
-                              }
-
-                              return imageSrc ? (
-                                <img
-                                  src={imageSrc}
-                                  alt={item.name}
-                                  className="menu-image w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }}
-                                />
-                              ) : null;
-                            })()}
-                            <div className={`w-full h-full flex items-center justify-center text-gray-400 ${(item.imageUrl || item.image) ? 'hidden' : ''}`}>
-                              <ChefHat className="h-10 w-10" />
-                            </div>
-
-                            {/* Status Badge */}
-                            <div className="absolute top-3 right-3">
-                              <span className={`px-3 py-1 text-xs font-semibold rounded-full shadow-sm ${
-                                item.isAvailable
-                                  ? 'status-badge-available'
-                                  : 'status-badge-unavailable'
-                              }`}>
-                                {item.isAvailable ? 'Available' : 'Unavailable'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Content */}
-                          <div className="p-5">
-                            <div className="flex justify-between items-start mb-3">
-                              <h4 className="menu-item-name text-base line-clamp-1 flex-1 mr-2">
-                                {item.name || 'Unnamed Item'}
-                              </h4>
-                              <span className="menu-item-price text-lg whitespace-nowrap">
-                                ${item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
-                              </span>
-                            </div>
-
-                            <p className="menu-item-description text-sm mb-4">
-                              {item.description || 'No description available'}
-                            </p>
-
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {item.isVeg && <span className="text-lg" title="Vegetarian">🌱</span>}
-                                {item.isSpicy && <span className="text-lg" title="Spicy">🌶️</span>}
-                                {item.isPopular && <span className="text-lg" title="Popular">⭐</span>}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openEditDialog(item)}
-                                  className="action-button h-9 w-9 p-0 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                                  title="Edit Item"
-                                >
-                                  <span className="text-sm">✏️</span>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteItem(item._id)}
-                                  className="action-button h-9 w-9 p-0 border-gray-300 hover:border-red-500 hover:bg-red-50 text-red-600 hover:text-red-700"
-                                  title="Delete Item"
-                                >
-                                  <span className="text-sm">🗑️</span>
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
+                  <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800">🍽️ Menu Items</h2>
+                        <div className="text-sm text-gray-500">
+                          {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredItems.map((item) => (
+                          <div
+                            key={item._id}
+                            className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                          >
+                            {/* Food Item Header */}
+                            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-4 text-white mb-4 shadow-lg">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h3 className="font-bold text-lg">{item.name || 'Unnamed Item'}</h3>
+                                  <p className="text-white/90 text-sm">
+                                    {typeof item.category === 'object' ? item.category?.name : item.category || 'Uncategorized'}
+                                  </p>
+                                </div>
+                                <Badge className={`${item.isAvailable ? 'bg-white/20 text-white border-white/30' : 'bg-red-500/80 text-white border-red-400/50'}`}>
+                                  {item.isAvailable ? 'Available' : 'Unavailable'}
+                                </Badge>
+                              </div>
+                            </div>
 
-                    {/* Add New Item Button */}
-                    <div className="mt-8 flex justify-center">
+                            {/* Food Image */}
+                            <div className="relative h-48 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden mb-4">
+                              {(() => {
+                                // Handle different image formats: base64, URL, or relative path
+                                let imageSrc = null;
+                                if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+                                  // Base64 image
+                                  imageSrc = item.imageUrl;
+                                } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
+                                  // Full URL
+                                  imageSrc = item.imageUrl;
+                                } else if (item.image && item.image.startsWith('http')) {
+                                  // Full URL in image field
+                                  imageSrc = item.image;
+                                } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
+                                  // Relative path - construct full URL
+                                  const baseUrl = api.defaults.baseURL.endsWith('/api') ? api.defaults.baseURL.slice(0, -4) : api.defaults.baseURL;
+                                  imageSrc = `${baseUrl}${item.image}`;
+                                }
+
+                                return imageSrc ? (
+                                  <img
+                                    src={imageSrc}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null;
+                              })()}
+                              <div className={`w-full h-full flex items-center justify-center text-gray-400 ${(item.imageUrl || item.image) ? 'hidden' : ''}`}>
+                                <ChefHat className="h-12 w-12" />
+                              </div>
+                              <div className="absolute top-2 right-2 flex gap-1">
+                                {item.dietaryTags?.map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="text-xs bg-white/20 text-white border-white/30">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Food Details */}
+                            <div className="space-y-3 mb-6">
+                              {item.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                  {item.description}
+                                </p>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xl font-bold text-gray-900">${item.price ? parseFloat(item.price).toFixed(2) : '0.00'}</span>
+                                <div className="flex items-center text-sm text-gray-600">
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  <span>{item.cookingTime || 'N/A'} min</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {item.isVeg && <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">🌱 Veg</Badge>}
+                                {item.isSpicy && <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">🌶️ Spicy</Badge>}
+                                {item.isPopular && <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">⭐ Popular</Badge>}
+                              </div>
+                              {item.nutritionalInfo?.calories && (
+                                <div className="text-sm text-gray-500">
+                                  <span>🔥 {item.nutritionalInfo.calories} calories</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 flex-wrap">
+                              <Button
+                                size="sm"
+                                variant={item.isAvailable ? "outline" : "destructive"}
+                                onClick={() => handleToggleAvailability(item._id, !item.isAvailable)}
+                                className={`flex-1 rounded-full ${item.isAvailable ? 'border-green-300 hover:border-green-500 hover:text-green-600' : 'border-red-300 hover:border-red-500'}`}
+                              >
+                                {item.isAvailable ? '✅ Available' : '❌ Unavailable'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditDialog(item)}
+                                className="flex-1 rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
+                              >
+                                ✏️ Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteItem(item._id)}
+                                className="flex-1 rounded-full border-gray-300 hover:border-red-500 hover:text-red-600"
+                              >
+                                🗑️ Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add Menu Item Button at Bottom */}
+                      <div className="mt-8 flex justify-center">
+                        <Button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setSelectedCategory('all');
+                            setIsCreateDialogOpen(true);
+                          }}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        >
+                          <Plus className="h-5 w-5 mr-2" />
+                          Add New Menu Item
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="text-center py-12">
+                    <ChefHat className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No menu items found</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {searchQuery || selectedCategory !== 'all'
+                        ? 'Try adjusting your search or filter criteria.'
+                        : 'Get started by adding a new menu item.'}
+                    </p>
+                    <div className="mt-6">
                       <Button
                         onClick={() => {
                           setSearchQuery('');
                           setSelectedCategory('all');
                           setIsCreateDialogOpen(true);
                         }}
-                        className="button-gradient text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add New Menu Item
+                        Add Menu Item
                       </Button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <ChefHat className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No menu items found</h3>
-                    <p className="text-gray-600 mb-6">
-                      {searchQuery || selectedCategory !== 'all'
-                        ? 'Try adjusting your search or filter criteria.'
-                        : 'Get started by adding your first menu item.'}
-                    </p>
-                    <Button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedCategory('all');
-                        setIsCreateDialogOpen(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Menu Item
-                    </Button>
                   </div>
                 )}
               </TabsContent>
 
-              <TabsContent value="ai-generate" className="mt-0">
-                <div className="text-center py-12">
-                  <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                    <Sparkles className="h-8 w-8 text-purple-600" />
+            <TabsContent value="ai-generate" className="mt-6">
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+                <CardContent className="p-12 text-center">
+                  <div className="mx-auto w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-6">
+                    <Sparkles className="h-10 w-10 text-purple-600" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Menu Extractor</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">AI Menu Extractor</h3>
+                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
                     Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
                   </p>
-                  <div className="flex justify-center gap-6 mb-6">
-                    <div className="flex items-center text-sm text-gray-600">
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-center justify-center text-sm text-gray-500">
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Upload menu images
+                      <span>Upload menu images (JPG, PNG, WEBP)</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center justify-center text-sm text-gray-500">
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Extract from URLs
+                      <span>Extract from restaurant URLs</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center justify-center text-sm text-gray-500">
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Process file paths
+                      <span>Process local file paths</span>
                     </div>
                   </div>
                   <Button
                     onClick={() => navigate('/admin/menu-upload')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-3 rounded-lg font-semibold"
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Go to AI Menu Extractor
                   </Button>
-                </div>
-              </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
             </Tabs>
           </div>
         </div>

@@ -263,7 +263,7 @@ export default function HomePage() {
           <h1 style={{ fontFamily: "'Great Vibes', cursive", fontSize: '4rem', margin: 0, color: '#FFD700' }}>VALDORA</h1>
           <p style={{ fontSize: '1.5rem', margin: '1rem 0 2rem 0' }}>Bringing the authentic Jaffna Tamil culinary experience to the Heart of Colombo.🌴</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/rooms" style={{ background: '#C41E3A', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Link to="/reservations" style={{ background: '#C41E3A', color: 'white', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Building2 size={16} />
               Explore Rooms
             </Link>
@@ -457,7 +457,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
       {/* Footer */}
       <footer style={{ background: '#C41E3A', color: 'white', padding: '2rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }}>

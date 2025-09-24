@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { CartProvider } from './context/CartContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -33,6 +34,8 @@ import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManageme
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 // Public pages
 import MenuPage from './pages/MenuPage.jsx';
+import CartPage from './pages/CartPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
 import Gallery from './pages/Gallery.jsx';
 import Blog from './pages/Blog.jsx';
 import About from './pages/About.jsx';
@@ -43,7 +46,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <CartProvider>
+          <Routes>
           {/* 🔒 Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route
@@ -95,6 +99,8 @@ const App = () => {
 
           {/* Public Pages */}
           <Route path="/menu" element={<MenuPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/about" element={<About />} />
@@ -319,8 +325,9 @@ const App = () => {
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+      </CartProvider>
+    </AuthProvider>
+  </BrowserRouter>
   );
 };
 

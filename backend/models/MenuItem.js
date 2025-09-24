@@ -13,6 +13,10 @@ const menuItemSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  id: {
+    type: Number,
+    sparse: true,
+  },
   description: {
     type: String,
     trim: true,

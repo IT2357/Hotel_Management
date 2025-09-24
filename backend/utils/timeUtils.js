@@ -7,8 +7,13 @@ import TimeSlots from '../models/TimeSlots.js';
  */
 export const getCurrentMeal = async () => {
   try {
+    // Get current time in Colombo timezone (UTC+5:30)
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+    const colomboTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // Add 5.5 hours for Colombo
+    const currentTime = colomboTime.toTimeString().slice(0, 5); // HH:MM format
+
+    console.log('🕐 Current UTC time:', now.toTimeString().slice(0, 5));
+    console.log('🕐 Current Colombo time:', currentTime);
 
     // Get all time slots
     const timeSlots = await TimeSlots.find();
@@ -22,11 +27,15 @@ export const getCurrentMeal = async () => {
       const start = slot.start;
       const end = slot.end;
 
+      console.log(`🍽️ Checking ${slot.meal}: ${start} - ${end}, current: ${currentTime}`);
+
       if (currentTime >= start && currentTime <= end) {
+        console.log(`✅ Current meal: ${slot.meal}`);
         return slot.meal;
       }
     }
 
+    console.log('📋 No specific meal time, returning All');
     return 'All'; // Show all available items when no specific meal time
   } catch (error) {
     console.error('Error getting current meal:', error);

@@ -17,7 +17,7 @@ const API_BASE = `${BASE_URL}/api`;
 // Test user credentials (replace with actual test user)
 const TEST_USER = {
   email: 'guest@test.com',
-  password: 'password123'
+  password: 'guest123'
 };
 
 let authToken = '';
@@ -36,9 +36,7 @@ async function testFoodOrderingWorkflow() {
 
     // 2. Test menu items retrieval
     console.log('2. Testing Menu Items Retrieval...');
-    const menuResponse = await axios.get(`${API_BASE}/menu/items`, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    });
+    const menuResponse = await axios.get(`${API_BASE}/food/menu/items?limit=100`);
     console.log(`✅ Retrieved ${menuResponse.data.data.length} menu items\n`);
 
     // 3. Test order creation with cash payment

@@ -86,10 +86,22 @@ const CheckoutPage = () => {
       }
 
      try {
+       // Validate cart items have valid IDs
+       const invalidItems = cartItems.filter(item => {
+         const foodId = item._id || item.id;
+         // Check if it's a valid MongoDB ObjectId (24 hex characters)
+         return !foodId || !/^[a-f\d]{24}$/i.test(foodId);
+       });
+
+       if (invalidItems.length > 0) {
+         alert(`Some items in your cart have invalid data. Please clear your cart and add items again. Invalid items: ${invalidItems.map(item => item.name).join(', ')}`);
+         return;
+       }
+
        // Prepare order data for API
        const orderData = {
          items: cartItems.map(item => ({
-           foodId: item.id,
+           foodId: item._id || item.id, // Use _id if available, otherwise id
            quantity: item.quantity,
            price: item.price,
            name: item.name

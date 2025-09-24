@@ -57,9 +57,9 @@ function CartPage() {
 
       {/* Main Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-        <div style={{ display: 'flex', gap: '2rem' }}>
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           {/* Cart Items */}
-          <div style={{ flex: 2 }}>
+          <div style={{ flex: '1 1 60%', minWidth: '300px' }}>
             <h1 style={{ fontSize: '2rem', marginBottom: '2rem', color: '#333' }}>Your Cart</h1>
 
             {cartItems.length === 0 ? (
@@ -176,14 +176,12 @@ function CartPage() {
           </div>
 
           {/* Order Summary */}
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: '1 1 35%', minWidth: '300px' }}>
             <div style={{
               backgroundColor: 'white',
               padding: '2rem',
               borderRadius: '15px',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-              position: 'sticky',
-              top: '2rem'
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
             }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#333' }}>
                 Order Summary

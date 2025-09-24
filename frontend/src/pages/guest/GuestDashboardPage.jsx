@@ -1,6 +1,7 @@
 // 📁 frontend/pages/rooms/Index.jsx
 import { useState, useEffect } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
+import "./room-styles.css";
 import { Button } from "@/components/rooms/ui/button";
 import { Input } from "@/components/rooms/ui/input";
 import { useToast } from "@/hooks/use-toast";

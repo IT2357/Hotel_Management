@@ -169,6 +169,26 @@ export const createMenuItem = async (req, res) => {
       });
     }
 
+    // Handle image upload
+    let imageUrl = image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+    let imageId = null;
+
+    if (req.file) {
+      try {
+        // Upload image using imageStorageService
+        const uploadedImageId = await imageStorageService.uploadImage(
+          req.file.buffer,
+          req.file.originalname,
+          { folder: 'menu-items' }
+        );
+        imageUrl = uploadedImageId; // Store the prefixed identifier
+        imageId = uploadedImageId; // Also store for GridFS reference if needed
+      } catch (uploadError) {
+        console.error("Image upload failed:", uploadError);
+        // Continue with default image if upload fails
+      }
+    }
+
     // Create menu item
     const menuItem = new MenuItem({
       name,
@@ -176,6 +196,7 @@ export const createMenuItem = async (req, res) => {
       price: parseFloat(price),
       category,
       image: imageUrl,
+      imageId: imageId,
       ingredients: ingredients || [],
       allergens: allergens || [],
       nutritionalInfo: nutritionalInfo || {},
@@ -227,6 +248,25 @@ export const updateMenuItem = async (req, res) => {
           success: false,
           message: "Invalid category ID",
         });
+      }
+    }
+
+    // Handle image upload if new file is provided
+    if (req.file) {
+      try {
+        // Upload new image using imageStorageService
+        const uploadedImageId = await imageStorageService.uploadImage(
+          req.file.buffer,
+          req.file.originalname,
+          { folder: 'menu-items' }
+        );
+        updateData.image = uploadedImageId; // Store the prefixed identifier
+        updateData.imageId = uploadedImageId; // Also store for GridFS reference if needed
+
+        // TODO: Delete old image if it exists
+      } catch (uploadError) {
+        console.error("Image upload failed:", uploadError);
+        // Continue without updating image if upload fails
       }
     }
 

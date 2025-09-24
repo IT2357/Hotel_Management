@@ -139,6 +139,27 @@ export const foodItems = [
   },
 ];
 
-
+export const timeSlots = [
+  {
+    meal: 'Breakfast',
+    start: '06:00',
+    end: '10:00'
+  },
+  {
+    meal: 'Lunch',
+    start: '12:00',
+    end: '15:00'
+  },
+  {
+    meal: 'Dinner',
+    start: '18:00',
+    end: '22:00'
+  },
+  {
+    meal: 'Snacks',
+    start: '10:00',
+    end: '18:00'
+  }
+];
 
 

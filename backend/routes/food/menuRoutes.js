@@ -1,4 +1,4 @@
-import { uploadSingle, handleMulterError } from "../middleware/upload.js";
+import { uploadSingle, handleMulterError } from "../../middleware/upload.js";
 // 📁 backend/routes/food/menuRoutes.js
 import express from "express";
 import {
