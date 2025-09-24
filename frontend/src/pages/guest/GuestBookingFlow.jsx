@@ -40,6 +40,16 @@ const GuestBookingFlow = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
               <p className="text-gray-600">Checking authentication...</p>
             </div>
+            {bookingResult && bookingResult.status !== 'Confirmed' && (
+              <div className="bg-blue-50 p-3 rounded-md border border-blue-200 text-blue-800 text-sm">
+                Your booking is currently On Hold to secure the room while you complete payment or await approval.
+                {bookingResult.holdUntil && (
+                  <>
+                    {' '}Hold expires on <strong>{new Date(bookingResult.holdUntil).toLocaleString()}</strong>.
+                  </>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -275,7 +285,7 @@ const GuestBookingFlow = () => {
       }
     } catch (error) {
       console.error('Error creating booking:', error);
-      window.alert('Failed to create booking. Please try again.');
+      window.alert(error?.message || 'Failed to create booking. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -503,6 +513,16 @@ const GuestBookingFlow = () => {
                   {bookingResult.status}
                 </Badge>
               </div>
+              {bookingResult.status !== 'Confirmed' && (
+                <div className="mt-3 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+                  A temporary hold has been placed on your room to secure availability.
+                  {bookingResult.holdUntil && (
+                    <>
+                      {' '}This hold will expire on <strong>{new Date(bookingResult.holdUntil).toLocaleString()}</strong> unless approved/paid.
+                    </>
+                  )}
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="font-medium">Total Amount:</span>
                 <span className="font-semibold">

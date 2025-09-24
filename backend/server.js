@@ -8,6 +8,8 @@ import hpp from "hpp";
 import compression from "compression";
 import morgan from "morgan";
 import passport from "passport"; // Added for social login
+import http from 'http';
+import { initSocket } from './utils/socket.js';
 import "dotenv/config";
 import "./utils/passport.js"; // Added to initialize Passport strategies
 // Import database configuration
@@ -20,12 +22,20 @@ import webhookRoutes from "./routes/webhooks.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
+import checkInOutRoutes from "./routes/checkInOutRoutes.js";
+import guestServiceRoutes from "./routes/guestServiceRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
+import keyCardRoutes from './routes/keyCardRoutes.js';
 import "./eventListeners/notificationListeners.js";
+import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
 import { seedSMSTemplates } from "./utils/smsTemplatesSeeder.js";
 // Import booking scheduler
 import BookingScheduler from "./services/booking/bookingScheduler.js";
 const app = express();
+const server = http.createServer(app);
+const io = initSocket(server);
+
 app.set("trust proxy", 1);
 // Initialize Passport
 app.use(passport.initialize()); // Added
@@ -72,6 +82,16 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 }
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res, path) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+  }
+}));
+
 // Start server after attempting database connection
 const startBookingScheduler = () => {
   // Process expired bookings every hour
@@ -141,20 +161,23 @@ const startBookingScheduler = () => {
 
   console.log('✅ Booking scheduler started successfully');
 };
+
 const startServer = async () => {
   try {
-    // Try to connect to database, but don't fail if it doesn't work
     await connectDB();
     console.log("✅ Database connection established");
 
-    // Seed SMS templates after successful database connection
+    // Add this line to initialize the email transporter
+    await EmailService.reinitializeTransporter();
+    
+    // Seed SMS templates after successful database connection and email transporter initialization
     await seedSMSTemplates();
 
     // Start booking scheduler
     console.log("🚀 Starting booking scheduler...");
     startBookingScheduler();
   } catch (dbError) {
-    console.warn("⚠️  Database connection failed, but server will start anyway");
+    console.warn("⚠️ Database connection failed, but server will start anyway");
     console.warn("📝 Some features may not work until database is available");
     console.warn("🔧 Check your MONGODB_URI in .env file");
   }
@@ -177,6 +200,10 @@ const startServer = async () => {
   app.use("/api/invoices", invoiceRoutes);
   app.use("/api/rooms", roomRoutes);
   app.use("/api/webhooks", webhookRoutes);
+  app.use("/api/check-in-out", checkInOutRoutes);
+  app.use("/api/guest-services", guestServiceRoutes);
+  app.use("/api/tasks", taskRoutes);
+  app.use('/api/key-cards', keyCardRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -199,6 +226,10 @@ const startServer = async () => {
         rooms: "/api/rooms",
         notifications: "/api/notifications",
         webhooks: "/api/webhooks",
+        checkInOut: "/api/check-in-out",
+        guestServices: "/api/guest-services",
+        tasks: "/api/tasks",
+        keyCards: '/api/key-cards',
         health: "/health",
       },
     });
@@ -247,9 +278,16 @@ const startServer = async () => {
     });
   });
 
+  io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+      console.log('user disconnected');
+    });
+  });
+
   // Start the server regardless of database status
   const PORT = process.env.PORT || 5000;
-  const server = app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`
 🚀 Server running in ${
       process.env.NODE_ENV || "development"

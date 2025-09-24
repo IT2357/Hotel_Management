@@ -10,6 +10,8 @@ import {
   rejectBooking,
   putOnHold,
   getBookingStats,
+  getHeldBookings,
+  releaseBookingHold,
   bulkApproveBookings,
   bulkRejectBookings,
   bulkHoldBookings,
@@ -34,6 +36,9 @@ router.get("/:bookingId", authenticateToken, getBookingDetails);
 // Put booking on hold
 router.put("/admin/:bookingId/hold", authenticateToken, requireRole(['admin', 'manager']), putOnHold);
 
+// Release a booking hold (set back to Pending Approval)
+router.put("/admin/:bookingId/release-hold", authenticateToken, requireRole(['admin', 'manager']), releaseBookingHold);
+
 // Cancel booking
 router.put("/:bookingId/cancel", authenticateToken, cancelBooking);
 
@@ -47,6 +52,9 @@ router.get("/admin/all", authenticateToken, requireRole(['admin', 'manager']), g
 
 // Get bookings requiring approval
 router.get("/admin/pending-approvals", authenticateToken, requireRole(['admin', 'manager']), getPendingApprovals);
+
+// Get currently held bookings (On Hold and not expired)
+router.get("/admin/held", authenticateToken, requireRole(['admin', 'manager']), getHeldBookings);
 
 // Get booking statistics
 router.get("/admin/stats", authenticateToken, requireRole(['admin', 'manager']), getBookingStats);

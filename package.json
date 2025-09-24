@@ -16,5 +16,8 @@
   "keywords": [],
   "devDependencies": {
     "concurrently": "^9.2.0"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
   }
 }

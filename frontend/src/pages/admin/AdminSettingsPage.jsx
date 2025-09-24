@@ -725,6 +725,16 @@ export default function AdminSettingsPage() {
             loading={loading}
           >
             <SettingsGrid>
+              <SettingsField label="Hold Duration (hours)" description="Time a booking stays on hold before auto-cancel (1-168)">
+                <Input
+                  type="number"
+                  min="1"
+                  max="168"
+                  value={settings?.bookingSettings?.approvalTimeoutHours ?? settings?.approvalTimeoutHours ?? 24}
+                  onChange={(e) => handleSettingChange("bookingSettings.approvalTimeoutHours", parseInt(e.target.value || 0, 10))}
+                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </SettingsField>
               <SettingsField label="Max Advance Booking" description="Days (1-730)">
                 <Input
                   type="number"
