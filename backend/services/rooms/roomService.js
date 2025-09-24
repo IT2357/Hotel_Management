@@ -244,7 +244,9 @@ class RoomService {
       const operationalSettings = settings.operationalSettings;
 
       // Check if check-in day is allowed
-      const checkInDay = checkInDate.toLocaleLowerCase('en-US', { weekday: 'long' }).toLowerCase();
+      const checkInDay = checkInDate
+        .toLocaleDateString('en-US', { weekday: 'long' })
+        .toLowerCase();
       const allowedDays = operationalSettings.allowedDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
       if (!allowedDays.includes(checkInDay)) {
@@ -269,11 +271,18 @@ class RoomService {
 
       // Check check-out time
       const checkOutTime = checkOutDate.toTimeString().slice(0, 5);
-      if (checkOutTime < operationalSettings.startTime || checkOutTime > operationalSettings.endTime) {
-        return {
-          allowed: false,
-          reason: `Check-out time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`
-        };
+      const checkOutWindowStart = operationalSettings.checkOutWindowStart || operationalSettings.startTime;
+      const checkOutWindowEnd = operationalSettings.checkOutWindowEnd || operationalSettings.endTime;
+
+      if (checkOutWindowStart && checkOutWindowEnd) {
+        if (checkOutTime < checkOutWindowStart || checkOutTime > checkOutWindowEnd) {
+          if (!operationalSettings.allowBookingsOutsideHours) {
+            return {
+              allowed: false,
+              reason: `Check-out time must be between ${checkOutWindowStart} and ${checkOutWindowEnd}`
+            };
+          }
+        }
       }
 
       return { allowed: true };
