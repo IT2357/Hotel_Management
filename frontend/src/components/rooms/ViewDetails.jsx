@@ -313,14 +313,10 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                       </select>
                     </div>
 
-                    {/* Booking Button */}
-                    <Button
-                      variant="luxury"
-                      size="lg"
-                      className="w-full"
-                      onClick={handleBookNow}
-                      disabled={!checkInDate || !checkOutDate}
-                    >
+                   
+                    <Button 
+                    
+                    onClick={handleBookNow} >
                       Book Now - ${room.price || 0}/night
                     </Button>
 

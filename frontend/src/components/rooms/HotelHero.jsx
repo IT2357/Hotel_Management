@@ -28,7 +28,7 @@ const HotelHero = () => {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 font-serif leading-tight">
-              Experience <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">Unmatched</span><br />Luxury & Comfort
+               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">Valdore</span><br />Luxury & Comfort
             </h1>
             
             <div className="w-24 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 my-8 mx-auto"></div>

@@ -13,13 +13,63 @@ const amenityIcons = {
 const getRoomGradient = (roomType) => {
   switch (roomType?.toLowerCase()) {
     case 'luxury suite':
-      return 'from-red-500 to-pink-500';
+    case 'deluxe':
     case 'deluxe room':
-      return 'from-blue-500 to-indigo-500';
+      return 'from-red-500 to-pink-500';
+    case 'standard':
     case 'standard room':
+      return 'from-blue-500 to-indigo-500';
+    case 'economy':
+    case 'economy room':
       return 'from-green-500 to-emerald-500';
-    default:
+    case 'guest':
+    case 'suite':
+    case 'guest suite':
       return 'from-gray-500 to-slate-500';
+    default:
+      return 'from-indigo-500 to-purple-500';
+  }
+};
+
+const getRoomBackgroundGradient = (roomType) => {
+  switch (roomType?.toLowerCase()) {
+    case 'luxury suite':
+    case 'deluxe':
+    case 'deluxe room':
+      return 'from-red-50 to-red-100';
+    case 'standard':
+    case 'standard room':
+      return 'from-blue-50 to-blue-100';
+    case 'economy':
+    case 'economy room':
+      return 'from-green-50 to-green-100';
+    case 'guest':
+    case 'suite':
+    case 'guest suite':
+      return 'from-gray-50 to-gray-100';
+    default:
+      return 'from-indigo-50 to-purple-50';
+  }
+};
+
+const getRoomBorderColor = (roomType) => {
+  switch (roomType?.toLowerCase()) {
+    case 'luxury suite':
+    case 'deluxe':
+    case 'deluxe room':
+      return 'border-red-200';
+    case 'standard':
+    case 'standard room':
+      return 'border-blue-200';
+    case 'economy':
+    case 'economy room':
+      return 'border-green-200';
+    case 'guest':
+    case 'suite':
+    case 'guest suite':
+      return 'border-gray-200';
+    default:
+      return 'border-indigo-200';
   }
 };
 
@@ -61,9 +111,10 @@ const RoomCard = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const gradientClass = getRoomGradient(name);
+  const backgroundGradient = getRoomBackgroundGradient(name);
+  const borderColor = getRoomBorderColor(name);
   const statusStyles = getStatusStyles(status);
 
-  // Transform room data for the modal
   const roomData = {
     id,
     name,
@@ -76,12 +127,8 @@ const RoomCard = ({
     status,
     description,
     floor,
-    images: images.length > 0 ? images : [image], // Use images array or fallback to single image
-    reviews: reviews || {
-      rating: rating || 0,
-      count: 0,
-      recent: []
-    }
+    images: images.length > 0 ? images : [image],
+    reviews: reviews || { rating: rating || 0, count: 0, recent: [] },
   };
 
   const handleViewDetails = () => {
@@ -100,12 +147,15 @@ const RoomCard = ({
 
   return (
     <div 
-      className="relative group overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 bg-white/5 backdrop-blur-sm border border-white/10"
+      className={`relative group overflow-hidden rounded-xl transition-all duration-500 
+                 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-indigo-200
+                 bg-gradient-to-br ${backgroundGradient} bg-white/30 backdrop-blur-md 
+                 border ${borderColor} shadow-md hover:shadow-lg`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image Container */}
-      <div className="relative overflow-hidden h-64">
+      <div className="relative overflow-hidden h-48 rounded-t-xl">
         <img 
           src={image} 
           alt={name} 
@@ -113,84 +163,91 @@ const RoomCard = ({
         />
         
         {/* Status Badge */}
-        <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium border ${statusStyles} backdrop-blur-sm`}>
+        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium border ${statusStyles} backdrop-blur-sm shadow-sm`}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </div>
         
-        {/* Compare Button */}
+        {/* Room Type Badge */}
+        <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r ${gradientClass} shadow-sm`}>
+          {name?.split(' ')[0] || 'Room'}
+        </div>
+        
+        {/* Glassmorphic Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Wishlist / Compare Button */}
         <button 
           onClick={() => onCompare?.(id)}
-          className="absolute top-4 right-4 p-2 rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 transition-colors"
+          className="absolute bottom-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-110 transition-all duration-200 shadow-sm"
         >
-          <Heart className={`w-5 h-5 transition-colors ${isInComparison ? 'fill-red-500 text-red-500' : 'hover:text-red-400'}`} />
+          <Heart className={`w-4 h-4 transition-colors ${isInComparison ? 'fill-red-500 text-red-500' : 'hover:text-red-400'}`} />
         </button>
         
         {/* Price Tag */}
-        <div className={`absolute bottom-4 right-4 px-4 py-2 rounded-full font-bold text-white ${isHovered ? 'opacity-100' : 'opacity-90'} transition-opacity`}>
-          <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${gradientClass} opacity-90`}></div>
-          <span className="relative z-10">${price} <span className="text-sm font-normal">/ night</span></span>
+        <div className={`absolute bottom-3 left-3 px-3 py-1 rounded-full font-bold text-white shadow-sm`}>
+          <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${gradientClass} opacity-95`}></div>
+          <span className="relative z-10 text-sm">${price} <span className="text-xs font-normal">/ night</span></span>
         </div>
-        
-        {/* View Button (appears on hover) */}
-   
       </div>
       
       {/* Room Info */}
-      <div className="p-5">
+      <div className="p-4">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="text-xl font-bold text-gray-800">{name}</h3>
+          <h3 className="text-lg font-semibold text-gray-800 line-clamp-1">{name}</h3>
           {rating && (
-            <div className="flex items-center bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-sm">
-              <Star className="w-4 h-4 fill-yellow-400 mr-1" />
+            <div className="flex items-center bg-yellow-50 text-yellow-700 px-2 py-1 rounded-full text-xs font-medium border border-yellow-200 shadow-sm">
+              <Star className="w-3 h-3 fill-yellow-400 mr-1" />
               {rating}
             </div>
           )}
         </div>
         
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+        <p className="text-gray-700 text-sm mb-3 font-medium">
           {view} view • {bedType} bed • {maxGuests} {maxGuests > 1 ? 'guests' : 'guest'}
         </p>
         
         {/* Amenities */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {amenities.slice(0, 3).map((amenity, index) => {
             const Icon = amenityIcons[amenity] || Star;
             return (
-              <span key={index} className="flex items-center text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded">
+              <span key={index} className="flex items-center text-xs bg-white/50 text-gray-600 px-2 py-1 rounded-full backdrop-blur-sm hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200 border border-white/50 shadow-sm">
                 <Icon className="w-3 h-3 mr-1 text-indigo-500" />
                 {amenity}
               </span>
             );
           })}
           {amenities.length > 3 && (
-            <span className="text-xs text-gray-500 self-center">+{amenities.length - 3} more</span>
+            <span className="text-xs text-gray-500 self-center font-medium">+{amenities.length - 3} more</span>
           )}
         </div>
         
         {/* Room Size */}
         {size && (
-          <div className="flex items-center text-sm text-gray-500 mb-4">
-            <Ruler className="w-4 h-4 mr-2" />
+          <div className="flex items-center text-sm text-gray-600 mb-4 font-medium">
+            <Ruler className="w-4 h-4 mr-2 text-indigo-500" />
             {size} sq.ft
           </div>
         )}
         
-        {/* Action Buttons */}
-        <div className="flex gap-3 mt-4">
-          <Button 
-            variant="outline" 
-            className="flex-1 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700"
-            onClick={handleViewDetails}
-          >
-            View Details
-          </Button>
-          <Button 
-            className={`flex-1 bg-gradient-to-r ${gradientClass} text-white hover:opacity-90 transition-opacity`}
-            onClick={() => onBookNow?.(id)}
-          >
-            Book Now
-          </Button>
-        </div>
+                {/* Action Buttons */}
+        <div className="mt-4 flex gap-3">
+  <Button 
+    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
+    onClick={handleViewDetails}
+  >
+    <Eye className="w-4 h-4 mr-2" />
+    View Details 
+  </Button>
+
+  <Button 
+    className={`flex-1 bg-gradient-to-r ${gradientClass} text-white hover:opacity-90 transition-opacity`}
+    onClick={() => onBookNow?.(id)}
+  >
+    Book Now
+  </Button>
+</div>
+
       </div>
 
       {/* Room Details Modal */}
