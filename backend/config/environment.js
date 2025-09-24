@@ -11,11 +11,11 @@ const config = {
 
   // Database Configuration
   MONGODB_URI:
-    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel_management",
+    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel-management",
 
   // JWT Configuration
   JWT_SECRET:
-    process.env.JWT_SECRET || "your-default-jwt-secret-change-in-production",
+    process.env.JWT_SECRET || "f885fa53bc37eaab86296f11cada2c2939d4695c822a8bbba6b71ac9516488d",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
 
   // PayHere Payment Gateway Configuration
@@ -33,14 +33,14 @@ const config = {
 
   // Email Configuration
   EMAIL: {
-    SERVICE: process.env.EMAIL_SERVICE || "gmail",
-    HOST: process.env.EMAIL_HOST || "smtp.gmail.com",
-    PORT: process.env.EMAIL_PORT || 587,
-    SECURE: process.env.EMAIL_SECURE === "true",
-    USER: process.env.EMAIL_USER || "",
-    PASS: process.env.EMAIL_PASS || "",
-    FROM_NAME: process.env.EMAIL_FROM_NAME || "Hotel Management System",
-    FROM_EMAIL: process.env.EMAIL_FROM_EMAIL || "noreply@hotelmanagement.com",
+    SERVICE: process.env.SMTP_SERVICE || "gmail",
+    HOST: process.env.SMTP_HOST || "smtp.gmail.com",
+    PORT: process.env.SMTP_PORT || 587,
+    SECURE: process.env.SMTP_SECURE === "true",
+    USER: process.env.SMTP_USER || "",
+    PASS: process.env.SMTP_PASS || "",
+    FROM_NAME: process.env.SMTP_FROM_NAME || "Hotel Management System",
+    FROM_EMAIL: process.env.SMTP_FROM_EMAIL || "noreply@hotelmanagement.com",
   },
 
   // SMS Configuration

@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChefHat, MapPin, Phone, Mail, Clock, Send, CheckCircle } from 'lucide-react';
+// Placeholder for import React, { useState } from 'react';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Textarea from '../components/ui/Textarea';
+import Select from '../components/ui/Select';
+import { MapPin, Phone, Mail, Clock, Send, MessageCircle } from 'lucide-react';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -10,23 +14,25 @@ export default function Contact() {
     subject: '',
     message: ''
   });
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
-    console.log('Form submitted:', formData);
-    setIsSubmitted(true);
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setIsSubmitted(false);
+    setLoading(true);
+
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setSubmitted(true);
       setFormData({
         name: '',
         email: '',
@@ -34,278 +40,257 @@ export default function Contact() {
         subject: '',
         message: ''
       });
-    }, 3000);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const contactInfo = [
     {
       icon: MapPin,
-      title: 'Location',
-      details: ['204 Arasadi Rd, Jaffna 40000', 'Northern University, Kantharmadam'],
-      color: 'text-red-500'
+      title: "Address",
+      details: ["123 Hotel Street", "City, State 12345", "Country"],
+      action: "Get Directions"
     },
     {
       icon: Phone,
-      title: 'Phone',
-      details: ['(+94) 77 442 2448', '(+94) 11 123 4567'],
-      color: 'text-green-500'
+      title: "Phone",
+      details: ["+1 (555) 123-4567", "+1 (555) 987-6543"],
+      action: "Call Now"
     },
     {
       icon: Mail,
-      title: 'Email',
-      details: ['reservations@valdora.lk', 'info@valdora.lk'],
-      color: 'text-blue-500'
+      title: "Email",
+      details: ["reservations@grandhotel.com", "info@grandhotel.com"],
+      action: "Send Email"
     },
     {
       icon: Clock,
-      title: 'Opening Hours',
-      details: ['Mon-Thu: 12PM - 3:30PM & 6:30PM - 10:30PM', 'Fri-Sun: 12PM - 3:30PM & 6:30PM - 10:30PM'],
-      color: 'text-purple-500'
+      title: "Hours",
+      details: ["24/7 Front Desk", "Check-in: 2:00 PM", "Check-out: 12:00 PM"],
+      action: "View Hours"
     }
   ];
 
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center py-12">
+        <Card className="p-8 text-center max-w-md">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Message Sent!
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Thank you for contacting us. We'll get back to you within 24 hours.
+          </p>
+          <Button onClick={() => setSubmitted(false)}>
+            Send Another Message
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ fontFamily: "'Rubik', sans-serif", margin: 0, padding: 0, lineHeight: '1.6', color: '#333' }}>
-      {/* Header */}
-      <header style={{ background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            {/* VALDORA Logo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: '50px', height: '50px', background: 'linear-gradient(45deg, #C41E3A, #FFD700)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.5rem' }}>
-                V
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#C41E3A' }}>VALDORA</span>
-            </div>
-          </div>
-          <nav>
-            <ul style={{ listStyle: 'none', display: 'flex', gap: '2rem', margin: 0, padding: 0 }}>
-              <li><Link to="/" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Home</Link></li>
-              <li><Link to="/about" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>About</Link></li>
-              <li><Link to="/menu" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Menu</Link></li>
-              <li><Link to="/gallery" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Gallery</Link></li>
-              <li><Link to="/reservations" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Reservation</Link></li>
-              <li><Link to="/blog" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Blog</Link></li>
-              <li><Link to="/contact" style={{ textDecoration: 'none', color: '#C41E3A', fontWeight: 500 }}>Contact</Link></li>
-            </ul>
-          </nav>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <Link to="/menu" style={{ background: '#C41E3A', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ChefHat size={16} />
-              Order Online
-            </Link>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl font-bold text-indigo-800 mb-4">
+            Contact Us
+          </h1>
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            We're here to help you plan your perfect stay. Get in touch with our team
+            for reservations, inquiries, or any special requests.
+          </p>
         </div>
-      </header>
 
-      {/* Hero Section */}
-      <section style={{ background: `url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200') center/cover`, height: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'white', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)' }}></div>
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <h1 style={{ fontFamily: "'Great Vibes', cursive", fontSize: '3rem', margin: 0, color: '#FFD700' }}>Contact Us</h1>
-          <p style={{ fontSize: '1.2rem', margin: '1rem 0 0 0' }}>Get in Touch with VALDORA</p>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section style={{ padding: '4rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem' }}>
-
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Contact Information */}
-          <div>
-            <h2 style={{ color: '#C41E3A', fontFamily: "'Merriweather', serif", fontSize: '2rem', marginBottom: '2rem' }}>Get In Touch</h2>
-            <p style={{ fontSize: '1.1rem', lineHeight: '1.8', marginBottom: '2rem' }}>
-              We'd love to hear from you! Whether you have questions about our menu, want to make a reservation,
-              or just want to share your experience with VALDORA, we're here to help.
-            </p>
+          <div className="lg:col-span-1 space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              Get in Touch
+            </h2>
 
-            <div style={{ display: 'grid', gap: '2rem' }}>
-              {contactInfo.map((info, index) => (
-                <div key={index} style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ width: '50px', height: '50px', background: '#f5f5f5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <info.icon className={info.color} size={24} />
-                  </div>
-                  <div>
-                    <h3 style={{ color: '#C41E3A', fontSize: '1.2rem', marginBottom: '0.5rem' }}>{info.title}</h3>
-                    {info.details.map((detail, idx) => (
-                      <p key={idx} style={{ margin: '0.25rem 0', color: '#666' }}>{detail}</p>
-                    ))}
-                  </div>
+            {contactInfo.map((info, index) => (
+              <Card key={index} className="p-6">
+                <div className="flex items-center mb-4">
+                  <info.icon className="h-6 w-6 text-indigo-600 mr-3" />
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {info.title}
+                  </h3>
                 </div>
-              ))}
-            </div>
+
+                <div className="space-y-2 mb-4">
+                  {info.details.map((detail, idx) => (
+                    <p key={idx} className="text-gray-600 text-sm">
+                      {detail}
+                    </p>
+                  ))}
+                </div>
+
+                <Button variant="outline" size="sm" className="w-full">
+                  {info.action}
+                </Button>
+              </Card>
+            ))}
           </div>
 
           {/* Contact Form */}
-          <div>
-            <h2 style={{ color: '#C41E3A', fontFamily: "'Merriweather', serif", fontSize: '2rem', marginBottom: '2rem' }}>Send us a Message</h2>
+          <div className="lg:col-span-2">
+            <Card className="p-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                Send us a Message
+              </h2>
 
-            {isSubmitted ? (
-              <div style={{ background: '#d4edda', color: '#155724', padding: '2rem', borderRadius: '10px', textAlign: 'center', border: '1px solid #c3e6cb' }}>
-                <CheckCircle size={48} style={{ margin: '0 auto 1rem auto' }} />
-                <h3 style={{ margin: '0 0 1rem 0' }}>Thank You!</h3>
-                <p>Your message has been sent successfully. We'll get back to you soon!</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} style={{ background: '#f9f9f9', padding: '2rem', borderRadius: '10px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#333' }}>Name *</label>
-                    <input
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
+                    </label>
+                    <Input
                       type="text"
-                      name="name"
                       value={formData.name}
-                      onChange={handleInputChange}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
                       required
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '5px', fontSize: '1rem' }}
+                      placeholder="Enter your full name"
                     />
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#333' }}>Email *</label>
-                    <input
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address *
+                    </label>
+                    <Input
                       type="email"
-                      name="email"
                       value={formData.email}
-                      onChange={handleInputChange}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
                       required
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '5px', fontSize: '1rem' }}
+                      placeholder="Enter your email"
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#333' }}>Phone</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '5px', fontSize: '1rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#333' }}>Subject *</label>
-                    <input
-                      type="text"
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleInputChange}
-                      required
-                      style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '5px', fontSize: '1rem' }}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <Input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="Enter your phone number"
+                  />
                 </div>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#333' }}>Message *</label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subject *
+                  </label>
+                  <Select
+                    value={formData.subject}
+                    onChange={(e) => handleInputChange('subject', e.target.value)}
                     required
-                    rows="6"
-                    style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '5px', fontSize: '1rem', resize: 'vertical' }}
-                  ></textarea>
+                  >
+                    <option value="">Select a subject</option>
+                    <option value="reservations">Reservations</option>
+                    <option value="general">General Inquiry</option>
+                    <option value="events">Events & Meetings</option>
+                    <option value="complaints">Complaints</option>
+                    <option value="feedback">Feedback</option>
+                    <option value="other">Other</option>
+                  </Select>
                 </div>
 
-                <button
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Message *
+                  </label>
+                  <Textarea
+                    value={formData.message}
+                    onChange={(e) => handleInputChange('message', e.target.value)}
+                    required
+                    rows={6}
+                    placeholder="Tell us how we can help you..."
+                  />
+                </div>
+
+                <Button
                   type="submit"
-                  style={{
-                    background: '#C41E3A',
-                    color: 'white',
-                    padding: '0.75rem 2rem',
-                    border: 'none',
-                    borderRadius: '5px',
-                    fontSize: '1rem',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'background-color 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#a0172e'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#C41E3A'}
+                  className="w-full"
+                  disabled={loading}
                 >
-                  <Send size={18} />
-                  Send Message
-                </button>
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Message
+                    </>
+                  )}
+                </Button>
               </form>
-            )}
+            </Card>
           </div>
         </div>
-      </section>
 
-      {/* Map Section */}
-      <section style={{ padding: '4rem 2rem', background: '#f9f9f9' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ textAlign: 'center', color: '#C41E3A', fontFamily: "'Merriweather', serif", fontSize: '2rem', marginBottom: '2rem' }}>Find Us</h2>
-          <div style={{ borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3958.745!2d80.0144!3d9.6828!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3afe53fd1c1c1c1f%3A0x1234567890abcdef!2s204%20Arasadi%20Rd%2C%20Jaffna%2040000%2C%20Sri%20Lanka!5e0!3m2!1sen!2s!4v1695380000000!5m2!1sen!2s"
-              width="100%"
-              height="400"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="VALDORA Location - 204 Arasadi Rd, Jaffna"
-            ></iframe>
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-            <p style={{ color: '#666', fontSize: '1.1rem', fontWeight: 'bold' }}>204 Arasadi Rd, Jaffna 40000, Sri Lanka</p>
-            <p style={{ color: '#999', fontSize: '1rem' }}>Northern University, Kantharmadam Area</p>
-          </div>
-        </div>
-      </section>
+        {/* FAQ Section */}
+        <div className="mt-16">
+          <h2 className="text-3xl font-bold text-gray-800 text-center mb-12">
+            Frequently Asked Questions
+          </h2>
 
-      {/* Footer */}
-      <footer style={{ background: '#C41E3A', color: 'white', padding: '2rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <div style={{ width: '40px', height: '40px', background: '#FFD700', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: '#C41E3A', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                V
-              </div>
-              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>VALDORA</span>
-            </div>
-            <p>204 Arasadi Rd, Jaffna 40000</p>
-            <p>Northern University, Kantharmadam</p>
-            <p>Email: reservations@valdora.lk</p>
-            <p>Phone: (+94) 77 442 2448</p>
-          </div>
-          <div>
-            <h4>QUICK LINKS</h4>
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              <li><Link to="/" style={{ color: 'white', textDecoration: 'none' }}>Home</Link></li>
-              <li><Link to="/about" style={{ color: 'white', textDecoration: 'none' }}>About</Link></li>
-              <li><Link to="/menu" style={{ color: 'white', textDecoration: 'none' }}>Menu</Link></li>
-              <li><Link to="/gallery" style={{ color: 'white', textDecoration: 'none' }}>Gallery</Link></li>
-              <li><Link to="/reservations" style={{ color: 'white', textDecoration: 'none' }}>Reservation</Link></li>
-              <li><Link to="/blog" style={{ color: 'white', textDecoration: 'none' }}>Blog</Link></li>
-              <li><Link to="/contact" style={{ color: 'white', textDecoration: 'none' }}>Contact</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4>OPENING HOURS</h4>
-            <p>MONDAY – THURSDAY<br />12.00 – 3.30 PM & 6.30 -10.30 PM</p>
-            <p>FRIDAY – SUNDAY<br />12.00 – 3.30 PM & 6.30 -10.30 PM</p>
-            <p>(Hours might differ)</p>
-          </div>
-          <div>
-            <h4>SIGN UP</h4>
-            <p>Subscribe to our newsletter to receive upcoming promotions and events at VALDORA</p>
-            <input type="email" placeholder="Enter Your Email Address" style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem' }} />
-            <button style={{ background: '#FFD700', color: '#C41E3A', padding: '0.5rem 1rem', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>Submit</button>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <a href="https://www.facebook.com/valdorajaffna/" style={{ color: 'white' }}>FB</a>
-              <a href="https://www.instagram.com/valdorajaffna/" style={{ color: 'white' }}>IG</a>
-              <a href="https://www.tripadvisor.com/valdorajaffna" style={{ color: 'white' }}>TA</a>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                What are your check-in and check-out times?
+              </h3>
+              <p className="text-gray-600">
+                Check-in time is 2:00 PM and check-out time is 12:00 PM.
+                Early check-in and late check-out may be available upon request.
+              </p>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Do you offer airport shuttle service?
+              </h3>
+              <p className="text-gray-600">
+                Yes, we offer complimentary airport shuttle service for all guests.
+                Please contact us 24 hours in advance to arrange your pickup.
+              </p>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                What amenities are included with my room?
+              </h3>
+              <p className="text-gray-600">
+                All rooms include free Wi-Fi, premium bedding, work desk, and complimentary
+                toiletries. Additional amenities vary by room type.
+              </p>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Can I cancel or modify my reservation?
+              </h3>
+              <p className="text-gray-600">
+                Yes, you can modify or cancel your reservation up to 24 hours before
+                check-in without penalty. Please refer to our cancellation policy.
+              </p>
+            </Card>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

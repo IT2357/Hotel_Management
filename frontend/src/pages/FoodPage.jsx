@@ -1,558 +1,283 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Badge } from '../ui/badge';
-import { Switch } from '../ui/switch';
-import { Separator } from '../ui/separator';
-import {
-  Plus,
-  Upload,
-  X,
-  Save,
-  Trash2,
-  Edit,
-  Image as ImageIcon,
-  ChefHat,
-  Sparkles,
-  FileImage,
-  AlertCircle
-} from 'lucide-react';
-import FoodMenu from '../components/food/FoodMenu';
-import foodService from '../services/foodService';
+// Placeholder for import React, { useState } from 'react';
+import Card from '../components/ui/card';
+import Button from '../components/ui/button';
+import Badge from '../components/ui/badge';
+import { Clock, Star, Users, ChefHat, Utensils, Coffee, Wine } from 'lucide-react';
 
-const FoodPage = () => {
-  const [activeTab, setActiveTab] = useState('menu');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+export default function FoodPage() {
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: '',
-    isAvailable: true,
-    isVeg: false,
-    isSpicy: false,
-    isPopular: false,
-    ingredients: [],
-    cookingTime: 15,
-    nutritionalInfo: {
-      calories: '',
-      protein: '',
-      carbs: '',
-      fat: ''
-    },
-    customizations: []
-  });
-
-  // Categories for dropdown
   const categories = [
-    'Appetizers',
-    'Main Course',
-    'Desserts',
-    'Beverages',
-    'Sides',
-    'Soups',
-    'Salads',
-    'Pasta',
-    'Pizza',
-    'Burgers',
-    'Sandwiches',
-    'Seafood',
-    'Grilled',
-    'Fried',
-    'Vegetarian',
-    'Vegan'
+    { id: 'all', name: 'All', icon: Utensils },
+    { id: 'breakfast', name: 'Breakfast', icon: Coffee },
+    { id: 'lunch', name: 'Lunch', icon: Utensils },
+    { id: 'dinner', name: 'Dinner', icon: Utensils },
+    { id: 'drinks', name: 'Drinks', icon: Wine }
   ];
 
-  useEffect(() => {
-    if (editingItem) {
-      setFormData({
-        name: editingItem.name || '',
-        description: editingItem.description || '',
-        price: editingItem.price || '',
-        category: editingItem.category || '',
-        isAvailable: editingItem.isAvailable !== false,
-        isVeg: editingItem.isVeg || false,
-        isSpicy: editingItem.isSpicy || false,
-        isPopular: editingItem.isPopular || false,
-        ingredients: editingItem.ingredients || [],
-        cookingTime: editingItem.cookingTime || 15,
-        nutritionalInfo: {
-          calories: editingItem.nutritionalInfo?.calories || '',
-          protein: editingItem.nutritionalInfo?.protein || '',
-          carbs: editingItem.nutritionalInfo?.carbs || '',
-          fat: editingItem.nutritionalInfo?.fat || ''
-        },
-        customizations: editingItem.customizations || []
-      });
-    } else {
-      resetForm();
+  const menuItems = [
+    {
+      id: 1,
+      name: "Continental Breakfast",
+      description: "Fresh croissants, seasonal fruits, yogurt, coffee and juice",
+      price: "LKR 2,500",
+      category: "breakfast",
+      rating: 4.8,
+      image: "/api/placeholder/300/200",
+      available: "6:00 AM - 11:00 AM",
+      popular: true
+    },
+    {
+      id: 2,
+      name: "Sri Lankan Rice & Curry",
+      description: "Traditional rice and curry with multiple vegetable curries, sambol and papadam",
+      price: "LKR 3,200",
+      category: "lunch",
+      rating: 4.9,
+      image: "/api/placeholder/300/200",
+      available: "12:00 PM - 3:00 PM",
+      popular: true
+    },
+    {
+      id: 3,
+      name: "Grilled Salmon",
+      description: "Atlantic salmon with roasted vegetables and lemon herb sauce",
+      price: "LKR 4,800",
+      category: "dinner",
+      rating: 4.7,
+      image: "/api/placeholder/300/200",
+      available: "6:00 PM - 10:00 PM"
+    },
+    {
+      id: 4,
+      name: "Caesar Salad",
+      description: "Crisp romaine lettuce with parmesan, croutons and classic caesar dressing",
+      price: "LKR 2,200",
+      category: "lunch",
+      rating: 4.5,
+      image: "/api/placeholder/300/200",
+      available: "12:00 PM - 3:00 PM",
+      vegetarian: true
+    },
+    {
+      id: 5,
+      name: "Fresh Juice Selection",
+      description: "Orange, pineapple, watermelon, and mixed fruit juices",
+      price: "LKR 800",
+      category: "drinks",
+      rating: 4.6,
+      image: "/api/placeholder/300/200",
+      available: "24 hours"
+    },
+    {
+      id: 6,
+      name: "Chef's Special Pasta",
+      description: "House-made pasta with seasonal ingredients and signature sauce",
+      price: "LKR 3,600",
+      category: "dinner",
+      rating: 4.8,
+      image: "/api/placeholder/300/200",
+      available: "6:00 PM - 10:00 PM",
+      popular: true
     }
-  }, [editingItem]);
+  ];
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      price: '',
-      category: '',
-      isAvailable: true,
-      isVeg: false,
-      isSpicy: false,
-      isPopular: false,
-      ingredients: [],
-      cookingTime: 15,
-      nutritionalInfo: {
-        calories: '',
-        protein: '',
-        carbs: '',
-        fat: ''
-      },
-      customizations: []
-    });
-    setSelectedImage(null);
-    setImagePreview('');
-  };
+  const filteredItems = selectedCategory === 'all'
+    ? menuItems
+    : menuItems.filter(item => item.category === selectedCategory);
 
-  const handleInputChange = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }
-  };
-
-  const handleImageSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeImage = () => {
-    setSelectedImage(null);
-    setImagePreview('');
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const submitData = { ...formData };
-
-      // Add image if selected
-      if (selectedImage) {
-        submitData.image = selectedImage;
-      }
-
-      if (editingItem) {
-        await foodService.updateMenuItem(editingItem._id, submitData);
-      } else {
-        await foodService.createMenuItem(submitData);
-      }
-
-      setShowAddDialog(false);
-      setEditingItem(null);
-      resetForm();
-
-      // Refresh the menu (this would typically trigger a parent component refresh)
-      window.location.reload();
-    } catch (err) {
-      setError(err.message || 'Failed to save menu item');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditItem = (item) => {
-    setEditingItem(item);
-    setShowAddDialog(true);
-  };
-
-  const handleDeleteItem = async (item) => {
-    if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
-      try {
-        await foodService.deleteMenuItem(item._id);
-        window.location.reload();
-      } catch (error) {
-        console.error('Error deleting menu item:', error);
-        alert('Failed to delete menu item. Please try again.');
-      }
-    }
-  };
-
-  const handleOrderItem = (item) => {
-    // This would typically integrate with an ordering system
-    alert(`Ordering: ${item.name} - $${item.price}`);
+  const getCategoryIcon = (categoryId) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.icon : Utensils;
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Food & Menu Management</h1>
-          <p className="text-gray-600">Manage your restaurant's menu items and images</p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl font-bold text-indigo-800 mb-4">
+            Dining & Cuisine
+          </h1>
+          <p className="text-gray-600 text-lg max-w-3xl mx-auto">
+            Experience exceptional dining at Grand Hotel. From traditional Sri Lankan cuisine
+            to international favorites, our culinary team creates memorable dining experiences
+            for every palate.
+          </p>
         </div>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="menu">Menu View</TabsTrigger>
-          <TabsTrigger value="manage">Manage Items</TabsTrigger>
-          <TabsTrigger value="ai">AI Tools</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
-        </TabsList>
+        {/* Restaurant Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          <Card className="p-6 text-center">
+            <ChefHat className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Award-Winning Chefs
+            </h3>
+            <p className="text-gray-600">
+              Our culinary team brings decades of experience and creativity to every dish.
+            </p>
+          </Card>
 
-        <TabsContent value="menu" className="space-y-6">
-          <FoodMenu
-            showManagementActions={false}
-            onOrderItem={handleOrderItem}
-          />
-        </TabsContent>
+          <Card className="p-6 text-center">
+            <Users className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Intimate Dining
+            </h3>
+            <p className="text-gray-600">
+              Enjoy personalized service in our elegant dining rooms accommodating up to 120 guests.
+            </p>
+          </Card>
 
-        <TabsContent value="manage" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Manage Menu Items</h2>
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-              <DialogTrigger asChild>
-                <Button onClick={() => { setEditingItem(null); resetForm(); }}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Menu Item
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
-                  </DialogTitle>
-                </DialogHeader>
+          <Card className="p-6 text-center">
+            <Clock className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              24/7 Service
+            </h3>
+            <p className="text-gray-600">
+              Room service available around the clock with our extensive menu selection.
+            </p>
+          </Card>
+        </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <div className="flex items-center">
-                        <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
-                        <span className="text-red-700 text-sm">{error}</span>
-                      </div>
-                    </div>
+        {/* Category Filter */}
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              onClick={() => setSelectedCategory(category.id)}
+              className="flex items-center space-x-2"
+            >
+              <category.icon className="h-4 w-4" />
+              <span>{category.name}</span>
+            </Button>
+          ))}
+        </div>
+
+        {/* Menu Items */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredItems.map((item) => (
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition duration-300">
+              <div className="relative">
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute top-4 left-4 flex gap-2">
+                  {item.popular && (
+                    <Badge className="bg-orange-500">
+                      Popular
+                    </Badge>
                   )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Name *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="price">Price *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.price}
-                        onChange={(e) => handleInputChange('price', parseFloat(e.target.value))}
-                        required
-                      />
-                    </div>
+                  {item.vegetarian && (
+                    <Badge className="bg-green-500">
+                      Vegetarian
+                    </Badge>
+                  )}
+                </div>
+                <div className="absolute top-4 right-4">
+                  <div className="bg-white px-2 py-1 rounded-full text-sm font-medium">
+                    {item.price}
                   </div>
+                </div>
+              </div>
 
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
-                      rows={3}
-                    />
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {item.name}
+                  </h3>
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                    <span className="text-sm text-gray-600">{item.rating}</span>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="category">Category *</Label>
-                      <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(category => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="cookingTime">Cooking Time (minutes)</Label>
-                      <Input
-                        id="cookingTime"
-                        type="number"
-                        min="1"
-                        value={formData.cookingTime}
-                        onChange={(e) => handleInputChange('cookingTime', parseInt(e.target.value))}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Image Upload */}
-                  <div>
-                    <Label>Image</Label>
-                    <div className="mt-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                        id="image-upload"
-                      />
-                      <label htmlFor="image-upload" className="cursor-pointer">
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                          {imagePreview ? (
-                            <div className="space-y-4">
-                              <img
-                                src={imagePreview}
-                                alt="Preview"
-                                className="max-w-full h-48 object-cover mx-auto rounded"
-                              />
-                              <Button type="button" variant="outline" onClick={removeImage}>
-                                <X className="w-4 h-4 mr-2" />
-                                Remove Image
-                              </Button>
-                            </div>
-                          ) : (
-                            <div>
-                              <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                              <p className="text-gray-600">Click to upload image</p>
-                              <p className="text-sm text-gray-500 mt-2">PNG, JPG, WEBP up to 15MB</p>
-                            </div>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Nutritional Information */}
-                  <div>
-                    <Label>Nutritional Information</Label>
-                    <div className="grid grid-cols-2 gap-4 mt-2">
-                      <div>
-                        <Label htmlFor="calories" className="text-sm">Calories</Label>
-                        <Input
-                          id="calories"
-                          type="number"
-                          min="0"
-                          value={formData.nutritionalInfo.calories}
-                          onChange={(e) => handleInputChange('nutritionalInfo.calories', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="protein" className="text-sm">Protein (g)</Label>
-                        <Input
-                          id="protein"
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={formData.nutritionalInfo.protein}
-                          onChange={(e) => handleInputChange('nutritionalInfo.protein', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="carbs" className="text-sm">Carbs (g)</Label>
-                        <Input
-                          id="carbs"
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={formData.nutritionalInfo.carbs}
-                          onChange={(e) => handleInputChange('nutritionalInfo.carbs', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="fat" className="text-sm">Fat (g)</Label>
-                        <Input
-                          id="fat"
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={formData.nutritionalInfo.fat}
-                          onChange={(e) => handleInputChange('nutritionalInfo.fat', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Item Properties */}
-                  <div className="space-y-4">
-                    <Label>Properties</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isAvailable"
-                          checked={formData.isAvailable}
-                          onCheckedChange={(checked) => handleInputChange('isAvailable', checked)}
-                        />
-                        <Label htmlFor="isAvailable">Available</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isVeg"
-                          checked={formData.isVeg}
-                          onCheckedChange={(checked) => handleInputChange('isVeg', checked)}
-                        />
-                        <Label htmlFor="isVeg">Vegetarian</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isSpicy"
-                          checked={formData.isSpicy}
-                          onCheckedChange={(checked) => handleInputChange('isSpicy', checked)}
-                        />
-                        <Label htmlFor="isSpicy">Spicy</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isPopular"
-                          checked={formData.isPopular}
-                          onCheckedChange={(checked) => handleInputChange('isPopular', checked)}
-                        />
-                        <Label htmlFor="isPopular">Popular</Label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddDialog(false);
-                        setEditingItem(null);
-                        resetForm();
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={loading}>
-                      {loading ? (
-                        <div className="flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Saving...
-                        </div>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          {editingItem ? 'Update' : 'Create'} Item
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <FoodMenu
-            showManagementActions={true}
-            onEditItem={handleEditItem}
-            onDeleteItem={handleDeleteItem}
-            onOrderItem={handleOrderItem}
-          />
-        </TabsContent>
-
-        <TabsContent value="ai" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <ChefHat className="w-5 h-5 mr-2" />
-                  Generate Menu Items
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
                 <p className="text-gray-600 mb-4">
-                  Generate menu items using AI based on cuisine type and dietary preferences.
+                  {item.description}
                 </p>
-                <Button className="w-full" variant="outline">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Open AI Generator
-                </Button>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileImage className="w-5 h-5 mr-2" />
-                  Process Menu Image
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">
-                  Upload a menu image and let AI extract menu items automatically.
-                </p>
-                <Button className="w-full" variant="outline">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Menu Image
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                <div className="flex items-center text-sm text-gray-500 mb-4">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span>Available: {item.available}</span>
+                </div>
 
-        <TabsContent value="bulk" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bulk Import Menu Items</CardTitle>
-            </CardHeader>
-            <CardContent>
+                <Button className="w-full">
+                  Order Now
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Special Dining Section */}
+        <div className="mt-16">
+          <h2 className="text-3xl font-bold text-gray-800 text-center mb-12">
+            Special Dining Experiences
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="p-8">
+              <div className="flex items-center mb-6">
+                <Wine className="h-12 w-12 text-indigo-600 mr-4" />
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    Wine Tasting
+                  </h3>
+                  <p className="text-gray-600">Every Friday, 7:00 PM</p>
+                </div>
+              </div>
               <p className="text-gray-600 mb-4">
-                Import multiple menu items at once using CSV or JSON format.
+                Join our sommelier for an exclusive wine tasting experience featuring
+                premium selections from around the world.
               </p>
               <Button variant="outline">
-                <Upload className="w-4 h-4 mr-2" />
-                Choose File to Import
+                Reserve Your Spot
               </Button>
-            </CardContent>
+            </Card>
+
+            <Card className="p-8">
+              <div className="flex items-center mb-6">
+                <ChefHat className="h-12 w-12 text-indigo-600 mr-4" />
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    Chef's Table
+                  </h3>
+                  <p className="text-gray-600">By Reservation Only</p>
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">
+                An intimate dining experience where our executive chef creates
+                a personalized menu just for you.
+              </p>
+              <Button variant="outline">
+                Book Chef's Table
+              </Button>
+            </Card>
+          </div>
+        </div>
+
+        {/* Room Service CTA */}
+        <div className="mt-16 text-center">
+          <Card className="p-8 bg-indigo-600 text-white">
+            <h2 className="text-3xl font-bold mb-4">
+              Room Service Available 24/7
+            </h2>
+            <p className="text-indigo-100 mb-6 text-lg">
+              Enjoy our full menu in the comfort of your room, any time of day or night.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button className="bg-white text-indigo-600 hover:bg-indigo-50">
+                View Room Service Menu
+              </Button>
+              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-indigo-600">
+                Call Room Service
+              </Button>
+            </div>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default FoodPage;
+}

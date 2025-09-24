@@ -1,7 +1,9 @@
 // 📁 backend/routes/webhooks.js
 import express from "express";
-import PaymentService from "../services/payment/paymentService.js";
-import RefundRequest from "../models/RefundRequest.js";
+import payHereService from "../services/payHereService.js";
+import Payment from "../models/Payment.js";
+import Booking from "../models/Booking.js";
+import smsService from "../services/smsService.js";
 import logger from "../utils/logger.js";
 import EmailService from "../services/notification/emailService.js";
 
@@ -216,6 +218,110 @@ router.post("/payhere/payment", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Payment webhook processing failed",
+    });
+  }
+});
+
+// PayHere payment webhook handler
+router.post("/payhere/payment", async (req, res) => {
+  try {
+    const notificationData = req.body;
+
+    logger.info("Received PayHere payment webhook", {
+      orderId: notificationData.order_id,
+      status: notificationData.status_code,
+      amount: notificationData.payhere_amount,
+    });
+
+    // Process the notification using PayHereService
+    const processedPayment = await payHereService.processPaymentNotification(notificationData);
+
+    // Update payment record
+    const payment = await Payment.findOneAndUpdate(
+      { orderId: processedPayment.orderId },
+      {
+        status: processedPayment.status,
+        paymentId: processedPayment.paymentId,
+        transactionData: processedPayment,
+        completedAt: processedPayment.status === 'success' ? new Date() : undefined,
+      },
+      { new: true }
+    ).populate('userId', 'name email');
+
+    if (!payment) {
+      logger.error('Payment record not found for order:', processedPayment.orderId);
+      return res.status(200).json({ success: true, message: 'Order not found' });
+    }
+
+    // Update booking status if payment successful
+    if (processedPayment.status === 'success' && processedPayment.bookingId) {
+      const booking = await Booking.findByIdAndUpdate(
+        processedPayment.bookingId,
+        {
+          status: 'confirmed',
+          paymentStatus: 'paid',
+          paymentId: payment._id,
+        },
+        { new: true }
+      ).populate('guestId', 'name email phone');
+
+      if (booking) {
+        // Send confirmation email
+        try {
+          await EmailService.sendBookingConfirmation(booking);
+          logger.info('Booking confirmation email sent:', booking.bookingNumber);
+        } catch (emailError) {
+          logger.error('Failed to send booking confirmation email:', emailError);
+        }
+
+        // Send confirmation SMS if guest has phone number
+        if (booking.guestId?.phone) {
+          try {
+            const smsData = {
+              guestName: booking.guestId.name,
+              bookingNumber: booking.bookingNumber,
+              checkInDate: booking.checkInDate?.toLocaleDateString(),
+              checkOutDate: booking.checkOutDate?.toLocaleDateString(),
+              currency: processedPayment.currency,
+              totalAmount: processedPayment.amount,
+            };
+
+            await smsService.sendBookingConfirmation(booking.guestId.phone, smsData);
+            logger.info('Booking confirmation SMS sent:', booking.bookingNumber);
+          } catch (smsError) {
+            logger.error('Failed to send booking confirmation SMS:', smsError);
+          }
+        }
+
+        logger.info('Booking confirmed:', processedPayment.bookingId);
+      }
+    } else if (processedPayment.status === 'failed' && processedPayment.bookingId) {
+      await Booking.findByIdAndUpdate(processedPayment.bookingId, {
+        status: 'payment_failed',
+        paymentStatus: 'failed',
+      });
+    }
+
+    // Always respond with success to PayHere to prevent retries
+    res.status(200).json({
+      success: true,
+      message: 'Payment webhook processed successfully',
+      orderId: processedPayment.orderId,
+      status: processedPayment.status
+    });
+
+  } catch (error) {
+    logger.error("Error processing PayHere payment webhook", {
+      error: error.message,
+      stack: error.stack,
+      body: req.body,
+    });
+
+    // Still return success to PayHere to prevent retries
+    res.status(200).json({
+      success: true,
+      message: 'Webhook received',
+      error: error.message
     });
   }
 });

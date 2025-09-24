@@ -77,7 +77,13 @@ class AdminService {
       case "admin":
         return await AdminProfile.create({
           userId,
-          permissions: permissions || ["view-reports"],
+          permissions:
+            permissions && Array.isArray(permissions)
+              ? permissions
+              : [
+                  { module: "users", actions: ["read"] },
+                  { module: "reports", actions: ["read"] },
+                ],
         });
       default:
         throw new Error(`Invalid role for profile creation: ${role}`);
@@ -144,7 +150,15 @@ class AdminService {
       case "admin":
         return await AdminProfile.findOneAndUpdate(
           { userId },
-          { permissions: permissions || ["view-reports"] },
+          {
+            permissions:
+              permissions && Array.isArray(permissions)
+                ? permissions
+                : [
+                    { module: "users", actions: ["read"] },
+                    { module: "reports", actions: ["read"] },
+                  ],
+          },
           options
         );
       default:
@@ -153,7 +167,7 @@ class AdminService {
   }
 
   // Create invitation
-  async createInvitation({ email, role, expiresInHours = 24, createdBy }) {
+  async createInvitation({ email, role, department, position, permissions, expiresInHours = 24, createdBy }) {
     // Check if invitation already exists
     const existingInvitation = await Invitation.findOne({
       email,
@@ -165,6 +179,67 @@ class AdminService {
       throw new Error("Active invitation already exists for this email");
     }
 
+    // Validate staff-specific fields
+    if (role === "staff") {
+      const validDepartments = ["Housekeeping", "Kitchen", "Maintenance", "Service"];
+      if (!department || !validDepartments.includes(department)) {
+        throw new Error(`Department is required for staff invites. Valid departments are: ${validDepartments.join(", ")}`);
+      }
+      if (!position || typeof position !== "string" || position.trim().length === 0) {
+        throw new Error("Position is required for staff invites");
+      }
+    }
+
+    // Validate permissions if provided for admin role
+    if (role === "admin" && permissions) {
+      if (!Array.isArray(permissions)) {
+        throw new Error("Permissions must be an array");
+      }
+
+      const validModules = [
+        "invitations",
+        "notification",
+        "users",
+        "rooms",
+        "bookings",
+        "inventory",
+        "staff",
+        "finance",
+        "reports",
+        "system",
+      ];
+      const validActions = [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "approve",
+        "reject",
+        "export",
+        "manage",
+      ];
+
+      for (const perm of permissions) {
+        if (!perm || typeof perm !== "object") {
+          throw new Error("Each permission must be an object");
+        }
+        if (!perm.module || typeof perm.module !== "string") {
+          throw new Error("Each permission must have a valid 'module' field");
+        }
+        if (!validModules.includes(perm.module)) {
+          throw new Error(`Invalid module '${perm.module}'. Valid modules are: ${validModules.join(", ")}`);
+        }
+        if (!Array.isArray(perm.actions) || perm.actions.length === 0) {
+          throw new Error("Each permission must have a non-empty 'actions' array");
+        }
+        for (const action of perm.actions) {
+          if (typeof action !== "string" || !validActions.includes(action)) {
+            throw new Error(`Invalid action '${action}' for module '${perm.module}'. Valid actions are: ${validActions.join(", ")}`);
+          }
+        }
+      }
+    }
+
     // Generate token
     const token = crypto.randomBytes(32).toString("hex");
 
@@ -172,6 +247,9 @@ class AdminService {
     const invitation = new Invitation({
       email,
       role,
+      department: role === "staff" ? department : undefined,
+      position: role === "staff" ? position : undefined,
+      permissions: role === "admin" ? permissions : undefined,
       token,
       createdBy,
       expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000),
@@ -186,6 +264,9 @@ class AdminService {
       invitationId: invitation._id,
       email: invitation.email,
       role: invitation.role,
+      department: invitation.department,
+      position: invitation.position,
+      permissions: invitation.permissions,
       expiresAt: invitation.expiresAt,
       message: "Invitation sent successfully",
     };
@@ -279,53 +360,44 @@ class AdminService {
       .limit(limit)
       .populate("approvedBy", "name email");
 
+    // Populate profiles for users (excluding guests)
+    const populatedUsers = await Promise.all(
+      users.map(async (user) => {
+        const userObj = user.toObject();
+        if (user.role !== 'guest') {
+          try {
+            let profile = null;
+            switch (user.role) {
+              case "staff":
+                profile = await StaffProfile.findOne({ userId: user._id }).select("-userId");
+                break;
+              case "manager":
+                profile = await ManagerProfile.findOne({ userId: user._id }).select("-userId");
+                break;
+              case "admin":
+                profile = await AdminProfile.findOne({ userId: user._id }).select("-userId");
+                break;
+            }
+            userObj.profile = profile;
+          } catch (profileError) {
+            console.error(`Failed to load profile for user ${user._id}:`, profileError.message);
+            userObj.profile = null; // Set to null if profile loading fails
+          }
+        }
+        return userObj;
+      })
+    );
+
     const total = await User.countDocuments(query);
 
     return {
-      users,
+      users: populatedUsers,
       pagination: {
         page,
         limit,
         total,
         pages: Math.ceil(total / limit),
       },
-    };
-  }
-
-  // Update user role
-  async updateUserRole(userId, newRole, permissions, requestingAdminId) {
-    if (!["guest", "staff", "manager", "admin"].includes(newRole)) {
-      throw new Error("Invalid role");
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const oldRole = user.role;
-    user.role = newRole;
-
-    // If promoting to privileged role, require approval
-    if (oldRole === "guest" && newRole !== "guest") {
-      user.isApproved = false;
-      user.approvedBy = undefined;
-      user.approvedAt = undefined;
-    }
-
-    await user.save();
-
-    // Update or create role-specific profile
-    if (newRole !== "guest") {
-      await this.updateOrCreateRoleProfile(userId, newRole, permissions);
-    }
-
-    return {
-      userId: user._id,
-      oldRole,
-      newRole,
-      isApproved: user.isApproved,
-      message: `User role updated from ${oldRole} to ${newRole}`,
     };
   }
 
@@ -716,14 +788,41 @@ class AdminService {
 
   // Refund Management Methods
 
-  async getPendingRefunds() {
-    const pendingRefunds = await RefundRequest.find({ status: "pending" })
+  // Get all refunds with optional status filtering
+  async getRefunds({ status = null, search = null } = {}) {
+    const query = {};
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Add search functionality
+    if (search) {
+      const refunds = await RefundRequest.find(query)
+        .populate("bookingId", "bookingNumber")
+        .populate("guestId", "name email")
+        .populate("invoiceId", "invoiceNumber")
+        .sort({ createdAt: -1 });
+
+      // Filter by search term
+      const filteredRefunds = refunds.filter(refund =>
+        refund.bookingId?.bookingNumber?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.guestId?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.guestId?.email?.toLowerCase().includes(search.toLowerCase()) ||
+        refund.reason?.toLowerCase().includes(search.toLowerCase())
+      );
+
+      return filteredRefunds;
+    }
+
+    const refunds = await RefundRequest.find(query)
       .populate("bookingId", "bookingNumber")
       .populate("guestId", "name email")
       .populate("invoiceId", "invoiceNumber")
       .sort({ createdAt: -1 });
 
-    return pendingRefunds;
+    return refunds;
   }
 
   async getRefundDetails(refundId) {

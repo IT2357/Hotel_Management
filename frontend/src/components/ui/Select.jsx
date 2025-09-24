@@ -1,88 +1,43 @@
-import React, { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import classNames from "classnames";
+// src/components/ui/Select.jsx
+import React from "react";
 
-const SelectContext = React.createContext();
-
-const Select = ({ value, onValueChange, children, ...props }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export default function Select({
+  label,
+  id,
+  value,
+  onChange,
+  children,
+  className = '',
+  required = false,
+  disabled = false,
+  ...props
+}) {
+  const hasValue = value && value.toString().length > 0;
 
   return (
-    <SelectContext.Provider value={{ value, onValueChange, isOpen, setIsOpen }}>
-      <div className="relative" {...props}>
+    <div className="relative">
+      <select
+        id={id}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        className={`block w-full px-4 py-3 text-base text-gray-900 bg-gray-50 rounded-lg border-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer ${className}`}
+        {...props}>
         {children}
+      </select>
+      {label && (
+        <label
+          htmlFor={id}
+          className={`absolute text-base text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-7 scale-75 top-3 -z-10 origin-[0] left-4 peer-focus:left-0 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 ${hasValue ? 'scale-75 -translate-y-7' : 'peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-7'}`}>
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
       </div>
-    </SelectContext.Provider>
-  );
-};
-
-const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => {
-  const { isOpen, setIsOpen } = React.useContext(SelectContext);
-
-  return (
-    <button
-      type="button"
-      ref={ref}
-      className={classNames(
-        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      onClick={() => setIsOpen(!isOpen)}
-      {...props}
-    >
-      {children}
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </button>
-  );
-});
-SelectTrigger.displayName = "SelectTrigger";
-
-const SelectValue = ({ placeholder }) => {
-  const { value } = React.useContext(SelectContext);
-
-  return <span className="text-sm">{value || placeholder}</span>;
-};
-
-const SelectContent = React.forwardRef(({ className, children, ...props }, ref) => {
-  const { isOpen } = React.useContext(SelectContext);
-
-  if (!isOpen) return null;
-
-  return (
-    <div
-      ref={ref}
-      className={classNames(
-        "absolute top-full z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
-        className
-      )}
-      {...props}
-    >
-      {children}
     </div>
   );
-});
-SelectContent.displayName = "SelectContent";
-
-const SelectItem = React.forwardRef(({ className, children, value, ...props }, ref) => {
-  const { onValueChange, setIsOpen } = React.useContext(SelectContext);
-
-  return (
-    <div
-      ref={ref}
-      className={classNames(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground",
-        className
-      )}
-      onClick={() => {
-        onValueChange(value);
-        setIsOpen(false);
-      }}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-});
-SelectItem.displayName = "SelectItem";
-
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue };
+}

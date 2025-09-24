@@ -2,6 +2,8 @@
 import crypto from "crypto";
 import axios from "axios";
 import logger from "../../utils/logger.js";
+import InvoiceService from "./invoiceService.js";
+import BookingService from "../booking/bookingService.js";
 
 class PaymentService {
   constructor() {
@@ -219,232 +221,32 @@ class PaymentService {
   }
 
   /**
-   * Process payment for food orders
-   * @param {Object} paymentData - Payment information
-   * @returns {Object} - Payment response
+   * Validate refund eligibility
    */
-  async processOrderPayment(paymentData) {
-    try {
-      const {
-        orderId,
-        amount,
-        currency = "LKR",
-        paymentMethod,
-        customerDetails,
-        returnUrl,
-        cancelUrl,
-        notifyUrl
-      } = paymentData;
+  validateRefundEligibility(paymentData) {
+    const { paymentDate, amount, refundAmount } = paymentData;
+    const errors = [];
 
-      // Validate required fields
-      if (!orderId || !amount || !paymentMethod || !customerDetails) {
-        throw new Error("Order ID, amount, payment method, and customer details are required");
-      }
+    // Since we removed paymentStatus, we'll assume payments are eligible for refund
+    // unless explicitly marked as refunded or cancelled
+    // This logic would need to be updated based on your business rules
 
-      // Handle different payment methods
-      switch (paymentMethod) {
-        case 'card':
-          return await this.processCardPayment({
-            orderId,
-            amount,
-            currency,
-            customerDetails,
-            returnUrl,
-            cancelUrl,
-            notifyUrl
-          });
+    const paymentAge = Date.now() - new Date(paymentDate).getTime();
+    const maxRefundAge = 180 * 24 * 60 * 60 * 1000; // 180 days
 
-        case 'wallet':
-          return await this.processWalletPayment({
-            orderId,
-            amount,
-            currency,
-            customerDetails
-          });
-
-        case 'cash':
-          return await this.processCashPayment({
-            orderId,
-            amount,
-            currency,
-            customerDetails
-          });
-
-        default:
-          throw new Error(`Unsupported payment method: ${paymentMethod}`);
-      }
-    } catch (error) {
-      logger.error("Order payment processing failed", {
-        error: error.message,
-        stack: error.stack,
-        paymentData,
-      });
-
-      return {
-        success: false,
-        error: error.message || "Payment processing failed",
-        errorCode: "PAYMENT_ERROR",
-      };
+    if (paymentAge > maxRefundAge) {
+      errors.push("Refund window has expired (180 days limit)");
     }
-  }
 
-  /**
-   * Process card payment through PayHere
-   * @param {Object} cardData - Card payment information
-   * @returns {Object} - Payment response
-   */
-  async processCardPayment(cardData) {
-    try {
-      const {
-        orderId,
-        amount,
-        currency,
-        customerDetails,
-        returnUrl,
-        cancelUrl,
-        notifyUrl
-      } = cardData;
-
-      // For PayHere hosted checkout, we generate the payment URL directly
-      // PayHere uses a hosted checkout page that accepts form data
-      const gatewayUrl = process.env.PAYHERE_GATEWAY_URL || "https://sandbox.payhere.lk/pay/checkout";
-
-      // Prepare payment parameters for hosted checkout
-      const paymentParams = {
-        merchant_id: this.merchantId,
-        order_id: orderId,
-        amount: parseFloat(amount).toFixed(2),
-        currency: currency,
-        customer_name: customerDetails.customerName,
-        customer_email: customerDetails.customerEmail,
-        customer_phone: customerDetails.customerPhone,
-        return_url: returnUrl || `${process.env.PAYHERE_RETURN_URL}`,
-        cancel_url: cancelUrl || `${process.env.PAYHERE_CANCEL_URL}`,
-        notify_url: notifyUrl || `${process.env.PAYHERE_NOTIFY_URL}`,
-        items: `Order ${orderId}`,
-        custom_1: orderId, // Custom field for order reference
-      };
-
-      // Generate signature
-      paymentParams.hash = this.generateSignature(paymentParams);
-
-      logger.info("Processing PayHere card payment", {
-        orderId,
-        amount,
-        customerEmail: customerDetails.customerEmail,
-      });
-
-      // Log successful payment initiation
-      logger.info("PayHere card payment initiated successfully", {
-        orderId,
-        paymentId: `PAYHERE_${orderId}_${Date.now()}`,
-      });
-
-      // Return payment parameters for frontend to create POST form
-      return {
-        success: true,
-        paymentId: `PAYHERE_${orderId}_${Date.now()}`,
-        status: "PENDING",
-        gatewayUrl: gatewayUrl,
-        paymentParams: paymentParams,
-        amount: amount,
-        currency: currency,
-        message: "Payment parameters ready for PayHere gateway",
-      };
-    } catch (error) {
-      logger.error("PayHere card payment processing failed", {
-        error: error.message,
-        stack: error.stack,
-        cardData,
-      });
-
-      return {
-        success: false,
-        error: error.message || "Card payment processing failed",
-        errorCode: "CARD_PAYMENT_ERROR",
-      };
+    if (parseFloat(refundAmount) > parseFloat(amount)) {
+      errors.push("Refund amount cannot exceed original payment amount");
     }
-  }
 
-  /**
-   * Process wallet payment (mock implementation)
-   * @param {Object} walletData - Wallet payment information
-   * @returns {Object} - Payment response
-   */
-  async processWalletPayment(walletData) {
-    try {
-      const { orderId, amount, currency, customerDetails } = walletData;
-
-      // Mock wallet payment processing
-      // In real implementation, integrate with wallet providers like PayPal, Google Pay, etc.
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate processing
-
-      logger.info("Wallet payment processed successfully", {
-        orderId,
-        amount,
-        customerEmail: customerDetails.customerEmail,
-      });
-
-      return {
-        success: true,
-        paymentId: `WALLET_${Date.now()}`,
-        status: "SUCCESS",
-        amount: amount,
-        currency: currency,
-        paymentMethod: "WALLET",
-        processedAt: new Date(),
-      };
-    } catch (error) {
-      logger.error("Wallet payment processing failed", {
-        error: error.message,
-        walletData,
-      });
-
-      return {
-        success: false,
-        error: error.message || "Wallet payment processing failed",
-        errorCode: "WALLET_PAYMENT_ERROR",
-      };
-    }
-  }
-
-  /**
-   * Process cash on delivery payment
-   * @param {Object} cashData - Cash payment information
-   * @returns {Object} - Payment response
-   */
-  async processCashPayment(cashData) {
-    try {
-      const { orderId, amount, currency, customerDetails } = cashData;
-
-      logger.info("Cash on delivery payment registered", {
-        orderId,
-        amount,
-        customerEmail: customerDetails.customerEmail,
-      });
-
-      return {
-        success: true,
-        paymentId: `CASH_${Date.now()}`,
-        status: "PENDING",
-        amount: amount,
-        currency: currency,
-        paymentMethod: "CASH",
-        message: "Cash on delivery payment registered. Payment will be collected upon delivery.",
-        processedAt: new Date(),
-      };
-    } catch (error) {
-      logger.error("Cash payment processing failed", {
-        error: error.message,
-        cashData,
-      });
-
-      return {
-        success: false,
-        error: error.message || "Cash payment processing failed",
-        errorCode: "CASH_PAYMENT_ERROR",
-      };
-    }
+    return {
+      isEligible: errors.length === 0,
+      errors,
+      maxRefundAmount: amount,
+    };
   }
 
   /**
@@ -453,45 +255,6 @@ class PaymentService {
    */
   getSupportedCurrencies() {
     return ["LKR", "USD", "GBP", "EUR", "AUD"];
-  }
-
-  /**
-   * Validate refund eligibility
-   * @param {Object} paymentData - Original payment data
-   * @returns {Object} - Validation result
-   */
-  validateRefundEligibility(paymentData) {
-    const { paymentDate, paymentStatus, amount, refundAmount } = paymentData;
-
-    const errors = [];
-
-    // Check if payment is completed
-    if (paymentStatus !== "completed") {
-      errors.push("Payment must be completed to process refund");
-    }
-
-    // Check refund window (e.g., 180 days)
-    const paymentAge = Date.now() - new Date(paymentDate).getTime();
-    const maxRefundAge = 180 * 24 * 60 * 60 * 1000; // 180 days in milliseconds
-
-    if (paymentAge > maxRefundAge) {
-      errors.push("Refund window has expired (180 days limit)");
-    }
-
-    // Validate refund amount
-    if (parseFloat(refundAmount) > parseFloat(amount)) {
-      errors.push("Refund amount cannot exceed original payment amount");
-    }
-
-    if (parseFloat(refundAmount) <= 0) {
-      errors.push("Refund amount must be greater than zero");
-    }
-
-    return {
-      isEligible: errors.length === 0,
-      errors,
-      maxRefundAmount: amount,
-    };
   }
 }
 

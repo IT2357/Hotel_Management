@@ -1,5 +1,4 @@
 // src/services/adminService.js
-import { createBooking } from "../../../backend/controllers/bookings/bookingController";
 import api from "./api";
 
 const adminService = {
@@ -24,7 +23,7 @@ const adminService = {
   getPendingApprovals: () => api.get("/admin/approvals"),
   approveUser: (userId, data) => api.put(`/admin/approvals/${userId}`, data),
   getDashboardStats: () => api.get("/admin/dashboard/stats"),
-  // frontend/src/services/adminService.js
+
   async getStaffProfiles() {
     try {
       const response = await api.get("/admin/staff-profiles");
@@ -43,11 +42,12 @@ const adminService = {
 
   // Refund management
   getPendingRefunds: () => api.get("/admin/refunds/pending"),
+  getRefunds: (params = {}) => api.get("/admin/refunds", { params }),
   getRefundDetails: (id) => api.get(`/admin/refunds/${id}`),
   approveRefund: (id) => api.post(`/admin/refunds/${id}/approve`),
   denyRefund: (id, reason) => api.post(`/admin/refunds/${id}/deny`, { reason }),
   requestMoreInfo: (id, message) =>
-    api.post(`/admin/refunds/${id}/request-info`, { message }),
+    api.post(`/admin/refunds/${id}/request-info`, { infoRequested: message }),
   processRefund: (id, originalPaymentId) =>
     api.post(`/admin/payment-gateway/refund`, {
       id,
@@ -57,19 +57,15 @@ const adminService = {
 
   // Admin Settings
   getAdminSettings: () => api.get("/admin/settings"),
+  getSettingsByCategory: (category) => api.get(`/admin/settings/${category}`),
   updateAdminSettings: (data) => api.put("/admin/settings", data),
   testEmailConfig: (data) => api.post("/admin/settings/test-email", data),
-
-  // Room management
-  createRoom: (data) => api.post("/admin/rooms", data),
-  updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
-  deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
-
-  //booking management
-  getallbookings:(id) => api.get("/admin/Allbookings"),
-  updateBooking:(id, data) => api.put(`/admin/${id}/status`),
-  deleteBooking: (id)=> api.delete(`/admin/${id}`), 
-
+  testSMSConfig: (data) => api.post("/admin/settings/test-sms", data),
+  testSocialAuthConfig: (data) => api.post("/admin/settings/test-social-auth", data),
+  backupSettings: () => api.get("/admin/settings/backup/download"),
+  restoreSettings: (data) => api.post("/admin/settings/restore", data),
+  resetToDefaults: () => api.post("/admin/settings/reset"),
+  validatePaymentGateway: (data) => api.post("/admin/settings/validate-payment", data),
 };
 
 export default adminService;

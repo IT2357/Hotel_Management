@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import Pagination from '../../components/ui/Pagination';
 import { Card } from '../../components/ui/card';
 import useDebounce from '../../hooks/useDebounce';
+import PermissionSelector from './components/PermissionSelector';
 
 export default function UserManagementPage() {
   const { user } = useContext(AuthContext);
@@ -35,6 +36,7 @@ export default function UserManagementPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [editFormData, setEditFormData] = useState({});
+  const [editPermissions, setEditPermissions] = useState([]);
   const [createFormData, setCreateFormData] = useState({
     name: '',
     email: '',
@@ -171,14 +173,36 @@ export default function UserManagementPage() {
     }
   };
 
-  const openEditModal = (user) => {
+  const openEditModal = async (user) => {
     setSelectedUser(user);
-    setEditFormData({
-      name: user.name,
-      phone: user.phone || '',
-      address: user.address || {},
-      profile: {},
-    });
+    // Load full user details including profile for all role types
+    try {
+      const res = await adminService.getUserDetails(user._id);
+      const fullUserData = res.data.data;
+      setEditFormData({
+        name: fullUserData.user.name,
+        phone: fullUserData.user.phone || '',
+        address: fullUserData.user.address || {},
+        profile: fullUserData.profile || {},
+      });
+
+      // Load permissions for admin users
+      if (user.role === 'admin') {
+        setEditPermissions(fullUserData.profile?.permissions || []);
+      } else {
+        setEditPermissions([]);
+      }
+    } catch (e) {
+      console.error('Failed to load user details:', e);
+      // Fallback to basic user data
+      setEditFormData({
+        name: user.name,
+        phone: user.phone || '',
+        address: user.address || {},
+        profile: user.profile || {},
+      });
+      setEditPermissions([]);
+    }
     setShowEditModal(true);
   };
 
@@ -243,7 +267,7 @@ export default function UserManagementPage() {
         </div>
 
         {/* Modern Statistics Dashboard */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7 gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -484,12 +508,20 @@ export default function UserManagementPage() {
           user={selectedUser}
           formData={editFormData}
           setFormData={setEditFormData}
+          permissions={editPermissions}
+          setPermissions={setEditPermissions}
           onClose={() => {
             setShowEditModal(false);
             setSelectedUser(null);
             setEditFormData({});
           }}
-          onSave={() => handleUserAction('updateProfile', selectedUser._id, editFormData)}
+          onSave={(updates) => {
+            if (selectedUser.role === 'admin') {
+              handleUserAction('updateProfile', selectedUser._id, { ...updates, permissions: editPermissions });
+            } else {
+              handleUserAction('updateProfile', selectedUser._id, updates);
+            }
+          }}
         />
         <PasswordResetModal
           isOpen={showPasswordResetModal}
@@ -646,6 +678,22 @@ function UsersList({
                   </svg>
                   <span>{user.email}</span>
                 </div>
+                {user.profile && (
+                  <>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span>{user.profile.department || 'No Department'}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v6a2 2 0 01-2 2H10a2 2 0 01-2-2V6m8 0H8" />
+                      </svg>
+                      <span>{user.profile.position || 'No Position'}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center text-sm text-gray-600">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -654,14 +702,15 @@ function UsersList({
                 </div>
               </div>
               {/* Action Buttons */}
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onViewDetails(user._id)}
-                  className="flex-1 rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
+                  className="rounded-full p-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
                 >
-                  👁️ View
+                  <span className="sm:hidden">👁️</span>
+                  <span className="hidden sm:inline">👁️ View</span>
                 </Button>
                 {!isPending && (
                   <>
@@ -669,44 +718,49 @@ function UsersList({
                       size="sm"
                       variant="outline"
                       onClick={() => onEdit(user)}
-                      className="flex-1 rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
+                      className="rounded-full p-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
                     >
-                      ✏️ Edit
+                      <span className="sm:hidden">✏️</span>
+                      <span className="hidden sm:inline">✏️ Edit</span>
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onResetPassword(user)}
-                      className="flex-1 rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
+                      className="rounded-full p-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
                     >
-                      🔑 Reset
+                      <span className="sm:hidden">🔑</span>
+                      <span className="hidden sm:inline">🔑 Reset</span>
                     </Button>
                     {user.isActive ? (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onAction('deactivate', user._id, { reason: 'Administrative action' })}
-                        className="flex-1 rounded-full border-gray-300 hover:border-yellow-500 hover:text-yellow-600"
+                        className="rounded-full p-2 border-gray-300 hover:border-yellow-500 hover:text-yellow-600"
                       >
-                        🚫 Deactivate
+                        <span className="sm:hidden">🚫</span>
+                        <span className="hidden sm:inline">🚫 Deactivate</span>
                       </Button>
                     ) : (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onAction('reactivate', user._id)}
-                        className="flex-1 rounded-full border-gray-300 hover:border-green-500 hover:text-green-600"
+                        className="rounded-full p-2 border-gray-300 hover:border-green-500 hover:text-green-600"
                       >
-                        ✅ Reactivate
+                        <span className="sm:hidden">✅</span>
+                        <span className="hidden sm:inline">✅ Reactivate</span>
                       </Button>
                     )}
                     <Button
                       size="sm"
                       variant="error"
                       onClick={() => onDelete(user)}
-                      className="rounded-full"
+                      className="rounded-full p-2"
                     >
-                      🗑️
+                      <span className="sm:hidden">🗑️</span>
+                      <span className="hidden sm:inline">🗑️ Delete</span>
                     </Button>
                   </>
                 )}
@@ -777,7 +831,7 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
             <div className="space-y-2">
               <p><strong>Name:</strong> {user.name}</p>
               <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Role:</strong> {user.role.charAt(0).toUpperCase() + user.role.slice(1)}</p>
+              <p><strong>Role:</strong> {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A'}</p>
             </div>
           </div>
         )}
@@ -857,100 +911,313 @@ function DeleteUserModal({ isOpen, user, confirmation, setConfirmation, reason, 
 }
 
 function UserDetailsModal({ isOpen, user, onClose }) {
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
+
   if (!user || !user.user) return null;
+
+  const { user: userData, profile, bookings = [] } = user;
+
+  const getRoleInfo = (role) => {
+    switch (role) {
+      case 'admin':
+        return {
+          icon: '👑',
+          color: 'from-red-500 to-pink-500',
+          roleName: 'Administrator',
+        };
+      case 'manager':
+        return {
+          icon: '👨‍💻',
+          color: 'from-blue-500 to-indigo-500',
+          roleName: 'Manager',
+        };
+      case 'staff':
+        return {
+          icon: '👨‍💼',
+          color: 'from-green-500 to-emerald-500',
+          roleName: 'Staff',
+        };
+      default:
+        return {
+          icon: '👤',
+          color: 'from-gray-500 to-slate-500',
+          roleName: 'Guest',
+        };
+    }
+  };
+
+  const roleInfo = getRoleInfo(userData.role);
+
+  const InfoCard = ({ children }) => (
+    <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">{children}</div>
+  );
+
+  const DetailItem = ({ icon, label, value }) => (
+    <div className="flex items-start text-sm">
+      <span className="text-gray-400 w-6 h-6 mr-3">{icon}</span>
+      <div>
+        <p className="font-semibold text-gray-500">{label}</p>
+        <p className="text-gray-800">{value || 'Not provided'}</p>
+      </div>
+    </div>
+  );
+
+  const PermissionsDisplay = ({ permissions }) => (
+    <div>
+      <h4 className="text-lg font-bold text-gray-800 mb-4">🔑 Granular Permissions</h4>
+      <div className="space-y-3">
+        {permissions.map(({ module, actions }) => (
+          <div key={module} className="bg-gray-50 p-4 rounded-lg">
+            <p className="font-bold capitalize text-indigo-700">{module}</p>
+            <p className="text-sm text-gray-600">{actions.join(', ')}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="User Details" className="rounded-2xl shadow-xl">
-      <div className="space-y-6 p-6">
-        <div>
-          <h3 className="text-lg font-bold text-gray-800 mb-3">Basic Information</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="" className="rounded-2xl shadow-xl max-w-2xl">
+      <div className="p-0">
+        {/* Header Card */}
+        <div className={`bg-gradient-to-br ${roleInfo.color} p-8 text-white rounded-t-2xl`}>
+          <div className="flex items-center space-x-4">
+            <div className="text-4xl">{roleInfo.icon}</div>
             <div>
-              <p className="text-sm font-semibold text-gray-600">Name</p>
-              <p className="text-sm text-gray-900">{user.user?.name || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Email</p>
-              <p className="text-sm text-gray-900">{user.user.email}</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Phone</p>
-              <p className="text-sm text-gray-900">{user.user.phone || 'Not provided'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Role</p>
-              <p className="text-sm text-gray-900">{user.user.role.charAt(0).toUpperCase() + user.user.role.slice(1)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Status</p>
-              <p className="text-sm text-gray-900">
-                {user.user.isActive ? 'Active' : user.user.passwordResetPending ? 'Password Reset Pending' : 'Inactive'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-600">Approval Status</p>
-              <p className="text-sm text-gray-900">
-                {user.user.isApproved ? 'Approved' : 'Pending'}
-              </p>
+              <h2 className="text-2xl font-bold">{userData.name}</h2>
+              <p className="text-white/90">{roleInfo.roleName}</p>
             </div>
           </div>
         </div>
-        {user.profile && (
-          <div>
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Profile Information</h3>
-            <pre className="bg-gray-50 p-4 rounded-xl text-xs text-gray-700 overflow-auto">
-              {JSON.stringify(user.profile, null, 2)}
-            </pre>
+
+        <div className="p-8">
+          {/* Contact & Account Info */}
+          <InfoCard>
+            <h3 className="text-xl font-bold text-gray-800 mb-6">Contact & Account Info</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <DetailItem icon={'📧'} label="Email" value={userData.email} />
+              <DetailItem icon={'📞'} label="Phone" value={userData.phone} />
+              <DetailItem
+                icon={'✅'}
+                label="Account Status"
+                value={
+                  userData.isActive
+                    ? 'Active'
+                    : userData.passwordResetPending
+                    ? 'Password Reset Pending'
+                    : 'Inactive'
+                }
+              />
+              <DetailItem
+                icon={'👍'}
+                label="Approval Status"
+                value={userData.isApproved ? 'Approved' : 'Pending'}
+              />
+            </div>
+          </InfoCard>
+
+          {/* Role-Specific Information */}
+          {userData.role === 'staff' && (
+            <InfoCard>
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Staff Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DetailItem icon={'🏢'} label="Department" value={profile?.department} />
+                <DetailItem icon={'💼'} label="Position" value={profile?.position} />
+              </div>
+            </InfoCard>
+          )}
+
+          {userData.role === 'guest' && (
+            <InfoCard>
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Booking History</h3>
+              {bookings.length > 0 ? (
+                <ul className="space-y-2">
+                  {bookings.map((booking) => (
+                    <li key={booking._id} className="text-sm text-gray-700">
+                      Booking #{booking._id} - {new Date(booking.checkInDate).toLocaleDateString()}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No booking history available.</p>
+              )}
+            </InfoCard>
+          )}
+
+          {showMoreDetails && (
+            <InfoCard>
+              <h3 className="text-xl font-bold text-gray-800 mb-6">Additional Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DetailItem
+                  icon={'📍'}
+                  label="Address"
+                  value={`${profile?.address?.street || ''}, ${profile?.address?.city || ''}, ${profile?.address?.state || ''}`}
+                />
+                <DetailItem icon={'🌍'} label="Country" value={profile?.address?.country} />
+                <DetailItem
+                  icon={'🕒'}
+                  label="Last Login"
+                  value={userData.lastLogin ? new Date(userData.lastLogin).toLocaleString() : 'Never'}
+                />
+                <DetailItem icon={'💻'} label="Last Login IP" value={userData.lastLoginIp} />
+              </div>
+              {profile?.notes && (
+                <div className="mt-6">
+                  <p className="font-semibold text-gray-500">Profile Notes</p>
+                  <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg mt-2">{profile.notes}</p>
+                </div>
+              )}
+            </InfoCard>
+          )}
+
+          {userData.role === 'admin' && profile?.permissions?.length > 0 && (
+            <InfoCard>
+              <PermissionsDisplay permissions={profile.permissions} />
+            </InfoCard>
+          )}
+
+          <div className="flex justify-between items-center mt-8">
+            <Button
+              variant="link"
+              onClick={() => setShowMoreDetails(!showMoreDetails)}
+              className="text-indigo-600 hover:underline"
+            >
+              {showMoreDetails ? 'Show Less' : 'Show More Details'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600 px-6 py-2"
+            >
+              Close
+            </Button>
           </div>
-        )}
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
-          >
-            Close
-          </Button>
         </div>
       </div>
     </Modal>
   );
 }
 
-function EditUserModal({ isOpen, user, formData, setFormData, onClose, onSave }) {
+function EditUserModal({ isOpen, user, formData, setFormData, permissions, setPermissions, onClose, onSave }) {
   if (!user) return null;
+
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      address: { ...formData.address, [name]: value },
+    });
+  };
+
+  const handleSave = () => {
+    const updates = { ...formData };
+    if (user.role === 'admin') {
+      updates.profile = { ...(formData.profile || {}), permissions };
+    } else if (user.role === 'staff') {
+      updates.profile = { ...(formData.profile || {}) };
+    }
+    onSave(updates);
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit User" className="rounded-2xl shadow-xl">
-      <div className="space-y-6 p-6">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">📛 Name</label>
-          <Input
-            value={formData.name || ''}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Enter full name"
-            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-          />
+    <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${user.name}`} className="rounded-2xl shadow-xl max-w-3xl">
+      <div className="p-8 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Basic Info */}
+          <div className="md:col-span-2">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Basic Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">📛 Name</label>
+                <Input
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">📞 Phone</label>
+                <Input
+                  value={formData.phone || ''}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Info */}
+          <div className="md:col-span-2">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Address</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                name="street"
+                value={formData.address?.street || ''}
+                onChange={handleAddressChange}
+                placeholder="Street"
+                className="md:col-span-2 rounded-xl"
+              />
+              <Input name="city" value={formData.address?.city || ''} onChange={handleAddressChange} placeholder="City" className="rounded-xl" />
+              <Input name="state" value={formData.address?.state || ''} onChange={handleAddressChange} placeholder="State" className="rounded-xl" />
+              <Input name="zip" value={formData.address?.zip || ''} onChange={handleAddressChange} placeholder="ZIP Code" className="rounded-xl" />
+              <Input name="country" value={formData.address?.country || ''} onChange={handleAddressChange} placeholder="Country" className="rounded-xl" />
+            </div>
+          </div>
+
+          {/* Role & Permissions */}
+          {user.role !== 'guest' && (
+            <div className="md:col-span-2">
+              {user.role === 'staff' && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Staff Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">🏢 Department</label>
+                      <Select
+                        value={formData.profile?.department || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: { ...formData.profile, department: e.target.value }
+                        })}
+                        className="rounded-xl"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Housekeeping">🏠 Housekeeping</option>
+                        <option value="Kitchen">👨‍🍳 Kitchen</option>
+                        <option value="Maintenance">🔧 Maintenance</option>
+                        <option value="Service">🍽️ Service</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">💼 Position</label>
+                      <Input
+                        value={formData.profile?.position || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          profile: { ...formData.profile, position: e.target.value }
+                        })}
+                        placeholder="e.g., Housekeeper, Chef, Technician"
+                        className="rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {user.role === 'admin' && (
+                <div className="mt-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">🔑 Permissions</label>
+                  <PermissionSelector selectedPermissions={permissions} onPermissionChange={setPermissions} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">📞 Phone</label>
-          <Input
-            value={formData.phone || ''}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="Enter phone number"
-            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="rounded-full border-gray-300 hover:border-indigo-500 hover:text-indigo-600"
-          >
+
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={onClose} className="rounded-full px-6 py-2">
             Cancel
           </Button>
-          <Button
-            onClick={onSave}
-            className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-          >
+          <Button onClick={handleSave} className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-2">
             Save Changes
           </Button>
         </div>

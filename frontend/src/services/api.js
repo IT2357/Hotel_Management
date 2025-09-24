@@ -1,46 +1,22 @@
 //src/services/api.js
-console.log('api loaded');
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: (() => {
-    // Always use the backend server for API calls
-    const envUrl = import.meta.env.VITE_API_BASE_URL;
-    
-    // Default to localhost:5000/api (main backend server)
-    if (!envUrl) {
-      return "http://localhost:5000/api";
-    }
-
-    // Handle double /api issue
-    if (envUrl && envUrl.includes('/api/api')) {
-      return envUrl.replace('/api/api', '/api');
-    }
-
-    // If env var doesn't end with /api, add it
-    if (!envUrl.endsWith('/api')) {
-      return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
-    }
-
-    return envUrl;
-  })(),
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api", // Fallback to /api for Vite proxy
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+console.log("API Base URL:", api.defaults.baseURL);
+
 // Attach token to every request
 api.interceptors.request.use((config) => {
+  console.log("Making request to:", config.url, "with baseURL:", config.baseURL);
   const token = localStorage.getItem("token");
   if (token && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
-  // Don't set Content-Type for FormData - let browser set it with boundary
-  if (config.data instanceof FormData) {
-    delete config.headers["Content-Type"];
-  }
-
   return config;
 });
 

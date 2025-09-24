@@ -3,17 +3,22 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
-    console.log('🔍 Attempting to connect to MongoDB...');
-    console.log('📍 MongoDB URI:', process.env.MONGODB_URI);
-    
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel-management';
+
+    if (!process.env.MONGODB_URI) {
+      console.warn('⚠️  MONGODB_URI not set in environment variables, using default: mongodb://localhost:27017/hotel-management');
+      console.warn('📝 Please set MONGODB_URI in your .env file for production use');
+    }
+
     const options = {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       family: 4,
+      bufferCommands: false, // Disable mongoose buffering
     };
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, options);
+    const conn = await mongoose.connect(mongoURI, options);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);
@@ -48,11 +53,9 @@ export const connectDB = async () => {
 
     return conn;
   } catch (error) {
-    console.error("❌ Database connection error:", error.message);
-    console.error("❌ Full error:", error);
-    
-    // Don't retry automatically, just throw the error
-    throw error;
+    console.error("❌ Database connection error:", error);
+    console.log("🔄 Retrying database connection in 5 seconds...");
+    setTimeout(connectDB, 5000);
   }
 };
 

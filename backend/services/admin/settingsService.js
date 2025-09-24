@@ -1,5 +1,8 @@
 import AdminSettings from "../../models/AdminSettings.js";
 import EmailService from "../notification/emailService.js";
+import { clearSettingsCache } from "../../middleware/auth.js";
+import BookingService from "../booking/bookingService.js";
+import NotificationService from "../notification/notificationService.js";
 import mongoose from "mongoose";
 
 const settingsService = {
@@ -29,6 +32,7 @@ const settingsService = {
       }
 
       const allowedFields = [
+        // Basic settings
         "siteName",
         "hotelName",
         "description",
@@ -37,30 +41,58 @@ const settingsService = {
         "address",
         "timezone",
         "currency",
+        
+        // Email settings
         "smtpHost",
         "smtpPort",
         "smtpUser",
         "smtpPassword",
         "smtpFrom",
         "smtpSecure",
+        
+        // Notification settings
         "enableEmailNotifications",
         "enableSMSNotifications",
         "bookingConfirmations",
         "promotionalEmails",
         "adminNotifications",
+        
+        // Security settings
         "passwordMinLength",
         "requireSpecialCharacters",
         "sessionTimeout",
         "maxLoginAttempts",
         "twoFactorRequired",
-        "allowGuestBooking",
-        "requireApproval",
-        "maxAdvanceBooking",
-        "cancellationPolicy",
-        "defaultCheckInTime",
-        "defaultCheckOutTime",
-        "maxGuestsPerRoom",
-        "maintenanceMode",
+        
+        // Operational settings
+        "operationalSettings",
+        
+        // Payment Gateway settings
+        "paymentGateway",
+        
+        // Room Management settings
+        "roomSettings",
+        
+        // Staff Management settings
+        "staffSettings",
+        
+        // Financial settings
+        "financialSettings",
+        
+        // Reporting settings
+        "reportingSettings",
+        
+        // Integration settings
+        "integrationSettings",
+        
+        // System settings
+        "systemSettings",
+        
+        // Customization settings
+        "customizationSettings",
+        
+        // Guest Experience settings
+        "guestSettings",
       ];
 
       const filteredUpdates = Object.fromEntries(
@@ -141,6 +173,12 @@ const settingsService = {
         }
       }
 
+      // Clear all service caches when settings are updated
+      clearSettingsCache();
+      BookingService.clearSettingsCache();
+      NotificationService.settingsCache = null;
+      NotificationService.settingsCacheTime = 0;
+
       return settings;
     } catch (error) {
       console.error("Error updating admin settings:", {
@@ -150,6 +188,184 @@ const settingsService = {
         adminId,
       });
       throw new Error(`Failed to update settings: ${error.message}`);
+    }
+  },
+
+  // Backup settings
+  async backupSettings() {
+    try {
+      const settings = await AdminSettings.findOne().lean();
+      if (!settings) {
+        throw new Error("No settings found to backup");
+      }
+      
+      // Remove sensitive data from backup
+      const backup = { ...settings };
+      delete backup.smtpPassword;
+      if (backup.paymentGateway) {
+        delete backup.paymentGateway.secretKey;
+      }
+      
+      return {
+        ...backup,
+        backupDate: new Date(),
+        version: "1.0"
+      };
+    } catch (error) {
+      console.error("Error backing up settings:", error);
+      throw new Error(`Failed to backup settings: ${error.message}`);
+    }
+  },
+
+  // Restore settings from backup
+  async restoreSettings(backupData, adminId) {
+    try {
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error("Invalid backup data provided");
+      }
+
+      // Remove backup metadata
+      const { backupDate, version, _id, createdAt, updatedAt, __v, ...settingsData } = backupData;
+      
+      const settings = await AdminSettings.findOneAndUpdate(
+        {},
+        {
+          ...settingsData,
+          lastUpdatedBy: adminId,
+          lastUpdatedAt: new Date(),
+        },
+        { new: true, runValidators: true, upsert: true }
+      );
+
+      return settings;
+    } catch (error) {
+      console.error("Error restoring settings:", error);
+      throw new Error(`Failed to restore settings: ${error.message}`);
+    }
+  },
+
+  // Reset settings to defaults
+  async resetToDefaults(adminId) {
+    try {
+      await AdminSettings.deleteMany({});
+      const defaultSettings = await AdminSettings.create({
+        lastUpdatedBy: adminId,
+        lastUpdatedAt: new Date(),
+      });
+      return defaultSettings;
+    } catch (error) {
+      console.error("Error resetting settings:", error);
+      throw new Error(`Failed to reset settings: ${error.message}`);
+    }
+  },
+
+  // Validate payment gateway configuration
+  async validatePaymentGateway(config) {
+    try {
+      const { provider, publicKey, secretKey, testMode } = config;
+      
+      if (!provider || !publicKey || !secretKey) {
+        throw new Error("Missing required payment gateway configuration");
+      }
+
+      // Basic validation based on provider
+      switch (provider) {
+        case 'stripe':
+          if (!publicKey.startsWith(testMode ? 'pk_test_' : 'pk_live_')) {
+            throw new Error("Invalid Stripe public key format");
+          }
+          if (!secretKey.startsWith(testMode ? 'sk_test_' : 'sk_live_')) {
+            throw new Error("Invalid Stripe secret key format");
+          }
+          break;
+        case 'paypal':
+          // PayPal validation logic
+          break;
+        default:
+          console.warn(`No specific validation for provider: ${provider}`);
+      }
+
+      return { valid: true, message: "Payment gateway configuration is valid" };
+    } catch (error) {
+      return { valid: false, message: error.message };
+    }
+  },
+
+  // Get settings by category
+  async getSettingsByCategory(category) {
+    try {
+      const settings = await this.getAdminSettings();
+      
+      switch (category) {
+        case 'general':
+          return {
+            siteName: settings.siteName,
+            hotelName: settings.hotelName,
+            description: settings.description,
+            contactEmail: settings.contactEmail,
+            contactPhone: settings.contactPhone,
+            address: settings.address,
+            timezone: settings.timezone,
+            currency: settings.currency,
+          };
+        case 'email':
+          return {
+            smtpHost: settings.smtpHost,
+            smtpPort: settings.smtpPort,
+            smtpUser: settings.smtpUser,
+            smtpFrom: settings.smtpFrom,
+            smtpSecure: settings.smtpSecure,
+          };
+        case 'notifications':
+          return {
+            enableEmailNotifications: settings.enableEmailNotifications,
+            enableSMSNotifications: settings.enableSMSNotifications,
+            bookingConfirmations: settings.bookingConfirmations,
+            promotionalEmails: settings.promotionalEmails,
+            adminNotifications: settings.adminNotifications,
+          };
+        case 'security':
+          return {
+            passwordMinLength: settings.passwordMinLength,
+            requireSpecialCharacters: settings.requireSpecialCharacters,
+            sessionTimeout: settings.sessionTimeout,
+            maxLoginAttempts: settings.maxLoginAttempts,
+            twoFactorRequired: settings.twoFactorRequired,
+          };
+        case 'operational':
+          return settings.operationalSettings || {};
+        case 'booking':
+          return {
+            allowGuestBooking: settings.allowGuestBooking,
+            requireApproval: settings.requireApproval,
+            maxAdvanceBooking: settings.maxAdvanceBooking,
+            cancellationPolicy: settings.cancellationPolicy,
+            defaultCheckInTime: settings.defaultCheckInTime,
+            defaultCheckOutTime: settings.defaultCheckOutTime,
+            maxGuestsPerRoom: settings.maxGuestsPerRoom,
+          };
+        case 'payment':
+          return settings.paymentGateway || {};
+        case 'rooms':
+          return settings.roomSettings || {};
+        case 'staff':
+          return settings.staffSettings || {};
+        case 'financial':
+          return settings.financialSettings || {};
+        case 'reporting':
+          return settings.reportingSettings || {};
+        case 'integrations':
+          return settings.integrationSettings || {};
+        case 'system':
+          return settings.systemSettings || {};
+        case 'customization':
+          return settings.customizationSettings || {};
+        case 'guest':
+          return settings.guestSettings || {};
+      }
+    } catch (error) {
+      console.error(`Error getting settings for category ${category}:`, error);
+      throw new Error(`Failed to get settings for category: ${error.message}`);
     }
   },
 };

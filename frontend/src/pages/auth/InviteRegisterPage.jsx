@@ -27,9 +27,13 @@ export default function InviteRegisterPage() {
     const checkInvite = async () => {
       try {
         const response = await authService.checkInvitation(token);
-        setInviteData(response.data.invitation);
+        // Backend responds with { success, message, data }
+        setInviteData(response.data?.data || null);
+        if (!response.data?.data) {
+          setError('Invalid or expired invitation token.');
+        }
       } catch (err) {
-        setError(err.response?.data?.error || 'Invalid or expired invitation token.');
+        setError(err.response?.data?.message || 'Invalid or expired invitation token.');
       } finally {
         setLoading(false);
       }
@@ -46,10 +50,10 @@ export default function InviteRegisterPage() {
         token,
       });
 
-      const user = await login({ email: inviteData.email, password: data.password });
+      const user = await login({ email: inviteData?.email, password: data.password });
       navigate(getDashboardPath(user.role));
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed.');
+      setError(err.response?.data?.message || 'Registration failed.');
     }
   };
 
@@ -84,7 +88,7 @@ export default function InviteRegisterPage() {
       label: 'Email (assigned by admin)',
       type: 'email',
       readOnly: true,
-      defaultValue: inviteData.email,
+      defaultValue: inviteData?.email || '',
       validation: { required: true }
     },
     {
@@ -109,7 +113,7 @@ export default function InviteRegisterPage() {
             Complete Your Registration
           </h2>
           <div className="mt-2">
-            <RoleBadge role={inviteData.role} />
+            {inviteData?.role && <RoleBadge role={inviteData.role} />}
           </div>
         </div>
         <AuthForm

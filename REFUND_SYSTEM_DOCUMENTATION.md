@@ -645,7 +645,7 @@ For technical issues:
 
 ```env
 # Database
-MONGODB_URI=mongodb://localhost:27017/hotel_management
+MONGODB_URI=mongodb://localhost:27017/hotel-management
 
 # JWT
 JWT_SECRET=your-secret-key

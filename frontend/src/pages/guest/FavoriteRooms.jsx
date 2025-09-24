@@ -1,161 +1,337 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import Badge from '../../components/ui/Badge';
+import { Heart, Star, Users, MapPin, Calendar, Wifi, Car, Utensils } from 'lucide-react';
+import roomService from '../../services/roomService';
 
 export default function FavoriteRooms() {
-  const [favorites, setFavorites] = useState([]);
+  const navigate = useNavigate();
+  const [favoriteRooms, setFavoriteRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Simulate loading favorite rooms
-    setTimeout(() => {
-      setFavorites([
-        {
-          id: 1,
-          name: 'Ocean View Suite',
-          type: 'Suite',
-          price: 250,
-          rating: 4.8,
-          image: '/api/placeholder/400/300',
-          amenities: ['Ocean View', 'Balcony', 'Mini Bar', 'Jacuzzi'],
-          description: 'Stunning ocean views with modern amenities'
-        },
-        {
-          id: 2,
-          name: 'Executive Deluxe',
-          type: 'Deluxe',
-          price: 180,
-          rating: 4.6,
-          image: '/api/placeholder/400/300',
-          amenities: ['City View', 'Work Desk', 'Coffee Maker', 'Safe'],
-          description: 'Perfect for business travelers'
-        },
-        {
-          id: 3,
-          name: 'Garden Villa',
-          type: 'Villa',
-          price: 320,
-          rating: 4.9,
-          image: '/api/placeholder/400/300',
-          amenities: ['Private Garden', 'Outdoor Shower', 'Fireplace', 'Spa Access'],
-          description: 'Luxurious villa with private garden'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    fetchFavoriteRooms();
   }, []);
 
-  const removeFavorite = (id) => {
-    setFavorites(favorites.filter(room => room.id !== id));
+  const fetchFavoriteRooms = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // For now using mock data, but in production this would call:
+      // const response = await favoriteService.getUserFavorites();
+      // setFavoriteRooms(response.data);
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const mockFavorites = [
+        {
+          _id: 1,
+          title: "Deluxe Ocean View Suite",
+          description: "Spacious suite with panoramic ocean views and private balcony",
+          pricePerNight: 15000,
+          capacity: 4,
+          roomNumber: "501",
+          type: "Suite",
+          rating: 4.9,
+          images: ["/api/placeholder/400/250"],
+          amenities: ["WiFi", "Ocean View", "Balcony", "Mini Bar", "Jacuzzi"],
+          available: true
+        },
+        {
+          _id: 2,
+          title: "Executive Business Room",
+          description: "Modern room designed for business travelers with work desk and city views",
+          pricePerNight: 8500,
+          capacity: 2,
+          roomNumber: "301",
+          type: "Executive",
+          rating: 4.7,
+          images: ["/api/placeholder/400/250"],
+          amenities: ["WiFi", "Work Desk", "City View", "Coffee Machine"],
+          available: true
+        },
+        {
+          _id: 3,
+          title: "Garden Villa",
+          description: "Private villa with garden access and luxury amenities",
+          pricePerNight: 25000,
+          capacity: 6,
+          roomNumber: "GV1",
+          type: "Villa",
+          rating: 4.8,
+          images: ["/api/placeholder/400/250"],
+          amenities: ["Garden Access", "Private Pool", "Kitchen", "WiFi", "Parking"],
+          available: false
+        },
+        {
+          _id: 4,
+          title: "Standard Room",
+          description: "Comfortable standard room with all essential amenities",
+          pricePerNight: 6500,
+          capacity: 2,
+          roomNumber: "201",
+          type: "Standard",
+          rating: 4.2,
+          images: ["/api/placeholder/400/250"],
+          amenities: ["WiFi", "TV", "Air Conditioning"],
+          available: true
+        }
+      ];
+
+      setFavoriteRooms(mockFavorites);
+    } catch (error) {
+      console.error('Error fetching favorite rooms:', error);
+      setError('Failed to load favorite rooms. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleRemoveFavorite = async (roomId) => {
+    try {
+      // In production, this would call:
+      // await favoriteService.removeFromFavorites(roomId);
+      setFavoriteRooms(prev => prev.filter(room => room._id !== roomId));
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+      alert('Failed to remove from favorites. Please try again.');
+    }
+  };
+
+  const handleBookNow = (room) => {
+    navigate('/booking/guest', {
+      state: {
+        roomId: room._id,
+        checkIn: new Date().toISOString().split('T')[0],
+        checkOut: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        guests: 1,
+        roomDetails: room
+      }
+    });
+  };
+
+  const handleViewRoom = (roomId) => {
+    navigate(`/rooms/${roomId}`);
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'LKR'
+    }).format(price);
+  };
+
+  const getAmenityIcon = (amenity) => {
+    const icons = {
+      'WiFi': Wifi,
+      'Ocean View': MapPin,
+      'Balcony': MapPin,
+      'Mini Bar': Utensils,
+      'Jacuzzi': Star,
+      'Work Desk': MapPin,
+      'City View': MapPin,
+      'Coffee Machine': Utensils,
+      'Garden Access': Car,
+      'Private Pool': Star,
+      'Kitchen': Utensils,
+      'Parking': Car,
+      'TV': Star,
+      'Air Conditioning': Star
+    };
+    return icons[amenity] || Star;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 text-white py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-4">Favorite Rooms</h1>
-              <p className="text-xl opacity-90">Your saved room preferences and wishlist</p>
-            </div>
-            <Link
-              to="/guest/dashboard"
-              className="px-6 py-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-300 font-semibold"
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-indigo-800 mb-2">
+            My Favorite Rooms
+          </h1>
+          <p className="text-gray-600">
+            Your saved rooms for quick booking
+          </p>
+          <div className="mt-4">
+            <Button
+              onClick={fetchFavoriteRooms}
+              variant="outline"
+              size="sm"
+              disabled={loading}
             >
-              ← Back to Dashboard
-            </Link>
+              {loading ? 'Loading...' : 'Refresh'}
+            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
-          </div>
-        ) : favorites.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">❤️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">No Favorites Yet</h2>
-            <p className="text-gray-600 mb-8">Start exploring rooms and add them to your favorites.</p>
-            <Link
-              to="/rooms"
-              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-            >
-              <span>Explore Rooms</span>
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
+        {/* Error Message */}
+        {error && (
+          <Card className="p-4 mb-6 bg-red-50 border-red-200">
+            <p className="text-red-800">{error}</p>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {favoriteRooms.length === 0 ? (
+          <Card className="p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              No Favorite Rooms Yet
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Start browsing rooms and save your favorites for quick access later.
+            </p>
+            <Button onClick={() => navigate('/rooms')}>
+              Browse Rooms
+            </Button>
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {favorites.map((room) => (
-              <div
-                key={room.id}
-                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden border border-gray-100"
-              >
-                {/* Room Image */}
-                <div className="relative h-48 bg-gradient-to-br from-gray-200 to-gray-300">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-4xl">🏨</div>
+          /* Favorite Rooms Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {favoriteRooms.map((room) => (
+              <Card key={room._id} className="overflow-hidden hover:shadow-lg transition duration-300">
+                <div className="relative">
+                  <img
+                    src={room.images[0]}
+                    alt={room.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute top-4 right-4">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleRemoveFavorite(room._id)}
+                      className="bg-white bg-opacity-90 hover:bg-opacity-100"
+                    >
+                      <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                    </Button>
                   </div>
-                  <button
-                    onClick={() => removeFavorite(room.id)}
-                    className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-md hover:bg-white transition-all duration-300"
-                  >
-                    <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  <div className="absolute top-4 left-4">
+                    <Badge className={room.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                      {room.available ? 'Available' : 'Unavailable'}
+                    </Badge>
+                  </div>
                 </div>
 
-                {/* Room Details */}
                 <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xl font-bold text-gray-800">{room.name}</h3>
-                    <div className="flex items-center">
-                      <span className="text-yellow-400 mr-1">⭐</span>
-                      <span className="text-sm font-semibold text-gray-700">{room.rating}</span>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-xl font-semibold text-gray-800">
+                      {room.title}
+                    </h3>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-indigo-600">
+                        {formatPrice(room.pricePerNight)}
+                      </div>
+                      <div className="text-sm text-gray-600">per night</div>
                     </div>
                   </div>
 
-                  <p className="text-gray-600 text-sm mb-4">{room.description}</p>
+                  <p className="text-gray-600 mb-4">
+                    {room.description}
+                  </p>
 
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {room.amenities.slice(0, 3).map((amenity, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium"
-                      >
-                        {amenity}
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        Up to {room.capacity} guests
                       </span>
-                    ))}
-                    {room.amenities.length > 3 && (
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                        +{room.amenities.length - 3} more
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <MapPin className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        Room {room.roomNumber}
                       </span>
-                    )}
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm text-gray-600">
+                        {room.rating}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="text-2xl font-bold text-gray-800">
-                      ${room.price}
-                      <span className="text-sm text-gray-600 font-normal">/night</span>
+                  {/* Amenities */}
+                  {room.amenities && room.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {room.amenities.slice(0, 4).map((amenity) => {
+                        const IconComponent = getAmenityIcon(amenity);
+                        return (
+                          <div key={amenity} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded-full">
+                            <IconComponent className="h-3 w-3 text-gray-600" />
+                            <span className="text-xs text-gray-600">{amenity}</span>
+                          </div>
+                        );
+                      })}
+                      {room.amenities.length > 4 && (
+                        <span className="text-xs text-gray-500">
+                          +{room.amenities.length - 4} more
+                        </span>
+                      )}
                     </div>
-                    <Link
-                      to={`/rooms/${room.id}`}
-                      className="px-6 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-sm"
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex space-x-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewRoom(room._id)}
+                      className="flex-1"
                     >
                       View Details
-                    </Link>
+                    </Button>
+                    <Button
+                      onClick={() => handleBookNow(room)}
+                      disabled={!room.available}
+                      className="flex-1"
+                    >
+                      {room.available ? 'Book Now' : 'Unavailable'}
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
+
+        {/* Summary Stats */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6 text-center">
+            <div className="text-2xl font-bold text-indigo-600 mb-2">
+              {favoriteRooms.length}
+            </div>
+            <div className="text-gray-600">Total Favorites</div>
+          </Card>
+
+          <Card className="p-6 text-center">
+            <div className="text-2xl font-bold text-green-600 mb-2">
+              {favoriteRooms.filter(room => room.available).length}
+            </div>
+            <div className="text-gray-600">Available Now</div>
+          </Card>
+
+          <Card className="p-6 text-center">
+            <div className="text-2xl font-bold text-blue-600 mb-2">
+              {formatPrice(favoriteRooms.reduce((sum, room) => sum + room.pricePerNight, 0))}
+            </div>
+            <div className="text-gray-600">Total Value</div>
+          </Card>
+        </div>
       </div>
     </div>
   );

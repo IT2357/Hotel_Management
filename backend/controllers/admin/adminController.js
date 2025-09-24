@@ -1,6 +1,8 @@
 // 📁 backend/controllers/admin/adminController.js
 import AdminService from "../../services/admin/adminService.js";
 import NotificationService from "../../services/notification/notificationService.js";
+import RefundService from "../../services/payment/refundService.js";
+import RefundRequest from "../../models/RefundRequest.js";
 
 // Helper for consistent error responses
 const handleError = (res, error, defaultMessage = "Operation failed") => {
@@ -93,7 +95,7 @@ export const approveUser = async (req, res) => {
 // Create invitation
 export const createInvitation = async (req, res) => {
   try {
-    const { email, role, expiresInHours = 24 } = req.body;
+    const { email, role, department, position, permissions, expiresInHours = 24 } = req.body;
 
     // Input validation
     if (!email || !role) {
@@ -103,9 +105,20 @@ export const createInvitation = async (req, res) => {
       });
     }
 
+    // Additional validation for staff role
+    if (role === "staff" && (!department || !position)) {
+      return res.status(400).json({
+        success: false,
+        message: "Department and position are required for staff invites",
+      });
+    }
+
     const result = await AdminService.createInvitation({
       email,
       role,
+      department,
+      position,
+      permissions,
       expiresInHours,
       createdBy: req.user._id,
     });
@@ -566,27 +579,89 @@ export const deleteNotificationTemplate = async (req, res) => {
 // Get all pending refund requests
 export const getPendingRefunds = async (req, res) => {
   try {
-    const refunds = await AdminService.getPendingRefunds();
-    sendSuccess(res, refunds);
+    const refundRequests = await RefundService.getRefundRequests({ status: 'pending' });
+    sendSuccess(res, refundRequests);
   } catch (error) {
     handleError(res, error, "Failed to get pending refunds");
+  }
+};
+
+// Get all refunds with optional filtering
+export const getRefunds = async (req, res) => {
+  try {
+    const { status, dateFrom, dateTo, search, page = 1, limit = 20 } = req.query;
+    const refundRequests = await RefundService.getRefundRequests({
+      status,
+      dateFrom,
+      dateTo,
+      search
+    });
+
+    console.log('📋 Refund requests found:', refundRequests.length);
+    console.log('📋 First few refunds:', refundRequests.slice(0, 3).map(r => ({
+      id: r._id,
+      status: r.status,
+      amount: r.amount,
+      hasApprovedBy: !!r.approvedBy,
+      hasDeniedBy: !!r.deniedBy,
+      createdAt: r.createdAt
+    })));
+
+    // Manual pagination since RefundService doesn't handle it yet
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRefunds = refundRequests.slice(startIndex, endIndex);
+
+    console.log('📋 Paginated refunds:', paginatedRefunds.length);
+
+    sendSuccess(res, {
+      refunds: paginatedRefunds,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(refundRequests.length / limit),
+        totalRefunds: refundRequests.length,
+        hasNext: endIndex < refundRequests.length,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to get refunds");
   }
 };
 
 // Get specific refund details
 export const getRefundDetails = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!id) {
+    const { id: refundId } = req.params; // Change from refundId to id to match route parameter
+
+    console.log('📋 getRefundDetails called with:', { refundId, params: req.params });
+
+    if (!refundId) {
+      console.log('📋 No refundId provided in params:', req.params);
       return res.status(400).json({
         success: false,
         message: "Refund ID is required",
       });
     }
 
-    const refund = await AdminService.getRefundDetails(id);
+    const refund = await RefundRequest.findById(refundId)
+      .populate('bookingId', 'bookingNumber checkIn checkOut totalPrice')
+      .populate('guestId', 'name email')
+      .populate('approvedBy', 'name')
+      .populate('deniedBy', 'name');
+
+    if (!refund) {
+      console.log('📋 Refund not found:', refundId);
+      return res.status(404).json({
+        success: false,
+        message: "Refund request not found",
+      });
+    }
+
+    console.log('📋 Refund found:', { id: refund._id, status: refund.status });
     sendSuccess(res, refund);
   } catch (error) {
+    console.error('📋 Error in getRefundDetails:', error);
     handleError(res, error, "Failed to get refund details");
   }
 };
@@ -594,17 +669,24 @@ export const getRefundDetails = async (req, res) => {
 // Approve refund
 export const approveRefund = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!id) {
+    const { id: refundId } = req.params; // Change from refundId to id to match route parameter
+    const adminId = req.user._id;
+
+    console.log('📋 approveRefund called with:', { refundId, adminId, params: req.params, user: req.user });
+
+    if (!refundId) {
+      console.log('📋 No refundId provided in params:', req.params);
       return res.status(400).json({
         success: false,
         message: "Refund ID is required",
       });
     }
 
-    const result = await AdminService.approveRefund(id, req.user._id);
-    sendSuccess(res, result, result.message);
+    const refund = await RefundService.approveRefund(refundId, adminId);
+    console.log('📋 Refund approved successfully:', refund._id);
+    sendSuccess(res, refund, "Refund approved successfully");
   } catch (error) {
+    console.error('📋 Error in approveRefund:', error);
     handleError(res, error, "Failed to approve refund");
   }
 };
@@ -612,19 +694,25 @@ export const approveRefund = async (req, res) => {
 // Deny refund with reason
 export const denyRefund = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id: refundId } = req.params;
     const { reason } = req.body;
+    const adminId = req.user._id;
 
-    if (!id || !reason) {
+    console.log('📋 denyRefund called with:', { refundId, reason, adminId, params: req.params });
+
+    if (!refundId || !reason) {
+      console.log('📋 Missing parameters:', { refundId, reason });
       return res.status(400).json({
         success: false,
         message: "Refund ID and reason are required",
       });
     }
 
-    const result = await AdminService.denyRefund(id, reason, req.user._id);
-    sendSuccess(res, result, result.message);
+    const refund = await RefundService.denyRefund(refundId, adminId, reason);
+    console.log('📋 Refund denied successfully:', refund._id);
+    sendSuccess(res, refund, "Refund denied successfully");
   } catch (error) {
+    console.error('📋 Error in denyRefund:', error);
     handleError(res, error, "Failed to deny refund");
   }
 };
@@ -632,23 +720,49 @@ export const denyRefund = async (req, res) => {
 // Request more information
 export const requestMoreInfo = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { message } = req.body;
+    const { id: refundId } = req.params;
+    const { infoRequested } = req.body;
+    const adminId = req.user._id;
 
-    if (!id || !message) {
+    console.log('📋 requestMoreInfo called with:', { refundId, infoRequested, adminId, params: req.params });
+
+    if (!refundId || !infoRequested) {
+      console.log('📋 Missing parameters:', { refundId, infoRequested });
+      console.log('📋 Request body:', req.body);
+      console.log('📋 Request headers:', req.headers['content-type']);
       return res.status(400).json({
         success: false,
-        message: "Refund ID and message are required",
+        message: "Refund ID and information request details are required",
       });
     }
 
-    const result = await AdminService.requestMoreInfo(
-      id,
-      message,
-      req.user._id
-    );
-    sendSuccess(res, result, result.message);
+    const refund = await RefundRequest.findById(refundId);
+    if (!refund) {
+      console.log('📋 Refund not found:', refundId);
+      return res.status(404).json({
+        success: false,
+        message: "Refund request not found",
+      });
+    }
+
+    if (refund.status !== 'pending') {
+      console.log('📋 Refund status check failed:', { refundId, currentStatus: refund.status });
+      return res.status(400).json({
+        success: false,
+        message: `Refund is already ${refund.status}`,
+      });
+    }
+
+    refund.status = 'info_requested';
+    refund.infoRequested = infoRequested;
+    refund.infoRequestedBy = adminId;
+    refund.infoRequestedAt = new Date();
+    await refund.save();
+
+    console.log('📋 Information request sent successfully:', refund._id);
+    sendSuccess(res, refund, "Information request sent successfully");
   } catch (error) {
+    console.error('📋 Error in requestMoreInfo:', error);
     handleError(res, error, "Failed to request more information");
   }
 };
@@ -656,19 +770,45 @@ export const requestMoreInfo = async (req, res) => {
 // Process refund
 export const processRefund = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { originalPaymentId } = req.body;
+    const { id: refundId } = req.params;
+    const { gatewayResponse } = req.body;
 
-    if (!id) {
+    console.log('📋 processRefund called with:', { refundId, gatewayResponse, params: req.params });
+
+    if (!refundId) {
+      console.log('📋 No refundId provided in params:', req.params);
       return res.status(400).json({
         success: false,
         message: "Refund ID is required",
       });
     }
 
-    const result = await AdminService.processRefund(id, originalPaymentId);
-    sendSuccess(res, result, "Refund processed successfully");
+    const refund = await RefundRequest.findById(refundId);
+    if (!refund) {
+      console.log('📋 Refund not found:', refundId);
+      return res.status(404).json({
+        success: false,
+        message: "Refund request not found",
+      });
+    }
+
+    if (refund.status !== 'approved') {
+      console.log('📋 Refund status check failed:', { refundId, currentStatus: refund.status });
+      return res.status(400).json({
+        success: false,
+        message: `Refund must be approved before processing. Current status: ${refund.status}`,
+      });
+    }
+
+    refund.status = 'processed';
+    refund.processedAt = new Date();
+    refund.gatewayResponse = gatewayResponse;
+    await refund.save();
+
+    console.log('📋 Refund processed successfully:', refund._id);
+    sendSuccess(res, refund, "Refund processed successfully");
   } catch (error) {
+    console.error('📋 Error in processRefund:', error);
     handleError(res, error, "Failed to process refund");
   }
 };
@@ -676,19 +816,431 @@ export const processRefund = async (req, res) => {
 // Check refund status
 export const checkRefundStatus = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id: refundId } = req.params;
 
-    if (!id) {
+    console.log('📋 checkRefundStatus called with:', { refundId, params: req.params });
+
+    if (!refundId) {
+      console.log('📋 No refundId provided in params:', req.params);
       return res.status(400).json({
         success: false,
         message: "Refund ID is required",
       });
     }
 
-    const result = await AdminService.checkRefundStatus(id);
-    sendSuccess(res, result, "Refund status retrieved successfully");
+    const refund = await RefundRequest.findById(refundId)
+      .populate('bookingId', 'bookingNumber')
+      .populate('guestId', 'name email');
+
+    if (!refund) {
+      console.log('📋 Refund not found:', refundId);
+      return res.status(404).json({
+        success: false,
+        message: "Refund request not found",
+      });
+    }
+
+    console.log('📋 Refund status retrieved successfully:', { id: refund._id, status: refund.status });
+    sendSuccess(res, refund, "Refund status retrieved successfully");
   } catch (error) {
+    console.error('📋 Error in checkRefundStatus:', error);
     handleError(res, error, "Failed to check refund status");
+  }
+};
+
+// ===== BOOKING MANAGEMENT METHODS =====
+
+// Get all bookings with filtering and pagination
+export const getAllBookings = async (req, res) => {
+  try {
+    const {
+      status,
+      page = 1,
+      limit = 20,
+      search,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    // Import Booking model dynamically
+    const Booking = (await import("../../models/Booking.js")).default;
+    const User = (await import("../../models/User.js")).default;
+
+    let query = {};
+
+    // Filter by status
+    if (status) {
+      query.status = status;
+    }
+
+    // Filter by date range
+    if (dateFrom || dateTo) {
+      query.checkIn = {};
+      if (dateFrom) query.checkIn.$gte = new Date(dateFrom);
+      if (dateTo) query.checkIn.$lte = new Date(dateTo);
+    }
+
+    // Search by booking number or guest name
+    if (search) {
+      const users = await User.find({
+        name: { $regex: search, $options: 'i' }
+      }).select('_id');
+
+      query.$or = [
+        { bookingNumber: { $regex: search, $options: 'i' } },
+        { userId: { $in: users.map(u => u._id) } }
+      ];
+    }
+
+    const bookings = await Booking.find(query)
+      .populate('userId', 'name email phone')
+      .populate('roomId', 'title roomNumber type')
+      .populate('reviewedBy', 'name')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+
+    sendSuccess(res, {
+      bookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalBookings: total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
+    });
+
+  } catch (error) {
+    handleError(res, error, "Failed to get bookings");
+  }
+};
+
+// Get bookings requiring approval
+export const getPendingBookingApprovals = async (req, res) => {
+  try {
+    const Booking = (await import("../../models/Booking.js")).default;
+
+    const bookings = await Booking.find({ status: 'Pending Approval' })
+      .populate('userId', 'name email phone')
+      .populate('roomId', 'title roomNumber type')
+      .sort({ createdAt: 1 }); // Oldest first for approval queue
+
+    sendSuccess(res, bookings);
+
+  } catch (error) {
+    handleError(res, error, "Failed to get pending approvals");
+  }
+};
+
+// Approve booking
+export const approveBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { approvalNotes } = req.body;
+    const adminId = req.user._id;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    const Booking = (await import("../../models/Booking.js")).default;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('userId')
+      .populate('roomId');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    if (booking.status !== 'On Hold') {
+      return res.status(400).json({
+        success: false,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
+      });
+    }
+
+    // Update booking status
+    booking.status = 'Accepted';
+    booking.confirmedAt = new Date();
+    booking.confirmedBy = adminId;
+    booking.approvalNotes = approvalNotes;
+    booking.reviewedBy = adminId;
+    booking.reviewedAt = new Date();
+    booking.requiresReview = false;
+    await booking.save();
+
+    // Create invoice for cash payments when booking is approved
+    if (booking.paymentMethod === 'cash') {
+      try {
+        const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        booking.invoiceId = invoice._id;
+        await booking.save();
+        console.log(`✅ Invoice created for approved cash booking ${booking.bookingNumber}`);
+      } catch (invoiceError) {
+        console.error('❌ Failed to create invoice for approved booking:', invoiceError);
+        // Don't fail the approval if invoice creation fails
+      }
+    }
+
+    // Send notification to guest
+    await NotificationService.sendNotification({
+      userId: booking.userId._id,
+      userType: booking.userId.role,
+      type: 'booking_approval',
+      title: 'Booking Approved',
+      message: `Your booking for ${booking.roomId.title} has been approved!`,
+      channel: 'email',
+      metadata: {
+        bookingId: booking._id,
+        bookingNumber: booking.bookingNumber,
+        roomName: booking.roomId.title,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        totalAmount: booking.totalPrice
+      }
+    });
+
+    sendSuccess(res, {
+      bookingId: booking._id,
+      status: booking.status,
+      approvedAt: booking.confirmedAt
+    }, "Booking approved successfully");
+
+  } catch (error) {
+    handleError(res, error, "Failed to approve booking");
+  }
+};
+
+// Reject booking
+export const rejectBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user._id;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Rejection reason is required",
+      });
+    }
+
+    const Booking = (await import("../../models/Booking.js")).default;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('userId')
+      .populate('roomId');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    if (booking.status !== 'On Hold') {
+      return res.status(400).json({
+        success: false,
+        message: `Booking status is ${booking.status}, not on hold for approval`,
+      });
+    }
+
+    // Update booking status to rejected
+    booking.status = 'Rejected';
+    booking.rejectedAt = new Date();
+    booking.rejectedBy = adminId;
+    booking.rejectedReason = reason;
+    booking.reviewedBy = adminId;
+    booking.reviewedAt = new Date();
+    await booking.save();
+
+    // Create refund request automatically
+    try {
+      const refundRequest = await RefundService.createRefundRequest(booking, reason, adminId);
+      if (refundRequest) {
+        console.log(`✅ Refund request created for rejected booking ${booking.bookingNumber}`);
+      }
+    } catch (refundError) {
+      console.error('❌ Failed to create refund request:', refundError);
+      // Don't fail the rejection if refund creation fails
+    }
+
+    // Send notification to guest
+    await NotificationService.sendNotification({
+      userId: booking.userId._id,
+      userType: booking.userId.role,
+      type: 'booking_rejection',
+      title: 'Booking Rejected',
+      message: `Your booking for ${booking.roomId.title} has been rejected. Reason: ${reason}`,
+      channel: 'email',
+      metadata: {
+        bookingId: booking._id,
+        bookingNumber: booking.bookingNumber,
+        roomName: booking.roomId.title,
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        rejectionReason: reason
+      }
+    });
+
+    sendSuccess(res, {
+      bookingId: booking._id,
+      status: booking.status,
+      rejectedAt: booking.rejectedAt
+    }, "Booking rejected successfully");
+
+  } catch (error) {
+    handleError(res, error, "Failed to reject booking");
+  }
+};
+
+// Put booking on hold
+export const putOnHold = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { holdUntil, reason } = req.body;
+    const adminId = req.user._id;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    if (!holdUntil) {
+      return res.status(400).json({
+        success: false,
+        message: "Hold until date is required",
+      });
+    }
+
+    const Booking = (await import("../../models/Booking.js")).default;
+
+    const booking = await Booking.findById(bookingId)
+      .populate('userId')
+      .populate('roomId');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    if (booking.status !== 'Pending Approval') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot put booking on hold - status is ${booking.status}`,
+      });
+    }
+
+    // Update booking status
+    booking.status = 'On Hold';
+    booking.holdUntil = new Date(holdUntil);
+    booking.approvalNotes = reason;
+    booking.reviewedBy = adminId;
+    booking.reviewedAt = new Date();
+    booking.lastStatusChange = new Date();
+    await booking.save();
+
+    // Send notification to guest
+    await NotificationService.sendNotification({
+      userId: booking.userId._id,
+      userType: booking.userId.role,
+      type: 'booking_on_hold',
+      title: 'Booking On Hold',
+      message: `Your booking for ${booking.roomId.title} has been put on hold until ${new Date(holdUntil).toLocaleDateString()}.`,
+      channel: 'email',
+      metadata: {
+        bookingId: booking._id,
+        bookingNumber: booking.bookingNumber,
+        roomName: booking.roomId.title,
+        holdUntil: booking.holdUntil
+      }
+    });
+
+    sendSuccess(res, {
+      bookingId: booking._id,
+      status: booking.status,
+      holdUntil: booking.holdUntil
+    }, "Booking put on hold successfully");
+
+  } catch (error) {
+    handleError(res, error, "Failed to put booking on hold");
+  }
+};
+
+// Get booking statistics
+export const getBookingStats = async (req, res) => {
+  try {
+    const { period = '30' } = req.query; // days
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(period));
+
+    const Booking = (await import("../../models/Booking.js")).default;
+
+    const stats = await Booking.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalBookings: { $sum: 1 },
+          pendingApprovals: {
+            $sum: { $cond: [{ $eq: ["$status", "Pending Approval"] }, 1, 0] }
+          },
+          confirmed: {
+            $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] }
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ["$status", "On Hold"] }, 1, 0] }
+          },
+          rejected: {
+            $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] }
+          },
+          cancelled: {
+            $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] }
+          },
+          totalRevenue: { $sum: "$totalPrice" }
+        }
+      }
+    ]);
+
+    const result = stats[0] || {
+      totalBookings: 0,
+      pendingApprovals: 0,
+      confirmed: 0,
+      onHold: 0,
+      rejected: 0,
+      cancelled: 0,
+      totalRevenue: 0
+    };
+
+    sendSuccess(res, result);
+  } catch (error) {
+    handleError(res, error, "Failed to get booking statistics");
   }
 };
 
@@ -718,10 +1270,18 @@ export default {
   updateNotificationTemplate,
   deleteNotificationTemplate,
   getPendingRefunds,
+  getRefunds,
   getRefundDetails,
   approveRefund,
   denyRefund,
   requestMoreInfo,
   processRefund,
   checkRefundStatus,
+  // Booking management
+  getAllBookings,
+  getPendingBookingApprovals,
+  approveBooking,
+  rejectBooking,
+  putOnHold,
+  getBookingStats,
 };

@@ -1,18 +1,9 @@
-import { createContext, useState, useEffect, useCallback, useContext } from "react";
+import { createContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 import getDashboardPath from "../utils/GetDashboardPath";
 
 export const AuthContext = createContext();
-
-// Custom hook to use the AuthContext
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
@@ -27,8 +18,8 @@ export function AuthProvider({ children }) {
   const getLocalStorageUser = () => {
     try {
       const raw = localStorage.getItem("user");
-      return raw && raw !== "undefined" && raw !== "null"
-        ? JSON.parse(raw)
+      return raw && raw !== "undefined" && raw !== "null" 
+        ? JSON.parse(raw) 
         : null;
     } catch (err) {
       console.warn("Failed to parse user from localStorage:", err);
@@ -37,27 +28,78 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Initialize auth state
+  // Initialize auth state and hydrate full user (with role-specific profile)
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const user = getLocalStorageUser();
+    const cachedUser = getLocalStorageUser();
 
-    if (token && user) {
-      setState(prev => ({ ...prev, user, loading: false }));
+    if (token) {
+      (async () => {
+        try {
+          // Inline minimal hydration to avoid TDZ on checkAuth
+          const res = await authService.getCurrentUser();
+          const user = res.data.data.user;
+          localStorage.setItem("user", JSON.stringify(user));
+          setState(prev => ({ ...prev, user }));
+        } catch (err) {
+          // If token invalid, just clear local user silently here
+          setState(prev => ({ ...prev, user: cachedUser || null }));
+        } finally {
+          setState(prev => ({ ...prev, loading: false }));
+        }
+      })();
     } else {
-      setState(prev => ({ ...prev, loading: false }));
+      setState(prev => ({ ...prev, user: cachedUser, loading: false }));
     }
   }, []);
 
-  const login = useCallback(async (credentials) => {
+  // const login = async (credentials) => {
+  //   setState(prev => ({ ...prev, error: null }));
+  
+  //   try {
+  //     const res = await authService.login(credentials);
+  //     const { user, token } = res.data.data;
+  
+  //     // Store token and user data
+  //     localStorage.setItem("token", token);
+  //     localStorage.setItem("user", JSON.stringify(user));
+  //     setState(prev => ({ ...prev, user, loading: false }));
+      
+  //     // Return the user object - let ProtectedRoute handle navigation
+  //     return user;
+  
+  //   } catch (err) {
+  //     // Handle backend error structure with cause property
+  //     const backendError = err.response?.data;
+  //     const requiresVerification = backendError?.requiresVerification;
+
+  //     if (requiresVerification) {
+  //       const userData = backendError?.data?.user || {
+  //         _id: null,
+  //         email: credentials.email
+  //       };
+  //       const basicUser = {
+  //         _id: userData._id,
+  //         email: userData.email,
+  //         role: "guest",
+  //         emailVerified: false
+  //       };
+  //       localStorage.setItem("user", JSON.stringify(basicUser));
+  const login = async (credentials) => {
     setState(prev => ({ ...prev, error: null }));
     try {
       const res = await authService.login(credentials);
-      const { user, token } = res.data;
+      const { user, token } = res.data.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      setState(prev => ({ ...prev, user, loading: false }));
-      navigate("/");
+      // Hydrate full user with role-specific profile to support permission checks
+      await checkAuth();
+
+      // Handle redirect after successful login
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin') || getDashboardPath(user.role);
+      sessionStorage.removeItem('redirectAfterLogin'); // Clean up
+      navigate(redirectPath);
+
       return user;
     } catch (err) {
       console.error('AuthContext login error:', {
@@ -102,11 +144,12 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error, loading: false }));
       throw new Error(error);
     }
-  }, [navigate]);
+  };
 
-  const register = useCallback(async (userData) => {
+
+  const register = async (userData) => {
     setState(prev => ({ ...prev, error: null }));
-
+    
     try {
       const res = await authService.register(userData);
       const { userId, email } = res.data.data;
@@ -114,7 +157,7 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem("user", JSON.stringify(basicUser));
       setState(prev => ({ ...prev, user: basicUser, loading: false }));
-
+      
       navigate("/verify-email", { state: { email, userId } });
       return basicUser;
     } catch (err) {
@@ -122,16 +165,16 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error, loading: false }));
       throw err; // Throw original error object
     }
-  }, [navigate]);
+  };
 
-  const verifyEmail = useCallback(async (data) => {
+  const verifyEmail = async (data) => {
     try {
       const res = await authService.verifyEmail(data);
       const { user: verifiedUser, token } = res.data.data;
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(verifiedUser));
-
+      
       setState(prev => ({ ...prev, user: verifiedUser, error: null }));
       await checkAuth();
       navigate(getDashboardPath(verifiedUser.role));
@@ -140,7 +183,7 @@ export function AuthProvider({ children }) {
       setState(prev => ({ ...prev, error }));
       throw error;
     }
-  }, [navigate]);
+  };
 
   const resendOTP = async (data) => {
     try {
@@ -159,7 +202,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setState(prev => ({ ...prev, user: null, loading: false }));
-      navigate("/login", { state: { message: "Password updated successfully. Please log in." }, replace: true });
+      debouncedNavigate("/login", { state: { message: "Password updated successfully. Please log in." }, replace: true });
       return res;
     } catch (err) {
       const error = err.response?.data?.message || "Failed to update password";
@@ -183,11 +226,11 @@ export function AuthProvider({ children }) {
     }
 
     setState(prev => ({ ...prev, loading: true }));
-
+    
     try {
       const res = await authService.getCurrentUser();
       const user = res.data.data.user;
-
+      
       localStorage.setItem("user", JSON.stringify(user));
       setState(prev => ({ ...prev, user, loading: false }));
     } catch (err) {

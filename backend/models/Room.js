@@ -297,10 +297,11 @@ roomSchema.index({ "availability.startDate": 1, "availability.endDate": 1 });
 // Virtual for current availability status
 roomSchema.virtual("isCurrentlyAvailable").get(function () {
   const now = new Date();
-  return this.availability.some(
-    (avail) =>
-      avail.isAvailable && avail.startDate <= now && avail.endDate >= now
-  );
+  return (this.availability && this.availability.length > 0) ?
+    this.availability.some(
+      (avail) =>
+        avail.isAvailable && avail.startDate <= now && avail.endDate >= now
+    ) : true; // Default to available if no availability data
 });
 
 const Room = mongoose.model("Room", roomSchema);

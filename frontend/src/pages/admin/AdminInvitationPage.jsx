@@ -10,11 +10,18 @@ import Spinner from "../../components/ui/Spinner";
 import { Badge } from "../../components/ui/badge";
 import EditInvitationModal from "./components/EditInvitationModal";
 import useDebounce from "../../hooks/useDebounce";
+import PermissionSelector from "./components/PermissionSelector";
+
 export default function AdminInvitationPage() {
   const { user } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("staff");
+  const [department, setDepartment] = useState("");
+  const [position, setPosition] = useState("");
   const [expiresInHours, setExpiresInHours] = useState(24);
+  const [permissions, setPermissions] = useState([]);
+  const [showPerms, setShowPerms] = useState(false);
+
   const [status, setStatus] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [loadingInvites, setLoadingInvites] = useState(true);
@@ -33,14 +40,17 @@ export default function AdminInvitationPage() {
     { id: "used", label: "Used Invitations", icon: "✅" },
     { id: "expired", label: "Expired Invitations", icon: "❌" },
   ];
+
   useEffect(() => {
     fetchStats();
   }, []);
+
   useEffect(() => {
     if (activeTab !== "create") {
       fetchInvitations();
     }
   }, [activeTab, filters.status, debouncedSearch]);
+
   const fetchStats = async () => {
     try {
       const res = await adminService.getInvitations({
@@ -65,6 +75,7 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const fetchInvitations = async () => {
     setLoadingInvites(true);
     try {
@@ -90,20 +101,28 @@ export default function AdminInvitationPage() {
       setLoadingInvites(false);
     }
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus(null);
     try {
-      const response = await adminService.sendInvitation({
+      const payload = {
         email,
         role,
         expiresInHours,
-      });
+        ...(role === "staff" ? { department, position } : {}),
+        ...(role === "admin" && showPerms && permissions.length ? { permissions } : {}),
+      };
+      const response = await adminService.sendInvitation(payload);
       if (response.data.success) {
         setStatus({ type: "success", message: "✅ Invitation sent successfully!" });
         setEmail("");
         setRole("staff");
+        setDepartment("");
+        setPosition("");
         setExpiresInHours(24);
+        setPermissions([]);
+        setShowPerms(false);
         fetchStats();
         if (activeTab !== "create") {
           fetchInvitations();
@@ -118,6 +137,7 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const handleDelete = async (id) => {
     try {
       await adminService.deleteInvitation(id);
@@ -131,24 +151,27 @@ export default function AdminInvitationPage() {
       });
     }
   };
+
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     if (tabId !== "create") {
       setFilters((prev) => ({ ...prev, status: tabId }));
     }
   };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-yellow-50 text-yellow-800 border-yellow-200";
+        return "bg-gradient-to-r from-yellow-400 to-orange-500";
       case "used":
-        return "bg-green-50 text-green-800 border-green-200";
+        return "bg-gradient-to-r from-green-400 to-emerald-500";
       case "expired":
-        return "bg-red-50 text-red-800 border-red-200";
+        return "bg-gradient-to-r from-red-400 to-pink-500";
       default:
-        return "bg-gray-50 text-gray-800 border-gray-200";
+        return "bg-gradient-to-r from-gray-400 to-slate-500";
     }
   };
+
   return (
     <DefaultAdminLayout>
       <div className="space-y-6">
@@ -293,11 +316,68 @@ export default function AdminInvitationPage() {
                     <option value="manager">👨‍💻 Manager</option>
                   </Select>
                 </div>
+                {role === "staff" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">🏢 Department</label>
+                      <Select
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        required
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Housekeeping">🏠 Housekeeping</option>
+                        <option value="Kitchen">👨‍🍳 Kitchen</option>
+                        <option value="Maintenance">🔧 Maintenance</option>
+                        <option value="Service">🍽️ Service</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">💼 Position</label>
+                      <Input
+                        type="text"
+                        required
+                        value={position}
+                        onChange={(e) => setPosition(e.target.value)}
+                        placeholder="e.g., Housekeeper, Chef, Technician"
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </>
+                )}
+                {role === "admin" && (
+                  <div className="space-y-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                        checked={showPerms}
+                        onChange={(e) => setShowPerms(e.target.checked)}
+                      />
+                      Show granular permissions
+                    </label>
+                    {showPerms && (
+                      <>
+                        <div className="text-sm text-gray-600">
+                          Optional: assign granular permissions for the invited admin.
+                        </div>
+                        <div className="max-h-96 overflow-y-auto">
+                          <PermissionSelector
+                            selectedPermissions={permissions}
+                            onPermissionChange={setPermissions}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">⏳ Expires In (Hours)</label>
                   <Input
                     type="number"
                     min="1"
+                    max="24"
                     value={expiresInHours}
                     onChange={(e) => setExpiresInHours(e.target.value)}
                     className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
@@ -397,6 +477,7 @@ export default function AdminInvitationPage() {
     </DefaultAdminLayout>
   );
 }
+
 function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
   if (invitations.length === 0) {
     return (
@@ -424,9 +505,9 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
           {invitations.map((inv) => (
             <div
               key={inv._id}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 min-h-[350px] flex flex-col"
             >
-              <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg bg-opacity-20`}>
+              <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{inv.email}</h3>
@@ -439,21 +520,43 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
                   </Badge>
                 </div>
               </div>
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3 mb-6 flex-grow">
                 <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Expires: {new Date(inv.expiresAt).toLocaleString()}</span>
+                  <span className="break-words">Expires: {new Date(inv.expiresAt).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="truncate max-w-xs">Token: {inv.token}</span>
+                  <span
+                    className="break-all text-xs leading-relaxed"
+                    title={inv.token}
+                  >
+                    Token: {inv.token}
+                  </span>
                 </div>
+                {inv.role === "staff" && (inv.department || inv.position) && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold mb-1">Staff Details:</div>
+                    <div>🏢 Department: {inv.department || 'Not specified'}</div>
+                    <div>💼 Position: {inv.position || 'Not specified'}</div>
+                  </div>
+                )}
+                {inv.role === "admin" && inv.permissions?.length > 0 && (
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold mb-1">Permissions:</div>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {inv.permissions.map((p) => (
+                        <li key={`${p.module}-${inv._id}`}>{p.module}: {Array.isArray(p.actions) ? p.actions.join(", ") : ''}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mt-auto">
                 <Button
                   size="sm"
                   variant="outline"

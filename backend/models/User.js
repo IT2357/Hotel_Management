@@ -93,7 +93,7 @@ const userSchema = new mongoose.Schema(
     ],
     authProviders: [
       {
-        provider: { type: String, enum: ["google", "apple"] },
+        provider: { type: String, enum: ["google", "facebook", "apple"] },
         providerId: { type: String },
         email: { type: String },
       },
