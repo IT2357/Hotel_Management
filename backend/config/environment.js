@@ -33,14 +33,14 @@ const config = {
 
   // Email Configuration
   EMAIL: {
-    SERVICE: process.env.EMAIL_SERVICE || "gmail",
-    HOST: process.env.EMAIL_HOST || "smtp.gmail.com",
-    PORT: process.env.EMAIL_PORT || 587,
-    SECURE: process.env.EMAIL_SECURE === "true",
-    USER: process.env.EMAIL_USER || "",
-    PASS: process.env.EMAIL_PASS || "",
-    FROM_NAME: process.env.EMAIL_FROM_NAME || "Hotel Management System",
-    FROM_EMAIL: process.env.EMAIL_FROM_EMAIL || "noreply@hotelmanagement.com",
+    SERVICE: process.env.SMTP_SERVICE || "gmail",
+    HOST: process.env.SMTP_HOST || "smtp.gmail.com",
+    PORT: process.env.SMTP_PORT || 587,
+    SECURE: process.env.SMTP_SECURE === "true",
+    USER: process.env.SMTP_USER || "",
+    PASS: process.env.SMTP_PASS || "",
+    FROM_NAME: process.env.SMTP_FROM_NAME || "Hotel Management System",
+    FROM_EMAIL: process.env.SMTP_FROM_EMAIL || "noreply@hotelmanagement.com",
   },
 
   // SMS Configuration

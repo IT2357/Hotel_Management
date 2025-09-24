@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+
 import { AuthContext } from "../../context/AuthContext";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -11,6 +12,7 @@ import Pagination from "../../components/ui/Pagination";
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
 
 export default function AdminBookingsPage() {
+
   const { user } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,34 @@ export default function AdminBookingsPage() {
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [holdUntil, setHoldUntil] = useState('');
+  const [heldBookings, setHeldBookings] = useState([]);
+  const [loadingHeld, setLoadingHeld] = useState(false);
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    // Ticker for countdowns
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const formatRemaining = (endIso) => {
+    if (!endIso) return '—';
+    const end = new Date(endIso).getTime();
+    const diffMs = end - nowTs;
+    if (diffMs <= 0) return 'expired';
+    const totalSec = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return `${h}h ${m}m ${s}s`;
+  };
 
   useEffect(() => {
     fetchBookings();
   }, [filters]);
 
   const fetchBookings = async () => {
+
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -67,6 +91,47 @@ export default function AdminBookingsPage() {
       setAlert({ type: 'error', message: 'Failed to fetch bookings' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHeldBookings = async () => {
+    try {
+      setLoadingHeld(true);
+      const response = await fetch(`/api/bookings/admin/held`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setHeldBookings(data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch held bookings:', error);
+      setAlert({ type: 'error', message: 'Failed to fetch held bookings' });
+    } finally {
+      setLoadingHeld(false);
+    }
+  };
+
+  const releaseHold = async (bookingId) => {
+    try {
+      const response = await fetch(`/api/bookings/admin/${bookingId}/release-hold`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAlert({ type: 'success', message: 'Hold released successfully' });
+        // Refresh both lists
+        fetchHeldBookings();
+        fetchBookings();
+      } else {
+        setAlert({ type: 'error', message: data.message || 'Failed to release hold' });
+      }
+    } catch (error) {
+      console.error('Failed to release hold:', error);
+      setAlert({ type: 'error', message: 'Failed to release hold' });
     }
   };
 
@@ -516,7 +581,52 @@ export default function AdminBookingsPage() {
                 className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
               />
             </div>
+            <div className="w-full xl:w-auto flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => updateFilters({ ...filters, status: 'On Hold', page: 1 })}
+                className="whitespace-nowrap"
+              >
+                Show Only Held
+              </Button>
+            </div>
           </div>
+        </Card>
+
+        {/* Held Bookings Quick Access */}
+        <Card className="bg-white shadow-xl rounded-2xl border-0 p-4 lg:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Held Bookings</h3>
+              <p className="text-sm text-gray-500">On Hold and not yet expired</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={fetchHeldBookings} variant="outline">Refresh Held</Button>
+            </div>
+          </div>
+          {loadingHeld ? (
+            <div className="flex items-center gap-2 text-gray-500"><Spinner /> Loading held bookings...</div>
+          ) : heldBookings.length === 0 ? (
+            <p className="text-gray-500">No current held bookings.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {heldBookings.map(h => (
+                <div key={h._id} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold">{h.bookingNumber}</div>
+                    <Badge className="bg-blue-100 text-blue-800">On Hold</Badge>
+                  </div>
+                  <div className="text-sm text-gray-600">Room {h.roomId?.roomNumber} · {h.roomId?.title}</div>
+                  <div className="text-sm text-gray-600">{new Date(h.checkIn).toLocaleDateString()} - {new Date(h.checkOut).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500 mt-1">Hold until: {h.holdUntil ? new Date(h.holdUntil).toLocaleString() : 'N/A'}</div>
+                  <div className="text-xs mt-1 font-medium text-blue-700">Expires in: {formatRemaining(h.holdUntil)}</div>
+                  <div className="mt-3 flex justify-end">
+                    <Button size="sm" variant="outline" onClick={() => releaseHold(h._id)}>Release Hold</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Bulk Actions */}

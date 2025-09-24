@@ -82,7 +82,7 @@ class BookingService {
     const operationalSettings = settings.operationalSettings || {};
     if (operationalSettings.enabled) {
       // Check if booking is within allowed days
-      const checkInDay = checkInDate.toLocaleLowerCase('en-US', { weekday: 'long' });
+      const checkInDay = checkInDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const allowedDays = operationalSettings.allowedDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
       if (!allowedDays.includes(checkInDay)) {
@@ -408,6 +408,44 @@ class BookingService {
         }
       });
 
+      // --- Overlap prevention ---
+      const checkInDate = typeof booking.checkIn === 'string' ? parseISO(booking.checkIn) : booking.checkIn;
+      const checkOutDate = typeof booking.checkOut === 'string' ? parseISO(booking.checkOut) : booking.checkOut;
+
+      const blockingStatuses = [
+        'Pending Approval',
+        'On Hold',
+        'Approved - Payment Pending',
+        'Approved - Payment Processing',
+        'Confirmed'
+      ];
+
+      const now = new Date();
+
+      // Find any overlapping booking on the same room that blocks inventory
+      const overlap = await Booking.findOne({
+        roomId: booking.roomId,
+        status: { $in: blockingStatuses },
+        checkIn: { $lt: checkOutDate },
+        checkOut: { $gt: checkInDate },
+        $or: [
+          { status: { $in: ['Pending Approval', 'Approved - Payment Pending', 'Approved - Payment Processing', 'Confirmed'] } },
+          { status: 'On Hold', holdUntil: { $gt: now } }
+        ]
+      }).lean();
+
+      if (overlap) {
+        throw new Error('Room is no longer available for the selected dates');
+      }
+
+      // --- Hold logic ---
+      // If not confirmed instantly, place booking On Hold with holdUntil to reserve inventory
+      if (booking.status !== 'Confirmed') {
+        const approvalHours = (settings.bookingSettings && settings.bookingSettings.approvalTimeoutHours) || settings.approvalTimeoutHours || 24;
+        booking.status = 'On Hold';
+        booking.holdUntil = new Date(Date.now() + approvalHours * 60 * 60 * 1000);
+      }
+
       await booking.save();
 
       // Only create invoice for confirmed bookings, NEVER for pending approval
@@ -431,50 +469,60 @@ class BookingService {
         console.log(`📋 Booking ${booking.bookingNumber} created with status ${booking.status} - no invoice created`);
       }
 
-      // Send notifications based on settings
+      // Send notifications based on settings (non-blocking)
       if (settings.bookingConfirmations) {
-        await NotificationService.sendNotification({
-          userId,
-          userType: user.role,
-          type: booking.status === 'Confirmed' ? 'booking_confirmation' : 'booking_pending_approval',
-          title: booking.status === 'Confirmed' ? 'Booking Confirmed' : 'Booking Pending Approval',
-          message: booking.status === 'Confirmed' 
-            ? `Your booking for ${room.title} has been confirmed!`
-            : `Your booking for ${room.title} has been received and is pending admin approval.`,
-          channel: 'email',
-          metadata: {
-            bookingId: booking._id,
-            roomName: room.title,
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            total: costBreakdown.total,
-            currency: costBreakdown.currency,
-            status: booking.status
-          }
-        });
-      }
-
-      // Send admin notification if approval is required
-      if (booking.status === 'Pending Approval') {
-        const admins = await User.find({ role: 'admin', isActive: true });
-        for (const admin of admins) {
+        try {
           await NotificationService.sendNotification({
-            userId: admin._id,
-            userType: 'admin',
-            type: 'booking_approval_required',
-            title: 'Booking Approval Required',
-            message: `New booking from ${user.name} requires approval.`,
+            userId,
+            userType: user.role,
+            type: booking.status === 'Confirmed' ? 'booking_confirmation' : 'booking_pending_approval',
+            title: booking.status === 'Confirmed' ? 'Booking Confirmed' : 'Booking Pending Approval',
+            message: booking.status === 'Confirmed' 
+              ? `Your booking for ${room.title} has been confirmed!`
+              : `Your booking for ${room.title} has been received and is pending admin approval.`,
             channel: 'email',
             metadata: {
               bookingId: booking._id,
-              guestName: user.name,
               roomName: room.title,
               checkIn: booking.checkIn,
               checkOut: booking.checkOut,
-              paymentMethod: booking.paymentMethod,
-              total: costBreakdown.total
+              total: costBreakdown.total,
+              currency: costBreakdown.currency,
+              status: booking.status
             }
           });
+        } catch (notificationError) {
+          console.error('❌ Failed to send booking confirmation notification:', notificationError.message);
+          // Don't fail booking creation if notification fails
+        }
+      }
+
+      // Send admin notification if approval is required (non-blocking)
+      if (booking.status === 'Pending Approval') {
+        try {
+          const admins = await User.find({ role: 'admin', isActive: true });
+          for (const admin of admins) {
+            await NotificationService.sendNotification({
+              userId: admin._id,
+              userType: 'admin',
+              type: 'booking_approval_required',
+              title: 'Booking Approval Required',
+              message: `New booking from ${user.name} requires approval.`,
+              channel: 'email',
+              metadata: {
+                bookingId: booking._id,
+                guestName: user.name,
+                roomName: room.title,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                paymentMethod: booking.paymentMethod,
+                total: costBreakdown.total
+              }
+            });
+          }
+        } catch (notificationError) {
+          console.error('❌ Failed to send admin approval notification:', notificationError.message);
+          // Don't fail booking creation if notification fails
         }
       }
 
@@ -500,41 +548,46 @@ class BookingService {
       booking.updatedBy = adminId;
       await booking.save();
 
-      // Send notification to guest about status change
+      // Send notification to guest about status change (non-blocking)
       if (settings.bookingConfirmations && oldStatus !== status) {
-        let notificationType = 'booking_update';
-        let message = `Your booking status has been updated to ${status}.`;
+        try {
+          let notificationType = 'booking_update';
+          let message = `Your booking status has been updated to ${status}.`;
 
-        if (status === 'Confirmed') {
-          notificationType = 'booking_confirmation';
-          message = `Your booking for ${booking.roomId.name} has been confirmed!`;
-        } else if (status === 'Cancelled') {
-          notificationType = 'booking_cancellation';
-          message = `Your booking for ${booking.roomId.name} has been cancelled.`;
-        } else if (status === 'Rejected') {
-          notificationType = 'booking_rejection';
-          message = `Your booking for ${booking.roomId.name} has been rejected.`;
-        } else if (status === 'On Hold') {
-          notificationType = 'booking_on_hold';
-          message = `Your booking for ${booking.roomId.name} has been put on hold.`;
-        }
-
-        await NotificationService.sendNotification({
-          userId: booking.userId._id,
-          userType: booking.userId.role,
-          type: notificationType,
-          title: 'Booking Status Update',
-          message,
-          channel: 'email',
-          metadata: {
-            bookingId: booking._id,
-            roomName: booking.roomId.name,
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            oldStatus,
-            newStatus: status
+          if (status === 'Confirmed') {
+            notificationType = 'booking_confirmation';
+            message = `Your booking for ${booking.roomId.title || booking.roomId.name} has been confirmed!`;
+          } else if (status === 'Cancelled') {
+            notificationType = 'booking_cancellation';
+            message = `Your booking for ${booking.roomId.title || booking.roomId.name} has been cancelled.`;
+          } else if (status === 'Rejected') {
+            notificationType = 'booking_rejection';
+            message = `Your booking for ${booking.roomId.title || booking.roomId.name} has been rejected.`;
+          } else if (status === 'On Hold') {
+            notificationType = 'booking_on_hold';
+            message = `Your booking for ${booking.roomId.title || booking.roomId.name} has been put on hold.`;
           }
-        });
+
+          await NotificationService.sendNotification({
+            userId: booking.userId._id,
+            userType: booking.userId.role,
+            type: notificationType,
+            title: 'Booking Status Update',
+            message,
+            channel: 'email',
+            metadata: {
+              bookingId: booking._id,
+              roomName: booking.roomId.title || booking.roomId.name,
+              checkIn: booking.checkIn,
+              checkOut: booking.checkOut,
+              oldStatus,
+              newStatus: status
+            }
+          });
+        } catch (notificationError) {
+          console.error('❌ Failed to send booking status update notification:', notificationError.message);
+          // Don't fail status update if notification fails
+        }
       }
 
       return booking;

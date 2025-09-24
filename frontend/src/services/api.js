@@ -2,14 +2,17 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api", // Fallback to /api for Vite proxy
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+console.log("API Base URL:", api.defaults.baseURL);
+
 // Attach token to every request
 api.interceptors.request.use((config) => {
+  console.log("Making request to:", config.url, "with baseURL:", config.baseURL);
   const token = localStorage.getItem("token");
   if (token && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;

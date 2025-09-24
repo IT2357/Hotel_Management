@@ -2,6 +2,7 @@ import payHereService from '../services/payHereService.js';
 import Payment from '../models/Payment.js';
 import Booking from '../models/Booking.js';
 import { sendSuccess, handleError } from '../utils/responseFormatter.js';
+import { createPreCheckInRecord } from './checkInOutController.js';
 
 /**
  * Initiate PayHere payment
@@ -91,6 +92,15 @@ export const handleWebhook = async (req, res) => {
         status: 'Confirmed',
         paymentId: payment._id,
       });
+
+      // Create pre-check-in record for confirmed booking
+      try {
+        await createPreCheckInRecord(processedPayment.bookingId);
+        console.log('✅ Pre-check-in record created for payment-confirmed booking:', processedPayment.bookingId);
+      } catch (preCheckInError) {
+        console.error('❌ Failed to create pre-check-in record for payment confirmation:', preCheckInError);
+        // Don't fail the payment processing if pre-check-in creation fails
+      }
 
       console.log('Booking confirmed:', processedPayment.bookingId);
     }

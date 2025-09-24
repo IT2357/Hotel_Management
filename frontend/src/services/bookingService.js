@@ -74,7 +74,9 @@ const bookingService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching user bookings:', error);
-      throw error;
+      const serverMsg = error?.response?.data?.message;
+      const msg = serverMsg || error.message || 'Failed to fetch user bookings';
+      throw new Error(msg);
     }
   },
 
@@ -85,7 +87,9 @@ const bookingService = {
       return response.data;
     } catch (error) {
       console.error('Error creating booking:', error);
-      throw error;
+      const serverMsg = error?.response?.data?.message;
+      const msg = serverMsg || error.message || 'Failed to create booking';
+      throw new Error(msg);
     }
   },
 

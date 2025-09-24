@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
+import { SnackbarProvider } from 'notistack';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
@@ -15,12 +16,14 @@ import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
+import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
+import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
 import RoomsPage from './pages/RoomsPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import MyBookings from './pages/guest/MyBookings.jsx';
 import MyReviews from './pages/guest/MyReviews.jsx';
 import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
-import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
+import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -33,14 +36,22 @@ import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.j
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
+import CheckInPage from './pages/guest/CheckInPage.jsx';
+import GuestServiceRequestForm from './pages/guest/components/GuestServiceRequestForm.jsx';
+import ServiceRequestManagementPage from './pages/staff/ServiceRequestManagementPage.jsx';
+import TaskManagementPage from './pages/staff/TaskManagementPage.jsx';
+import RoomStatusPage from './pages/staff/RoomStatusPage.jsx';
+import KeyCardManagementPage from './pages/staff/KeyCardManagementPage.jsx';
+import SchedulePage from './pages/staff/SchedulePage.jsx';
 
 const App = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SettingsProvider>
-          <BookingProvider>
-            <Routes>
+      <SnackbarProvider maxSnack={3}>
+        <AuthProvider>
+          <SettingsProvider>
+            <BookingProvider>
+              <Routes>
           {/* 🔒 Booking Routes */}
           <Route path="/booking" element={<GuestBookingFlow />} />
           <Route path="/booking/guest" element={<GuestBookingFlow />} />
@@ -110,18 +121,18 @@ const App = () => {
             }
           />
           <Route
-            path="/guest/my-reviews"
+            path="/guest/my-requests"
             element={
               <ProtectedRoute roles={['guest']}>
-                <MyReviews />
+                <GuestServiceRequestsPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/guest/favorites"
+            path="/guest/check-in"
             element={
               <ProtectedRoute roles={['guest']}>
-                <FavoriteRooms />
+                <GuestCheckInOutPage />
               </ProtectedRoute>
             }
           />
@@ -240,25 +251,64 @@ const App = () => {
             }
           />
 
-          {/*
-          // 🎯 Role-Specific Routes
-          <Route element={<ProtectedRoute roles={['staff', 'manager', 'admin']} />}>
-            <Route path="/staff-portal" element={<StaffPortalPage />} />
-          </Route>
-
-          // 🛡️ Admin-Specific Routes
+          {/* Guest Service Request Routes */}
           <Route 
+            path="/guest/services" 
             element={
-              <ProtectedRoute 
-                roles={['admin']} 
-                permissions={['manage-users']} 
-              />
-            }
-          >
-            <Route path="/admin/users" element={<UserManagementPage />} />
-          </Route>
+              <ProtectedRoute roles={['guest']}>
+                <GuestServiceRequestForm />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/staff/service-requests" 
+            element={
+              <ProtectedRoute roles={['staff', 'manager']}>
+                <ServiceRequestManagementPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Task Management Routes */}
+          <Route 
+            path="/staff/tasks" 
+            element={
+              <ProtectedRoute roles={['staff', 'manager']}>
+                <TaskManagementPage />
+              </ProtectedRoute>
+            } 
+          />
 
-          */}
+          {/* New Check-in/Check-out Routes */}
+          <Route 
+            path="/staff/check-in" 
+            element={
+              <ProtectedRoute roles={['staff', 'manager']}>
+                <CheckInPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Room Status Route */}
+          <Route 
+            path="/staff/rooms" 
+            element={
+              <ProtectedRoute roles={['staff', 'manager']}>
+                <RoomStatusPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Key Card Management Route */}
+          <Route 
+            path="/staff/key-cards" 
+            element={
+              <ProtectedRoute roles={['staff', 'manager']}>
+                <KeyCardManagementPage />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* 🚧 Error Routes */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
@@ -267,6 +317,7 @@ const App = () => {
         </BookingProvider>
         </SettingsProvider>
       </AuthProvider>
+      </SnackbarProvider>
     </BrowserRouter>
   );
 };

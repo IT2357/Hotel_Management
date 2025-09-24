@@ -9,6 +9,7 @@ import RefundService from "../../services/payment/refundService.js";
 import AutoApprovalService from "../../services/booking/autoApprovalService.js";
 import payHereService from '../../services/payHereService.js';
 import Payment from '../../models/Payment.js';
+import { createPreCheckInRecord } from '../checkInOutController.js';
 
 // Helper for consistent error responses
 const handleError = (res, error, defaultMessage = "Operation failed") => {
@@ -28,6 +29,51 @@ const handleError = (res, error, defaultMessage = "Operation failed") => {
     success: false,
     message: error.message || defaultMessage,
   });
+};
+
+// List currently held bookings (On Hold and not expired)
+export const getHeldBookings = async (req, res) => {
+  try {
+    const held = await Booking.find({
+      status: 'On Hold',
+      holdUntil: { $gt: new Date() }
+    })
+      .populate('userId', 'name email phone')
+      .populate('roomId', 'title roomNumber type')
+      .sort({ holdUntil: 1 });
+
+    sendSuccess(res, held);
+  } catch (error) {
+    handleError(res, error, 'Failed to fetch held bookings');
+  }
+};
+
+// Release hold for a booking: stop blocking inventory but keep it pending approval
+export const releaseBookingHold = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: 'Booking ID is required' });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.status !== 'On Hold') {
+      return res.status(400).json({ success: false, message: `Booking is not on hold (status: ${booking.status})` });
+    }
+
+    booking.status = 'Pending Approval';
+    booking.holdUntil = null;
+    booking.lastStatusChange = new Date();
+    await booking.save();
+
+    sendSuccess(res, { bookingId: booking._id, status: booking.status }, 'Hold released');
+  } catch (error) {
+    handleError(res, error, 'Failed to release booking hold');
+  }
 };
 
 // Helper for success responses
@@ -149,6 +195,7 @@ export const createBooking = async (req, res) => {
       bookingId: booking._id,
       bookingNumber: booking.bookingNumber,
       status: booking.status,
+      holdUntil: booking.holdUntil,
       totalAmount: booking.totalPrice,
       paymentMethod: booking.paymentMethod,
       requiresApproval: booking.status === 'Pending Approval',
@@ -468,6 +515,15 @@ export const approveBooking = async (req, res) => {
     booking.requiresReview = false;
 
     await booking.save();
+
+    // Create pre-check-in record for confirmed bookings
+    try {
+      await createPreCheckInRecord(booking._id);
+      console.log('✅ Pre-check-in record created for approved booking:', booking._id);
+    } catch (preCheckInError) {
+      console.error('❌ Failed to create pre-check-in record:', preCheckInError);
+      // Don't fail the approval if pre-check-in creation fails
+    }
 
     sendSuccess(res, {
       bookingId: booking._id,
@@ -789,7 +845,16 @@ export const bulkApproveBookings = async (req, res) => {
         booking.requiresReview = false;
 
         await booking.save();
-        console.log(`✅ Booking ${booking.bookingNumber} (${booking._id}) status updated to Accepted`);
+        console.log(` Booking ${booking.bookingNumber} (${booking._id}) status updated to Accepted`);
+
+        // Create pre-check-in record for confirmed bookings
+        try {
+          await createPreCheckInRecord(booking._id);
+          console.log(' Pre-check-in record created for bulk approved booking:', booking._id);
+        } catch (preCheckInError) {
+          console.error(' Failed to create pre-check-in record for bulk approval:', preCheckInError);
+          // Don't fail the approval if pre-check-in creation fails
+        }
 
         // Send notification to guest
         try {
