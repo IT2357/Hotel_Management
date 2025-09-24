@@ -7,12 +7,26 @@ class SMSService {
     this.provider = process.env.SMS_PROVIDER || 'twilio';
     this.twilioClient = null;
 
-    // Initialize Twilio if configured
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-      this.twilioClient = twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN
-      );
+    // Initialize Twilio if configured and credentials are valid
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+    if (accountSid && authToken) {
+      if (accountSid.startsWith('AC') && accountSid.length === 34) {
+        try {
+          this.twilioClient = twilio(accountSid, authToken);
+        } catch (error) {
+          console.warn('Failed to initialize Twilio client, disabling Twilio SMS:', error.message);
+          this.twilioClient = null;
+        }
+      } else {
+        console.warn('Invalid Twilio Account SID detected. Expected value starting with "AC". Twilio SMS disabled.');
+      }
+    }
+
+    if (!this.twilioClient && this.provider === 'twilio') {
+      console.warn('Twilio credentials missing or invalid. Falling back to mock SMS provider.');
+      this.provider = process.env.FALLBACK_SMS_PROVIDER || 'aws-sns';
     }
 
     this.providers = {
