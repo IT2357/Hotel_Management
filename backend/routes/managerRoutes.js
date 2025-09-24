@@ -9,7 +9,7 @@ import { getPerformance } from '../controllers/manager/performanceController.js'
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import Staff from '../models/profiles/StaffProfile.js';
-import Task from '../models/manager/Task.js';
+import Task from '../models/Task.js';
 import { Guest } from '../models/User.js';
 
 // Router

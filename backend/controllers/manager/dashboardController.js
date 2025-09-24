@@ -1,219 +1,280 @@
 // controllers/manager/dashboardController.js
-import Task from '../../models/manager/Task.js';
-import Staff from '../../models/profiles/StaffProfile.js';
+import Task from '../../models/Task.js';
+import { User } from '../../models/User.js';
+import StaffProfile from '../../models/profiles/StaffProfile.js';
 
+// Get dashboard data for manager
 export const getDashboardData = async (req, res) => {
   try {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    // Get date range for statistics (default to last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
 
-    // Get task status distribution
-    const taskStatusDistribution = await Task.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+    // Get task statistics
+    const taskStats = await Promise.all([
+      // Total tasks
+      Task.countDocuments({
+        createdAt: { $gte: startDate, $lte: endDate }
+      }),
+      
+      // Tasks by status
+      Task.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+      
+      // Tasks by department
+      Task.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: '$department',
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+      
+      // Tasks by priority
+      Task.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: '$priority',
+            count: { $sum: 1 }
+          }
+        }
+      ])
     ]);
 
-    const statusCounts = {
-      pending: 0,
-      'in-progress': 0,
-      completed: 0,
-      assigned: 0,
-      rejected: 0
+    // Get staff statistics
+    const staffStats = await Promise.all([
+      // Total active staff
+      User.countDocuments({ role: 'staff', isActive: true }),
+      
+      // Staff by department
+      StaffProfile.aggregate([
+        {
+          $group: {
+            _id: '$department',
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+      
+      // Staff by availability
+      StaffProfile.aggregate([
+        {
+          $group: {
+            _id: '$availability',
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    // Get recent tasks (last 10)
+    const recentTasks = await Task.find()
+      .populate('assignedTo', 'name email')
+      .populate('assignedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('title description status priority department guestName roomNumber createdAt dueDate');
+
+    // Get overdue tasks
+    const overdueTasks = await Task.find({
+      dueDate: { $lt: new Date() },
+      status: { $nin: ['completed', 'cancelled'] }
+    })
+      .populate('assignedTo', 'name email')
+      .sort({ dueDate: 1 })
+      .limit(5)
+      .select('title description status priority department guestName roomNumber dueDate');
+
+    // Format the response
+    const dashboardData = {
+      taskStatistics: {
+        total: taskStats[0] || 0,
+        byStatus: taskStats[1].reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+        byDepartment: taskStats[2].reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+        byPriority: taskStats[3].reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {})
+      },
+      staffStatistics: {
+        totalActive: staffStats[0] || 0,
+        byDepartment: staffStats[1].reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {}),
+        byAvailability: staffStats[2].reduce((acc, item) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {})
+      },
+      recentTasks,
+      overdueTasks,
+      dateRange: {
+        startDate,
+        endDate
+      }
     };
 
-    taskStatusDistribution.forEach(item => {
-      if (statusCounts.hasOwnProperty(item._id)) {
-        statusCounts[item._id] = item.count;
+    res.json({
+      success: true,
+      data: dashboardData
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard data',
+      error: error.message
+    });
+  }
+};
+
+// Get quick statistics for dashboard widgets
+export const getQuickStats = async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const todayStats = await Promise.all([
+      // Tasks created today
+      Task.countDocuments({
+        createdAt: { $gte: startOfDay, $lt: endOfDay }
+      }),
+      
+      // Tasks completed today
+      Task.countDocuments({
+        status: 'completed',
+        completedAt: { $gte: startOfDay, $lt: endOfDay }
+      }),
+      
+      // Pending tasks
+      Task.countDocuments({
+        status: 'pending'
+      }),
+      
+      // Overdue tasks
+      Task.countDocuments({
+        dueDate: { $lt: today },
+        status: { $nin: ['completed', 'cancelled'] }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        tasksCreatedToday: todayStats[0],
+        tasksCompletedToday: todayStats[1],
+        pendingTasks: todayStats[2],
+        overdueTasks: todayStats[3]
       }
     });
 
-    // Combine assigned and in-progress for UI
-    statusCounts['in-progress'] += statusCounts.assigned;
-
-    const totalTasks = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
-    const pendingTasks = statusCounts.pending;
-    const completedToday = await Task.countDocuments({ 
-      status: 'completed', 
-      completedAt: { $gte: today, $lt: tomorrow } 
+  } catch (error) {
+    console.error('Error fetching quick stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch quick statistics',
+      error: error.message
     });
+  }
+};
 
-    // Staff metrics
-    const [staffOnline, totalStaff] = await Promise.all([
-      Staff.countDocuments({ isOnline: true, isActive: true }),
-      Staff.countDocuments({ isActive: true })
-    ]);
+// Get department performance overview
+export const getDepartmentPerformance = async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
 
-    // Average completion time calculation
-    const completedTasks = await Task.find({ 
-      status: 'completed', 
-      actualTime: { $exists: true, $ne: null } 
-    }).select('actualTime');
-    
-    const avgCompletionTime = completedTasks.length > 0 
-      ? Math.round(completedTasks.reduce((sum, task) => sum + task.actualTime, 0) / completedTasks.length)
-      : 31;
-
-    // Efficiency rate (completed vs total tasks created in last 7 days)
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const [tasksCreatedWeek, tasksCompletedWeek] = await Promise.all([
-      Task.countDocuments({ createdAt: { $gte: weekAgo } }),
-      Task.countDocuments({ status: 'completed', completedAt: { $gte: weekAgo } })
-    ]);
-
-    const efficiencyRate = tasksCreatedWeek > 0 ? Math.round((tasksCompletedWeek / tasksCreatedWeek) * 100) : 94;
-
-    // Recent activity with more details
-    const recentTasks = await Task.find({})
-      .populate('assignedTo', 'name role department')
-      .populate('guest', 'name')
-      .sort({ createdAt: -1 })
-      .limit(10);
-
-    // Top performers based on completed tasks and ratings
-    const topPerformers = await Staff.aggregate([
+    const departmentPerformance = await Task.aggregate([
       {
-        $match: { isActive: true }
-      },
-      {
-        $lookup: {
-          from: 'tasks',
-          localField: '_id',
-          foreignField: 'assignedTo',
-          as: 'assignedTasks'
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate }
         }
       },
       {
-        $addFields: {
+        $group: {
+          _id: '$department',
+          totalTasks: { $sum: 1 },
           completedTasks: {
-            $size: {
-              $filter: {
-                input: '$assignedTasks',
-                cond: { $eq: ['$$this.status', 'completed'] }
-              }
+            $sum: {
+              $cond: [{ $eq: ['$status', 'completed'] }, 1, 0]
             }
           },
-          avgCompletionTime: {
+          averageCompletionTime: {
             $avg: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$assignedTasks',
-                    cond: { 
-                      $and: [
-                        { $eq: ['$$this.status', 'completed'] },
-                        { $ne: ['$$this.actualTime', null] }
-                      ]
-                    }
-                  }
+              $cond: [
+                { $eq: ['$status', 'completed'] },
+                {
+                  $subtract: ['$completedAt', '$assignedAt']
                 },
-                in: '$$this.actualTime'
-              }
+                null
+              ]
             }
           }
         }
       },
       {
         $project: {
-          name: 1,
-          role: 1,
-          department: 1,
-          rating: 1,
-          isOnline: 1,
+          department: '$_id',
+          totalTasks: 1,
           completedTasks: 1,
-          avgCompletionTime: 1,
-          tasksCompleted: '$completedTasks'
+          completionRate: {
+            $multiply: [
+              { $divide: ['$completedTasks', '$totalTasks'] },
+              100
+            ]
+          },
+          averageCompletionTime: {
+            $divide: ['$averageCompletionTime', 1000 * 60 * 60] // Convert to hours
+          }
         }
-      },
-      { $sort: { rating: -1, completedTasks: -1 } },
-      { $limit: 5 }
+      }
     ]);
 
-    // Calculate percentages for status distribution
-    const statusDistribution = Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      count,
-      percentage: totalTasks > 0 ? Math.round((count / totalTasks) * 100) : 0
-    })).filter(item => item.count > 0);
-
     res.json({
-      metrics: {
-        totalTasks: {
-          value: totalTasks,
-          change: -12, // Mock percentage change
-          label: 'Active tasks in system'
-        },
-        pendingTasks: {
-          value: pendingTasks,
-          label: 'Awaiting assignment'
-        },
-        staffOnline: {
-          value: staffOnline,
-          total: totalStaff,
-          label: 'Currently available'
-        },
-        avgCompletionTime: {
-          value: avgCompletionTime,
-          unit: 'm',
-          change: 8, // Mock percentage change
-          label: 'Task completion time'
-        },
-        completedToday: {
-          value: completedToday,
-          label: 'Tasks finished'
-        },
-        averageRating: {
-          value: 4.7,
-          change: 5, // Mock percentage change
-          label: 'Staff performance'
-        },
-        inProgress: {
-          value: statusCounts['in-progress'],
-          label: 'Currently being handled'
-        },
-        efficiencyRate: {
-          value: efficiencyRate,
-          change: 3, // Mock percentage change
-          label: 'Task completion rate'
-        }
-      },
-      statusDistribution,
-      recentActivity: recentTasks.map(task => ({
-        id: task._id,
-        title: task.title,
-        category: task.category,
-        status: task.status,
-        priority: task.priority,
-        guestName: task.guestName,
-        roomNumber: task.roomNumber,
-        assignedTo: task.assignedTo,
-        createdAt: task.createdAt,
-        timeAgo: getTimeAgo(task.createdAt)
-      })),
-      topPerformers: topPerformers.map((staff, index) => ({
-        id: staff._id,
-        name: staff.name,
-        role: staff.role,
-        department: staff.department,
-        rating: staff.rating || (4.9 - index * 0.1), // Mock ratings if not available
-        tasksCompleted: staff.completedTasks,
-        successRate: Math.max(95 - index * 2, 90), // Mock success rate
-        avgTime: Math.round(staff.avgCompletionTime) || (25 + index * 5), // Mock avg time
-        isOnline: staff.isOnline,
-        rank: index + 1
-      }))
+      success: true,
+      data: departmentPerformance
     });
+
   } catch (error) {
-    console.error('Dashboard fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard data' });
+    console.error('Error fetching department performance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch department performance',
+      error: error.message
+    });
   }
 };
-
-function getTimeAgo(date) {
-  const now = new Date();
-  const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-  
-  if (diffInMinutes < 1) return 'Just now';
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-  return `${Math.floor(diffInMinutes / 1440)}d ago`;
-}

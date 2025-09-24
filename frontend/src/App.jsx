@@ -14,10 +14,23 @@ import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
-// Manager pages
-import ManagerDashboardPage from './pages/manager/ManagerDashboardPageNew.jsx';
-import TaskManagementPage from './pages/manager/TaskManagementPage.jsx';
-import StaffPerformancePage from './pages/manager/StaffPerformancePage.jsx';
+
+// Task Management pages
+import ManagerTaskDashboard from './pages/manager/ManagerTaskDashboard.jsx';
+import TestManagerDashboard from './pages/manager/TestManagerDashboard.jsx';
+import AuthTest from './pages/manager/AuthTest.jsx';
+import TestPage from './pages/manager/TestPage.jsx';
+import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
+import TaskListPage from './pages/manager/TaskListPage.jsx';
+import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
+import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
+import FeedbackPage from './pages/manager/FeedbackPage.jsx';
+import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
+import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
+import ViewReportPage from './pages/manager/ViewReportPage.jsx';
+import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
+import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
+import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
 import UserManagementPage from './pages/admin/UserManagementPage.jsx';
@@ -27,10 +40,7 @@ import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
-import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
-import TaskManagement from './pages/manager/TaskManagementPage.jsx';
-import StaffMessageForm from './pages/manager/StaffMessageForm.jsx';
-import ManagerInbox from './pages/manager/ManagerInbox.jsx';
+
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 
 const App = () => {
@@ -197,59 +207,103 @@ const App = () => {
             }
           />
 
-
-         
-
-          {/* 👔 Manager Portal (layout + nested pages) */}
-            <Route
-            path="/manager/dashboard"
+          {/* 👨‍💼 Manager Routes */}
+          <Route
+            path="/manager"
             element={
               <ProtectedRoute roles={['manager']}>
-                <DefaultManagerLayout>
-                    <ManagerDashboardPage />
-                </DefaultManagerLayout>
+                <ManagerHomePage />
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 📊 Manager Reports Routes */}
+          <Route
+            path="/manager/reports/view"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ViewReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/reports/*"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Task Management Routes */}
+          <Route
+            path="/manager/tasks/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/test"
+            element={
+              <ManagerDashboardTest />
+            }
+          />
+
           <Route
             path="/manager/tasks"
             element={
               <ProtectedRoute roles={['manager']}>
-                <DefaultManagerLayout>
-                    <TaskManagementPage />
-                </DefaultManagerLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manager/staff-performance"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <DefaultManagerLayout>
-                    <StaffPerformancePage />
-                </DefaultManagerLayout>
+                <TaskListPage />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/manager/staff-messages"
+            path="/manager/tasks/create"
             element={
               <ProtectedRoute roles={['manager']}>
-                <DefaultManagerLayout>
-                    <StaffMessageForm />
-                </DefaultManagerLayout>
+                <CreateTaskPage />
               </ProtectedRoute>
             }
           />
 
           <Route
-            path="/manager/inbox"
+            path="/manager/tasks/assign"
             element={
               <ProtectedRoute roles={['manager']}>
-                <DefaultManagerLayout>
-                    <ManagerInbox />
-                </DefaultManagerLayout>
+                <TaskAssignPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/feedback"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <FeedbackPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍🔧 Staff Task Routes */}
+          <Route
+            path="/staff/tasks"
+            element={
+              <ProtectedRoute roles={['staff']}>
+                <StaffTasks />
               </ProtectedRoute>
             }
           />

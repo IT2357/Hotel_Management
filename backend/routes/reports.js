@@ -1,0 +1,211 @@
+import express from 'express';
+import {
+  getDashboardOverview,
+  getBookingReports,
+  getFinancialReports,
+  getKPIDashboard,
+  exportReport,
+  getForecast,
+  saveReportConfig,
+  getReportConfigs,
+  scheduleReport,
+  updateKPIs
+} from '../controllers/dashboard/reportController.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { authorizeRoles } from '../middleware/roleAuth.js';
+import { validateReportRequest } from '../middleware/validation.js';
+import { rateLimiter } from '../middleware/rateLimiter.js';
+
+const router = express.Router();
+
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+// Apply rate limiting for report generation
+router.use('/export', rateLimiter({ windowMs: 15 * 60 * 1000, max: 10 })); // 10 requests per 15 minutes
+router.use('/forecast', rateLimiter({ windowMs: 15 * 60 * 1000, max: 20 })); // 20 requests per 15 minutes
+
+/**
+ * @route   GET /api/reports/dashboard-overview
+ * @desc    Get dashboard overview with key metrics and stats
+ * @access  Manager, Admin
+ * @query   period (today, week, month, year)
+ */
+router.get(
+  '/dashboard-overview',
+  authorizeRoles(['manager', 'admin']),
+  getDashboardOverview
+);
+
+/**
+ * @route   GET /api/reports/bookings
+ * @desc    Get comprehensive booking reports and analytics
+ * @access  Manager, Admin
+ * @query   startDate, endDate, period, groupBy, includeForecasting, compare, comparePeriod
+ */
+router.get(
+  '/bookings',
+  authorizeRoles(['manager', 'admin']),
+  validateReportRequest,
+  getBookingReports
+);
+
+/**
+ * @route   GET /api/reports/finance
+ * @desc    Get comprehensive financial reports
+ * @access  Manager, Admin
+ * @query   startDate, endDate, period, includeBreakdown, compare, comparePeriod
+ */
+router.get(
+  '/finance',
+  authorizeRoles(['manager', 'admin']),
+  validateReportRequest,
+  getFinancialReports
+);
+
+/**
+ * @route   GET /api/reports/kpis
+ * @desc    Get KPI dashboard data with trends and alerts
+ * @access  Manager, Admin
+ * @query   period, includeTrends, includeAlerts
+ */
+router.get(
+  '/kpis',
+  authorizeRoles(['manager', 'admin']),
+  getKPIDashboard
+);
+
+/**
+ * @route   POST /api/reports/export
+ * @desc    Export reports as PDF or Excel
+ * @access  Manager, Admin
+ * @body    reportType, format, startDate, endDate, includeCharts
+ */
+router.post(
+  '/export',
+  authorizeRoles(['manager', 'admin']),
+  validateReportRequest,
+  exportReport
+);
+
+/**
+ * @route   GET /api/reports/forecast
+ * @desc    Get AI forecasting data
+ * @access  Manager, Admin
+ * @query   type, period, horizon
+ */
+router.get(
+  '/forecast',
+  authorizeRoles(['manager', 'admin']),
+  getForecast
+);
+
+/**
+ * @route   POST /api/reports/configs
+ * @desc    Save custom report configuration
+ * @access  Manager, Admin
+ * @body    Report configuration object
+ */
+router.post(
+  '/configs',
+  authorizeRoles(['manager', 'admin']),
+  saveReportConfig
+);
+
+/**
+ * @route   GET /api/reports/configs
+ * @desc    Get saved report configurations
+ * @access  Manager, Admin
+ * @query   type, isTemplate
+ */
+router.get(
+  '/configs',
+  authorizeRoles(['manager', 'admin']),
+  getReportConfigs
+);
+
+/**
+ * @route   POST /api/reports/configs/:configId/schedule
+ * @desc    Schedule automated report generation
+ * @access  Manager, Admin
+ * @params  configId
+ * @body    schedule configuration
+ */
+router.post(
+  '/configs/:configId/schedule',
+  authorizeRoles(['manager', 'admin']),
+  scheduleReport
+);
+
+/**
+ * @route   POST /api/reports/kpis/update
+ * @desc    Manually trigger KPI calculations
+ * @access  Manager, Admin
+ * @query   period, force
+ */
+router.post(
+  '/kpis/update',
+  authorizeRoles(['manager', 'admin']),
+  updateKPIs
+);
+
+/**
+ * @route   GET /api/reports/summary
+ * @desc    Get quick summary for dashboard widgets
+ * @access  Manager, Admin
+ */
+router.get(
+  '/summary',
+  authorizeRoles(['manager', 'admin']),
+  async (req, res, next) => {
+    try {
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // Get quick metrics for dashboard
+      const [bookingData, financialData, kpiData] = await Promise.all([
+        reportService.getBookingAnalytics({
+          startDate: thirtyDaysAgo,
+          endDate: today,
+          period: 'daily'
+        }),
+        reportService.getFinancialAnalytics({
+          startDate: thirtyDaysAgo,
+          endDate: today,
+          period: 'daily'
+        }),
+        kpiService.getCurrentKPIs('daily')
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          bookings: {
+            total: bookingData.totalBookings,
+            growth: bookingData.growth,
+            occupancyRate: kpiData.occupancyRate
+          },
+          revenue: {
+            total: financialData.totalRevenue,
+            growth: financialData.revenueGrowth,
+            averagePerBooking: bookingData.averageBookingValue
+          },
+          tasks: {
+            completionRate: kpiData.taskCompletionRate,
+            averageTime: kpiData.averageTaskCompletionTime,
+            pending: kpiData.pendingTasks
+          },
+          satisfaction: {
+            score: kpiData.guestSatisfactionScore,
+            reviews: kpiData.totalReviews
+          },
+          lastUpdated: new Date()
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;

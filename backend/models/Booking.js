@@ -23,6 +23,32 @@ const bookingSchema = new mongoose.Schema(
       },
     ],
     totalPrice: Number,
+    
+    // Revenue tracking
+    basePrice: Number,
+    taxes: { type: Number, default: 0 },
+    serviceCharges: { type: Number, default: 0 },
+    discounts: { type: Number, default: 0 },
+    
+    // Booking channel for analytics
+    bookingChannel: {
+      type: String,
+      enum: ["direct", "online", "phone", "walk-in", "agent", "corporate"],
+      default: "direct",
+      index: true,
+    },
+    
+    // Payment information
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "credit_card", "debit_card", "digital_wallet", "bank_transfer"],
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "completed", "refunded", "partially_refunded"],
+      default: "pending",
+    },
+    
     status: {
       type: String,
       enum: ["Pending", "Confirmed", "Cancelled"],

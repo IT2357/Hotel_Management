@@ -18,6 +18,8 @@ import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import "./eventListeners/notificationListeners.js";
 import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
+import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
+import reportsRoutes from "./routes/reports.js"; // Reports routes
 
 
 const app = express();
@@ -85,6 +87,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/manager", managerRoutes); // New manager routes
+app.use("/api/task-management", taskManagementRoutes); // Task management routes
+app.use("/api/reports", reportsRoutes); // Reports routes
 
 
 

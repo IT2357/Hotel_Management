@@ -1,9 +1,13 @@
-// controllers/manager/taskController.js
-import Task from '../../models/manager/Task.js';
-import Staff from '../../models/profiles/StaffProfile.js';
-import { Guest } from '../../models/User.js'; // Import the Guest discriminator
-import TaskHistory from '../../models/manager/TaskHistory.js';
-import Notification from '../../models/Notification.js';
+import Task from "../../models/Task.js";
+import TaskFeedback from "../../models/TaskFeedback.js";
+import { Staff } from "../../models/User.js";
+import StaffProfile from "../../models/profiles/StaffProfile.js";
+import mongoose from "mongoose";
+
+/**
+ * Task Controller for Hotel Task Management System
+ * Handles all task-related operations for managers
+ */
 
 export const createTaskHistory = async (taskId, action, performedBy, previousValue = null, newValue = null, notes = '') => {
   try {
