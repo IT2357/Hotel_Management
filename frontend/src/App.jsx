@@ -11,8 +11,10 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
+import ProfilePage from './pages/ProfilePage.jsx';
+import ProfileDashboard from './components/profile/ProfileDashboard.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
+import CompareRoomsPage from './pages/guest/CompareRoomsPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -88,6 +90,22 @@ const App = () => {
             element={
               <ProtectedRoute roles={['guest']}>
                 <GuestDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guest/profile"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <ProfileDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/compare-rooms"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <CompareRoomsPage />
               </ProtectedRoute>
             }
           />

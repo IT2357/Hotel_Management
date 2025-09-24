@@ -2,7 +2,7 @@
 import api from "./api";
 
 const roomService = {
-getAllRooms: (params) => api.get("/rooms", { params }),
+getAllRooms: (params) => api.get("/rooms/", { params }),
 getRoomById: (id) => api.get(`/rooms/${id}`),
 };
 

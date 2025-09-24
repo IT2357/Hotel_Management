@@ -16,5 +16,9 @@
   "keywords": [],
   "devDependencies": {
     "concurrently": "^9.2.0"
+  },
+  "dependencies": {
+    "framer-motion": "^12.23.19",
+    "lucide-react": "^0.544.0"
   }
 }
