@@ -2,6 +2,15 @@ import StaffTask from "../models/StaffTask.js";
 import { assignTask } from "../utils/taskAssigner.js";
 import { getIO } from '../utils/socket.js';
 
+const STATUS_ORDER = {
+  pending: 0,
+  assigned: 1,
+  in_progress: 2,
+  completed: 3,
+  cancelled: 3
+};
+const DOWNGRADE_GRACE_MS = 5 * 60 * 1000; // 5 minutes
+
 // Get Tasks
 export const getTasks = async (req, res) => {
   try {
@@ -42,6 +51,37 @@ export const getTaskById = async (req, res) => {
   }
 };
 
+// Create Task
+export const createTask = async (req, res) => {
+  try {
+    const attachments = req.files ? req.files.map(file => ({
+      filename: file.originalname,
+      url: file.path,
+      uploadedBy: req.user.id
+    })) : [];
+
+    const task = new StaffTask({
+      ...req.body,
+      createdBy: req.user.id,
+      assignedBy: req.user.id,
+      assignmentSource: 'user',
+      attachments,
+      status: 'pending'
+    });
+
+    await task.save();
+
+    if (task.department) {
+      await assignTask(task._id);
+    }
+
+    getIO().emit('taskCreated', task);
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Update Task Status
 export const updateTaskStatus = async (req, res) => {
   try {
@@ -57,11 +97,28 @@ export const updateTaskStatus = async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
     }
+    // Enforce forward-only progression after grace period
+    const fromStatus = task.status;
+    const toStatus = status;
+    const now = Date.now();
+    const lastChange = task.lastStatusChange ? new Date(task.lastStatusChange).getTime() : task.createdAt?.getTime() || now;
+    const isDowngrade = STATUS_ORDER[toStatus] < STATUS_ORDER[fromStatus];
+    if (isDowngrade && (now - lastChange) > DOWNGRADE_GRACE_MS) {
+      return res.status(400).json({ message: `Backward status change from ${fromStatus} to ${toStatus} is not allowed after grace period` });
+    }
     
-    task.status = status;
-    if (status === 'completed') {
+    // Apply transition and record metadata
+    task.status = toStatus;
+    if (toStatus === 'completed') {
       task.completedAt = new Date();
     }
+    if (toStatus === 'in_progress' && !task.acceptedBy) {
+      task.acceptedBy = req.user.id;
+      task.acceptedAt = new Date();
+    }
+    task.statusHistory = task.statusHistory || [];
+    task.statusHistory.push({ from: fromStatus, to: toStatus, changedBy: req.user.id, changedAt: new Date() });
+    task.lastStatusChange = new Date();
     
     await task.save();
     getIO().emit('taskUpdated', task);
@@ -83,6 +140,52 @@ export const updateTask = async (req, res) => {
         url: file.path,
         uploadedBy: req.user.id
       }));
+    }
+    
+    // If status change is requested here, enforce same rules as updateTaskStatus
+    if (updates.status) {
+      const taskCurrent = await StaffTask.findById(id);
+      if (!taskCurrent) return res.status(404).json({ message: 'Task not found' });
+
+      const fromStatus = taskCurrent.status;
+      const toStatus = updates.status;
+      const now = Date.now();
+      const lastChange = taskCurrent.lastStatusChange ? new Date(taskCurrent.lastStatusChange).getTime() : taskCurrent.createdAt?.getTime() || now;
+      const isDowngrade = STATUS_ORDER[toStatus] < STATUS_ORDER[fromStatus];
+      if (isDowngrade && (now - lastChange) > DOWNGRADE_GRACE_MS) {
+        return res.status(400).json({ message: `Backward status change from ${fromStatus} to ${toStatus} is not allowed after grace period` });
+      }
+
+      // Apply transition on the doc and save to capture history fields
+      taskCurrent.status = toStatus;
+      if (toStatus === 'completed') taskCurrent.completedAt = new Date();
+      if (toStatus === 'in_progress' && !taskCurrent.acceptedBy) {
+        taskCurrent.acceptedBy = req.user.id;
+        taskCurrent.acceptedAt = new Date();
+      }
+      taskCurrent.statusHistory = taskCurrent.statusHistory || [];
+      taskCurrent.statusHistory.push({ from: fromStatus, to: toStatus, changedBy: req.user.id, changedAt: new Date() });
+      taskCurrent.lastStatusChange = new Date();
+
+      // If reassignment is included
+      if (updates.assignedTo && String(updates.assignedTo) !== String(taskCurrent.assignedTo || '')) {
+        taskCurrent.assignedTo = updates.assignedTo;
+        taskCurrent.assignmentHistory = taskCurrent.assignmentHistory || [];
+        taskCurrent.assignmentHistory.push({ assignedTo: updates.assignedTo, assignedBy: req.user.id, source: 'user', status: 'reassigned', notes: updates.notes });
+        taskCurrent.assignedBy = req.user.id;
+        taskCurrent.assignmentSource = 'user';
+      }
+
+      // Apply other updatable fields (excluding status and assignedTo already handled)
+      const { status, assignedTo, ...rest } = updates;
+      Object.assign(taskCurrent, rest);
+
+      const saved = await taskCurrent.save();
+      const populated = await saved
+        .populate('assignedTo', 'firstName lastName')
+        .populate('assignedBy', 'firstName lastName');
+      getIO().emit('taskUpdated', populated);
+      return res.status(200).json(populated);
     }
 
     const task = await StaffTask.findByIdAndUpdate(id, updates, { new: true })
@@ -112,35 +215,6 @@ export const deleteTask = async (req, res) => {
     
     getIO().emit('taskDeleted', { id });
     res.status(200).json({ message: 'Task deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Create Task
-export const createTask = async (req, res) => {
-  try {
-    const attachments = req.files ? req.files.map(file => ({
-      filename: file.originalname,
-      url: file.path,
-      uploadedBy: req.user.id
-    })) : [];
-
-    const task = new StaffTask({
-      ...req.body,
-      assignedBy: req.user.id,
-      attachments,
-      status: 'pending'
-    });
-    
-    await task.save();
-    
-    if (task.department) {
-      await assignTask(task._id);
-    }
-    
-    getIO().emit('taskCreated', task);
-    res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -204,10 +278,12 @@ export const processTaskHandoff = async (req, res) => {
     task.assignmentHistory.push({
       assignedTo: toStaffId,
       assignedFrom: req.user.id,
+      assignedBy: req.user.id,
+      source: 'user',
       status: 'reassigned',
       notes: reason
     });
-    
+  
     await task.save();
     getIO().emit('taskUpdated', task);
     res.status(200).json(task);
@@ -216,7 +292,6 @@ export const processTaskHandoff = async (req, res) => {
   }
 };
 
-// Track Performance
 export const trackPerformance = async (req, res) => {
   try {
     const { staffId } = req.params;

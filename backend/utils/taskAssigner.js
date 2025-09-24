@@ -60,10 +60,14 @@ export const assignTask = async (taskId) => {
   const assignedTo = staffWithWorkload[0].staff.userId._id;
   task.assignedTo = assignedTo;
   task.status = 'assigned';
+  task.assignmentSource = 'system';
+  task.assignedBy = null; // system assignment
   
   // Log assignment
   task.assignmentHistory.push({
     assignedTo,
+    assignedBy: null,
+    source: 'system',
     status: 'assigned',
     notes: 'Automatically assigned by system'
   });

@@ -269,96 +269,6 @@ class AuthService {
     };
   }
 
-  // Login user
-  // async login({ email, password, ipAddress, userAgent }) {
-  //   const user = await User.findOne({ email }).select(
-  //     "+password +tokenVersion +passwordResetPending +isActive"
-  //   );
-  //   if (!user) {
-  //     throw new Error("Invalid email or password");
-  //   }
-  //   if (user.authProviders.length > 0) {
-  //     throw new Error(
-  //       "This account uses social login. Please use Google or Apple."
-  //     );
-  //   }
-  //   // Allow login for password reset pending users
-  //   if (user.passwordResetPending && !user.isActive) {
-  //     const isPasswordValid = await bcrypt.compare(password, user.password);
-  //     if (!isPasswordValid) {
-  //       throw new Error("Invalid email or password");
-  //     }
-  //     user.lastLogin = new Date();
-  //     user.loginHistory.push({
-  //       ipAddress: ipAddress || "Unknown",
-  //       device: userAgent || "Unknown",
-  //     });
-  //     await user.save();
-  //     const token = this.generateToken(user);
-  //     return {
-  //       user: {
-  //         _id: user._id,
-  //         email: user.email,
-  //         name: user.name,
-  //         role: user.role,
-  //         isActive: user.isActive,
-  //         passwordResetPending: user.passwordResetPending,
-  //         isApproved: user.isApproved,
-  //         emailVerified: user.emailVerified,
-  //       },
-  //       token,
-  //     };
-  //   }
-  //   const isPasswordValid = await bcrypt.compare(password, user.password);
-  //   if (!isPasswordValid) {
-  //     throw new Error("Invalid email or password");
-  //   }
-  //   if (!user.emailVerified) {
-  //     const otpCode = this.generateOTP();
-  //     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-  //     user.otpCode = otpCode;
-  //     user.otpExpiresAt = otpExpiry;
-  //     await user.save();
-  //     await EmailService.sendVerificationEmail(user, otpCode);
-  //     throw new Error(
-  //       "Please verify your email address. A new verification code has been sent.",
-  //       {
-  //         cause: {
-  //           requiresVerification: true,
-  //           data: { user: { _id: user._id, email: user.email } },
-  //         },
-  //       }
-  //     );
-  //   }
-  //   if (user.role !== "guest" && !user.isApproved) {
-  //     throw new Error("Your account is pending admin approval");
-  //   }
-  //   if (!user.isActive) {
-  //     throw new Error(
-  //       "Your account has been deactivated. Please contact support."
-  //     );
-  //   }
-  //   user.lastLogin = new Date();
-  //   user.loginHistory.push({
-  //     ipAddress: ipAddress || "Unknown",
-  //     device: userAgent || "Unknown",
-  //   });
-  //   await user.save();
-  //   const token = this.generateToken(user);
-  //   return {
-  //     user: {
-  //       _id: user._id,
-  //       email: user.email,
-  //       name: user.name,
-  //       role: user.role,
-  //       isActive: user.isActive,
-  //       passwordResetPending: user.passwordResetPending,
-  //       isApproved: user.isApproved,
-  //       emailVerified: user.emailVerified,
-  //     },
-  //     token,
-  //   };
-  // }
   async login({ email, password, ipAddress, userAgent }) {
     console.log("🔐 Backend login called with:", {
       email,
@@ -656,42 +566,56 @@ class AuthService {
 
   // Get current user with profile
   async getCurrentUser(userId, role) {
-    let query = User.findById(userId).select(
-      "-password -otp -passwordResetToken -passwordResetExpiry -tokenVersion"
-    );
+    const userDoc = await User.findById(userId)
+      .select("-password -otp -passwordResetToken -passwordResetExpiry -tokenVersion")
+      .lean();
 
-    // Populate role-specific profile
-    switch (role) {
-      case "guest":
-        query = query.populate({
-          path: "guestProfile",
-          select: "-userId -__v",
-        });
-        break;
-      case "staff":
-        query = query.populate({
-          path: "staffProfile",
-          select: "-userId -__v",
-        });
-        break;
-      case "manager":
-        query = query.populate({
-          path: "managerProfile",
-          select: "-userId -__v",
-        });
-        break;
-      case "admin":
-        query = query.populate({
-          path: "adminProfile",
-          select: "-userId -__v",
-        });
-        break;
-    }
-
-    const user = await query.exec();
-    if (!user) {
+    if (!userDoc) {
       throw new Error("User not found");
     }
+
+    let adminProfile = null;
+    let managerProfile = null;
+    let staffProfile = null;
+    let guestProfile = null;
+
+    switch (role) {
+      case "admin":
+        adminProfile = await AdminProfile.findOne({ userId })
+          .select("-userId -__v")
+          .lean();
+        break;
+      case "manager":
+        managerProfile = await ManagerProfile.findOne({ userId })
+          .select("-userId -__v")
+          .lean();
+        break;
+      case "staff":
+        staffProfile = await StaffProfile.findOne({ userId })
+          .select("-userId -__v")
+          .lean();
+        break;
+      case "guest":
+        guestProfile = await GuestProfile.findOne({ userId })
+          .select("-userId -__v")
+          .lean();
+        break;
+    }
+
+    const user = {
+      ...userDoc,
+      ...(adminProfile ? { adminProfile } : {}),
+      ...(managerProfile ? { managerProfile } : {}),
+      ...(staffProfile ? { staffProfile } : {}),
+      ...(guestProfile ? { guestProfile } : {}),
+    };
+
+    console.log("getCurrentUser result:", {
+      userId: user._id,
+      role: user.role,
+      hasAdminProfile: !!user.adminProfile,
+      adminPermModules: user.adminProfile?.permissions?.map((p) => p.module) || null,
+    });
 
     return user;
   }
