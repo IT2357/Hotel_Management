@@ -46,6 +46,7 @@ import SchedulePage from './pages/staff/SchedulePage.jsx';
 import Roomspage from './pages/admin/AdminRoomsPage.jsx';
 import AdminAddRoom from './pages/admin/AdminAddRooms.jsx';
 import AdminEditRoom from './pages/admin/AdminEditRoomsPage.jsx';
+import AdminviewPage from './pages/admin/AdminViewRooms.jsx';
 
 const App = () => {
   return (
@@ -260,6 +261,16 @@ const App = () => {
              <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminEditRoom />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/view-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminviewPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
