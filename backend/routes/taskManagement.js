@@ -103,8 +103,8 @@ router.get(
 // @access  Manager, Admin
 router.post(
   "/tasks",
-  // authenticateToken, // Temporarily disabled for debugging
-  // authorizeRoles(["manager", "admin"]), // Temporarily disabled for debugging
+  authenticateToken,
+  authorizeRoles(["manager", "admin"]),
   createTask
 );
 

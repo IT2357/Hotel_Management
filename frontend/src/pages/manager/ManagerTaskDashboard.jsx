@@ -198,7 +198,7 @@ const ManagerTaskDashboard = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Link
-            to="/manager/tasks/assign"
+            to="/manager/tasks/create"
             className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors text-center"
           >
             <div className="text-2xl mb-2">➕</div>

@@ -55,7 +55,7 @@ const taskSchema = new mongoose.Schema(
     },
     department: {
       type: String,
-      enum: ["Front Office", "Housekeeping", "Maintenance", "Food & Beverage", "Security", "Spa & Wellness", "Kitchen", "Services", "Cleaning"], // Updated to match frontend options
+      enum: ["Kitchen Staff", "Server Staff", "Maintenance", "Cleaning Staff"], // Updated to match user requirements
       required: true,
     },
     

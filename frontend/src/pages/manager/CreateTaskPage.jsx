@@ -23,6 +23,7 @@ const CreateTaskPage = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    type: 'general',
     department: '',
     assignedTo: '',
     priority: 'medium',
@@ -100,8 +101,8 @@ const CreateTaskPage = () => {
 
     try {
       // Validate required fields
-      if (!formData.title || !formData.description || !formData.department) {
-        throw new Error('Please fill in all required fields');
+      if (!formData.title || !formData.description || !formData.type || !formData.department) {
+        throw new Error('Please fill in all required fields (title, description, type, department)');
       }
 
       const taskData = {
@@ -117,6 +118,7 @@ const CreateTaskPage = () => {
       setFormData({
         title: '',
         description: '',
+        type: 'general',
         department: '',
         assignedTo: '',
         priority: 'medium',
@@ -245,12 +247,30 @@ const CreateTaskPage = () => {
                   required
                 >
                   <option value="">Select Department</option>
-                  <option value="Front Office">Front Office</option>
-                  <option value="Housekeeping">Housekeeping</option>
+                  <option value="Kitchen Staff">Kitchen Staff</option>
+                  <option value="Server Staff">Server Staff</option>
                   <option value="Maintenance">Maintenance</option>
-                  <option value="Food & Beverage">Food & Beverage</option>
-                  <option value="Security">Security</option>
-                  <option value="Spa & Wellness">Spa & Wellness</option>
+                  <option value="Cleaning Staff">Cleaning Staff</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Task Type
+                </label>
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="general">General</option>
+                  <option value="food">Food Service</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="cleaning">Cleaning</option>
+                  <option value="services">Guest Services</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
@@ -267,7 +287,7 @@ const CreateTaskPage = () => {
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="critical">Critical</option>
                 </select>
               </div>
             </div>

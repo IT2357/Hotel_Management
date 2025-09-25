@@ -34,7 +34,7 @@ import TestPage from './pages/manager/TestPage.jsx';
 import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
 import TaskListPage from './pages/manager/TaskListPage.jsx';
 import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
-import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
+import TaskAssignmentPage from './pages/manager/TaskAssignmentPage.jsx';
 import FeedbackPage from './pages/manager/FeedbackPage.jsx';
 import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
 import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
@@ -378,7 +378,7 @@ const App = () => {
             path="/manager/tasks/assign"
             element={
               <ProtectedRoute roles={['manager']}>
-                <TaskAssignPage />
+                <TaskAssignmentPage />
               </ProtectedRoute>
             }
           />

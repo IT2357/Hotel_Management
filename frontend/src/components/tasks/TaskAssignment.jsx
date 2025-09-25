@@ -25,7 +25,7 @@ const TaskManagement = () => {
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    department: 'Housekeeping',
+    department: 'Kitchen Staff',
     priority: 'medium',
     location: 'room',
     category: 'cleaning',
@@ -139,7 +139,7 @@ const TaskManagement = () => {
       setNewTask({
         title: '',
         description: '',
-        department: 'Housekeeping',
+        department: 'Kitchen Staff',
         priority: 'medium',
         location: 'room',
         category: 'cleaning',
@@ -310,10 +310,10 @@ const TaskManagement = () => {
                   value={newTask.department}
                   onChange={(e) => setNewTask({...newTask, department: e.target.value})}
                 >
-                  <option value="Housekeeping">Housekeeping</option>
-                  <option value="Kitchen">Kitchen</option>
+                  <option value="Kitchen Staff">Kitchen Staff</option>
+                  <option value="Server Staff">Server Staff</option>
                   <option value="Maintenance">Maintenance</option>
-                  <option value="Service">Service</option>
+                  <option value="Cleaning Staff">Cleaning Staff</option>
                 </Select>
               </div>
               <div>

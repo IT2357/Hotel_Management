@@ -140,10 +140,12 @@ export const createTask = async (req, res) => {
       instructions
     } = req.body;
 
-    // Check if user is authenticated - temporarily bypassed for debugging
+    // Check if user is authenticated
     if (!req.user || !req.user.id) {
-      console.log('Authentication error: No user found - using default user for testing');
-      req.user = { id: '507f1f77bcf86cd799439011', name: 'Test User' }; // Temporary fallback
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required"
+      });
     }
 
     // Validate required fields - guest fields are optional for manager-created tasks
@@ -155,7 +157,7 @@ export const createTask = async (req, res) => {
     }
 
     // Validate department is in allowed enum values
-    const validDepartments = ["Front Office", "Housekeeping", "Maintenance", "Food & Beverage", "Security", "Spa & Wellness", "Kitchen", "Services", "Cleaning"];
+    const validDepartments = ["Kitchen Staff", "Server Staff", "Maintenance", "Cleaning Staff"];
     if (!validDepartments.includes(department)) {
       return res.status(400).json({
         success: false,
