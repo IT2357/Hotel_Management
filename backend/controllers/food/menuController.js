@@ -69,6 +69,24 @@ export const getMenuItems = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Add proper image URLs to each menu item
+    const menuItemsWithImages = menuItems.map(item => {
+      const itemObj = item.toObject();
+      
+      // Handle image URL generation
+      if (itemObj.imageId) {
+        itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+      } else if (itemObj.image && itemObj.image.startsWith('http')) {
+        itemObj.imageUrl = itemObj.image;
+      } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
+        itemObj.imageUrl = itemObj.image;
+      } else {
+        itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+      }
+      
+      return itemObj;
+    });
+
     // Get total count for pagination
     const totalItems = await MenuItem.countDocuments(filter);
     const totalPages = Math.ceil(totalItems / parseInt(limit));
@@ -76,7 +94,7 @@ export const getMenuItems = async (req, res) => {
     res.json({
       success: true,
       data: {
-        items: menuItems,
+        items: menuItemsWithImages,
         pagination: {
           currentPage: parseInt(page),
           totalPages,
@@ -115,6 +133,17 @@ export const getMenuItem = async (req, res) => {
         success: false,
         message: "Menu item not found",
       });
+    }
+
+    // Add proper image URL
+    if (menuItem.imageId) {
+      menuItem.imageUrl = `/api/menu/image/${menuItem.imageId}`;
+    } else if (menuItem.image && menuItem.image.startsWith('http')) {
+      menuItem.imageUrl = menuItem.image;
+    } else if (menuItem.image && menuItem.image.startsWith('/api/')) {
+      menuItem.imageUrl = menuItem.image;
+    } else {
+      menuItem.imageUrl = menuItem.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
     }
 
     res.json({
@@ -181,8 +210,8 @@ export const createMenuItem = async (req, res) => {
           req.file.originalname,
           { folder: 'menu-items' }
         );
-        imageUrl = uploadedImageId; // Store the prefixed identifier
-        imageId = uploadedImageId; // Also store for GridFS reference if needed
+        imageUrl = `/api/menu/image/${uploadedImageId}`; // Construct proper URL for serving
+        imageId = uploadedImageId; // Store the prefixed identifier for reference
       } catch (uploadError) {
         console.error("Image upload failed:", uploadError);
         // Continue with default image if upload fails
@@ -260,8 +289,8 @@ export const updateMenuItem = async (req, res) => {
           req.file.originalname,
           { folder: 'menu-items' }
         );
-        updateData.image = uploadedImageId; // Store the prefixed identifier
-        updateData.imageId = uploadedImageId; // Also store for GridFS reference if needed
+        updateData.image = `/api/menu/image/${uploadedImageId}`; // Construct proper URL for serving
+        updateData.imageId = uploadedImageId; // Store the prefixed identifier for reference
 
         // TODO: Delete old image if it exists
       } catch (uploadError) {
@@ -495,16 +524,34 @@ export const getFoodItemsByCategory = async (req, res) => {
 
     console.log('Filter:', filter);
 
-    const foodItems = await MenuItem.find(filter)
+    const menuItems = await MenuItem.find(filter)
       .populate("category", "name slug")
       .sort({ name: 1 });
 
-    console.log('Found items:', foodItems.length);
+    // Add proper image URLs to each menu item
+    const menuItemsWithImages = menuItems.map(item => {
+      const itemObj = item.toObject();
+      
+      // Handle image URL generation
+      if (itemObj.imageId) {
+        itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+      } else if (itemObj.image && itemObj.image.startsWith('http')) {
+        itemObj.imageUrl = itemObj.image;
+      } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
+        itemObj.imageUrl = itemObj.image;
+      } else {
+        itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+      }
+      
+      return itemObj;
+    });
+
+    console.log('Found items:', menuItemsWithImages.length);
 
     res.status(200).json({
       success: true,
-      count: foodItems.length,
-      data: foodItems
+      count: menuItemsWithImages.length,
+      data: menuItemsWithImages
     });
   } catch (error) {
     console.error('Get food items by category error:', error);
@@ -546,7 +593,8 @@ export const batchCreateMenuItems = async (req, res) => {
           description: itemData.description || '',
           price: parseFloat(itemData.price) || 0,
           category: category._id,
-          image: itemData.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
+          image: itemData.image && itemData.image.startsWith('gridfs:') ? `/api/menu/image/${itemData.image}` : (itemData.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item"),
+          imageId: itemData.image && itemData.image.startsWith('gridfs:') ? itemData.image : null,
           ingredients: itemData.ingredients || [],
           allergens: itemData.allergens || [],
           nutritionalInfo: itemData.nutritionalInfo || {},

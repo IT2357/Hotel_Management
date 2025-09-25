@@ -268,11 +268,15 @@ const RestaurantMenuPage = () => {
                       >
                         <Card className="group overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105 bg-white/90 backdrop-blur-sm border-0 shadow-lg">
                           <div className="relative h-56 bg-gradient-to-br from-orange-100 to-red-100">
-                            {item.image ? (
+                            {(item.imageUrl || item.image) ? (
                               <img
-                                src={item.image}
+                                src={item.imageUrl || item.image}
                                 alt={item.name || 'Menu item'}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">

@@ -1,5 +1,6 @@
 // 📁 backend/controllers/menu/foodController.js
-import Food from "../../models/Food.js";
+import MenuItem from "../../models/MenuItem.js";
+import Category from "../../models/Category.js";
 import { validationResult } from "express-validator";
 
 // @desc    Get all food items
@@ -9,9 +10,8 @@ export const getFoodItems = async (req, res) => {
   try {
     const { 
       category, 
-      dietType, 
       isSpicy, 
-      isHalal,
+      isVeg,
       available, 
       search,
       page = 1,
@@ -21,37 +21,56 @@ export const getFoodItems = async (req, res) => {
     // Build filter object
     const filter = {};
     
-    if (category) filter.category = category;
-    if (dietType) filter.dietType = dietType;
+    if (category && category !== 'all') {
+      filter.category = category;
+    }
     if (isSpicy !== undefined) filter.isSpicy = isSpicy === 'true';
-    if (isHalal !== undefined) filter.isHalal = isHalal === 'true';
+    if (isVeg !== undefined) filter.isVeg = isVeg === 'true';
     if (available !== undefined) filter.isAvailable = available === 'true';
     
     // Text search
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const foodItems = await Food.find(filter)
-      .sort({ category: 1, name: 1 })
+    const menuItems = await MenuItem.find(filter)
+      .populate('category', 'name slug')
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Food.countDocuments(filter);
+    // Add proper image URLs to each menu item
+    const menuItemsWithImages = menuItems.map(item => {
+      const itemObj = item.toObject();
+      
+      // Handle image URL generation
+      if (itemObj.imageId) {
+        itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+      } else if (itemObj.image && itemObj.image.startsWith('http')) {
+        itemObj.imageUrl = itemObj.image;
+      } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
+        itemObj.imageUrl = itemObj.image;
+      } else {
+        itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+      }
+      
+      return itemObj;
+    });
+
+    const total = await MenuItem.countDocuments(filter);
 
     res.status(200).json({
       success: true,
-      count: foodItems.length,
+      count: menuItemsWithImages.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
-      data: foodItems
+      data: menuItemsWithImages
     });
   } catch (error) {
     console.error('Get food items error:', error);
@@ -68,24 +87,29 @@ export const getFoodItems = async (req, res) => {
 // @access  Public
 export const getFoodCategories = async (req, res) => {
   try {
-    const categories = await Food.aggregate([
+    // Get all categories with item counts
+    const categories = await Category.aggregate([
       {
-        $group: {
-          _id: "$category",
-          count: { $sum: 1 },
-          items: { $push: "$$ROOT" }
+        $lookup: {
+          from: 'menuitems',
+          localField: '_id',
+          foreignField: 'category',
+          as: 'items'
         }
       },
       {
         $project: {
-          _id: 0,
-          name: "$_id",
-          count: 1,
-          items: { $slice: ["$items", 3] } // Show first 3 items as preview
+          _id: 1,
+          name: 1,
+          slug: 1,
+          description: 1,
+          displayOrder: 1,
+          count: { $size: '$items' },
+          items: { $slice: ['$items', 3] } // Show first 3 items as preview
         }
       },
       {
-        $sort: { name: 1 }
+        $sort: { displayOrder: 1, name: 1 }
       }
     ]);
 
@@ -109,18 +133,31 @@ export const getFoodCategories = async (req, res) => {
 // @access  Public
 export const getFoodItem = async (req, res) => {
   try {
-    const foodItem = await Food.findById(req.params.id);
+    const menuItem = await MenuItem.findById(req.params.id)
+      .populate('category', 'name slug');
     
-    if (!foodItem) {
+    if (!menuItem) {
       return res.status(404).json({
         success: false,
-        message: 'Food item not found'
+        message: 'Menu item not found'
       });
+    }
+
+    // Add proper image URL
+    const itemObj = menuItem.toObject();
+    if (itemObj.imageId) {
+      itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+    } else if (itemObj.image && itemObj.image.startsWith('http')) {
+      itemObj.imageUrl = itemObj.image;
+    } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
+      itemObj.imageUrl = itemObj.image;
+    } else {
+      itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
     }
 
     res.status(200).json({
       success: true,
-      data: foodItem
+      data: itemObj
     });
   } catch (error) {
     console.error('Get food item error:', error);
@@ -145,13 +182,32 @@ export const getFoodItemsByCategory = async (req, res) => {
       isAvailable: available === 'true'
     };
 
-    const foodItems = await Food.find(filter)
+    const menuItems = await MenuItem.find(filter)
+      .populate('category', 'name slug')
       .sort({ name: 1 });
+
+    // Add proper image URLs to each menu item
+    const menuItemsWithImages = menuItems.map(item => {
+      const itemObj = item.toObject();
+      
+      // Handle image URL generation
+      if (itemObj.imageId) {
+        itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+      } else if (itemObj.image && itemObj.image.startsWith('http')) {
+        itemObj.imageUrl = itemObj.image;
+      } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
+        itemObj.imageUrl = itemObj.image;
+      } else {
+        itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+      }
+      
+      return itemObj;
+    });
 
     res.status(200).json({
       success: true,
-      count: foodItems.length,
-      data: foodItems
+      count: menuItemsWithImages.length,
+      data: menuItemsWithImages
     });
   } catch (error) {
     console.error('Get food items by category error:', error);

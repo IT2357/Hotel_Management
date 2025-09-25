@@ -153,17 +153,21 @@ const EnhancedMenuReviewPage = () => {
   // Save item edits
   const handleSaveEdit = async () => {
     try {
-      await api.put(`/menu-selection/${id}/item/${editForm.categoryName}/${editForm.itemIndex}`, {
-        name: editForm.name,
-        description: editForm.description,
-        price: parseFloat(editForm.price),
-        customizations: {
-          isVeg: editForm.isVeg,
-          isSpicy: editForm.isSpicy,
-          isPopular: editForm.isPopular,
-          isAvailable: editForm.isAvailable
+      // Backend expects all updates nested under `customizations`
+      await api.put(
+        `/menu-selection/${id}/item/${editForm.categoryName}/${editForm.itemIndex}`,
+        {
+          customizations: {
+            name: editForm.name,
+            description: editForm.description,
+            price: parseFloat(editForm.price),
+            isVeg: editForm.isVeg,
+            isSpicy: editForm.isSpicy,
+            isPopular: editForm.isPopular,
+            isAvailable: editForm.isAvailable,
+          },
         }
-      });
+      );
 
       // Update local data
       setMenuData(prev => {
@@ -215,7 +219,7 @@ const EnhancedMenuReviewPage = () => {
       toast.success(`Successfully saved ${response.data.data.savedCount} menu items!`);
       
       // Navigate to admin dashboard or menu management
-      navigate('/admin/food-menu-management', {
+      navigate('/admin/food/menu', {
         state: { 
           message: `${response.data.data.savedCount} items added to menu`,
           newItems: response.data.data.items

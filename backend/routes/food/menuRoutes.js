@@ -15,6 +15,13 @@ import {
   getFoodItemsByCategory,
 } from "../../controllers/food/menuController.js";
 import {
+  getFoodItems,
+  getFoodCategories,
+  getFoodItem,
+  getFoodItemsByCategory as getMenuItemsByCategory
+} from "../../controllers/menu/foodController.js";
+import { getMenuImage } from "../../controllers/menuExtractionController.js";
+import {
   getAllFoodOrders,
   getFoodOrder,
   updateOrderStatus,
@@ -43,6 +50,7 @@ router.get("/categories", getCategories);
 router.get("/categories/:category/items", getFoodItemsByCategory);
 router.get("/featured", getFeaturedItems);
 router.get("/popular", getPopularItems);
+router.get("/image/:imageId", getMenuImage);
 
 // Protected routes (admin/manager only)
 router.post("/categories", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuCategory, createCategory);

@@ -1,13 +1,13 @@
 // 📁 frontend/src/pages/ModernRestaurantMenu.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  Filter, 
-  Heart, 
-  Plus, 
-  Minus, 
-  ShoppingCart, 
+import {
+  Search,
+  Filter,
+  Heart,
+  Plus,
+  Minus,
+  ShoppingCart,
   Star,
   Clock,
   Flame,
@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
+
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
 
 const ModernRestaurantMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -116,17 +121,35 @@ const ModernRestaurantMenu = () => {
       'hot': 3,
       'very-hot': 4
     };
-    
+
     return (
       <div className="flex">
         {[...Array(4)].map((_, i) => (
-          <Flame 
-            key={i} 
+          <Flame
+            key={i}
             className={`w-3 h-3 ${i < flames[level] ? 'text-red-500' : 'text-gray-300'}`}
           />
         ))}
       </div>
     );
+  };
+
+  // Handle different image formats: base64, URL, or relative path
+  const getImageSrc = (item) => {
+    if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+      return item.imageUrl; // Base64 image
+    } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
+      return item.imageUrl; // Full URL
+    } else if (item.image && item.image.startsWith('http')) {
+      return item.image; // Full URL in image field
+    } else if (item.image && item.image.startsWith('/api/menu/image/')) {
+      // Backend image URL - construct full URL
+      return `${API_BASE_URL}${item.image}`;
+    } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
+      // Fallback for other paths
+      return `${API_BASE_URL}/api${item.image}`;
+    }
+    return "https://dummyimage.com/400x300/cccccc/000000&text=Delicious+Dish";
   };
 
   if (loading) {
@@ -332,7 +355,7 @@ const ModernRestaurantMenu = () => {
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
                     <div className="text-gray-700 text-lg font-bold text-center bg-white px-4 py-2 rounded-lg border border-green-200">
-                      Up to ${filters.priceRange[1]}
+                      Up to LKR {filters.priceRange[1]}
                     </div>
                   </div>
                 </div>
@@ -362,7 +385,7 @@ const ModernRestaurantMenu = () => {
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Delicious+Dish"}
+                    src={getImageSrc(item)}
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
@@ -401,7 +424,7 @@ const ModernRestaurantMenu = () => {
                   {/* Price */}
                   <div className="absolute bottom-3 left-3">
                     <span className="text-2xl font-bold text-white drop-shadow-lg">
-                      ${item.price}
+                      LKR {item.price}
                     </span>
                   </div>
                 </div>

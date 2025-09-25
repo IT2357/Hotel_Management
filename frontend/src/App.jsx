@@ -44,6 +44,9 @@ import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
+import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRooms from './pages/admin/AdminAddRooms.jsx';
+import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
 import FoodManagementPage from './pages/admin/FoodManagementPage.jsx';
 import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
@@ -254,6 +257,39 @@ const AppContent = () => {
             element={
               <ProtectedRoute roles={['admin']} permissions={["users:read"]}>
                 <UserManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/rooms"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/add-room"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRooms />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoomsPage />
+                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />

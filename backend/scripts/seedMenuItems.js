@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import MenuItem from '../models/MenuItem.js';
+import Category from '../models/Category.js';
 import 'dotenv/config';
 
 const menuItems = [
@@ -182,6 +183,60 @@ const menuItems = [
       fat: 2
     },
     cookingTime: 3
+  },
+  {
+    name: "Continental Breakfast",
+    description: "Fresh croissants, fruits, yogurt, and coffee",
+    price: 15.99,
+    category: "breakfast",
+    isAvailable: true,
+    isVeg: true,
+    isSpicy: false,
+    isPopular: true,
+    ingredients: ["Croissants", "Fruits", "Yogurt", "Coffee"],
+    nutritionalInfo: {
+      calories: 450,
+      protein: 15,
+      carbs: 60,
+      fat: 18
+    },
+    cookingTime: 5
+  },
+  {
+    name: "Chicken Fried Rice",
+    description: "Wok-tossed rice with chicken, vegetables, and eggs",
+    price: 18.99,
+    category: "lunch",
+    isAvailable: true,
+    isVeg: false,
+    isSpicy: false,
+    isPopular: true,
+    ingredients: ["Rice", "Chicken", "Vegetables", "Eggs", "Soy sauce"],
+    nutritionalInfo: {
+      calories: 520,
+      protein: 28,
+      carbs: 65,
+      fat: 16
+    },
+    cookingTime: 15
+  },
+  {
+    name: "Grilled Salmon Dinner",
+    description: "Fresh salmon fillet with roasted vegetables and rice",
+    price: 32.99,
+    category: "dinner",
+    isAvailable: true,
+    isVeg: false,
+    isSpicy: false,
+    isPopular: true,
+    ingredients: ["Salmon", "Vegetables", "Rice", "Herbs"],
+    nutritionalInfo: {
+      calories: 480,
+      protein: 35,
+      carbs: 30,
+      fat: 22
+    },
+    cookingTime: 20
   }
 ];
 
@@ -195,9 +250,37 @@ async function seedMenuItems() {
     await MenuItem.deleteMany({});
     console.log('Cleared existing menu items');
 
+    // Get all categories and create a map
+    const categories = await Category.find({});
+    const categoryMap = {};
+    categories.forEach(cat => {
+      // Direct mapping for exact name matches
+      categoryMap[cat.name] = cat._id;
+      categoryMap[cat.name.toLowerCase()] = cat._id;
+      categoryMap[cat.name.toLowerCase().replace(/\s+/g, '-')] = cat._id;
+
+      // Also map common variations
+      if (cat.name === 'Main Courses') categoryMap['main-course'] = cat._id;
+      if (cat.name === 'Appetizers & Starters') categoryMap['appetizers'] = cat._id;
+      if (cat.name === 'Desserts & Sweets') categoryMap['desserts'] = cat._id;
+      if (cat.name === 'Beverages') categoryMap['beverages'] = cat._id;
+    });
+
+    console.log('Category mapping:', categoryMap);
+
     // Insert new menu items one by one to trigger pre-save middleware
     const insertedItems = [];
     for (const itemData of menuItems) {
+      // Replace category string with ObjectId
+      if (typeof itemData.category === 'string') {
+        const categoryId = categoryMap[itemData.category];
+        if (!categoryId) {
+          console.warn(`⚠️ Category "${itemData.category}" not found, skipping item "${itemData.name}"`);
+          continue;
+        }
+        itemData.category = categoryId;
+      }
+
       const item = new MenuItem(itemData);
       const savedItem = await item.save();
       insertedItems.push(savedItem);

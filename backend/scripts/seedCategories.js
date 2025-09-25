@@ -54,6 +54,16 @@ const defaultCategories = [
     description: 'Light bites and snacks',
     displayOrder: 10,
   },
+  {
+    name: 'Lunch',
+    description: 'Light meals for midday',
+    displayOrder: 11,
+  },
+  {
+    name: 'Dinner',
+    description: 'Evening meals and dinner specials',
+    displayOrder: 12,
+  },
 ];
 
 const seedCategories = async () => {

@@ -30,28 +30,49 @@ const upload = multer({
 // Middleware to handle GridFS upload after multer processes the file
 export const uploadToGridFS = async (req, res, next) => {
   try {
-    if (req.file) {
-      console.log('📁 Uploading file to GridFS:', req.file.originalname);
-      
-      // Upload to GridFS using our service
-      const fileId = await gridfsService.uploadImage(
-        req.file.buffer,
-        req.file.originalname,
-        {
-          uploadedBy: req.user?.id,
-          purpose: 'menu_extraction',
-          originalSize: req.file.size,
-          mimeType: req.file.mimetype
-        }
-      );
+    // Handle both single file (req.file) and multiple files (req.files)
+    let filesToProcess = [];
 
-      // Add GridFS file ID to request object
-      req.file.id = fileId;
-      req.file.gridfsId = fileId;
-      
-      console.log('✅ File uploaded to GridFS with ID:', fileId);
+    if (req.file) {
+      // Single file upload
+      filesToProcess = [req.file];
+    } else if (req.files) {
+      // Multiple files upload (from upload.any() or upload.fields())
+      if (Array.isArray(req.files)) {
+        filesToProcess = req.files;
+      } else {
+        // req.files is an object with field names as keys
+        filesToProcess = Object.values(req.files).flat();
+      }
     }
-    
+
+    console.log('🔍 DEBUG: filesToProcess length:', filesToProcess.length);
+
+    // Process each file
+    for (const file of filesToProcess) {
+      if (file && file.buffer) {
+        console.log('📁 Uploading file to GridFS:', file.originalname);
+
+        // Upload to GridFS using our service
+        const fileId = await gridfsService.uploadImage(
+          file.buffer,
+          file.originalname,
+          {
+            uploadedBy: req.user?.id,
+            purpose: 'menu_extraction',
+            originalSize: file.size,
+            mimeType: file.mimetype
+          }
+        );
+
+        // Add GridFS file ID to file object
+        file.id = fileId;
+        file.gridfsId = fileId;
+
+        console.log('✅ File uploaded to GridFS with ID:', fileId);
+      }
+    }
+
     next();
   } catch (error) {
     console.error('❌ GridFS upload error:', error);

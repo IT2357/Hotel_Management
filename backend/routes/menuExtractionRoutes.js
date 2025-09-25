@@ -15,13 +15,32 @@ import imageStorageService from '../services/imageStorageService.js';
 const router = express.Router();
 
 // Upload and process menu (supports file upload, URL, and file path)
-router.post('/upload', uploadSingle, handleMulterError, uploadToGridFS, protect, authorizeRoles(['admin', 'manager']), extractMenu);
+router.post('/upload', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, uploadToGridFS, extractMenu);
 
-// Alternative route for menu extraction (used by frontend)
-router.post('/extract', uploadForMenuExtraction, handleMulterError, uploadToGridFS, protect, authorizeRoles(['admin', 'manager']), extractMenu);
+// Alternative route for menu extraction (used by frontend) - supports both file upload and URL
+router.post('/extract', protect, authorizeRoles(['admin', 'manager']), uploadForMenuExtraction, handleMulterError, (req, res, next) => {
+  // Convert req.files array to req.file for compatibility with uploadToGridFS middleware
+  if (req.files && req.files.length > 0) {
+    const uploadedFile = req.files.find(f => f.fieldname === 'file') || req.files[0];
+    if (uploadedFile) {
+      req.file = {
+        fieldname: uploadedFile.fieldname,
+        originalname: uploadedFile.originalname,
+        encoding: uploadedFile.encoding,
+        mimetype: uploadedFile.mimetype,
+        buffer: uploadedFile.buffer,
+        size: uploadedFile.size
+      };
+    }
+  }
+  next();
+}, uploadToGridFS, extractMenu);
+
+// Separate route for URL-based extraction (JSON payload)
+router.post('/extract-url', protect, authorizeRoles(['admin', 'manager']), extractMenu);
 
 // Debug route for testing file upload
-router.post('/extract-debug', uploadForMenuExtraction, handleMulterError, protect, authorizeRoles(['admin', 'manager']), (req, res) => {
+router.post('/extract-debug', protect, authorizeRoles(['admin', 'manager']), uploadForMenuExtraction, handleMulterError, (req, res) => {
   console.log('🔍 DEBUG: Extract debug route hit');
   console.log('🔍 DEBUG: Files array:', req.files ? req.files.length : 0, 'files');
   if (req.files && req.files.length > 0) {

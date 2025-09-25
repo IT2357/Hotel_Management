@@ -5,6 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
+
 export default function MenuPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -377,6 +382,24 @@ export default function MenuPage() {
     setCartQuantities(prev => ({ ...prev, [item._id || item.id]: 0 }));
   };
 
+  // Handle different image formats: base64, URL, or relative path
+  const getImageSrc = (item) => {
+    if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+      return item.imageUrl; // Base64 image
+    } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
+      return item.imageUrl; // Full URL
+    } else if (item.image && item.image.startsWith('http')) {
+      return item.image; // Full URL in image field
+    } else if (item.image && item.image.startsWith('/api/menu/image/')) {
+      // Backend image URL - construct full URL
+      return `${API_BASE_URL}${item.image}`;
+    } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
+      // Fallback for other paths
+      return `${API_BASE_URL}/api${item.image}`;
+    }
+    return 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -568,7 +591,7 @@ export default function MenuPage() {
             }}>
               <div style={{ position: 'relative' }}>
                 <img
-                  src={item.imageUrl || item.image || 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400'}
+                  src={getImageSrc(item)}
                   alt={item.name}
                   style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                 />

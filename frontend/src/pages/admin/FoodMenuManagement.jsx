@@ -312,7 +312,7 @@ const MenuItemCard = memo(({ item, onEdit, onDelete, onToggleAvailability }) => 
       {/* Image */}
       <div className="relative h-48">
         <img
-          src={imageError ? "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item" : (item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item")}
+          src={imageError ? "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item" : (item.imageUrl || item.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item")}
           alt={item.name}
           className="w-full h-full object-cover"
           loading="lazy"

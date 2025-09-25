@@ -196,7 +196,7 @@ const fetchRooms = async () => {
                         {(room.occupancy?.adults ?? 0)} Adults, {(room.occupancy?.children ?? 0)} Children
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${room.basePrice ?? 0}
+                        LKR {room.basePrice ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge className={getStatusColor(room.status)}>{room.status || "Unknown"}</Badge>

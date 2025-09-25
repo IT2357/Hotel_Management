@@ -37,6 +37,11 @@ import { MenuItemCard } from '@/components/admin/MenuItemCard';
 import { MenuItemForm } from '@/components/admin/MenuItemForm';
 import { StatisticsCard } from '@/components/admin/StatisticsCard';
 
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
+
 const FoodMenuManagementPage = () => {
   const [foodItems, setFoodItems] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
@@ -72,7 +77,6 @@ const FoodMenuManagementPage = () => {
     isDinner: true,
     isSnacks: true,
     ingredients: [],
-    ingredientsText: '',
     dietaryTags: [],
     nutritionalInfo: {
       calories: '',
@@ -141,7 +145,7 @@ const FoodMenuManagementPage = () => {
           category: selectedCategory !== 'all' ? selectedCategory : undefined,
           search: searchQuery || undefined
         }),
-        api.get('/api/menu/categories')
+        api.get('/menu/categories')
       ]);
 
       setFoodItems(itemsResponse.data || []);
@@ -160,14 +164,55 @@ const FoodMenuManagementPage = () => {
   // Handler functions
   const handleCreateItem = useCallback(async (formData) => {
     try {
-      const response = await foodService.createMenuItem(formData);
+      setIsSubmitting(true);
+      // Prepare data for service - map imageFile to image field
+      const serviceData = {
+        ...formData,
+        image: formData.imageFile || formData.image // Use imageFile if available, otherwise image URL
+      };
+      // Remove imageFile and imagePreview as they're not needed by the service
+      delete serviceData.imageFile;
+      delete serviceData.imagePreview;
+
+      const response = await foodService.createMenuItem(serviceData);
       setFoodItems(prev => [...prev, response.data]);
       setIsCreateDialogOpen(false);
+      setEditingItem(null);
+      // Reset form data
+      setFormData({
+        name: '',
+        category: '',
+        description: '',
+        price: '',
+        image: '',
+        imageFile: null,
+        imagePreview: null,
+        isAvailable: true,
+        isVeg: false,
+        isSpicy: false,
+        isPopular: false,
+        isBreakfast: true,
+        isLunch: true,
+        isDinner: true,
+        isSnacks: true,
+        ingredients: [],
+        dietaryTags: [],
+        nutritionalInfo: {
+          calories: '',
+          protein: '',
+          carbs: '',
+          fat: ''
+        },
+        cookingTime: 15,
+        customizations: []
+      });
       toast.success('Menu item created successfully');
       fetchMenuData();
     } catch (error) {
       console.error('Error creating menu item:', error);
       toast.error(error.response?.data?.message || 'Failed to create menu item');
+    } finally {
+      setIsSubmitting(false);
     }
   }, [fetchMenuData]);
 
@@ -175,17 +220,29 @@ const FoodMenuManagementPage = () => {
     if (!editingItem) return;
 
     try {
-      const response = await foodService.updateMenuItem(editingItem._id, formData);
+      setIsSubmitting(true);
+      // Prepare data for service - map imageFile to image field
+      const serviceData = {
+        ...formData,
+        image: formData.imageFile || formData.image // Use imageFile if available, otherwise image URL
+      };
+      // Remove imageFile and imagePreview as they're not needed by the service
+      delete serviceData.imageFile;
+      delete serviceData.imagePreview;
+
+      const response = await foodService.updateMenuItem(editingItem._id, serviceData);
       setFoodItems(prev => prev.map(item =>
         item._id === editingItem._id ? response.data : item
       ));
-      setIsEditDialogOpen(false);
+      setIsCreateDialogOpen(false);
       setEditingItem(null);
       toast.success('Menu item updated successfully');
       fetchMenuData();
     } catch (error) {
       console.error('Error updating menu item:', error);
       toast.error(error.response?.data?.message || 'Failed to update menu item');
+    } finally {
+      setIsSubmitting(false);
     }
   }, [editingItem, fetchMenuData]);
 
@@ -204,7 +261,7 @@ const FoodMenuManagementPage = () => {
 
   const handleToggleAvailability = useCallback(async (itemId, isAvailable) => {
     try {
-      await api.put(`/api/menu/items/${itemId}`, { isAvailable });
+      await api.put(`/menu/items/${itemId}`, { isAvailable });
       setFoodItems(prev => prev.map(item =>
         item._id === itemId ? { ...item, isAvailable } : item
       ));
@@ -296,7 +353,6 @@ const FoodMenuManagementPage = () => {
       isDinner: item.isDinner !== false,
       isSnacks: item.isSnacks !== false,
       ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
-      ingredientsText: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : '',
       dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [],
       nutritionalInfo: item.nutritionalInfo && typeof item.nutritionalInfo === 'object' ? {
         calories: item.nutritionalInfo.calories ? item.nutritionalInfo.calories.toString() : '',
@@ -312,8 +368,32 @@ const FoodMenuManagementPage = () => {
       cookingTime: item.cookingTime ? item.cookingTime.toString() : '15',
       customizations: Array.isArray(item.customizations) ? item.customizations : []
     });
-    setIsEditDialogOpen(true);
+    setIsCreateDialogOpen(true); // Use the same dialog for both create and edit
   }, []);
+
+  // Add new category functionality
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleAddNewCategory = useCallback(async () => {
+    if (!newCategoryName.trim()) return;
+
+    try {
+      const response = await api.post('/menu/categories', {
+        name: newCategoryName.trim(),
+        description: `${newCategoryName.trim()} category`
+      });
+
+      setCategoriesList(prev => [...prev, response.data]);
+      setFormData(prev => ({ ...prev, category: response.data._id }));
+      setNewCategoryName('');
+      setShowAddCategory(false);
+      toast.success('Category added successfully');
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast.error('Failed to add category');
+    }
+  }, [newCategoryName]);
 
   // Memoized filtered items
   const filteredItems = useMemo(() => {
@@ -371,7 +451,7 @@ const FoodMenuManagementPage = () => {
       const formData = new FormData();
       formData.append('image', aiFormData.image);
 
-      const response = await api.post('/api/menu-extraction/upload', formData, {
+      const response = await api.post('/menu-extraction/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -393,12 +473,51 @@ const FoodMenuManagementPage = () => {
     }
 
     try {
-      const response = await api.post('/api/menu/batch', { items: ocrResult.items });
-      setFoodItems(prev => [...prev, ...response.data]);
-      toast.success(`Successfully added ${response.data.length} menu items`);
-      setIsAIDialogOpen(false);
-      setOcrResult(null);
-      setUploadError('');
+      // Save each item individually to the menu items collection
+      const savedItems = [];
+      for (const item of ocrResult.items) {
+        try {
+          // Transform the extracted item to match the menu item schema
+          const menuItemData = {
+            name: item.name,
+            category: item.category || 'Main Course', // Default category
+            description: item.description || '',
+            price: parseFloat(item.price) || 200,
+            image: item.image || '',
+            isAvailable: true,
+            isVeg: item.isVeg || false,
+            isSpicy: item.isSpicy || false,
+            isPopular: item.popularity === 'high',
+            isBreakfast: item.category?.toLowerCase().includes('breakfast') || false,
+            isLunch: !item.category?.toLowerCase().includes('breakfast') || false,
+            isDinner: !item.category?.toLowerCase().includes('breakfast') || false,
+            isSnacks: item.category?.toLowerCase().includes('snack') || false,
+            ingredients: item.ingredients || [],
+            dietaryTags: item.dietaryTags || [],
+            nutritionalInfo: item.nutritionalInfo || {},
+            cookingTime: item.cookingTime || 15,
+            spiceLevel: item.spiceLevel || 'medium',
+            cuisine: item.cuisine || 'Sri Lankan Tamil'
+          };
+
+          const response = await foodService.createMenuItem(menuItemData);
+          savedItems.push(response.data);
+        } catch (itemError) {
+          console.error('Error saving individual item:', itemError);
+          // Continue with other items
+        }
+      }
+
+      if (savedItems.length > 0) {
+        setFoodItems(prev => [...prev, ...savedItems]);
+        toast.success(`Successfully added ${savedItems.length} menu items`);
+        setIsAIDialogOpen(false);
+        setOcrResult(null);
+        setUploadError('');
+        fetchMenuData(); // Refresh the menu data
+      } else {
+        toast.error('Failed to save any menu items');
+      }
     } catch (error) {
       console.error('Error saving menu items:', error);
       toast.error('Failed to save menu items');
@@ -577,7 +696,7 @@ const FoodMenuManagementPage = () => {
                                     <div className="text-sm font-medium text-gray-900">{item.name}</div>
                                     {item.description && <div className="text-sm text-gray-500 mt-1">{item.description}</div>}
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${parseFloat(item.price).toFixed(2)}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LKR {parseFloat(item.price).toFixed(2)}</td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                                       {item.category || 'Uncategorized'}
@@ -622,24 +741,26 @@ const FoodMenuManagementPage = () => {
                 </Button>
               </DialogTrigger>
                 <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-6 -m-6 mb-6">
+                  <DialogHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-700 text-white rounded-t-lg p-6 -m-6 mb-6">
                     <DialogTitle className="text-2xl font-bold flex items-center">
                       <ChefHat className="h-6 w-6 mr-3" />
-                      Add New Menu Item
+                      {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
                     </DialogTitle>
-                    <p className="text-indigo-100 mt-2">Create a delicious new item for your menu</p>
+                    <p className="text-indigo-100 dark:text-indigo-200 mt-2">
+                      {editingItem ? 'Update the details of this menu item' : 'Create a delicious new item for your menu'}
+                    </p>
                   </DialogHeader>
 
                   <div className="space-y-6 p-6">
                     {/* Basic Information Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <ChefHat className="h-5 w-5 mr-2 text-blue-600" />
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <ChefHat className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
                         Basic Information
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="name" className="text-sm font-medium text-gray-700">Item Name *</Label>
+                          <Label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">Item Name *</Label>
                           <Input
                             id="name"
                             value={formData.name}
@@ -650,27 +771,76 @@ const FoodMenuManagementPage = () => {
                           {formErrors.name && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.name}</p>}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="category" className="text-sm font-medium text-gray-700">Category *</Label>
-                          <Select
-                            value={formData.category}
-                            onValueChange={(value) => setFormData({ ...formData, category: value })}
-                          >
-                            <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.slice(1).map((category) => (
-                                <SelectItem key={category.value} value={category.value}>
-                                  {category.label}
+                          <Label htmlFor="category" className="text-sm font-medium text-gray-700 dark:text-gray-300">Category *</Label>
+                          <div className="space-y-2">
+                            <Select
+                              value={formData.category}
+                              onValueChange={(value) => {
+                                if (value === 'add-new') {
+                                  setShowAddCategory(true);
+                                } else {
+                                  setFormData({ ...formData, category: value });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categoriesList.map((category) => (
+                                  <SelectItem key={category._id} value={category._id}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="add-new" className="text-indigo-600 font-medium">
+                                  ➕ Add New Category
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                              </SelectContent>
+                            </Select>
+
+                            {/* Add New Category Dialog */}
+                            {showAddCategory && (
+                              <div className="flex gap-2 mt-2">
+                                <Input
+                                  placeholder="Enter category name"
+                                  value={newCategoryName}
+                                  onChange={(e) => setNewCategoryName(e.target.value)}
+                                  className="flex-1"
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleAddNewCategory();
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleAddNewCategory}
+                                  disabled={!newCategoryName.trim()}
+                                  className="px-3"
+                                >
+                                  Add
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowAddCategory(false);
+                                    setNewCategoryName('');
+                                  }}
+                                  className="px-3"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                           {formErrors.category && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.category}</p>}
                         </div>
                       </div>
                       <div className="space-y-2 mt-4">
-                        <Label htmlFor="description" className="text-sm font-medium text-gray-700">Description *</Label>
+                        <Label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">Description *</Label>
                         <Textarea
                           id="description"
                           value={formData.description}
@@ -684,9 +854,9 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Image Upload Section */}
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <Upload className="h-5 w-5 mr-2 text-purple-600" />
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <Upload className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
                         Image Upload *
                       </h3>
 
@@ -749,14 +919,14 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Pricing & Timing Section */}
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <DollarSign className="h-5 w-5 mr-2 text-green-600" />
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <DollarSign className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
                         Pricing & Timing
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="price" className="text-sm font-medium text-gray-700">Price ($) *</Label>
+                          <Label htmlFor="price" className="text-sm font-medium text-gray-700 dark:text-gray-300">Price (LKR) *</Label>
                           <Input
                             id="price"
                             type="number"
@@ -770,7 +940,7 @@ const FoodMenuManagementPage = () => {
                           {formErrors.price && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.price}</p>}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="cookingTime" className="text-sm font-medium text-gray-700">Cooking Time (minutes)</Label>
+                          <Label htmlFor="cookingTime" className="text-sm font-medium text-gray-700 dark:text-gray-300">Cooking Time (minutes)</Label>
                           <Input
                             id="cookingTime"
                             type="number"
@@ -785,13 +955,13 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Ingredients Section */}
-                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <ChefHat className="h-5 w-5 mr-2 text-orange-600" />
+                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <ChefHat className="h-5 w-5 mr-2 text-orange-600 dark:text-orange-400" />
                         Ingredients *
                       </h3>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Ingredients (comma-separated)</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Ingredients (comma-separated)</Label>
                         <Input
                           value={(formData.ingredients || []).join(', ')}
                           onChange={(e) => {
@@ -812,14 +982,14 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Nutritional Information Section */}
-                    <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <Star className="h-5 w-5 mr-2 text-cyan-600" />
+                    <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-cyan-200 dark:border-cyan-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <Star className="h-5 w-5 mr-2 text-cyan-600 dark:text-cyan-400" />
                         Nutritional Information (Optional)
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="calories" className="text-sm font-medium text-gray-700">Calories</Label>
+                          <Label htmlFor="calories" className="text-sm font-medium text-gray-700 dark:text-gray-300">Calories</Label>
                           <Input
                             id="calories"
                             type="number"
@@ -834,7 +1004,7 @@ const FoodMenuManagementPage = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="protein" className="text-sm font-medium text-gray-700">Protein (g)</Label>
+                          <Label htmlFor="protein" className="text-sm font-medium text-gray-700 dark:text-gray-300">Protein (g)</Label>
                           <Input
                             id="protein"
                             type="number"
@@ -849,7 +1019,7 @@ const FoodMenuManagementPage = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="carbs" className="text-sm font-medium text-gray-700">Carbs (g)</Label>
+                          <Label htmlFor="carbs" className="text-sm font-medium text-gray-700 dark:text-gray-300">Carbs (g)</Label>
                           <Input
                             id="carbs"
                             type="number"
@@ -864,7 +1034,7 @@ const FoodMenuManagementPage = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="fat" className="text-sm font-medium text-gray-700">Fat (g)</Label>
+                          <Label htmlFor="fat" className="text-sm font-medium text-gray-700 dark:text-gray-300">Fat (g)</Label>
                           <Input
                             id="fat"
                             type="number"
@@ -882,9 +1052,9 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Time Slot Availability Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
                         Time Slot Availability
                       </h3>
                       <p className="text-sm text-gray-600 mb-4">Select which meal times this item should be available for</p>
@@ -898,8 +1068,8 @@ const FoodMenuManagementPage = () => {
                             className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                           />
                           <div>
-                            <Label htmlFor="isBreakfast" className="text-sm font-medium text-gray-700 cursor-pointer">Breakfast</Label>
-                            <p className="text-xs text-gray-500">6:00 - 11:00</p>
+                            <Label htmlFor="isBreakfast" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Breakfast</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">6:00 - 11:00</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
@@ -911,8 +1081,8 @@ const FoodMenuManagementPage = () => {
                             className="h-5 w-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
                           />
                           <div>
-                            <Label htmlFor="isLunch" className="text-sm font-medium text-gray-700 cursor-pointer">Lunch</Label>
-                            <p className="text-xs text-gray-500">12:00 - 15:00</p>
+                            <Label htmlFor="isLunch" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Lunch</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">12:00 - 15:00</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
@@ -924,8 +1094,8 @@ const FoodMenuManagementPage = () => {
                             className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                           />
                           <div>
-                            <Label htmlFor="isDinner" className="text-sm font-medium text-gray-700 cursor-pointer">Dinner</Label>
-                            <p className="text-xs text-gray-500">18:00 - 22:00</p>
+                            <Label htmlFor="isDinner" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Dinner</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">18:00 - 22:00</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
@@ -937,23 +1107,23 @@ const FoodMenuManagementPage = () => {
                             className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                           />
                           <div>
-                            <Label htmlFor="isSnacks" className="text-sm font-medium text-gray-700 cursor-pointer">Snacks</Label>
-                            <p className="text-xs text-gray-500">All day</p>
+                            <Label htmlFor="isSnacks" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Snacks</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">All day</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Dietary & Properties Section */}
-                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <Users className="h-5 w-5 mr-2 text-pink-600" />
+                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 rounded-xl p-6 border border-pink-200 dark:border-pink-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <Users className="h-5 w-5 mr-2 text-pink-600 dark:text-pink-400" />
                         Dietary Information & Properties
                       </h3>
 
                       {/* Dietary Tags */}
                       <div className="mb-6">
-                        <Label className="text-sm font-medium text-gray-700 mb-3 block">Dietary Tags</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Dietary Tags</Label>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {dietaryOptions.map((option) => (
                             <div key={option} className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
@@ -979,7 +1149,7 @@ const FoodMenuManagementPage = () => {
 
                       {/* Item Properties */}
                       <div>
-                        <Label className="text-sm font-medium text-gray-700 mb-3 block">Item Properties</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Item Properties</Label>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
                             <input
@@ -990,8 +1160,8 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                             />
                             <div>
-                              <Label htmlFor="isVeg" className="text-sm font-medium text-gray-700 cursor-pointer">Vegetarian</Label>
-                              <p className="text-xs text-gray-500">Contains no meat</p>
+                              <Label htmlFor="isVeg" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Vegetarian</Label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Contains no meat</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
@@ -1003,8 +1173,8 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
                             />
                             <div>
-                              <Label htmlFor="isSpicy" className="text-sm font-medium text-gray-700 cursor-pointer">Spicy</Label>
-                              <p className="text-xs text-gray-500">Contains spicy ingredients</p>
+                              <Label htmlFor="isSpicy" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Spicy</Label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Contains spicy ingredients</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
@@ -1016,8 +1186,8 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             />
                             <div>
-                              <Label htmlFor="isPopular" className="text-sm font-medium text-gray-700 cursor-pointer">Popular</Label>
-                              <p className="text-xs text-gray-500">Featured item</p>
+                              <Label htmlFor="isPopular" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Popular</Label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Featured item</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
@@ -1029,8 +1199,8 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <div>
-                              <Label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 cursor-pointer">Available</Label>
-                              <p className="text-xs text-gray-500">Currently in stock</p>
+                              <Label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Available</Label>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Currently in stock</p>
                             </div>
                           </div>
                         </div>
@@ -1041,25 +1211,64 @@ const FoodMenuManagementPage = () => {
                     <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                       <Button
                         variant="outline"
-                        onClick={() => setIsCreateDialogOpen(false)}
+                        onClick={() => {
+                          setIsCreateDialogOpen(false);
+                          setEditingItem(null);
+                          // Reset form data when cancelling
+                          setFormData({
+                            name: '',
+                            category: '',
+                            description: '',
+                            price: '',
+                            image: '',
+                            imageFile: null,
+                            imagePreview: null,
+                            isAvailable: true,
+                            isVeg: false,
+                            isSpicy: false,
+                            isPopular: false,
+                            isBreakfast: true,
+                            isLunch: true,
+                            isDinner: true,
+                            isSnacks: true,
+                            ingredients: [],
+                            dietaryTags: [],
+                            nutritionalInfo: {
+                              calories: '',
+                              protein: '',
+                              carbs: '',
+                              fat: ''
+                            },
+                            cookingTime: 15,
+                            customizations: []
+                          });
+                        }}
                         className="px-6 py-2 rounded-lg border-gray-300 hover:bg-gray-50 transition-all duration-200"
                       >
                         Cancel
                       </Button>
                       <Button
-                        onClick={() => handleCreateItem(formData)}
+                        onClick={() => {
+                          if (validateForm()) {
+                            if (editingItem) {
+                              handleUpdateItem(formData);
+                            } else {
+                              handleCreateItem(formData);
+                            }
+                          }
+                        }}
                         disabled={isSubmitting}
                         className="px-8 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                       >
                         {isSubmitting ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Creating...
+                            {editingItem ? 'Updating...' : 'Creating...'}
                           </>
                         ) : (
                           <>
                             <Save className="h-4 w-4 mr-2" />
-                            Create Menu Item
+                            {editingItem ? 'Update Menu Item' : 'Create Menu Item'}
                           </>
                         )}
                       </Button>
@@ -1090,9 +1299,9 @@ const FoodMenuManagementPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categoriesList.slice(1).map((categoryName) => (
-                      <SelectItem key={categoryName} value={categoryName}>
-                        {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}
+                    {categoriesList.slice(1).map((category) => (
+                      <SelectItem key={category._id} value={category.name}>
+                        {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1137,15 +1346,22 @@ const FoodMenuManagementPage = () => {
                           <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
                             {(() => {
                               let imageSrc = null;
-                              if (item.imageUrl && item.imageUrl.startsWith('data:')) {
+
+                              // Priority order for image sources:
+                              // 1. imageUrl (base64 or external URL)
+                              // 2. image field (GridFS URL or external URL)
+                              if (item.imageUrl) {
                                 imageSrc = item.imageUrl;
-                              } else if (item.imageUrl && item.imageUrl.startsWith('http')) {
-                                imageSrc = item.imageUrl;
-                              } else if (item.image && item.image.startsWith('http')) {
-                                imageSrc = item.image;
-                              } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
-                                const baseUrl = api.defaults.baseURL.endsWith('/api') ? api.defaults.baseURL.slice(0, -4) : api.defaults.baseURL;
-                                imageSrc = `${baseUrl}${item.image}`;
+                              } else if (item.image) {
+                                // Handle GridFS URLs from AI extraction
+                                if (item.image.startsWith('/api/menu/image/')) {
+                                  imageSrc = `${API_BASE_URL}${item.image}`;
+                                } else if (item.image.startsWith('http')) {
+                                  imageSrc = item.image;
+                                } else {
+                                  // Fallback for relative paths
+                                  imageSrc = `${API_BASE_URL}/api/menu/image/${item.image}`;
+                                }
                               }
 
                               return imageSrc ? (
@@ -1183,7 +1399,7 @@ const FoodMenuManagementPage = () => {
                                 {item.name || 'Unnamed Item'}
                               </h4>
                               <span className="menu-item-price text-lg whitespace-nowrap">
-                                ${item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
+                                LKR {item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
                               </span>
                             </div>
 

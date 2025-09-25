@@ -1,7 +1,7 @@
 // src/components/ui/Label.jsx
 import React from 'react';
 
-function Label({
+export default function Label({
   children,
   htmlFor,
   required = false,
@@ -31,9 +31,6 @@ function Label({
     </label>
   );
 }
-
-export { Label };
-export default Label;
 
 // Compact Label variant for inline use
 export function LabelCompact({

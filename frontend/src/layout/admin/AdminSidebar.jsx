@@ -14,10 +14,10 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const links = [
     { label: 'Dashboard', to: '/admin/dashboard', icon: '🏠' },
     { label: 'User Management', to: '/admin/users', icon: '👥' },
-    { label: 'Invitations', to: '/admin/invitations', icon: '✉️' },
-    { label: 'Notifications', to: '/admin/notifications', icon: '🔔' },
+    { label: 'Rooms', to: '/admin/rooms', icon: '🏨' },
     { label: 'Bookings', to: '/admin/bookings', icon: '📅' },
     { label: 'Invoices', to: '/admin/invoices', icon: '🧾' },
+    { label: 'Food Management', to: '/admin/food', icon: '🍽️' },
     { label: 'Refunds', to: '/admin/refunds', icon: '💸' },
     { label: 'Reports', to: '/admin/reports', icon: '📊' },
     { label: 'Settings', to: '/admin/settings', icon: '⚙️' },

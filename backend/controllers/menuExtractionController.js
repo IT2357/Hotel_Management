@@ -96,8 +96,15 @@ export const extractMenu = async (req, res) => {
       });
     }
 
-    // With upload.any(), files are in req.files as an array
-    const uploadedFile = req.files && req.files.length > 0 ? req.files.find(f => f.fieldname === 'file') : null;
+    // With upload.any(), files are in req.files as an object with field names as keys
+    let uploadedFile = null;
+    if (req.files) {
+      // req.files is an object like { 'file': [file1, file2, ...] }
+      const fileField = req.files['file'] || req.files['0']; // Try 'file' first, then '0' as fallback
+      if (fileField) {
+        uploadedFile = Array.isArray(fileField) ? fileField[0] : fileField;
+      }
+    }
     const hasFile = !!uploadedFile;
     const hasUrl = req.body.url && req.body.url.trim();
     const hasPath = req.body.path && req.body.path.trim();
@@ -112,9 +119,11 @@ export const extractMenu = async (req, res) => {
         encoding: uploadedFile.encoding,
         mimetype: uploadedFile.mimetype,
         buffer: uploadedFile.buffer,
-        size: uploadedFile.size
+        size: uploadedFile.size,
+        gridfsId: uploadedFile.gridfsId, // Copy the GridFS ID set by middleware
+        id: uploadedFile.id // Also copy the ID
       };
-      console.log('✅ File processed from req.files:', req.file.originalname);
+      console.log('✅ File processed from req.files:', req.file.originalname, 'GridFS ID:', req.file.gridfsId);
     }
 
     let extractionData = {
@@ -132,8 +141,10 @@ export const extractMenu = async (req, res) => {
     if (req.file) {
       // Image upload - file is already stored in GridFS by our middleware
       console.log('📸 Processing uploaded image...');
+      console.log('🔍 req.file.gridfsId:', req.file.gridfsId);
       extractionData.source = { type: 'image', value: req.file.originalname };
-      extractionData.imageId = req.file.gridfsId; // Store GridFS file ID
+      extractionData.imageId = req.file.gridfsId; // Store GridFS file ID as string
+      console.log('🔍 extractionData.imageId set to:', extractionData.imageId);
       
       try {
         // For GridFS files, we need to read the buffer from GridFS
@@ -143,14 +154,11 @@ export const extractMenu = async (req, res) => {
         // Enhanced AI Food Analysis like Google Lens
         console.log('🤖 AI: Analyzing food image with advanced computer vision...');
         try {
-          // Import the gridfsService to read the file
-          const gridfsService = (await import('../services/gridfsService.js')).default;
-
-          // Get the file buffer from GridFS
-          const fileBuffer = await gridfsService.getImageBuffer(req.file.gridfsId);
+          // Use the image buffer directly from the uploaded file (no need to read from GridFS)
+          const fileBuffer = req.file.buffer;
 
           if (!fileBuffer || fileBuffer.length === 0) {
-            throw new Error('Empty or null file buffer from GridFS');
+            throw new Error('Empty or null file buffer from upload');
           }
 
           // Use AI Image Analysis Service (like Google Lens)
@@ -164,7 +172,7 @@ export const extractMenu = async (req, res) => {
             console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
             
             // Convert AI analysis to menu format
-            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis);
+            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
             
             extractionData.categories = menuData.categories;
             extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
@@ -354,7 +362,7 @@ export const extractMenu = async (req, res) => {
             console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
 
             // Convert AI analysis to menu format
-            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis);
+            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
 
             extractionData.categories = menuData.categories;
             extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
@@ -413,6 +421,7 @@ export const extractMenu = async (req, res) => {
     }
 
     // Create menu document
+    console.log('🔍 DEBUG: extractionData.imageId before save:', extractionData.imageId);
     const menuData = {
       source: extractionData.source,
       categories: extractionData.categories,
@@ -423,6 +432,7 @@ export const extractMenu = async (req, res) => {
       createdBy: req.user?.id || null,
       imageId: extractionData.imageId // Store GridFS file ID
     };
+    console.log('🔍 DEBUG: menuData.imageId:', menuData.imageId);
 
     // Save to database
     let savedMenu;

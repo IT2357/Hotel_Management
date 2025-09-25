@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/card';
 
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
+
 const MenuItemCard = memo(({
   item,
   onEdit,
@@ -24,9 +29,12 @@ const MenuItemCard = memo(({
       return item.imageUrl; // Full URL
     } else if (item.image && item.image.startsWith('http')) {
       return item.image; // Full URL in image field
+    } else if (item.image && item.image.startsWith('/api/menu/image/')) {
+      // Backend image URL - construct full URL
+      return `${API_BASE_URL}${item.image}`;
     } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
-      // Relative path - construct full URL
-      return `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${item.image}`;
+      // Fallback for other paths
+      return `${API_BASE_URL}/api${item.image}`;
     }
     return null;
   };

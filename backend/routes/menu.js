@@ -311,7 +311,7 @@ router.post('/items', protect, authorizeRoles(['admin', 'manager']), uploadSingl
           menuItem: true
         });
         menuItemData.imageId = imageId;
-        menuItemData.image = `/api/menu/image/${imageId}`; // Set image URL
+        menuItemData.image = `/api/menu/image/${imageId}`; // Set proper image URL for serving
       } catch (imageError) {
         console.warn('⚠️ Failed to store image:', imageError.message);
         // Continue without image if storage fails
@@ -407,7 +407,7 @@ router.put('/items/:id', protect, authorizeRoles(['admin', 'manager']), uploadSi
           menuItem: true
         });
         menuItemData.imageId = imageId;
-        menuItemData.image = `/api/menu/image/${imageId}`; // Set image URL
+        menuItemData.image = `/api/menu/image/${imageId}`; // Set proper image URL for serving
       } catch (imageError) {
         console.warn('⚠️ Failed to store image:', imageError.message);
         // Continue without image if storage fails

@@ -60,7 +60,12 @@ class FoodService {
       // Add all text fields
       Object.keys(menuItemData).forEach(key => {
         if (key !== 'image' && menuItemData[key] !== undefined && menuItemData[key] !== null) {
-          if (typeof menuItemData[key] === 'object') {
+          if (Array.isArray(menuItemData[key])) {
+            // Handle arrays by appending each element
+            menuItemData[key].forEach(item => {
+              formData.append(`${key}[]`, item);
+            });
+          } else if (typeof menuItemData[key] === 'object') {
             formData.append(key, JSON.stringify(menuItemData[key]));
           } else {
             formData.append(key, menuItemData[key]);
@@ -70,7 +75,7 @@ class FoodService {
 
       // Add image file if present
       if (menuItemData.image && menuItemData.image instanceof File) {
-        formData.append('image', menuItemData.image);
+        formData.append('file', menuItemData.image);
       }
 
       const response = await api.post(`${FOOD_API_BASE}/items`, formData, {
@@ -94,7 +99,12 @@ class FoodService {
       // Add all text fields
       Object.keys(menuItemData).forEach(key => {
         if (key !== 'image' && menuItemData[key] !== undefined && menuItemData[key] !== null) {
-          if (typeof menuItemData[key] === 'object') {
+          if (Array.isArray(menuItemData[key])) {
+            // Handle arrays by appending each element
+            menuItemData[key].forEach(item => {
+              formData.append(`${key}[]`, item);
+            });
+          } else if (typeof menuItemData[key] === 'object') {
             formData.append(key, JSON.stringify(menuItemData[key]));
           } else {
             formData.append(key, menuItemData[key]);
@@ -104,7 +114,7 @@ class FoodService {
 
       // Add image file if present
       if (menuItemData.image && menuItemData.image instanceof File) {
-        formData.append('image', menuItemData.image);
+        formData.append('file', menuItemData.image);
       }
 
       const response = await api.put(`${FOOD_API_BASE}/items/${id}`, formData, {

@@ -36,8 +36,7 @@ const menuItemSchema = new mongoose.Schema({
     default: "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
   },
   imageId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'fs.files', // Reference to GridFS files collection
+    type: String, // Store prefixed identifier (provider:id)
     required: false
   },
   isAvailable: {
