@@ -102,6 +102,7 @@ const roomSchema = new mongoose.Schema(
           "Bathrobes",
           "Slippers",
           "Jacuzzi",
+          "Private Pool"
         ],
       },
     ],

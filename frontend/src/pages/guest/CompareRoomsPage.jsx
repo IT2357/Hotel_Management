@@ -24,7 +24,7 @@ const CompareRoomsPage = () => {
   useEffect(() => {
     const roomIds = searchParams.get('rooms')?.split(',') || [];
     if (roomIds.length === 0) {
-      navigate('/guest/dashboard');
+      navigate('/rooms');
       return;
     }
     fetchRooms(roomIds);
@@ -57,7 +57,7 @@ const CompareRoomsPage = () => {
   const removeRoom = (roomId) => {
     const updatedRooms = rooms.filter(room => room._id !== roomId);
     if (updatedRooms.length === 0) {
-      navigate('/guest/dashboard');
+      navigate('/rooms');
       return;
     }
     setRooms(updatedRooms);
@@ -75,16 +75,15 @@ const CompareRoomsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
-                variant="ghost"
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center max-w-xs"
                 onClick={() => navigate('/guest/dashboard')}
-                className="hover:bg-gray-100"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -132,7 +131,7 @@ const CompareRoomsPage = () => {
                     </div>
                     <Button
                       onClick={() => handleBookNow(room._id)}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
                     >
                       Book Now
                     </Button>
@@ -299,9 +298,8 @@ const CompareRoomsPage = () => {
           <div className="p-6 pt-0 border-t border-gray-200/50">
             <div className="flex justify-center gap-4">
               <Button
-                variant="outline"
-                onClick={() => navigate('/guest/dashboard')}
-                className="px-8"
+                onClick={() => navigate('/rooms')}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center max-w-xs px-8"
               >
                 Back to Rooms
               </Button>
