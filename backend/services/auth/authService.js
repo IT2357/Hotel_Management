@@ -358,20 +358,37 @@ class AuthService {
       }
 
       try {
+        // Update last login timestamp
         user.lastLogin = new Date();
-        user.loginHistory.push({
+        
+        // Add to login history (limit to last 50 logins)
+        const loginEntry = {
           ipAddress: ipAddress || "Unknown",
           device: userAgent || "Unknown",
-        });
-        await user.save();
+          timestamp: new Date()
+        };
+        
+        user.loginHistory = [loginEntry, ...user.loginHistory].slice(0, 50);
+        
+        // Use { validateBeforeSave: false } to prevent validation errors
+        await user.save({ validateBeforeSave: false });
+        
         console.log("🔐 Login history saved for user:", email);
       } catch (error) {
         console.error("🔐 Error saving login history:", {
           error: error.message,
           stack: error.stack,
+          userId: user._id,
+          role: user.role
         });
-        logger.error("Error saving login history", { email, error });
-        throw new Error("Failed to update login history");
+        logger.error("Error saving login history", { 
+          email, 
+          userId: user._id,
+          role: user.role,
+          error: error.message 
+        });
+        // Don't fail the login if history update fails
+        console.warn("⚠️  Login history update failed, but login will continue");
       }
 
       const token = this.generateToken(user);

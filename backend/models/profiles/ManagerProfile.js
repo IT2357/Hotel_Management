@@ -79,19 +79,6 @@ const managerProfileSchema = new mongoose.Schema(
       canOverridePricing: { type: Boolean, default: false },
       canViewFinancials: { type: Boolean, default: false },
     },
-    lastLogin: {
-      timestamp: Date,
-      ipAddress: String,
-      device: String,
-    },
-    loginHistory: [
-      {
-        timestamp: Date,
-        ipAddress: String,
-        device: String,
-        location: String,
-      },
-    ],
     shift: {
       startTime: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
       endTime: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
