@@ -1,6 +1,6 @@
 import { Button } from "@/components/rooms/ui/button";
 import { Input } from "@/components/rooms/ui/input";
-import { Label } from "@/components/rooms/ui/label";
+import Label  from "@/components/rooms/ui/label";
 import { Checkbox } from "@/components/rooms/ui/checkbox";
 import { Slider } from "@/components/rooms/ui/slider";
 import {

@@ -30,6 +30,7 @@ import foodMenuRoutes from './routes/food/menuRoutes.js';
 import menuExtractionRoutes from './routes/menuExtractionRoutes.js';
 import menuSelectionRoutes from './routes/menuSelectionRoutes.js';
 import foodOrderRoutes from './routes/foodOrderRoutes.js';
+import valdorFoodRoutes from './routes/valdorFoodRoutes.js';
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
@@ -212,6 +213,7 @@ const startServer = async () => {
   app.use('/api/menu-extraction', menuExtractionRoutes);
   app.use('/api/menu-selection', menuSelectionRoutes);
   app.use('/api/food/orders', foodOrderRoutes);
+  app.use('/api/valdor', valdorFoodRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);

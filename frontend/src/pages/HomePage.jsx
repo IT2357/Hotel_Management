@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Home, Info, Image, Phone, ChefHat, ShoppingCart, Bed, Calendar, Menu, X, User, Heart, FileText, MessageSquare, ChevronDown, ChevronUp, Star, CheckCircle, Clock, MapPin, LogIn, LogOut } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import foodService from '../services/foodService';
+import roomService from '../services/roomService';
 
 export default function HomePage() {
   const { user, logout } = useContext(AuthContext);
@@ -14,6 +15,8 @@ export default function HomePage() {
   const [roomServicesOpen, setRoomServicesOpen] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
+  const [featuredRooms, setFeaturedRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
   const navigate = useNavigate();
 
   const heroSlides = [
@@ -185,11 +188,11 @@ export default function HomePage() {
   const navigationItems = [
     { name: 'Home', href: '/', icon: Home, current: true, scrollTo: 'home' },
     { name: 'About', href: '#about', icon: Info, current: false, scrollTo: 'about' },
-    { name: 'Gallery', href: '#gallery', icon: Image, current: false, scrollTo: 'gallery' },
-    { name: 'Contact', href: '#contact', icon: Phone, current: false, scrollTo: 'contact' },
+    { name: 'Rooms', href: '/rooms', icon: Bed, current: false },
     { name: 'Menu', href: '/menu', icon: ChefHat, current: false },
     { name: 'Food Ordering', href: '/food-ordering', icon: ShoppingCart, current: false },
-    { name: 'Rooms', href: '/rooms', icon: Bed, current: false },
+    { name: 'Gallery', href: '#gallery', icon: Image, current: false, scrollTo: 'gallery' },
+    { name: 'Contact', href: '#contact', icon: Phone, current: false, scrollTo: 'contact' },
     { name: 'Booking', href: '/booking', icon: Calendar, current: false },
     { name: 'My Bookings', href: '/guest/my-bookings', icon: FileText, current: false },
     { name: 'Check-in/Check-out', href: '/guest/check-in', icon: CheckCircle, current: false },
@@ -218,6 +221,15 @@ export default function HomePage() {
       action: () => {
         navigate('/rooms');
         setActiveTab('rooms');
+      }
+    },
+    {
+      id: 'menu',
+      label: 'Menu',
+      icon: ChefHat,
+      action: () => {
+        navigate('/menu');
+        setActiveTab('menu');
       }
     },
     {
@@ -264,19 +276,10 @@ export default function HomePage() {
         navigate('/guest/favorite-rooms');
         setActiveTab('favorites');
       }
-    },
-    {
-      id: 'menu',
-      label: 'Menu',
-      icon: ChefHat,
-      action: () => {
-        navigate('/menu');
-        setActiveTab('menu');
-      }
     }
   ];
 
-  // Fetch menu items from API
+  // Fetch menu items and featured rooms from API
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
@@ -295,7 +298,22 @@ export default function HomePage() {
       }
     };
 
+    const fetchFeaturedRooms = async () => {
+      try {
+        setRoomsLoading(true);
+        const response = await roomService.getFeaturedRooms();
+        setFeaturedRooms(response.data || []);
+      } catch (error) {
+        console.error('Error fetching featured rooms:', error);
+        // Fallback to static room data if API fails
+        setFeaturedRooms([]);
+      } finally {
+        setRoomsLoading(false);
+      }
+    };
+
     fetchMenuItems();
+    fetchFeaturedRooms();
   }, []);
 
   useEffect(() => {
@@ -706,7 +724,210 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Room Services Section */}
+      {/* Featured Rooms Section */}
+      <section className="py-20 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+              Luxury Rooms & Suites
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Discover our collection of elegant rooms designed for comfort and luxury during your stay at VALDOR
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {roomsLoading ? (
+              // Loading skeleton for rooms
+              Array.from({ length: 6 }).map((_, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden animate-pulse"
+                >
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-6">
+                    <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                </motion.div>
+              ))
+            ) : featuredRooms.length > 0 ? (
+              featuredRooms.map((room, index) => (
+                <motion.div
+                  key={room._id || index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group"
+                >
+                  <div className="h-48 overflow-hidden">
+                    <img
+                      src={room.images?.[0]?.url || 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400'}
+                      alt={room.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400';
+                      }}
+                    />
+                  </div>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-1">{room.title}</h3>
+                        <p className="text-indigo-600 font-medium text-sm">{room.type || 'Standard Room'}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-indigo-500">LKR {room.basePrice?.toLocaleString()}</div>
+                        <div className="text-sm text-gray-600">per night</div>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-4">{room.description}</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">Up to {room.capacity} guests</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">{room.roomNumber}</span>
+                      </div>
+                    </div>
+                    {room.amenities && room.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {room.amenities.slice(0, 3).map((amenity, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                            {amenity}
+                          </span>
+                        ))}
+                        {room.amenities.length > 3 && (
+                          <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                            +{room.amenities.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <Link
+                      to="/booking"
+                      className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-lg font-medium hover:shadow-lg transition-all duration-300 text-center block"
+                    >
+                      Book Now
+                    </Link>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              // Fallback static rooms if API fails
+              [
+                {
+                  title: 'Deluxe Ocean View Suite',
+                  type: 'Suite',
+                  basePrice: 25000,
+                  capacity: 4,
+                  roomNumber: '101',
+                  description: 'Spacious suite with stunning ocean views and modern amenities',
+                  amenities: ['WiFi', 'AC', 'Ocean View', 'Balcony']
+                },
+                {
+                  title: 'Executive Business Room',
+                  type: 'Executive',
+                  basePrice: 18000,
+                  capacity: 2,
+                  roomNumber: '205',
+                  description: 'Perfect for business travelers with work desk and high-speed internet',
+                  amenities: ['WiFi', 'Work Desk', 'AC', 'City View']
+                },
+                {
+                  title: 'Standard Comfort Room',
+                  type: 'Standard',
+                  basePrice: 12000,
+                  capacity: 2,
+                  roomNumber: '312',
+                  description: 'Comfortable room with all essential amenities for a pleasant stay',
+                  amenities: ['WiFi', 'AC', 'TV', 'Mini Fridge']
+                }
+              ].map((room, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 group"
+                >
+                  <div className="h-48 overflow-hidden">
+                    <img
+                      src={`https://images.unsplash.com/photo-${index === 0 ? '1631049307264' : index === 1 ? '158413296733' : '158602349212'}?w=400`}
+                      alt={room.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-1">{room.title}</h3>
+                        <p className="text-indigo-600 font-medium text-sm">{room.type}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-indigo-500">LKR {room.basePrice.toLocaleString()}</div>
+                        <div className="text-sm text-gray-600">per night</div>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-4">{room.description}</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">Up to {room.capacity} guests</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">{room.roomNumber}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {room.amenities.slice(0, 3).map((amenity, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                          {amenity}
+                        </span>
+                      ))}
+                      {room.amenities.length > 3 && (
+                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                          +{room.amenities.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                    <Link
+                      to="/booking"
+                      className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-lg font-medium hover:shadow-lg transition-all duration-300 text-center block"
+                    >
+                      Book Now
+                    </Link>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              to="/rooms"
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:shadow-2xl transition-all duration-300 inline-block"
+            >
+              View All Rooms
+            </Link>
+          </div>
+        </div>
+      </section>
       <section className="py-20 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div

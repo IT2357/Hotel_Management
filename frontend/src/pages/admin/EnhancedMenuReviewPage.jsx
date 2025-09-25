@@ -593,18 +593,46 @@ const EnhancedMenuReviewPage = () => {
 
                               {/* Item Content */}
                               <div className="p-4">
+                                {/* Item Image */}
+                                {(menuData.imageUrl || item.image) && (
+                                  <div className="mb-3">
+                                    <img
+                                      src={menuData.imageUrl || item.image}
+                                      alt={item.name}
+                                      className="w-full h-24 object-cover rounded-md"
+                                      onError={(e) => {
+                                        e.target.src = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400';
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
                                 <div className="flex items-start justify-between mb-2">
                                   <h4 className="font-semibold text-white text-sm flex-1 line-clamp-1">
                                     {item.name}
                                   </h4>
                                   <span className="text-purple-400 font-bold text-sm ml-2">
-                                    ${typeof item.price === 'number' ? item.price.toFixed(2) : item.price}
+                                    LKR {typeof item.price === 'number' ? item.price.toFixed(2) : item.estimatedPrice || item.price || '0.00'}
                                   </span>
                                 </div>
 
                                 <p className="text-gray-300 text-xs mb-3 line-clamp-2">
                                   {item.description || 'AI-detected food item with traditional preparation'}
                                 </p>
+
+                                {/* Cooking Time & Additional Info */}
+                                <div className="flex items-center space-x-3 mb-2 text-xs text-gray-400">
+                                  <div className="flex items-center space-x-1">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{item.cookingTime || 15} min</span>
+                                  </div>
+                                  {item.spiceLevel && (
+                                    <div className="flex items-center space-x-1">
+                                      <span>🌶️</span>
+                                      <span>{item.spiceLevel}</span>
+                                    </div>
+                                  )}
+                                </div>
 
                                 {/* Item Tags */}
                                 <div className="flex flex-wrap gap-1 mb-2">

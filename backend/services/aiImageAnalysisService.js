@@ -355,7 +355,7 @@ Parse every item mentioned in the OCR text with exact details.`;
           content: [
             {
               type: "text",
-              text: `You are an expert AI trained specifically on Jaffna, Sri Lanka restaurant menus like Valampuri Hotel, Akshadaya Pathra, and other Northern Sri Lankan Tamil establishments. Analyze this food image and extract ALL visible menu items with authentic Jaffna cuisine details.
+              text: `You are an expert AI trained specifically on Jaffna, Sri Lanka restaurant menus like Valdor Hotel, Akshadaya Pathra, and other Northern Sri Lankan Tamil establishments. Analyze this food image and extract ALL visible menu items with authentic Jaffna cuisine details.
 
 CRITICAL REQUIREMENTS:
 - Focus on Jaffna/Sri Lankan Tamil cuisine patterns
@@ -394,7 +394,7 @@ RESPONSE FORMAT (JSON only):
 "mealType": "restaurant-menu",
 "estimatedTotalPrice": 1800,
 "recommendedPairing": ["rice", "chutney", "sambar", "coconut milk", "raita"],
-"restaurantContext": "Authentic Jaffna restaurant menu - Valampuri Hotel style"
+"restaurantContext": "Authentic Jaffna restaurant menu - Valdor Hotel style"
 }
 }
 
@@ -477,7 +477,7 @@ TRADITIONAL JAFFNA INGREDIENTS TO RECOGNIZE:
 - Maldive fish (மாலத்தீவு மீன்)
 - Goraka (கொரகா)
 
-If this is a menu image from a Jaffna restaurant like Valampuri, identify EVERY visible dish with proper Tamil names and authentic pricing. Focus on traditional Northern Sri Lankan Tamil cuisine.`
+If this is a menu image from a Jaffna restaurant like Valdor, identify EVERY visible dish with proper Tamil names and authentic pricing. Focus on traditional Northern Sri Lankan Tamil cuisine.`
             },
             {
               type: "image_url",
@@ -523,7 +523,7 @@ If this is a menu image from a Jaffna restaurant like Valampuri, identify EVERY 
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `You are analyzing a menu image from a Jaffna, Sri Lanka restaurant like Valampuri Hotel. Extract ALL visible food items with complete Jaffna Tamil cuisine details.
+    const prompt = `You are analyzing a menu image from a Jaffna, Sri Lanka restaurant like Valdor Hotel. Extract ALL visible food items with complete Jaffna Tamil cuisine details.
 
 CRITICAL: This is for authentic Jaffna restaurant menu digitization. Use proper Tamil names and realistic Jaffna pricing.
 
@@ -556,7 +556,7 @@ JSON RESPONSE FORMAT:
     "mealType": "restaurant-menu",
     "estimatedTotalPrice": 2200,
     "recommendedPairing": ["rice", "chutney", "sambar", "coconut milk"],
-    "restaurantContext": "Jaffna restaurant menu - Valampuri Hotel style authentic cuisine"
+    "restaurantContext": "Jaffna restaurant menu - Valdor Hotel style authentic cuisine"
   }
 }
 
@@ -1321,6 +1321,92 @@ Extract every visible menu item with proper Tamil names and authentic Jaffna res
   }
 
   /**
+   * Get default food image based on food name and category
+   */
+  getDefaultFoodImage(foodName, category) {
+    const foodImages = {
+      // Biryani & Rice
+      'chicken biryani': 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400',
+      'mutton biryani': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400',
+      'fish biryani': 'https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400',
+      'vegetable biryani': 'https://images.unsplash.com/photo-1596560548464-f010549b84d7?w=400',
+      'prawn biryani': 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400',
+      
+      // Kottu
+      'chicken kottu': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+      'vegetable kottu': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+      'egg kottu': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+      'mixed kottu': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+      
+      // Naan & Bread
+      'butter naan': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      'garlic naan': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      'plain chapathi': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      'paratha': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      
+      // Curries
+      'chicken curry': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+      'mutton curry': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+      'fish curry': 'https://images.unsplash.com/photo-1631292784640-2b24be784d5d?w=400',
+      'vegetable curry': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+      
+      // Seafood
+      'prawn curry': 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400',
+      'crab curry': 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400',
+      'fish fry': 'https://images.unsplash.com/photo-1544943910-4c1dc44aab44?w=400',
+      
+      // Desserts
+      'watalappan': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400',
+      'ice cream': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400',
+      'kulfi': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400',
+      
+      // Beverages
+      'tea': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400',
+      'coffee': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400',
+      'fresh juice': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400',
+      'lassi': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400'
+    };
+
+    // Try exact match first
+    const lowerName = foodName.toLowerCase();
+    if (foodImages[lowerName]) {
+      return foodImages[lowerName];
+    }
+
+    // Try partial matches
+    for (const [key, image] of Object.entries(foodImages)) {
+      if (lowerName.includes(key) || key.includes(lowerName)) {
+        return foodImages[key];
+      }
+    }
+
+    // Category-based fallbacks
+    const categoryImages = {
+      'biryani': 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400',
+      'rice': 'https://images.unsplash.com/photo-1563379091339-03246963d51a?w=400',
+      'kottu': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
+      'naan': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      'bread': 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400',
+      'curry': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+      'seafood': 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400',
+      'dessert': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400',
+      'beverage': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400',
+      'appetizer': 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400',
+      'main-course': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400'
+    };
+
+    const lowerCategory = (category || '').toLowerCase();
+    for (const [key, image] of Object.entries(categoryImages)) {
+      if (lowerCategory.includes(key) || lowerName.includes(key)) {
+        return image;
+      }
+    }
+
+    // Final fallback
+    return 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400';
+  }
+
+  /**
    * Convert AI analysis to menu format with enhanced details
    */
   convertToMenuFormat(analysisResult, imageId = null) {
@@ -1363,7 +1449,8 @@ Extract every visible menu item with proper Tamil names and authentic Jaffna res
         tamilName: food.tamilName || '',
         price: food.estimatedPrice || 200,
         description: food.description || `${food.name} - authentic Sri Lankan Tamil dish extracted from menu image`,
-        image: food.image || (imageId ? `/api/menu/image/${imageId}` : null),
+        // Use the original uploaded image if available, otherwise use default food image
+        image: imageId ? `/api/menu/image/${imageId}` : this.getDefaultFoodImage(food.name, food.category),
         isVeg: food.isVeg || false,
         isSpicy: food.isSpicy || false,
         isPopular: food.popularity === 'high',

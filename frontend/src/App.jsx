@@ -63,6 +63,7 @@ import TaskManagementPage from './pages/staff/TaskManagementPage.jsx';
 import RoomStatusPage from './pages/staff/RoomStatusPage.jsx';
 import KeyCardManagementPage from './pages/staff/KeyCardManagementPage.jsx';
 import SchedulePage from './pages/staff/SchedulePage.jsx';
+import CartPage from './pages/CartPage.jsx';
 
 const AppContent = () => {
   const location = useLocation();
@@ -96,6 +97,7 @@ const AppContent = () => {
           <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
           <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
+          <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
           <Route
             path="/login"
             element={

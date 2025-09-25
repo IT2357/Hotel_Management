@@ -59,6 +59,7 @@ const FoodMenuManagement = () => {
     spiceLevel: 'mild',
     cookingTime: '',
     portions: [{ name: 'Regular', price: '' }],
+    timeSlots: [],
     isAvailable: true,
     isPopular: false,
     isFeatured: false
@@ -93,8 +94,8 @@ const FoodMenuManagement = () => {
       setLoading(true);
     
       const [itemsRes, categoriesRes] = await Promise.all([
-        api.get('/food/menu/items'),
-        api.get('/food/menu/categories')
+        api.get('/menu/items'),
+        api.get('/menu/categories')
       ]);
 
       // Handle different response structures
@@ -141,6 +142,11 @@ const FoodMenuManagement = () => {
       // Create FormData for multipart upload
       const formDataToSend = new FormData();
     
+      // Validate time slots
+      const validTimeSlots = formData.timeSlots.filter(slot => 
+        slot.startTime && slot.endTime && slot.days.length > 0
+      );
+
       // Add all form fields
       const payload = {
         ...formData,
@@ -156,7 +162,8 @@ const FoodMenuManagement = () => {
           ...p,
           name: p.name || 'Regular',
           price: parseFloat(p.price) || 0
-        }))
+        })),
+        timeSlots: validTimeSlots
       };
 
       // Append all fields to FormData
@@ -182,10 +189,10 @@ const FoodMenuManagement = () => {
       };
 
       if (editingItem) {
-        await api.put(`/food/menu/items/${editingItem._id}`, formDataToSend, config);
+        await api.put(`/menu/items/${editingItem._id}`, formDataToSend, config);
         toast.success('Menu item updated successfully!');
       } else {
-        await api.post('/food/menu/items', formDataToSend, config);
+        await api.post('/menu/items', formDataToSend, config);
         toast.success('Menu item created successfully!');
       }
 
@@ -201,7 +208,7 @@ const FoodMenuManagement = () => {
   const handleDelete = useCallback(async (id) => {
     if (window.confirm('Are you sure you want to delete this menu item?')) {
       try {
-        await api.delete(`/food/menu/items/${id}`);
+        await api.delete(`/menu/items/${id}`);
         await fetchMenuData();
       } catch (error) {
         console.error('Error deleting menu item:', error);
@@ -214,7 +221,7 @@ const FoodMenuManagement = () => {
       const formDataToSend = new FormData();
       formDataToSend.append('isAvailable', (!currentStatus).toString());
       
-      await api.put(`/food/menu/items/${itemId}`, formDataToSend, {
+      await api.put(`/menu/items/${itemId}`, formDataToSend, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -236,6 +243,7 @@ const FoodMenuManagement = () => {
       image: item.image || '',
       ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
       allergens: Array.isArray(item.allergens) ? item.allergens : [],
+      timeSlots: Array.isArray(item.timeSlots) ? item.timeSlots : [],
       nutritionalInfo: item.nutritionalInfo && typeof item.nutritionalInfo === 'object' ? {
         calories: item.nutritionalInfo.calories ? item.nutritionalInfo.calories.toString() : '',
         protein: item.nutritionalInfo.protein ? item.nutritionalInfo.protein.toString() : '',
@@ -272,6 +280,7 @@ const FoodMenuManagement = () => {
       image: '',
       ingredients: [],
       allergens: [],
+      timeSlots: [],
       nutritionalInfo: {
         calories: '',
         protein: '',
@@ -400,6 +409,26 @@ const MenuItemCard = memo(({ item, onEdit, onDelete, onToggleAvailability }) => 
             {item.cookingTime || 15}min
           </div>
         </div>
+        
+        {/* Time Slots Display */}
+        {item.timeSlots && item.timeSlots.length > 0 && (
+          <div className="mt-2">
+            <div className={`text-xs font-medium mb-1 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Available Times:
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {item.timeSlots.map((slot, index) => (
+                <span key={index} className={`text-xs px-2 py-1 rounded-full ${
+                  isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {slot.startTime}-{slot.endTime}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -439,9 +468,47 @@ MenuItemCard.displayName = 'MenuItemCard';
     }));
   };
 
+  const addTimeSlot = () => {
+    setFormData(prev => ({
+      ...prev,
+      timeSlots: [...prev.timeSlots, { startTime: '', endTime: '', days: [] }]
+    }));
+  };
+
+  const removeTimeSlot = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateTimeSlot = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.map((slot, i) =>
+        i === index ? { ...slot, [field]: value } : slot
+      )
+    }));
+  };
+
+  const toggleTimeSlotDay = (slotIndex, day) => {
+    setFormData(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.map((slot, i) => {
+        if (i === slotIndex) {
+          const days = slot.days.includes(day)
+            ? slot.days.filter(d => d !== day)
+            : [...slot.days, day];
+          return { ...slot, days };
+        }
+        return slot;
+      })
+    }));
+  };
+
   const handleCreateCategory = async (categoryData) => {
     try {
-      await api.post('/food/menu/categories', categoryData);
+      await api.post('/menu/categories', categoryData);
       await fetchMenuData();
       setShowCategoryModal(false);
       toast.success('Category created successfully!');
@@ -732,6 +799,444 @@ MenuItemCard.displayName = 'MenuItemCard';
                           placeholder="Describe your menu item..."
                         />
                       </div>
+
+                      {/* Ingredients */}
+                      <div className="mt-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Ingredients
+                        </label>
+                        <input
+                          type="text"
+                          value={Array.isArray(formData.ingredients) ? formData.ingredients.join(', ') : ''}
+                          onChange={(e) => {
+                            const ingredientsArray = e.target.value
+                              .split(',')
+                              .map(item => item.trim())
+                              .filter(item => item.length > 0);
+                            setFormData(prev => ({ ...prev, ingredients: ingredientsArray }));
+                          }}
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="tomato, onion, garlic, spices (separate with commas)"
+                        />
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          Separate ingredients with commas
+                        </p>
+                      </div>
+
+                      {/* Allergens */}
+                      <div className="mt-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Allergens
+                        </label>
+                        <input
+                          type="text"
+                          value={Array.isArray(formData.allergens) ? formData.allergens.join(', ') : ''}
+                          onChange={(e) => {
+                            const allergensArray = e.target.value
+                              .split(',')
+                              .map(item => item.trim())
+                              .filter(item => item.length > 0);
+                            setFormData(prev => ({ ...prev, allergens: allergensArray }));
+                          }}
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="nuts, dairy, gluten (separate with commas)"
+                        />
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          Separate allergens with commas
+                        </p>
+                      </div>
+
+                      {/* Dietary Tags */}
+                      <div className="mt-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Dietary Tags
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'halal', 'spicy', 'mild'].map(tag => (
+                            <label key={tag} className={`flex items-center gap-2 cursor-pointer ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={formData.dietaryTags.includes(tag)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      dietaryTags: [...prev.dietaryTags, tag]
+                                    }));
+                                  } else {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      dietaryTags: prev.dietaryTags.filter(t => t !== tag)
+                                    }));
+                                  }
+                                }}
+                                className={`rounded focus:ring-purple-500 transition-colors ${
+                                  isDarkMode
+                                    ? 'border-gray-600 bg-slate-700 text-purple-600'
+                                    : 'border-gray-300 bg-white text-purple-600'
+                                }`}
+                              />
+                              <span className="text-sm capitalize">{tag}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Spice Level & Cooking Time */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Spice Level
+                          </label>
+                          <select
+                            value={formData.spiceLevel}
+                            onChange={(e) => setFormData(prev => ({ ...prev, spiceLevel: e.target.value }))}
+                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                          >
+                            <option value="mild">Mild</option>
+                            <option value="medium">Medium</option>
+                            <option value="hot">Hot</option>
+                            <option value="very-hot">Very Hot</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Cooking Time (minutes)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={formData.cookingTime}
+                            onChange={(e) => setFormData(prev => ({ ...prev, cookingTime: e.target.value }))}
+                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="15"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Nutritional Information */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Nutritional Information</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Calories
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.nutritionalInfo.calories}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              nutritionalInfo: { ...prev.nutritionalInfo, calories: e.target.value }
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="250"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Protein (g)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.nutritionalInfo.protein}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              nutritionalInfo: { ...prev.nutritionalInfo, protein: e.target.value }
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="15"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Carbs (g)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.nutritionalInfo.carbs}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              nutritionalInfo: { ...prev.nutritionalInfo, carbs: e.target.value }
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="30"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Fat (g)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.nutritionalInfo.fat}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              nutritionalInfo: { ...prev.nutritionalInfo, fat: e.target.value }
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Portions Management */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Portions & Pricing</h3>
+                      {formData.portions.map((portion, index) => (
+                        <div key={index} className="flex gap-4 mb-4 items-end">
+                          <div className="flex-1">
+                            <label className={`block font-medium mb-2 ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              Portion Name
+                            </label>
+                            <input
+                              type="text"
+                              value={portion.name}
+                              onChange={(e) => updatePortion(index, 'name', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                                isDarkMode
+                                  ? 'bg-slate-700 border-gray-600 text-white'
+                                  : 'bg-white border-gray-300 text-gray-900'
+                              }`}
+                              placeholder="Regular, Large, Family"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className={`block font-medium mb-2 ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              Price (LKR)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={portion.price}
+                              onChange={(e) => updatePortion(index, 'price', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                                isDarkMode
+                                  ? 'bg-slate-700 border-gray-600 text-white'
+                                  : 'bg-white border-gray-300 text-gray-900'
+                              }`}
+                              placeholder="250.00"
+                            />
+                          </div>
+                          {formData.portions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removePortion(index)}
+                              className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addPortion}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Portion
+                      </button>
+                    </div>
+
+                    {/* Time Slots Management */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Availability Time Slots</h3>
+                      <p className={`text-sm mb-4 ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Set specific times when this item is available (e.g., breakfast items only in morning)
+                      </p>
+                      
+                      {formData.timeSlots.length === 0 ? (
+                        <div className={`text-center py-4 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No time restrictions - Available all day</p>
+                        </div>
+                      ) : (
+                        formData.timeSlots.map((slot, index) => (
+                          <div key={index} className={`p-4 mb-4 border rounded-lg ${
+                            isDarkMode ? 'border-gray-600 bg-slate-800/50' : 'border-gray-300 bg-white'
+                          }`}>
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className={`font-medium ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Time Slot {index + 1}</h4>
+                              <button
+                                type="button"
+                                onClick={() => removeTimeSlot(index)}
+                                className="p-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            
+                            {/* Time Range */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className={`block font-medium mb-2 ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                  Start Time
+                                </label>
+                                <input
+                                  type="time"
+                                  value={slot.startTime}
+                                  onChange={(e) => updateTimeSlot(index, 'startTime', e.target.value)}
+                                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                                    isDarkMode
+                                      ? 'bg-slate-700 border-gray-600 text-white'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }`}
+                                />
+                              </div>
+                              <div>
+                                <label className={`block font-medium mb-2 ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                  End Time
+                                </label>
+                                <input
+                                  type="time"
+                                  value={slot.endTime}
+                                  onChange={(e) => updateTimeSlot(index, 'endTime', e.target.value)}
+                                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                                    isDarkMode
+                                      ? 'bg-slate-700 border-gray-600 text-white'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Days Selection */}
+                            <div>
+                              <label className={`block font-medium mb-2 ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                Available Days
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => toggleTimeSlotDay(index, day)}
+                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                      slot.days.includes(day)
+                                        ? 'bg-purple-600 text-white'
+                                        : isDarkMode
+                                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                  >
+                                    {day.slice(0, 3)}
+                                  </button>
+                                ))}
+                              </div>
+                              {slot.days.length === 0 && (
+                                <p className={`text-xs mt-1 ${
+                                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                                }`}>
+                                  Please select at least one day
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      
+                      <button
+                        type="button"
+                        onClick={addTimeSlot}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Clock className="w-4 h-4" />
+                        Add Time Slot
+                      </button>
                     </div>
 
                     {/* Media & Status Section */}

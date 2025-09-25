@@ -156,7 +156,7 @@ class HTMLParser {
       'article[class*="menu"]', 'div[class*="menu"]', 'section[class*="menu"]',
 
       // Sri Lankan/Jaffna specific selectors
-      '.foodorders-item', '.valampuri-item', '.akshadaya-item', '.restaurant-item',
+      '.foodorders-item', '.valdor-item', '.akshadaya-item', '.restaurant-item',
       '.sri-lankan-menu', '.jaffna-menu', '.tamil-menu', '.cuisine-item',
       '.foodorders-menu-item', '.menu-food-item', '.restaurant-food-item',
       '.foodorders-dish', '.menu-dish-item', '.dish-menu-item',
@@ -176,9 +176,9 @@ class HTMLParser {
 
       // Specific to foodorders.lk and similar platforms
       '.food-item-card', '.menu-item-card', '.restaurant-card',
-      '.foodorders-card', '.valampuri-card', '.menu-section-card',
+      '.foodorders-card', '.valdor-card', '.menu-section-card',
 
-      // Valampuri specific selectors (from analysis)
+      // Valdor specific selectors (from analysis)
       '.category', '.menu-group', '.food-group', '.dish-group',
       '.menu-container', '.food-container', '.item-container'
     ];
@@ -312,7 +312,7 @@ class HTMLParser {
       'dessert', 'beverage', 'drink', 'coffee', 'tea', 'wine', 'beer', 'cocktail',
       'breakfast', 'lunch', 'dinner', 'special', 'combo', 'platter', 'menu',
 
-      // Valampuri specific categories (from analysis)
+      // Valdor specific categories (from analysis)
       'biriyanies', 'naans and chapathis', 'kottu', 'noodles & mee goreng',
       'bites and curries', 'appetizers & salads', 'soups', 'sandwiches',
       'dosa and others', 'desserts', 'soft drinks', 'fried rice', 'cakes',

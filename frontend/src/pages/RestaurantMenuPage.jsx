@@ -68,7 +68,7 @@ const RestaurantMenuPage = () => {
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (searchQuery) params.append('search', searchQuery);
 
-      const response = await api.get(`/food/menu/items?${params}`);
+      const response = await api.get(`/menu/items?${params}`);
       setMenuItems(response.data.data || response.data || []);
     } catch (error) {
       console.error('Error fetching menu items:', error);

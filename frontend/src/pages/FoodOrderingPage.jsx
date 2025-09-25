@@ -176,7 +176,7 @@ const ModernFoodOrderingPageContent = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowCart(true)}
+                onClick={() => navigate('/cart')}
                 className="relative bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-2xl shadow-lg hover:shadow-purple-500/25 transition-all"
               >
                 <ShoppingCart className="w-6 h-6" />

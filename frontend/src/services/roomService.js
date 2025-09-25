@@ -2,6 +2,16 @@
 import api from './api.js';
 
 const roomService = {
+  // Get featured rooms for homepage display
+  getFeaturedRooms: async () => {
+    try {
+      const response = await api.get('/rooms/featured');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching featured rooms:', error);
+      throw error;
+    }
+  },
   // Get available rooms for specific dates
   getAvailableRooms: async (checkIn, checkOut, filters = {}) => {
     try {

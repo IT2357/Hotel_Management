@@ -253,10 +253,10 @@ export const deleteExtractedMenu = catchAsync(async (req, res) => {
 });
 
 /**
- * Generate Valampuri menu with AI
- * POST /api/menu-selection/generate-valampuri-menu
+ * Generate Valdor menu with AI
+ * POST /api/menu-selection/generate-valdor-menu
  */
-export const generateValampuriMenu = catchAsync(async (req, res) => {
+export const generateValdorMenu = catchAsync(async (req, res) => {
   const { selectedCategories, culturalContext = 'jaffna' } = req.body;
 
   if (!selectedCategories || !Array.isArray(selectedCategories) || selectedCategories.length === 0) {
@@ -266,17 +266,17 @@ export const generateValampuriMenu = catchAsync(async (req, res) => {
   // Import AI service
   const aiService = (await import('../services/aiImageAnalysisService.js')).default;
 
-  // Generate menu using AI with Valampuri context
+  // Generate menu using AI with Valdor context
   const menuData = {
-    title: 'Valampuri Hotel Restaurant Menu',
+    title: 'Valdor Hotel Restaurant Menu',
     categories: [],
-    source: 'ai-generated-valampuri',
-    extractionMethod: 'ai-valampuri',
+    source: 'ai-generated-valdor',
+    extractionMethod: 'ai-valdor',
     confidence: 95
   };
 
-  // Define Valampuri menu structure
-  const valampuriMenuStructure = {
+  // Define Valdor menu structure
+  const valdorMenuStructure = {
     "Biriyanies": [
       { name: "Chicken Biryani", tamilName: "கோழி பிரியாணி", price: 950, description: "Fragrant basmati rice cooked with tender chicken, caramelized onions, and authentic Jaffna spices" },
       { name: "Mutton Biryani", tamilName: "அட்டை பிரியாணி", price: 1100, description: "Slow-cooked mutton biryani with traditional Jaffna spices and saffron" },
@@ -324,8 +324,8 @@ export const generateValampuriMenu = catchAsync(async (req, res) => {
 
   // Generate categories based on selected categories
   selectedCategories.forEach(categoryName => {
-    if (valampuriMenuStructure[categoryName]) {
-      const items = valampuriMenuStructure[categoryName].map((item, index) => ({
+    if (valdorMenuStructure[categoryName]) {
+      const items = valdorMenuStructure[categoryName].map((item, index) => ({
         index,
         name: item.name,
         tamilName: item.tamilName,
@@ -338,12 +338,12 @@ export const generateValampuriMenu = catchAsync(async (req, res) => {
         ingredients: [],
         cookingTime: 20,
         confidence: 95,
-        aiMethod: 'valampuri-database'
+        aiMethod: 'valdor-database'
       }));
 
       menuData.categories.push({
         name: categoryName,
-        description: `${categoryName} from Valampuri Hotel`,
+        description: `${categoryName} from Valdor Hotel`,
         items
       });
     }
@@ -354,7 +354,7 @@ export const generateValampuriMenu = catchAsync(async (req, res) => {
   menuData.totalItems = menuData.categories.reduce((sum, cat) => sum + cat.items.length, 0);
 
   // For Google Lens-like functionality, we need to store the original image URL
-  // This should be passed from the frontend when generating Valampuri menu
+  // This should be passed from the frontend when generating Valdor menu
   // For now, we'll use a placeholder or get it from the request context
 
   // Save to database
@@ -362,11 +362,11 @@ export const generateValampuriMenu = catchAsync(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: `Successfully generated Valampuri menu with ${menuData.totalItems} items`,
+    message: `Successfully generated Valdor menu with ${menuData.totalItems} items`,
     data: {
       menu: savedMenu,
       restaurant: {
-        name: "Valampuri Hotel Restaurant",
+        name: "Valdor Hotel Restaurant",
         location: "148/10, Station Road, Jaffna, Sri Lanka",
         cuisine: "Sri Lankan Tamil",
         specialty: "Jaffna Traditional Cuisine"

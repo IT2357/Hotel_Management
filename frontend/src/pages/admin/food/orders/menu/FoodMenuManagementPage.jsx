@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/Label';
+import Label  from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/Badge';

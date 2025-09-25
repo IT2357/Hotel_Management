@@ -2,8 +2,22 @@
 import express from "express";
 import RoomService from "../services/rooms/roomService.js";
 import { authenticateToken, optionalAuth } from "../middleware/auth.js";
+import { getFeaturedRooms } from "../controllers/rooms/roomController.js";
 
 const router = express.Router();
+
+// Get featured rooms for homepage display (public)
+router.get("/featured", async (req, res) => {
+  try {
+    const response = await getFeaturedRooms(req, res);
+  } catch (error) {
+    console.error('Error getting featured rooms:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to get featured rooms",
+    });
+  }
+});
 
 // Get available rooms for specific dates
 router.get("/available", optionalAuth, async (req, res) => {
