@@ -31,16 +31,35 @@ export const authorizeRoles = (options) => {
           .json({ success: false, message: "User not found" });
       }
 
-      // Populate profile based on role AFTER fetching user document
-      const profileField =
-        req.user.role === "admin" ? "adminProfile" : `${req.user.role}Profile`;
-
-      await user.populate(profileField);
-
-      const userObj = user.toObject();
-
-      console.log("User:", JSON.stringify(userObj, null, 2));
-      console.log("Profile:", JSON.stringify(userObj[profileField], null, 2));
+      // Get the correct profile field based on role
+      const profileField = `${user.role}Profile`;
+      
+      // Populate the profile with the correct model reference
+      await user.populate({
+        path: profileField,
+        // Ensure we're populating from the correct model
+        model: user.role.charAt(0).toUpperCase() + user.role.slice(1) + 'Profile'
+      });
+      
+      // Convert to plain object and get the profile
+      const userObj = user.toObject({ virtuals: true });
+      const profile = user[profileField];
+      
+      // Log for debugging
+      console.log("User role:", user.role);
+      console.log("Profile field:", profileField);
+      console.log("Profile populated:", !!profile);
+      
+      if (profile) {
+        console.log("Profile data:", JSON.stringify(profile, null, 2));
+        if (profile.permissions) {
+          console.log("Profile permissions:", JSON.stringify(profile.permissions, null, 2));
+        } else {
+          console.log("No permissions array found on profile");
+        }
+      } else {
+        console.log("Profile not found. Available user properties:", Object.keys(userObj));
+      }
 
       // Role check
       if (roles.length && !roles.includes(userObj.role)) {
@@ -62,23 +81,55 @@ export const authorizeRoles = (options) => {
 
       // Permissions check
       if (permissions.length) {
-        const profile = userObj[profileField];
-        if (
-          !profile ||
-          !profile.permissions ||
-          profile.permissions.length === 0
-        ) {
+        // Use the populated profile from earlier
+        const profile = user[profileField];
+        
+        // Debug log
+        console.log("Checking permissions for:", permissions);
+        console.log("User profile reference exists:", !!profile);
+        
+        if (!profile) {
+          console.log(`Profile ${profileField} not found on user`);
+          return res.status(403).json({ 
+            success: false, 
+            message: `Profile not found for role: ${user.role}` 
+          });
+        }
+        
+        if (!profile.permissions || !Array.isArray(profile.permissions) || profile.permissions.length === 0) {
+          console.log("No valid permissions array found on profile");
+          console.log("No permissions found on profile");
           return res
             .status(403)
             .json({ success: false, message: "No permissions assigned" });
         }
 
         const hasPermissions = permissions.every((perm) => {
-          const [module, action] = perm.split(":");
-          const modulePerm = profile.permissions.find(
-            (p) => p.module === module
-          );
-          return modulePerm?.actions.includes(action);
+          console.log("Checking permission:", perm);
+          
+          // Split into module and action if using colon format (e.g., "invitations:read")
+          let [module, action] = perm.includes(':') ? 
+            perm.split(':') : 
+            [perm, 'read'];
+          
+          console.log(`Looking for module: ${module}, action: ${action}`);
+          
+          try {
+            // Find the permission object for this module
+            const modulePerm = profile.permissions.find(
+              (p) => p.module === module
+            );
+            
+            console.log("Found module permission:", modulePerm);
+            
+            // Check if module exists and has the required action
+            const hasPermission = modulePerm?.actions?.includes(action);
+            console.log(`Permission ${perm} check result:`, hasPermission);
+            return hasPermission;
+          } catch (error) {
+            console.error("Error checking permission:", error);
+            return false;
+          }
         });
 
         if (!hasPermissions) {
