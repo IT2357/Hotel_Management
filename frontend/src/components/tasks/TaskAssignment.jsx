@@ -10,7 +10,7 @@ import {
   createTask
 } from '../../services/taskService';
 
-const socket = io(import.meta.env.VITE_API_BASE_URL);
+const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002');
 
 const TaskManagement = () => {
   const [tasks, setTasks] = useState([]);

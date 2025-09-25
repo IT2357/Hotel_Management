@@ -267,30 +267,35 @@ const ManagerHomePage = () => {
             </Link>
           </div>
           <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Room 204 cleaning completed</p>
-                <p className="text-sm text-gray-600">Completed by Maria Santos</p>
-                <p className="text-xs text-gray-500">2 minutes ago</p>
+            {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 ? (
+              dashboardData.recentActivity.map((activity, index) => {
+                const statusColors = {
+                  'Task completed': 'bg-green-500',
+                  'Task in-progress': 'bg-blue-500', 
+                  'Task assigned': 'bg-orange-500',
+                  'Task pending': 'bg-yellow-500',
+                  'Task cancelled': 'bg-red-500'
+                };
+                
+                const colorClass = statusColors[activity.action] || 'bg-gray-500';
+                const timeAgo = new Date(activity.timestamp).toLocaleString();
+                
+                return (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className={`w-2 h-2 ${colorClass} rounded-full mt-2`}></div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                      <p className="text-sm text-gray-600">{activity.action} by {activity.user}</p>
+                      <p className="text-xs text-gray-500">{timeAgo}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">No recent activity available</p>
               </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">New booking received</p>
-                <p className="text-sm text-gray-600">Suite reservation for tomorrow</p>
-                <p className="text-xs text-gray-500">5 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Kitchen maintenance scheduled</p>
-                <p className="text-sm text-gray-600">Assigned to John Mitchell</p>
-                <p className="text-xs text-gray-500">10 minutes ago</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

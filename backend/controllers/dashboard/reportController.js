@@ -47,6 +47,34 @@ export const getDashboardOverview = async (req, res, next) => {
 
     const { startDate, endDate } = getDateRange();
 
+    // Calculate comparison period for percentage changes
+    const getComparisonDateRange = () => {
+      switch (period) {
+        case 'today':
+          const yesterday = new Date(startDate);
+          yesterday.setDate(startDate.getDate() - 1);
+          const yesterdayEnd = new Date(yesterday);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+          return { compStartDate: yesterday, compEndDate: yesterdayEnd };
+        case 'week':
+          const lastWeekStart = new Date(startDate);
+          lastWeekStart.setDate(startDate.getDate() - 7);
+          const lastWeekEnd = new Date(startDate);
+          lastWeekEnd.setDate(startDate.getDate() - 1);
+          return { compStartDate: lastWeekStart, compEndDate: lastWeekEnd };
+        case 'month':
+          const lastMonthStart = new Date(startDate);
+          lastMonthStart.setMonth(startDate.getMonth() - 1);
+          const lastMonthEnd = new Date(startDate);
+          lastMonthEnd.setDate(startDate.getDate() - 1);
+          return { compStartDate: lastMonthStart, compEndDate: lastMonthEnd };
+        default:
+          return { compStartDate: startDate, compEndDate: endDate };
+      }
+    };
+
+    const { compStartDate, compEndDate } = getComparisonDateRange();
+
     // Get today's key metrics
     const [
       todayBookings,
@@ -58,7 +86,11 @@ export const getDashboardOverview = async (req, res, next) => {
       financialStats,
       kpiStats,
       recentActivity,
-      alerts
+      alerts,
+      compareBookings,
+      compareRevenue,
+      compareOccupancy,
+      compareSatisfaction
     ] = await Promise.all([
       // Today's bookings count
       Booking.countDocuments({
@@ -93,7 +125,21 @@ export const getDashboardOverview = async (req, res, next) => {
       reportService.getRecentActivity({ limit: 5 }),
       
       // Performance alerts
-      reportService.getPerformanceAlerts({ startDate, endDate })
+      reportService.getPerformanceAlerts({ startDate, endDate }),
+      
+      // Comparison data for percentage calculations
+      Booking.countDocuments({
+        createdAt: { $gte: compStartDate, $lte: compEndDate }
+      }),
+      
+      Revenue.aggregate([
+        { $match: { date: { $gte: compStartDate, $lte: compEndDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]).then(result => result[0]?.total || 0),
+      
+      reportService.getOccupancyRate({ startDate: compStartDate, endDate: compEndDate }),
+      
+      reportService.getGuestSatisfactionScore({ startDate: compStartDate, endDate: compEndDate })
     ]);
 
     // Get staff stats for ManagerHomePage (consider online if logged in within last 30 minutes)
@@ -163,9 +209,19 @@ export const getDashboardOverview = async (req, res, next) => {
       },
       recentActivity: recentActivity || [],
       alerts: alerts || [],
-      // Additional fields for ManagerHomePage compatibility
-      bookingChange: period === 'today' ? '+12% from yesterday' : 'No comparison available',
-      revenueChange: period === 'today' ? '+8.5% from yesterday' : 'No comparison available'
+      // Calculate percentage changes
+      bookingChange: compareBookings > 0 ? 
+        `${((todayBookings - compareBookings) / compareBookings * 100).toFixed(1)}% from ${period === 'today' ? 'yesterday' : 'previous period'}` : 
+        'No comparison data available',
+      revenueChange: compareRevenue > 0 ? 
+        `${((todayRevenue - compareRevenue) / compareRevenue * 100).toFixed(1)}% from ${period === 'today' ? 'yesterday' : 'previous period'}` : 
+        'No comparison data available',
+      occupancyChange: compareOccupancy > 0 ? 
+        `${((occupancyRate - compareOccupancy) / compareOccupancy * 100).toFixed(1)}% from ${period === 'today' ? 'yesterday' : 'previous period'}` : 
+        'No comparison data available',
+      satisfactionChange: compareSatisfaction > 0 ? 
+        `${((guestSatisfaction - compareSatisfaction) / compareSatisfaction * 100).toFixed(1)}% from ${period === 'today' ? 'yesterday' : 'previous period'}` : 
+        'No comparison data available'
     };
 
     res.status(200).json({

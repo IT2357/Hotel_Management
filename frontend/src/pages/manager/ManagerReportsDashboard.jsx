@@ -48,32 +48,32 @@ const ManagerReportsDashboard = () => {
     {
       title: "Today's Bookings",
       value: dashboardData?.todayBookings || 0,
-      change: "+12%",
-      changeType: "increase",
+      change: dashboardData?.bookingChange || "No data",
+      changeType: dashboardData?.bookingChange?.includes('+') ? "increase" : dashboardData?.bookingChange?.includes('-') ? "decrease" : "neutral",
       icon: Calendar,
       color: "blue"
     },
     {
       title: "Today's Revenue",
       value: `$${(dashboardData?.todayRevenue || 0).toLocaleString()}`,
-      change: "+8.5%",
-      changeType: "increase",
+      change: dashboardData?.revenueChange || "No data",
+      changeType: dashboardData?.revenueChange?.includes('+') ? "increase" : dashboardData?.revenueChange?.includes('-') ? "decrease" : "neutral",
       icon: DollarSign,
       color: "green"
     },
     {
       title: "Occupancy Rate",
       value: `${dashboardData?.occupancyRate || 0}%`,
-      change: "+5.2%",
-      changeType: "increase",
+      change: dashboardData?.occupancyChange || "No data",
+      changeType: dashboardData?.occupancyChange?.includes('+') ? "increase" : dashboardData?.occupancyChange?.includes('-') ? "decrease" : "neutral",
       icon: Users,
       color: "purple"
     },
     {
       title: "Guest Satisfaction",
       value: `${dashboardData?.guestSatisfaction || 0}/5`,
-      change: "+0.3",
-      changeType: "increase",
+      change: dashboardData?.satisfactionChange || "No data",
+      changeType: dashboardData?.satisfactionChange?.includes('+') ? "increase" : dashboardData?.satisfactionChange?.includes('-') ? "decrease" : "neutral",
       icon: Star,
       color: "yellow"
     }
@@ -89,7 +89,7 @@ const ManagerReportsDashboard = () => {
         totalBookings: dashboardData?.bookingStats?.total || 0,
         pendingTasks: dashboardData?.taskStats?.pending || 0,
         completedTasks: dashboardData?.taskStats?.completed || 0,
-        topDepartment: dashboardData?.taskStats?.topDepartment || "Kitchen"
+        topDepartment: dashboardData?.taskStats?.topDepartment || "N/A"
       },
       route: "/manager/reports/bookings"
     },

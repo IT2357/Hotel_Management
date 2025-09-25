@@ -12,7 +12,7 @@ import Spinner from '../../components/ui/Spinner'; // Added Spinner import
 import moment from 'moment';
 
 
-const socket = io('http://localhost:5000');
+const socket = io('http://localhost:5002');
 
 const statusColors = {
   pending: 'warning',
