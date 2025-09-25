@@ -14,16 +14,11 @@ import {
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import { validateReportRequest } from '../middleware/validation.js';
-import { rateLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Apply authentication to all routes
 router.use(authenticateToken);
-
-// Apply rate limiting for report generation
-router.use('/export', rateLimiter({ windowMs: 15 * 60 * 1000, max: 10 })); // 10 requests per 15 minutes
-router.use('/forecast', rateLimiter({ windowMs: 15 * 60 * 1000, max: 20 })); // 20 requests per 15 minutes
 
 /**
  * @route   GET /api/reports/dashboard-overview

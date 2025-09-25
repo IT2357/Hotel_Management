@@ -41,10 +41,10 @@
     "passport-apple": "^2.0.2",
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
+    "pdfkit": "^0.17.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "twilio": "^5.10.0",
-    "pdfkit": "^0.17.2",
     "winston": "^3.17.0",
     "xss-clean": "^0.1.4"
   },
