@@ -42,28 +42,42 @@ export default function AdminInvoicesPage() {
     fetchInvoices();
   }, [filters]);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
 
       const response = await fetch(`/api/invoices/admin/all?${params}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        cache: 'no-store' // Prevent caching
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
 
       const data = await response.json();
       if (data.success) {
-        setInvoices(data.data.invoices);
-        setPagination(data.data.pagination);
+        setInvoices(data.data.invoices || []);
+        setPagination(data.data.pagination || {
+          currentPage: 1,
+          totalPages: 1,
+          totalInvoices: data.data.invoices?.length || 0
+        });
       }
+      return data.data;
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
-      setAlert({ type: 'error', message: 'Failed to fetch invoices' });
+      setAlert({ 
+        type: 'error', 
+        message: error.message || 'Failed to fetch invoices' 
+      });
+      throw error;
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -145,19 +159,48 @@ export default function AdminInvoicesPage() {
 
   const closeActionModal = () => {
     setShowActionModal(false);
-    setSelectedInvoice(null);
-    setActionType('');
-    setActionNotes('');
+    // Use setTimeout to ensure the modal is fully unmounted before resetting state
+    setTimeout(() => {
+      setActionType('');
+      setActionNotes('');
+      setSelectedInvoice(null);
+      setActionLoading(false);
+    }, 300);
   };
 
   const handleStatusChange = async (invoiceId, newStatus, notes = '') => {
+    let originalInvoice = null;
     try {
       setActionLoading(true);
+      
+      // Store original state for rollback
+      originalInvoice = invoices.find(inv => inv._id === invoiceId);
+      
+      // Update the UI optimistically first
+      const updatedInvoices = invoices.map(invoice => 
+        invoice._id === invoiceId 
+          ? { 
+              ...invoice, 
+              status: newStatus,
+              paymentStatus: newStatus,
+              ...(newStatus === 'Paid' && { paidAt: new Date().toISOString() })
+            } 
+          : invoice
+      );
+      
+      setInvoices(updatedInvoices);
+      
+      // Close the modal immediately
+      closeActionModal();
+      
+      // Make the API call
       const response = await fetch(`/api/invoices/admin/${invoiceId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           status: newStatus,
@@ -166,16 +209,43 @@ export default function AdminInvoicesPage() {
       });
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update invoice status');
+      }
+      
       if (data.success) {
-        setAlert({ type: 'success', message: `Invoice ${newStatus.toLowerCase()} successfully` });
-        fetchInvoices();
-        closeActionModal();
+        // Refresh the data from server to ensure consistency
+        await fetchInvoices(false);
+        
+        setAlert({ 
+          type: 'success', 
+          message: `Invoice ${newStatus.toLowerCase()} successfully`,
+          autoDismiss: 3000
+        });
       } else {
-        setAlert({ type: 'error', message: data.message || 'Failed to update invoice status' });
+        throw new Error(data.message || 'Failed to update invoice status');
       }
     } catch (error) {
       console.error('Failed to update invoice status:', error);
-      setAlert({ type: 'error', message: 'Failed to update invoice status' });
+      
+      // Revert to original state on error
+      if (originalInvoice) {
+        setInvoices(prevInvoices => 
+          prevInvoices.map(invoice => 
+            invoice._id === invoiceId ? originalInvoice : invoice
+          )
+        );
+      }
+      
+      setAlert({ 
+        type: 'error', 
+        message: error.message || 'Failed to update invoice status. Please try again.',
+        autoDismiss: 5000
+      });
+      
+      // Re-fetch fresh data
+      await fetchInvoices(false);
     } finally {
       setActionLoading(false);
     }
@@ -203,34 +273,133 @@ export default function AdminInvoicesPage() {
   };
 
   const handleBulkAction = async () => {
-    // Filter selected invoices based on the action type
-    let eligibleInvoices = [];
-
-    if (bulkActionType === 'send') {
-      // Only draft invoices can be sent
-      eligibleInvoices = selectedInvoices.filter(id => {
+    try {
+      setActionLoading(true);
+      
+      // Filter selected invoices based on the action type
+      let eligibleInvoices = [];
+      const originalInvoices = {}; // Store original states for rollback
+      
+      // Determine eligible invoices and store their original states
+      selectedInvoices.forEach(id => {
         const invoice = invoices.find(inv => inv._id === id);
-        return invoice && invoice.status === 'Draft';
+        if (!invoice) return;
+        
+        let isEligible = false;
+        
+        if (bulkActionType === 'send') {
+          isEligible = invoice.status === 'Draft';
+        } else if (bulkActionType === 'mark_paid') {
+          isEligible = invoice.status !== 'Paid' && 
+                       invoice.status !== 'Cancelled' &&
+                       invoice.status !== 'Refunded' && 
+                       invoice.status !== 'Failed';
+        } else if (bulkActionType === 'cancel') {
+          isEligible = invoice.status !== 'Paid' && 
+                       invoice.status !== 'Cancelled' &&
+                       invoice.status !== 'Refunded' && 
+                       invoice.status !== 'Failed';
+        }
+        
+        if (isEligible) {
+          eligibleInvoices.push(id);
+          originalInvoices[id] = { ...invoice };
+        }
       });
-    } else if (bulkActionType === 'mark_paid') {
-      // Only non-paid and non-cancelled invoices can be marked as paid
-      eligibleInvoices = selectedInvoices.filter(id => {
-        const invoice = invoices.find(inv => inv._id === id);
-        return invoice && invoice.status !== 'Paid' && invoice.status !== 'Cancelled' &&
-               invoice.status !== 'Refunded' && invoice.status !== 'Failed';
+      
+      if (eligibleInvoices.length === 0) {
+        setAlert({ 
+          type: 'error', 
+          message: 'No eligible invoices found for this action',
+          autoDismiss: 3000
+        });
+        return;
+      }
+      
+      // Close the bulk modal
+      closeBulkModal();
+      
+      // Update UI optimistically
+      const newStatus = bulkActionType === 'mark_paid' ? 'Paid' : 
+                       bulkActionType === 'cancel' ? 'Cancelled' : 'Sent';
+      
+      setInvoices(prevInvoices => 
+        prevInvoices.map(invoice => 
+          eligibleInvoices.includes(invoice._id)
+            ? {
+                ...invoice,
+                status: newStatus,
+                paymentStatus: newStatus,
+                ...(newStatus === 'Paid' && { paidAt: new Date().toISOString() })
+              }
+            : invoice
+        )
+      );
+      
+      // Process each eligible invoice
+      const results = await Promise.allSettled(
+        eligibleInvoices.map(id => 
+          fetch(`/api/invoices/admin/${id}/status`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            },
+            body: JSON.stringify({
+              status: newStatus,
+              reason: actionNotes
+            })
+          })
+        )
+      );
+      
+      // Check for failed updates
+      const failedUpdates = results.filter(
+        (result, index) => result.status === 'rejected' || !result.value.ok
+      );
+      
+      if (failedUpdates.length > 0) {
+        // Revert failed updates
+        const failedIds = failedUpdates.map((_, index) => eligibleInvoices[index]);
+        
+        setInvoices(prevInvoices => 
+          prevInvoices.map(invoice => 
+            failedIds.includes(invoice._id) && originalInvoices[invoice._id]
+              ? originalInvoices[invoice._id]
+              : invoice
+          )
+        );
+        
+        throw new Error(
+          `Failed to update ${failedUpdates.length} of ${eligibleInvoices.length} invoices`
+        );
+      }
+      
+      // Refresh data from server
+      await fetchInvoices(false);
+      
+      setAlert({
+        type: 'success',
+        message: `Successfully updated ${eligibleInvoices.length} invoice(s)`,
+        autoDismiss: 3000
       });
-    } else if (bulkActionType === 'cancel') {
-      // Only non-paid and non-cancelled invoices can be cancelled
-      eligibleInvoices = selectedInvoices.filter(id => {
-        const invoice = invoices.find(inv => inv._id === id);
-        return invoice && invoice.status !== 'Paid' && invoice.status !== 'Cancelled' &&
-               invoice.status !== 'Refunded' && invoice.status !== 'Failed';
+      
+    } catch (error) {
+      console.error('Bulk action failed:', error);
+      
+      setAlert({
+        type: 'error',
+        message: error.message || 'An error occurred during bulk update',
+        autoDismiss: 5000
       });
-    }
-
-    if (eligibleInvoices.length === 0) {
-      setAlert({ type: 'error', message: 'No eligible invoices found for this action' });
-      return;
+      
+      // Ensure we have the latest data
+      await fetchInvoices(false);
+    } finally {
+      setActionLoading(false);
+      setSelectedInvoices([]);
     }
 
     try {
@@ -272,8 +441,12 @@ export default function AdminInvoicesPage() {
 
   const closeBulkModal = () => {
     setShowBulkModal(false);
-    setBulkActionType('');
-    setActionNotes('');
+    // Use setTimeout to ensure the modal is fully unmounted before resetting state
+    setTimeout(() => {
+      setBulkActionType('');
+      setActionNotes('');
+      setActionLoading(false);
+    }, 300);
   };
 
   const stats = {
