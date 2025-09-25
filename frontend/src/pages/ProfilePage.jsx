@@ -5,9 +5,9 @@ import 'react-toastify/dist/ReactToastify.css';
 import useAuth from '../hooks/useAuth';
 import authService from '../services/authService';
 import DefaultLayout from '../layout/admin/DefaultAdminLayout';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import Input from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
 import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
 
@@ -39,34 +39,34 @@ const ProfilePage = () => {
   ];
 
   // Fetch user profile
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        setLoading(true);
-        const currentUser = await authService.getCurrentUser();
-        const userData = currentUser.data?.data?.user;
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const currentUser = await authService.getCurrentUser();
+      const userData = currentUser.data?.data?.user;
 
-        if (!userData) {
-          throw new Error('User data not found in response');
-        }
-
-        const userProfile = {
-          name: userData.name || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-          address: userData.address || '',
-        };
-        setProfileData(userProfile);
-        setOriginalProfileData(userProfile); // Store original data
-        setUser(userData);
-      } catch (error) {
-        toast.error(error.message || 'Failed to fetch profile data.');
-        console.error('Error fetching user profile:', error);
-      } finally {
-        setLoading(false);
+      if (!userData) {
+        throw new Error('User data not found in response');
       }
-    };
 
+      const userProfile = {
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        address: userData.address || '',
+      };
+      setProfileData(userProfile);
+      setOriginalProfileData(userProfile); // Store original data
+      setUser(userData);
+    } catch (error) {
+      toast.error(error.message || 'Failed to fetch profile data.');
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (user) {
       fetchUserProfile();
     }
