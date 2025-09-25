@@ -2,6 +2,9 @@
 import api from './api.js';
 
 const roomService = {
+  getAllRooms: (params) => api.get("/rooms/", { params }),
+  getRoomById: (id) => api.get(`/rooms/${id}`),
+
   // Get available rooms for specific dates
   getAvailableRooms: async (checkIn, checkOut, filters = {}) => {
     try {

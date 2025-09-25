@@ -66,6 +66,12 @@ const adminService = {
   restoreSettings: (data) => api.post("/admin/settings/restore", data),
   resetToDefaults: () => api.post("/admin/settings/reset"),
   validatePaymentGateway: (data) => api.post("/admin/settings/validate-payment", data),
+
+    // Room management
+  createRoom: (data) => api.post("/admin/rooms", data),
+  updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
+  deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
+
 };
 
 export default adminService;

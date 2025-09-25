@@ -18,7 +18,7 @@ import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
-import RoomsPage from './pages/RoomsPage.jsx';
+import RoomsPage from './pages/guest/RoomsPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import MyBookings from './pages/guest/MyBookings.jsx';
 import MyReviews from './pages/guest/MyReviews.jsx';
