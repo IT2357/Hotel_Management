@@ -23,10 +23,9 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.15;
-  const serviceCharge = subtotal * 0.10;
-  const deliveryFee = orderType === 'delivery' ? 500 : 0;
-  const total = subtotal + tax + serviceCharge + deliveryFee;
+  const tax = subtotal * 0.10;
+  const deliveryFee = orderType === 'delivery' ? 200 : 0;
+  const total = subtotal + tax + deliveryFee;
 
   const handleLogout = () => {
     logout();
@@ -106,7 +105,11 @@ const CheckoutPage = () => {
            price: item.price,
            name: item.name
          })),
+         subtotal: subtotal,
+         tax: tax,
+         deliveryFee: deliveryFee,
          totalPrice: total,
+         currency: 'LKR',
          orderType: orderType,
          isTakeaway: orderType === 'takeaway',
          customerDetails: {
@@ -160,7 +163,6 @@ const CheckoutPage = () => {
            items: cartItems,
            subtotal,
            tax,
-           serviceCharge,
            deliveryFee,
            total,
            orderDate: order.createdAt,
@@ -598,14 +600,16 @@ const CheckoutPage = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span>Tax (15%)</span>
+                <span>Tax (10%)</span>
                 <span>LKR {tax.toFixed(0)}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span>Service Charge (10%)</span>
-                <span>LKR {serviceCharge.toFixed(0)}</span>
-              </div>
+              {deliveryFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <span>Delivery Fee</span>
+                  <span>LKR {deliveryFee}</span>
+                </div>
+              )}
 
               {deliveryFee > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>

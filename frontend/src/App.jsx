@@ -81,7 +81,7 @@ const AppContent = () => {
           <BookingProvider>
             <CartProvider>
               <AnimatePresence mode="wait">
-              <Routes key={location.pathname}>
+              <Routes>
         {/* 🏠 Home Page */}
         <Route path="/" element={wrapWithTransition(<HomePage />)} />
 

@@ -24,6 +24,12 @@ const foodSchema = new mongoose.Schema(
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative']
     },
+    currency: {
+      type: String,
+      default: 'LKR',
+      enum: ['LKR'],
+      required: true
+    },
     preparationTimeMinutes: Number,
     ingredients: [String],
     allergens: [String],

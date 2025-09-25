@@ -96,34 +96,16 @@ export const extractMenu = async (req, res) => {
       });
     }
 
-    // With upload.any(), files are in req.files as an object with field names as keys
-    let uploadedFile = null;
-    if (req.files) {
-      // req.files is an object like { 'file': [file1, file2, ...] }
-      const fileField = req.files['file'] || req.files['0']; // Try 'file' first, then '0' as fallback
-      if (fileField) {
-        uploadedFile = Array.isArray(fileField) ? fileField[0] : fileField;
-      }
-    }
-    const hasFile = !!uploadedFile;
+    // Check for uploaded file (either from req.file or req.files)
+    const hasFile = !!(req.file || (req.files && ((Array.isArray(req.files) && req.files.length > 0) || Object.keys(req.files).length > 0)));
     const hasUrl = req.body.url && req.body.url.trim();
     const hasPath = req.body.path && req.body.path.trim();
 
-    console.log('🔍 Input type detection - File:', !!hasFile, 'URL:', !!hasUrl, 'Path:', !!hasPath);
+    console.log('🔍 Input type detection - File:', hasFile, 'URL:', !!hasUrl, 'Path:', !!hasPath);
+    console.log('🔍 req.file present:', !!req.file, 'req.files present:', !!req.files);
 
-    // Set up req.file for compatibility if a file was uploaded
-    if (hasFile) {
-      req.file = {
-        fieldname: uploadedFile.fieldname,
-        originalname: uploadedFile.originalname,
-        encoding: uploadedFile.encoding,
-        mimetype: uploadedFile.mimetype,
-        buffer: uploadedFile.buffer,
-        size: uploadedFile.size,
-        gridfsId: uploadedFile.gridfsId, // Copy the GridFS ID set by middleware
-        id: uploadedFile.id // Also copy the ID
-      };
-      console.log('✅ File processed from req.files:', req.file.originalname, 'GridFS ID:', req.file.gridfsId);
+    if (req.file) {
+      console.log('✅ Using req.file - GridFS ID:', req.file.gridfsId);
     }
 
     let extractionData = {

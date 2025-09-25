@@ -10,9 +10,9 @@ function CartPage() {
   const navigate = useNavigate();
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.15; // 15% tax
-  const serviceCharge = subtotal * 0.10; // 10% service charge
-  const grandTotal = subtotal + tax + serviceCharge;
+  const tax = subtotal * 0.10; // 10% tax
+  const deliveryFee = 200; // LKR 200 delivery fee
+  const grandTotal = subtotal + tax + deliveryFee;
 
   const handleLogout = () => {
     logout();
@@ -193,13 +193,13 @@ function CartPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <span>Tax (15%)</span>
+                <span>Tax (10%)</span>
                 <span>LKR {tax.toFixed(0)}</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <span>Service Charge (10%)</span>
-                <span>LKR {serviceCharge.toFixed(0)}</span>
+                <span>Delivery Fee</span>
+                <span>LKR {deliveryFee}</span>
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid #eee', marginBottom: '1.5rem' }} />

@@ -70,6 +70,7 @@ export const uploadToGridFS = async (req, res, next) => {
         file.gridfsId = fileId;
 
         console.log('✅ File uploaded to GridFS with ID:', fileId);
+        console.log('🔍 Setting gridfsId on file object:', file.gridfsId);
       }
     }
 

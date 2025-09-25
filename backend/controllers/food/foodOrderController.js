@@ -134,24 +134,36 @@ export const getCustomerOrders = catchAsync(async (req, res) => {
 
 // Create new food order (Customer endpoint)
 export const createFoodOrder = catchAsync(async (req, res) => {
- const {
-   items,
-   totalPrice,
-   orderType,
-   isTakeaway,
-   customerDetails,
-   paymentMethod,
-   specialInstructions,
-   scheduledTime
- } = req.body;
+const {
+  items,
+  subtotal,
+  tax,
+  deliveryFee,
+  totalPrice,
+  currency,
+  orderType,
+  isTakeaway,
+  customerDetails,
+  paymentMethod,
+  specialInstructions,
+  scheduledTime
+} = req.body;
 
  // Validate required fields
  if (!items || !Array.isArray(items) || items.length === 0) {
    throw new AppError('Order items are required', 400);
  }
 
+ if (!subtotal || subtotal < 0) {
+   throw new AppError('Subtotal is required and must be non-negative', 400);
+ }
+
  if (!totalPrice || totalPrice <= 0) {
    throw new AppError('Total price is required and must be greater than 0', 400);
+ }
+
+ if (!currency || currency !== 'LKR') {
+   throw new AppError('Currency must be LKR', 400);
  }
 
  if (!customerDetails || !customerDetails.customerName || !customerDetails.customerEmail || !customerDetails.customerPhone) {
@@ -226,14 +238,26 @@ export const createFoodOrder = catchAsync(async (req, res) => {
    });
  }
 
- // Calculate taxes and fees
- const tax = calculatedSubtotal * 0.15;
- const serviceCharge = calculatedSubtotal * 0.10;
- const deliveryFee = orderType === 'delivery' ? 500 : 0;
- const calculatedTotal = calculatedSubtotal + tax + serviceCharge + deliveryFee;
+ // Validate subtotal matches calculated subtotal
+ if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
+   throw new AppError('Subtotal does not match calculated subtotal', 400);
+ }
 
- // Validate total price matches calculated total
- if (Math.abs(calculatedTotal - totalPrice) > 0.01) {
+ // Validate tax calculation (10% of subtotal)
+ const expectedTax = calculatedSubtotal * 0.10;
+ if (Math.abs(expectedTax - tax) > 0.01) {
+   throw new AppError('Tax calculation is incorrect', 400);
+ }
+
+ // Validate delivery fee (LKR 200 for delivery, 0 otherwise)
+ const expectedDeliveryFee = orderType === 'delivery' ? 200 : 0;
+ if (deliveryFee !== expectedDeliveryFee) {
+   throw new AppError('Delivery fee is incorrect', 400);
+ }
+
+ // Validate total price
+ const expectedTotal = calculatedSubtotal + tax + deliveryFee;
+ if (Math.abs(expectedTotal - totalPrice) > 0.01) {
    throw new AppError('Total price does not match calculated price', 400);
  }
 
@@ -271,10 +295,10 @@ export const createFoodOrder = catchAsync(async (req, res) => {
  // Create order object
  const orderData = {
    items: validatedItems,
-   totalPrice: calculatedTotal,
-   subtotal: calculatedSubtotal,
+   totalPrice: totalPrice,
+   currency: currency,
+   subtotal: subtotal,
    tax: tax,
-   serviceCharge: serviceCharge,
    deliveryFee: deliveryFee,
    orderType: orderType,
    isTakeaway: Boolean(isTakeaway),
@@ -308,10 +332,9 @@ export const createFoodOrder = catchAsync(async (req, res) => {
  logger.info('Food order created successfully', {
    orderId: order._id,
    userId: req.user ? req.user.id : null,
-   totalPrice: calculatedTotal,
-   subtotal: calculatedSubtotal,
+   totalPrice: totalPrice,
+   subtotal: subtotal,
    tax: tax,
-   serviceCharge: serviceCharge,
    deliveryFee: deliveryFee,
    paymentMethod,
    paymentId: paymentResult.paymentId

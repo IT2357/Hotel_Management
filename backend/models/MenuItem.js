@@ -26,6 +26,12 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Price is required'],
     min: [0, 'Price cannot be negative'],
   },
+  currency: {
+    type: String,
+    default: 'LKR',
+    enum: ['LKR'],
+    required: true
+  },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',

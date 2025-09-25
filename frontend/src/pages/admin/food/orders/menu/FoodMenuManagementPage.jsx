@@ -36,6 +36,8 @@ import foodService from '@/services/foodService';
 import { MenuItemCard } from '@/components/admin/MenuItemCard';
 import { MenuItemForm } from '@/components/admin/MenuItemForm';
 import { StatisticsCard } from '@/components/admin/StatisticsCard';
+import { useSettings } from '@/context/SettingsContext';
+import { Sun, Moon } from 'lucide-react';
 
 // Get API base URL for images
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -43,6 +45,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
 
 const FoodMenuManagementPage = () => {
+  const { settings, updateSettings } = useSettings();
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+
   const [foodItems, setFoodItems] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +62,10 @@ const FoodMenuManagementPage = () => {
   const [ocrResult, setOcrResult] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const navigate = useNavigate();
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => !prev);
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -165,10 +174,11 @@ const FoodMenuManagementPage = () => {
   const handleCreateItem = useCallback(async (formData) => {
     try {
       setIsSubmitting(true);
-      // Prepare data for service - map imageFile to image field
+      // Prepare data for service - map imageFile to image field and ensure category is ID
       const serviceData = {
         ...formData,
-        image: formData.imageFile || formData.image // Use imageFile if available, otherwise image URL
+        image: formData.imageFile || formData.image, // Use imageFile if available, otherwise image URL
+        category: getCategoryId(formData.category) // Ensure category is an ID
       };
       // Remove imageFile and imagePreview as they're not needed by the service
       delete serviceData.imageFile;
@@ -207,7 +217,7 @@ const FoodMenuManagementPage = () => {
         customizations: []
       });
       toast.success('Menu item created successfully');
-      fetchMenuData();
+      // Removed fetchMenuData() call to prevent filtering issues
     } catch (error) {
       console.error('Error creating menu item:', error);
       toast.error(error.response?.data?.message || 'Failed to create menu item');
@@ -221,10 +231,11 @@ const FoodMenuManagementPage = () => {
 
     try {
       setIsSubmitting(true);
-      // Prepare data for service - map imageFile to image field
+      // Prepare data for service - map imageFile to image field and ensure category is ID
       const serviceData = {
         ...formData,
-        image: formData.imageFile || formData.image // Use imageFile if available, otherwise image URL
+        image: formData.imageFile || formData.image, // Use imageFile if available, otherwise image URL
+        category: getCategoryId(formData.category) // Ensure category is an ID
       };
       // Remove imageFile and imagePreview as they're not needed by the service
       delete serviceData.imageFile;
@@ -237,14 +248,14 @@ const FoodMenuManagementPage = () => {
       setIsCreateDialogOpen(false);
       setEditingItem(null);
       toast.success('Menu item updated successfully');
-      fetchMenuData();
+      // Removed fetchMenuData() call to prevent items disappearing due to filtering
     } catch (error) {
       console.error('Error updating menu item:', error);
       toast.error(error.response?.data?.message || 'Failed to update menu item');
     } finally {
       setIsSubmitting(false);
     }
-  }, [editingItem, fetchMenuData]);
+  }, [editingItem]);
 
   const handleDeleteItem = useCallback(async (itemId) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
@@ -298,15 +309,36 @@ const FoodMenuManagementPage = () => {
     maxSize: 5 * 1024 * 1024 // 5MB
   });
 
+  // Helper function to get category ID from name or ID
+  const getCategoryId = (categoryValue) => {
+    if (!categoryValue) return '';
+
+    // If it's already an ID, return it
+    const existingCategory = categoriesList.find(cat => cat._id === categoryValue);
+    if (existingCategory) return categoryValue;
+
+    // If it's a string name, find the matching category
+    const categoryByName = categoriesList.find(cat =>
+      cat.name.toLowerCase() === categoryValue.toLowerCase()
+    );
+    if (categoryByName) return categoryByName._id;
+
+    // Default fallback
+    return '';
+  };
+
   // Form validation
   const validateForm = () => {
     const errors = {};
 
     if (!formData.name.trim()) {
       errors.name = 'Item name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
+      errors.name = 'Item name should contain only English letters and spaces';
     }
 
-    if (!formData.category) {
+    const categoryId = getCategoryId(formData.category);
+    if (!categoryId) {
       errors.category = 'Category is required';
     }
 
@@ -398,8 +430,9 @@ const FoodMenuManagementPage = () => {
   // Memoized filtered items
   const filteredItems = useMemo(() => {
     return (foodItems || []).filter(item => {
-      const itemCategory = typeof item.category === 'object' ? item.category?.name : item.category;
-      const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
+      // Get category ID for comparison
+      const itemCategoryId = typeof item.category === 'object' ? item.category?._id : item.category;
+      const matchesCategory = selectedCategory === 'all' || itemCategoryId === selectedCategory;
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
@@ -480,7 +513,7 @@ const FoodMenuManagementPage = () => {
           // Transform the extracted item to match the menu item schema
           const menuItemData = {
             name: item.name,
-            category: item.category || 'Main Course', // Default category
+            category: getCategoryId(item.category) || getCategoryId('Main Course'), // Use category ID
             description: item.description || '',
             price: parseFloat(item.price) || 200,
             image: item.image || '',
@@ -492,7 +525,7 @@ const FoodMenuManagementPage = () => {
             isLunch: !item.category?.toLowerCase().includes('breakfast') || false,
             isDinner: !item.category?.toLowerCase().includes('breakfast') || false,
             isSnacks: item.category?.toLowerCase().includes('snack') || false,
-            ingredients: item.ingredients || [],
+            ingredients: Array.isArray(item.ingredients) ? item.ingredients.filter(i => i && i.trim()) : [],
             dietaryTags: item.dietaryTags || [],
             nutritionalInfo: item.nutritionalInfo || {},
             cookingTime: item.cookingTime || 15,
@@ -514,7 +547,7 @@ const FoodMenuManagementPage = () => {
         setIsAIDialogOpen(false);
         setOcrResult(null);
         setUploadError('');
-        fetchMenuData(); // Refresh the menu data
+        // Removed fetchMenuData() call to prevent filtering issues
       } else {
         toast.error('Failed to save any menu items');
       }
@@ -525,17 +558,35 @@ const FoodMenuManagementPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode
+        ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
+        : 'bg-gray-50'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Menu Management</h1>
-          <p className="text-gray-600">Manage your restaurant's menu items and categories</p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className={`text-3xl font-bold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Menu Management</h1>
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Manage your restaurant's menu items and categories</p>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {isDarkMode ? 'Light' : 'Dark'}
+          </button>
         </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-blue-600 to-blue-700' : 'bg-gradient-to-r from-blue-500 to-blue-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <ChefHat className="h-6 w-6 text-white" />
@@ -547,7 +598,9 @@ const FoodMenuManagementPage = () => {
             </div>
           </div>
 
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-green-600 to-green-700' : 'bg-gradient-to-r from-green-500 to-green-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <CheckCircle2 className="h-6 w-6 text-white" />
@@ -559,7 +612,9 @@ const FoodMenuManagementPage = () => {
             </div>
           </div>
 
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-purple-600 to-purple-700' : 'bg-gradient-to-r from-purple-500 to-purple-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <RefreshCw className="h-6 w-6 text-white" />
@@ -571,7 +626,9 @@ const FoodMenuManagementPage = () => {
             </div>
           </div>
 
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-yellow-600 to-yellow-700' : 'bg-gradient-to-r from-yellow-500 to-yellow-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <Star className="h-6 w-6 text-white" />
@@ -583,7 +640,9 @@ const FoodMenuManagementPage = () => {
             </div>
           </div>
 
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-emerald-600 to-emerald-700' : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <ChefHat className="h-6 w-6 text-white" />
@@ -595,7 +654,9 @@ const FoodMenuManagementPage = () => {
             </div>
           </div>
 
-          <div className="stats-card rounded-lg shadow-lg p-6 text-white">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-red-500 to-red-600'
+          }`}>
             <div className="flex items-center">
               <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                 <AlertCircle className="h-6 w-6 text-white" />
@@ -611,7 +672,9 @@ const FoodMenuManagementPage = () => {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex flex-wrap gap-3">
-            <Button onClick={fetchMenuData} variant="outline" className="flex items-center gap-2">
+            <Button onClick={fetchMenuData} variant="outline" className={`flex items-center gap-2 ${
+              isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''
+            }`}>
               <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
@@ -623,30 +686,54 @@ const FoodMenuManagementPage = () => {
                   AI Add Items
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
+              <DialogContent className={`sm:max-w-2xl transition-colors duration-300 ${
+                isDarkMode ? 'bg-slate-800' : 'bg-white'
+              }`}>
                 <DialogHeader>
-                  <DialogTitle>Add Menu Items with AI</DialogTitle>
-                  <p className="text-sm text-gray-500">Upload a menu image to extract items automatically</p>
+                  <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>Add Menu Items with AI</DialogTitle>
+                  <p className={`text-sm ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>Upload a menu image to extract items automatically</p>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   {!ocrResult ? (
                     <>
-                      <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragActive ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-purple-400'}`}>
+                      <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        isDragActive
+                          ? 'border-purple-500 bg-purple-50'
+                          : isDarkMode
+                            ? 'border-gray-600 hover:border-purple-400 bg-slate-700/50'
+                            : 'border-gray-300 hover:border-purple-400'
+                      }`}>
                         <input {...getInputProps()} />
                         <div className="space-y-3">
-                          <div className="mx-auto w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <Upload className="h-6 w-6 text-purple-600" />
+                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
+                          }`}>
+                            <Upload className={`h-6 w-6 ${
+                              isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                            }`} />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{isDragActive ? 'Drop the menu image here' : 'Drag & drop a menu image here'}</p>
-                            <p className="text-sm text-gray-500 mt-1">or click to browse files (JPG, PNG, WEBP up to 5MB)</p>
+                            <p className={`font-medium ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>{isDragActive ? 'Drop the menu image here' : 'Drag & drop a menu image here'}</p>
+                            <p className={`text-sm mt-1 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>or click to browse files (JPG, PNG, WEBP up to 5MB)</p>
                           </div>
                         </div>
                       </div>
 
                       {uploadError && (
-                        <div className="p-3 rounded-md bg-red-50 border border-red-200">
-                          <p className="text-sm text-red-700 flex items-center">
+                        <div className={`p-3 rounded-md border ${
+                          isDarkMode
+                            ? 'bg-red-900/20 border-red-800'
+                            : 'bg-red-50 border-red-200'
+                        }`}>
+                          <p className={`text-sm flex items-center ${
+                            isDarkMode ? 'text-red-400' : 'text-red-700'
+                          }`}>
                             <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                             {uploadError}
                           </p>
@@ -669,36 +756,64 @@ const FoodMenuManagementPage = () => {
                     </>
                   ) : (
                     <div className="space-y-4">
-                      <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+                      <div className={`rounded-lg border p-4 ${
+                        isDarkMode
+                          ? 'bg-green-900/20 border-green-800'
+                          : 'bg-green-50 border-green-200'
+                      }`}>
                         <div className="flex">
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
                           <div className="ml-3">
-                            <h3 className="text-sm font-medium text-green-800">Successfully extracted {ocrResult.items.length} menu items</h3>
-                            <p className="mt-2 text-sm text-green-700">Review the extracted items below before saving to your menu.</p>
+                            <h3 className={`text-sm font-medium ${
+                              isDarkMode ? 'text-green-400' : 'text-green-800'
+                            }`}>Successfully extracted {ocrResult.items.length} menu items</h3>
+                            <p className={`mt-2 text-sm ${
+                              isDarkMode ? 'text-green-300' : 'text-green-700'
+                            }`}>Review the extracted items below before saving to your menu.</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className={`border rounded-lg overflow-hidden ${
+                        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                      }`}>
                         <div className="overflow-x-auto">
                           <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                            <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
                               <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Item</th>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Price</th>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Category</th>
                               </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className={`divide-y ${
+                              isDarkMode ? 'divide-gray-600 bg-slate-800' : 'divide-gray-200 bg-white'
+                            }`}>
                               {ocrResult.items.map((item, index) => (
-                                <tr key={index} className="hover:bg-gray-50">
+                                <tr key={index} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                                    {item.description && <div className="text-sm text-gray-500 mt-1">{item.description}</div>}
+                                    <div className={`text-sm font-medium ${
+                                      isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}>{item.name}</div>
+                                    {item.description && <div className={`text-sm mt-1 ${
+                                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>{item.description}</div>}
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LKR {parseFloat(item.price).toFixed(2)}</td>
+                                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                                    isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                                  }`}>LKR {parseFloat(item.price).toFixed(2)}</td>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      isDarkMode
+                                        ? 'bg-purple-900/50 text-purple-300'
+                                        : 'bg-purple-100 text-purple-800'
+                                    }`}>
                                       {item.category || 'Uncategorized'}
                                     </span>
                                   </td>
@@ -710,7 +825,9 @@ const FoodMenuManagementPage = () => {
                       </div>
 
                       <div className="flex justify-between pt-2">
-                        <Button variant="outline" onClick={() => setOcrResult(null)} disabled={isProcessing}>
+                        <Button variant="outline" onClick={() => setOcrResult(null)} disabled={isProcessing} className={
+                          isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''
+                        }>
                           <ArrowLeft className="h-4 w-4 mr-2" />
                           Back to Upload
                         </Button>
@@ -740,38 +857,58 @@ const FoodMenuManagementPage = () => {
                   Add Menu Item
                 </Button>
               </DialogTrigger>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-700 text-white rounded-t-lg p-6 -m-6 mb-6">
+                <DialogContent className={`sm:max-w-4xl max-h-[90vh] overflow-y-auto transition-colors duration-300 ${
+                  isDarkMode ? 'bg-slate-800' : 'bg-white'
+                }`}>
+                  <DialogHeader className={`bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-6 -m-6 mb-6 ${
+                    isDarkMode ? 'from-indigo-700 to-purple-700' : ''
+                  }`}>
                     <DialogTitle className="text-2xl font-bold flex items-center">
                       <ChefHat className="h-6 w-6 mr-3" />
                       {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
                     </DialogTitle>
-                    <p className="text-indigo-100 dark:text-indigo-200 mt-2">
+                    <p className="text-indigo-100 mt-2">
                       {editingItem ? 'Update the details of this menu item' : 'Create a delicious new item for your menu'}
                     </p>
                   </DialogHeader>
 
                   <div className="space-y-6 p-6">
                     {/* Basic Information Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <ChefHat className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-800'
+                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <ChefHat className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                        }`} />
                         Basic Information
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">Item Name *</Label>
+                          <Label htmlFor="name" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Item Name *</Label>
                           <Input
                             id="name"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="e.g., Spaghetti Carbonara"
-                            className={`transition-all duration-200 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
                           />
                           {formErrors.name && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.name}</p>}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="category" className="text-sm font-medium text-gray-700 dark:text-gray-300">Category *</Label>
+                          <Label htmlFor="category" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Category *</Label>
                           <div className="space-y-2">
                             <Select
                               value={formData.category}
@@ -840,41 +977,69 @@ const FoodMenuManagementPage = () => {
                         </div>
                       </div>
                       <div className="space-y-2 mt-4">
-                        <Label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">Description *</Label>
+                        <Label htmlFor="description" className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Description *</Label>
                         <Textarea
                           id="description"
                           value={formData.description}
                           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                           placeholder="A brief description of the menu item"
                           rows={3}
-                          className={`transition-all duration-200 ${formErrors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } ${formErrors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
                         />
                         {formErrors.description && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.description}</p>}
                       </div>
                     </div>
 
                     {/* Image Upload Section */}
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <Upload className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-800'
+                        : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Upload className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                        }`} />
                         Image Upload *
                       </h3>
 
                       {/* Drag & Drop Area */}
                       <div
                         {...getFormImageRootProps()}
-                        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${isFormImageDragActive ? 'border-purple-500 bg-purple-50 scale-105' : 'border-gray-300 hover:border-purple-400'} ${formErrors.image ? 'border-red-500 bg-red-50' : ''}`}
+                        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${
+                          isFormImageDragActive
+                            ? 'border-purple-500 bg-purple-50 scale-105'
+                            : isDarkMode
+                              ? 'border-gray-600 hover:border-purple-400 bg-slate-700/50'
+                              : 'border-gray-300 hover:border-purple-400'
+                        } ${formErrors.image ? 'border-red-500 bg-red-50' : ''}`}
                       >
                         <input {...getFormImageInputProps()} />
                         <div className="space-y-4">
-                          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-r from-purple-100 to-pink-100 flex items-center justify-center">
-                            <Upload className="h-8 w-8 text-purple-600" />
+                          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-gradient-to-r from-purple-900/50 to-pink-900/50' : 'bg-gradient-to-r from-purple-100 to-pink-100'
+                          }`}>
+                            <Upload className={`h-8 w-8 ${
+                              isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                            }`} />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-lg">
+                            <p className={`font-semibold text-lg ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {isFormImageDragActive ? 'Drop the image here' : 'Drag & drop an image here'}
                             </p>
-                            <p className="text-sm text-gray-500 mt-2">
+                            <p className={`text-sm mt-2 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                               or click to browse files (JPG, PNG, WEBP up to 5MB)
                             </p>
                           </div>
@@ -884,8 +1049,12 @@ const FoodMenuManagementPage = () => {
                       {/* Image Preview */}
                       {formData.imagePreview && (
                         <div className="mt-6">
-                          <h4 className="text-sm font-medium text-gray-700 mb-3">Image Preview</h4>
-                          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
+                          <h4 className={`text-sm font-medium mb-3 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Image Preview</h4>
+                          <div className={`relative rounded-xl overflow-hidden border-2 shadow-lg ${
+                            isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                          }`}>
                             <img
                               src={formData.imagePreview}
                               alt="Preview"
@@ -902,16 +1071,26 @@ const FoodMenuManagementPage = () => {
                       )}
 
                       {/* Alternative: URL Input */}
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-sm text-gray-600 mb-3">Or enter an image URL:</p>
+                      <div className={`mt-4 pt-4 border-t ${
+                        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                      }`}>
+                        <p className={`text-sm mb-3 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Or enter an image URL:</p>
                         <Input
                           type="url"
                           value={formData.image}
                           onChange={(e) => setFormData({ ...formData, image: e.target.value, imageFile: null, imagePreview: null })}
                           placeholder="https://example.com/image.jpg"
-                          className="transition-all duration-200 focus:ring-indigo-500"
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } focus:ring-indigo-500`}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
                           Valid formats: JPG, PNG, WEBP, GIF
                         </p>
                       </div>
@@ -921,24 +1100,33 @@ const FoodMenuManagementPage = () => {
                     {/* Pricing & Timing Section */}
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
                       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <DollarSign className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
+                        <span className="text-sm font-bold mr-2 px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded">LKR</span>
                         Pricing & Timing
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="price" className="text-sm font-medium text-gray-700 dark:text-gray-300">Price (LKR) *</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="price" className="text-sm font-medium text-gray-700 dark:text-gray-300">Price *</Label>
+                        <div className="relative">
                           <Input
                             id="price"
-                            type="number"
-                            value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            placeholder="0.00"
-                            step="0.01"
-                            min="0"
+                            type="text"
+                            value={formData.price ? `${parseFloat(formData.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LKR` : ''}
+                            onChange={(e) => {
+                              // Remove commas and LKR suffix for storage, allow only English numbers and decimal point
+                              const rawValue = e.target.value.replace(/,/g, '').replace(/\s*LKR\s*$/, '');
+                              // Allow only English digits (0-9) and decimal point
+                              const numericValue = rawValue.replace(/[^0-9.]/g, '');
+                              // Ensure only one decimal point
+                              const parts = numericValue.split('.');
+                              const cleanValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+                              setFormData({ ...formData, price: cleanValue });
+                            }}
+                            placeholder="0.00 LKR"
                             className={`transition-all duration-200 ${formErrors.price ? 'border-red-500 focus:ring-red-500' : 'focus:ring-green-500'}`}
                           />
-                          {formErrors.price && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.price}</p>}
                         </div>
+                        {formErrors.price && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.price}</p>}
+                      </div>
                         <div className="space-y-2">
                           <Label htmlFor="cookingTime" className="text-sm font-medium text-gray-700 dark:text-gray-300">Cooking Time (minutes)</Label>
                           <Input
@@ -955,41 +1143,80 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Ingredients Section */}
-                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <ChefHat className="h-5 w-5 mr-2 text-orange-600 dark:text-orange-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border-orange-800'
+                        : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <ChefHat className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                        }`} />
                         Ingredients *
                       </h3>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Ingredients (comma-separated)</Label>
+                        <Label className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Ingredients (comma-separated)</Label>
                         <Input
                           value={(formData.ingredients || []).join(', ')}
                           onChange={(e) => {
                             const value = e.target.value;
-                            // Split by comma and clean up whitespace, but preserve typing
-                            const ingredients = value.split(',').map(i => i.trim()).filter(i => i.length > 0);
+                            // Split by comma and clean up whitespace, filter out empty strings
+                            const ingredients = value.split(',')
+                              .map(i => i.trim())
+                              .filter(i => i.length > 0 && i !== '' && !/^\s*$/.test(i));
+                            setFormData({
+                              ...formData,
+                              ingredients: ingredients
+                            });
+                          }}
+                          onBlur={(e) => {
+                            // Clean up on blur to ensure proper formatting and remove empty entries
+                            const value = e.target.value;
+                            const ingredients = value.split(',')
+                              .map(i => i.trim())
+                              .filter(i => i.length > 0 && i !== '' && !/^\s*$/.test(i));
                             setFormData({
                               ...formData,
                               ingredients: ingredients
                             });
                           }}
                           placeholder="e.g., tomatoes, onions, garlic, olive oil"
-                          className={`transition-all duration-200 ${formErrors.ingredients ? 'border-red-500 focus:ring-red-500' : 'focus:ring-orange-500'}`}
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } ${formErrors.ingredients ? 'border-red-500 focus:ring-red-500' : 'focus:ring-orange-500'}`}
                         />
                         {formErrors.ingredients && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.ingredients}</p>}
-                        <p className="text-xs text-gray-500 mt-1">Type ingredients separated by commas. Spaces around commas are automatically handled.</p>
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>Type ingredients separated by commas. Spaces around commas are automatically handled.</p>
                       </div>
                     </div>
 
                     {/* Nutritional Information Section */}
-                    <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-cyan-200 dark:border-cyan-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <Star className="h-5 w-5 mr-2 text-cyan-600 dark:text-cyan-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-cyan-900/20 to-blue-900/20 border-cyan-800'
+                        : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Star className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-cyan-400' : 'text-cyan-600'
+                        }`} />
                         Nutritional Information (Optional)
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="calories" className="text-sm font-medium text-gray-700 dark:text-gray-300">Calories</Label>
+                          <Label htmlFor="calories" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Calories</Label>
                           <Input
                             id="calories"
                             type="number"
@@ -1000,11 +1227,17 @@ const FoodMenuManagementPage = () => {
                             })}
                             placeholder="250"
                             min="0"
-                            className="transition-all duration-200 focus:ring-cyan-500"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="protein" className="text-sm font-medium text-gray-700 dark:text-gray-300">Protein (g)</Label>
+                          <Label htmlFor="protein" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Protein (g)</Label>
                           <Input
                             id="protein"
                             type="number"
@@ -1015,11 +1248,17 @@ const FoodMenuManagementPage = () => {
                             })}
                             placeholder="15"
                             min="0"
-                            className="transition-all duration-200 focus:ring-cyan-500"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="carbs" className="text-sm font-medium text-gray-700 dark:text-gray-300">Carbs (g)</Label>
+                          <Label htmlFor="carbs" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Carbs (g)</Label>
                           <Input
                             id="carbs"
                             type="number"
@@ -1030,11 +1269,17 @@ const FoodMenuManagementPage = () => {
                             })}
                             placeholder="30"
                             min="0"
-                            className="transition-all duration-200 focus:ring-cyan-500"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="fat" className="text-sm font-medium text-gray-700 dark:text-gray-300">Fat (g)</Label>
+                          <Label htmlFor="fat" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Fat (g)</Label>
                           <Input
                             id="fat"
                             type="number"
@@ -1045,19 +1290,33 @@ const FoodMenuManagementPage = () => {
                             })}
                             placeholder="10"
                             min="0"
-                            className="transition-all duration-200 focus:ring-cyan-500"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Time Slot Availability Section */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <Clock className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-800'
+                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Clock className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                        }`} />
                         Time Slot Availability
                       </h3>
-                      <p className="text-sm text-gray-600 mb-4">Select which meal times this item should be available for</p>
+                      <p className={`text-sm mb-4 ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Select which meal times this item should be available for</p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
                           <input
@@ -1115,18 +1374,32 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Dietary & Properties Section */}
-                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 rounded-xl p-6 border border-pink-200 dark:border-pink-800">
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
-                        <Users className="h-5 w-5 mr-2 text-pink-600 dark:text-pink-400" />
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-pink-900/20 to-rose-900/20 border-pink-800'
+                        : 'bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Users className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-pink-400' : 'text-pink-600'
+                        }`} />
                         Dietary Information & Properties
                       </h3>
 
                       {/* Dietary Tags */}
                       <div className="mb-6">
-                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Dietary Tags</Label>
+                        <Label className={`text-sm font-medium mb-3 block ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Dietary Tags</Label>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {dietaryOptions.map((option) => (
-                            <div key={option} className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                            <div key={option} className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors ${
+                              isDarkMode
+                                ? 'border-gray-600 hover:border-pink-400'
+                                : 'border-gray-200 hover:border-pink-300'
+                            }`}>
                               <input
                                 type="checkbox"
                                 id={`dietary-${option}`}
@@ -1139,7 +1412,9 @@ const FoodMenuManagementPage = () => {
                                 }}
                                 className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
                               />
-                              <label htmlFor={`dietary-${option}`} className="text-sm text-gray-700 cursor-pointer">
+                              <label htmlFor={`dietary-${option}`} className={`text-sm cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
                                 {option}
                               </label>
                             </div>
@@ -1149,9 +1424,15 @@ const FoodMenuManagementPage = () => {
 
                       {/* Item Properties */}
                       <div>
-                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Item Properties</Label>
+                        <Label className={`text-sm font-medium mb-3 block ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Item Properties</Label>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
                             <input
                               type="checkbox"
                               id="isVeg"
@@ -1160,11 +1441,19 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                             />
                             <div>
-                              <Label htmlFor="isVeg" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Vegetarian</Label>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Contains no meat</p>
+                              <Label htmlFor="isVeg" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Vegetarian</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Contains no meat</p>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
                             <input
                               type="checkbox"
                               id="isSpicy"
@@ -1173,11 +1462,19 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
                             />
                             <div>
-                              <Label htmlFor="isSpicy" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Spicy</Label>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Contains spicy ingredients</p>
+                              <Label htmlFor="isSpicy" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Spicy</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Contains spicy ingredients</p>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
                             <input
                               type="checkbox"
                               id="isPopular"
@@ -1186,11 +1483,19 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                             />
                             <div>
-                              <Label htmlFor="isPopular" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Popular</Label>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Featured item</p>
+                              <Label htmlFor="isPopular" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Popular</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Featured item</p>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-pink-300 transition-colors">
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
                             <input
                               type="checkbox"
                               id="isAvailable"
@@ -1199,8 +1504,12 @@ const FoodMenuManagementPage = () => {
                               className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <div>
-                              <Label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Available</Label>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Currently in stock</p>
+                              <Label htmlFor="isAvailable" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Available</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Currently in stock</p>
                             </div>
                           </div>
                         </div>
@@ -1208,7 +1517,9 @@ const FoodMenuManagementPage = () => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <div className={`flex justify-end space-x-3 pt-6 border-t ${
+                      isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                    }`}>
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -1243,7 +1554,11 @@ const FoodMenuManagementPage = () => {
                             customizations: []
                           });
                         }}
-                        className="px-6 py-2 rounded-lg border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                        className={`px-6 py-2 rounded-lg transition-all duration-200 ${
+                          isDarkMode
+                            ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
                       >
                         Cancel
                       </Button>
@@ -1280,21 +1595,33 @@ const FoodMenuManagementPage = () => {
           </div>
   
           {/* Search and Filter */}
-          <div className="search-container mb-8">
+          <div className={`mb-8 transition-colors duration-300 ${
+            isDarkMode ? 'bg-slate-800/50 border-purple-500/20' : 'bg-white border-gray-200'
+          } rounded-xl border shadow-lg`}>
             <div className="p-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                  }`} />
                   <Input
                     type="search"
                     placeholder="Search menu items..."
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className={`pl-10 transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                    }`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[200px] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                  <SelectTrigger className={`w-[200px] transition-colors duration-300 ${
+                    isDarkMode
+                      ? 'bg-slate-700 border-gray-600 text-white'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                  }`}>
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1311,15 +1638,27 @@ const FoodMenuManagementPage = () => {
           </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className={`rounded-lg shadow-sm border transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-800/50 border-purple-500/20' : 'bg-white border-gray-200'
+        }`}>
           <div className="p-6">
             <Tabs defaultValue="manage" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 p-1 rounded-lg">
-                <TabsTrigger value="manage" className="flex items-center gap-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsList className={`grid w-full grid-cols-2 mb-6 p-1 rounded-lg transition-colors duration-300 ${
+                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                <TabsTrigger value="manage" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
+                  isDarkMode
+                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
+                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
+                }`}>
                   <ChefHat className="h-4 w-4" />
                   Manage Menu Items
                 </TabsTrigger>
-                <TabsTrigger value="ai-generate" className="flex items-center gap-2 rounded-md transition-all duration-200 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="ai-generate" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
+                  isDarkMode
+                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
+                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
+                }`}>
                   <Sparkles className="h-4 w-4" />
                   AI Generate Menu
                 </TabsTrigger>
@@ -1328,22 +1667,36 @@ const FoodMenuManagementPage = () => {
               <TabsContent value="manage" className="mt-0">
                 {loading ? (
                   <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+                    <div className={`animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 ${
+                      isDarkMode ? 'border-white' : 'border-gray-900'
+                    }`}></div>
                   </div>
                 ) : filteredItems.length > 0 ? (
                   <div>
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900">Menu Items</h3>
-                      <span className="text-sm text-gray-500">
+                      <h3 className={`text-lg font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Menu Items</h3>
+                      <span className={`text-sm ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
                         {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                       {filteredItems.map((item) => (
-                        <div key={item._id} className="menu-card bg-white border border-gray-200 rounded-xl overflow-hidden">
+                        <div key={item._id} className={`menu-card rounded-xl overflow-hidden border transition-colors duration-300 ${
+                          isDarkMode
+                            ? 'bg-slate-800 border-purple-500/20'
+                            : 'bg-white border-gray-200'
+                        }`}>
                           {/* Image */}
-                          <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                          <div className={`aspect-square relative overflow-hidden ${
+                            isDarkMode
+                              ? 'bg-gradient-to-br from-gray-700 to-gray-800'
+                              : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                          }`}>
                             {(() => {
                               let imageSrc = null;
 
@@ -1376,7 +1729,9 @@ const FoodMenuManagementPage = () => {
                                 />
                               ) : null;
                             })()}
-                            <div className={`w-full h-full flex items-center justify-center text-gray-400 ${(item.imageUrl || item.image) ? 'hidden' : ''}`}>
+                            <div className={`w-full h-full flex items-center justify-center ${(item.imageUrl || item.image) ? 'hidden' : ''} ${
+                              isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
                               <ChefHat className="h-10 w-10" />
                             </div>
 
@@ -1395,15 +1750,21 @@ const FoodMenuManagementPage = () => {
                           {/* Content */}
                           <div className="p-5">
                             <div className="flex justify-between items-start mb-3">
-                              <h4 className="menu-item-name text-base line-clamp-1 flex-1 mr-2">
+                              <h4 className={`menu-item-name text-base line-clamp-1 flex-1 mr-2 ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                                 {item.name || 'Unnamed Item'}
                               </h4>
-                              <span className="menu-item-price text-lg whitespace-nowrap">
+                              <span className={`menu-item-price text-lg whitespace-nowrap ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                                 LKR {item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
                               </span>
                             </div>
 
-                            <p className="menu-item-description text-sm mb-4">
+                            <p className={`menu-item-description text-sm mb-4 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                               {item.description || 'No description available'}
                             </p>
 
@@ -1455,48 +1816,68 @@ const FoodMenuManagementPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <ChefHat className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No menu items found</h3>
-                    <p className="text-gray-600 mb-6">
-                      {searchQuery || selectedCategory !== 'all'
-                        ? 'Try adjusting your search or filter criteria.'
-                        : 'Get started by adding your first menu item.'}
-                    </p>
-                    <Button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedCategory('all');
-                        setIsCreateDialogOpen(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Menu Item
-                    </Button>
-                  </div>
-                )}
+                 <div className="text-center py-12">
+                   <ChefHat className={`mx-auto h-12 w-12 mb-4 ${
+                     isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                   }`} />
+                   <h3 className={`text-lg font-medium mb-2 ${
+                     isDarkMode ? 'text-gray-400' : 'text-gray-900'
+                   }`}>No menu items found</h3>
+                   <p className={`mb-6 ${
+                     isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                   }`}>
+                     {searchQuery || selectedCategory !== 'all'
+                       ? 'Try adjusting your search or filter criteria.'
+                       : 'Get started by adding your first menu item.'}
+                   </p>
+                   <Button
+                     onClick={() => {
+                       setSearchQuery('');
+                       setSelectedCategory('all');
+                       setIsCreateDialogOpen(true);
+                     }}
+                     className="bg-blue-600 hover:bg-blue-700 text-white"
+                   >
+                     <Plus className="h-4 w-4 mr-2" />
+                     Add Menu Item
+                   </Button>
+                 </div>
+               )}
               </TabsContent>
 
               <TabsContent value="ai-generate" className="mt-0">
                 <div className="text-center py-12">
-                  <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                    <Sparkles className="h-8 w-8 text-purple-600" />
+                  <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                    isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
+                  }`}>
+                    <Sparkles className={`h-8 w-8 ${
+                      isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                    }`} />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Menu Extractor</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <h3 className={`text-xl font-semibold mb-2 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>AI Menu Extractor</h3>
+                  <p className={`mb-6 max-w-md mx-auto ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                     Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
                   </p>
                   <div className="flex justify-center gap-6 mb-6">
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
                       Upload menu images
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
                       Extract from URLs
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
                       Process file paths
                     </div>

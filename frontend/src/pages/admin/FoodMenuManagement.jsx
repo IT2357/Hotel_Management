@@ -695,7 +695,9 @@ MenuItemCard.displayName = 'MenuItemCard';
                   </h2>
                   <button
                     onClick={() => setShowAddModal(false)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                    className={`p-2 transition-colors ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -725,8 +727,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                               isDarkMode
-                                ? 'bg-slate-700 border-gray-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                             }`}
                             placeholder="e.g., Chicken Biryani"
                           />
@@ -747,8 +749,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                             onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                             className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                               isDarkMode
-                                ? 'bg-slate-700 border-gray-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                             }`}
                             placeholder="250.00"
                           />
@@ -793,8 +795,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                           onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                           className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                             isDarkMode
-                              ? 'bg-slate-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                           }`}
                           placeholder="Describe your menu item..."
                         />
@@ -819,8 +821,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                           }}
                           className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                             isDarkMode
-                              ? 'bg-slate-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                           }`}
                           placeholder="tomato, onion, garlic, spices (separate with commas)"
                         />
@@ -850,8 +852,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                           }}
                           className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                             isDarkMode
-                              ? 'bg-slate-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                           }`}
                           placeholder="nuts, dairy, gluten (separate with commas)"
                         />
@@ -940,8 +942,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                             onChange={(e) => setFormData(prev => ({ ...prev, cookingTime: e.target.value }))}
                             className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                               isDarkMode
-                                ? 'bg-slate-700 border-gray-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                             }`}
                             placeholder="15"
                           />
@@ -1069,8 +1071,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                               onChange={(e) => updatePortion(index, 'name', e.target.value)}
                               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                                 isDarkMode
-                                  ? 'bg-slate-700 border-gray-600 text-white'
-                                  : 'bg-white border-gray-300 text-gray-900'
+                                  ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                               }`}
                               placeholder="Regular, Large, Family"
                             />
@@ -1089,8 +1091,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                               onChange={(e) => updatePortion(index, 'price', e.target.value)}
                               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                                 isDarkMode
-                                  ? 'bg-slate-700 border-gray-600 text-white'
-                                  : 'bg-white border-gray-300 text-gray-900'
+                                  ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                               }`}
                               placeholder="250.00"
                             />
@@ -1442,8 +1444,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                       placeholder="e.g., Main Course, Appetizers"
                       className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                         isDarkMode
-                          ? 'bg-slate-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                          ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
                   </div>
@@ -1460,8 +1462,8 @@ MenuItemCard.displayName = 'MenuItemCard';
                       placeholder="Brief description of this category"
                       className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
                         isDarkMode
-                          ? 'bg-slate-700 border-gray-600 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                          ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                       }`}
                     />
                   </div>

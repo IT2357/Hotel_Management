@@ -19,6 +19,12 @@ const foodOrderSchema = new mongoose.Schema(
     scheduledTime: Date,
     deliveryLocation: String,
     totalPrice: Number,
+    currency: {
+      type: String,
+      default: 'LKR',
+      enum: ['LKR'],
+      required: true
+    },
     subtotal: Number,
     tax: Number,
     serviceCharge: Number,

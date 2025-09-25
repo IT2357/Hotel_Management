@@ -5,238 +5,213 @@ import 'dotenv/config';
 
 const menuItems = [
   {
-    name: "Grilled Chicken Breast",
-    description: "Tender grilled chicken breast served with seasonal vegetables and herb butter",
-    price: 24.99,
+    name: "Jaffna Chicken Biryani",
+    description: "Aromatic basmati rice cooked with tender chicken and traditional Jaffna spices",
+    price: 1650, // LKR with -5% Jaffna adjustment
+    currency: 'LKR',
     category: "main-course",
     isAvailable: true,
     isVeg: false,
-    isSpicy: false,
+    isSpicy: true,
     isPopular: true,
-    ingredients: ["Chicken breast", "Mixed vegetables", "Herb butter", "Garlic", "Rosemary"],
+    ingredients: ["Basmati rice", "Chicken", "Jaffna spices", "Onions", "Ghee"],
     nutritionalInfo: {
-      calories: 350,
-      protein: 45,
-      carbs: 8,
+      calories: 650,
+      protein: 35,
+      carbs: 75,
+      fat: 20
+    },
+    cookingTime: 45
+  },
+  {
+    name: "String Hoppers with Curry",
+    description: "Traditional Sri Lankan string hoppers served with fish curry and coconut sambol",
+    price: 1200,
+    currency: 'LKR',
+    category: "breakfast",
+    isAvailable: true,
+    isVeg: false,
+    isSpicy: true,
+    isPopular: true,
+    ingredients: ["Rice flour", "Fish", "Coconut", "Chili", "Curry leaves"],
+    nutritionalInfo: {
+      calories: 480,
+      protein: 25,
+      carbs: 65,
       fat: 15
     },
-    cookingTime: 20
+    cookingTime: 30
   },
   {
-    name: "Margherita Pizza",
-    description: "Classic Italian pizza with fresh mozzarella, tomatoes, and basil",
-    price: 18.99,
-    category: "main-course",
-    isAvailable: true,
-    isVeg: true,
-    isSpicy: false,
-    isPopular: true,
-    ingredients: ["Pizza dough", "Mozzarella", "Tomatoes", "Fresh basil", "Olive oil"],
-    nutritionalInfo: {
-      calories: 280,
-      protein: 12,
-      carbs: 35,
-      fat: 10
-    },
-    cookingTime: 15
-  },
-  {
-    name: "Caesar Salad",
-    description: "Fresh romaine lettuce with parmesan cheese, croutons, and Caesar dressing",
-    price: 12.99,
-    category: "appetizers",
-    isAvailable: true,
-    isVeg: true,
-    isSpicy: false,
-    isPopular: false,
-    ingredients: ["Romaine lettuce", "Parmesan cheese", "Croutons", "Caesar dressing"],
-    nutritionalInfo: {
-      calories: 180,
-      protein: 8,
-      carbs: 12,
-      fat: 12
-    },
-    cookingTime: 5
-  },
-  {
-    name: "Spicy Thai Curry",
-    description: "Authentic Thai red curry with coconut milk, vegetables, and jasmine rice",
-    price: 19.99,
+    name: "Vegetable Kottu",
+    description: "Mixed vegetables chopped with roti and traditional Sri Lankan spices",
+    price: 1100,
+    currency: 'LKR',
     category: "main-course",
     isAvailable: true,
     isVeg: true,
     isSpicy: true,
     isPopular: false,
-    ingredients: ["Red curry paste", "Coconut milk", "Mixed vegetables", "Jasmine rice", "Thai basil"],
+    ingredients: ["Roti", "Mixed vegetables", "Eggs", "Sri Lankan spices"],
     nutritionalInfo: {
-      calories: 320,
-      protein: 8,
-      carbs: 45,
-      fat: 12
+      calories: 520,
+      protein: 18,
+      carbs: 70,
+      fat: 18
     },
-    cookingTime: 25
+    cookingTime: 20
   },
   {
-    name: "Chocolate Lava Cake",
-    description: "Warm chocolate cake with molten center, served with vanilla ice cream",
-    price: 8.99,
+    name: "Jaffna Crab Curry",
+    description: "Signature Jaffna crab curry made with roasted spices and coconut milk",
+    price: 2550,
+    currency: 'LKR',
+    category: "main-course",
+    isAvailable: true,
+    isVeg: false,
+    isSpicy: true,
+    isPopular: true,
+    ingredients: ["Crab", "Coconut milk", "Jaffna spices", "Curry leaves", "Garlic"],
+    nutritionalInfo: {
+      calories: 380,
+      protein: 45,
+      carbs: 12,
+      fat: 18
+    },
+    cookingTime: 35
+  },
+  {
+    name: "Watalappam",
+    description: "Traditional Sri Lankan coconut custard pudding with Jaffna spices",
+    price: 750,
+    currency: 'LKR',
     category: "desserts",
     isAvailable: true,
     isVeg: true,
     isSpicy: false,
     isPopular: true,
-    ingredients: ["Dark chocolate", "Butter", "Eggs", "Sugar", "Flour", "Vanilla ice cream"],
+    ingredients: ["Coconut milk", "Jaggery", "Eggs", "Cardamom", "Cashews"],
     nutritionalInfo: {
-      calories: 420,
-      protein: 6,
-      carbs: 45,
-      fat: 24
+      calories: 320,
+      protein: 8,
+      carbs: 35,
+      fat: 16
     },
-    cookingTime: 12
+    cookingTime: 60
   },
   {
-    name: "Fresh Orange Juice",
-    description: "Freshly squeezed orange juice, rich in vitamin C",
-    price: 4.99,
+    name: "Fresh King Coconut Water",
+    description: "Fresh king coconut water, naturally sweet and refreshing",
+    price: 350,
+    currency: 'LKR',
     category: "beverages",
     isAvailable: true,
     isVeg: true,
     isSpicy: false,
     isPopular: false,
-    ingredients: ["Fresh oranges"],
+    ingredients: ["Fresh king coconut"],
     nutritionalInfo: {
-      calories: 110,
-      protein: 2,
-      carbs: 26,
+      calories: 45,
+      protein: 1,
+      carbs: 10,
       fat: 0
     },
     cookingTime: 2
   },
   {
-    name: "Fish and Chips",
-    description: "Beer-battered fish with crispy fries and tartar sauce",
-    price: 22.99,
+    name: "Fish Ambul Thiyal",
+    description: "Sour fish curry from Jaffna with goraka and traditional spices",
+    price: 1850,
+    currency: 'LKR',
     category: "main-course",
     isAvailable: true,
     isVeg: false,
-    isSpicy: false,
+    isSpicy: true,
     isPopular: true,
-    ingredients: ["Fresh fish", "Beer batter", "Potatoes", "Tartar sauce", "Lemon"],
+    ingredients: ["Fish", "Goraka", "Jaffna spices", "Coconut milk", "Tamarind"],
     nutritionalInfo: {
-      calories: 580,
-      protein: 35,
-      carbs: 45,
-      fat: 28
+      calories: 420,
+      protein: 40,
+      carbs: 15,
+      fat: 20
     },
-    cookingTime: 18
+    cookingTime: 40
   },
   {
-    name: "Vegetable Spring Rolls",
-    description: "Crispy spring rolls filled with fresh vegetables, served with sweet chili sauce",
-    price: 9.99,
+    name: "Pol Sambol",
+    description: "Traditional Sri Lankan coconut sambol with chili and lime",
+    price: 450,
+    currency: 'LKR',
     category: "appetizers",
     isAvailable: true,
     isVeg: true,
-    isSpicy: false,
+    isSpicy: true,
     isPopular: false,
-    ingredients: ["Spring roll wrapper", "Cabbage", "Carrots", "Bean sprouts", "Sweet chili sauce"],
+    ingredients: ["Coconut", "Chili", "Lime", "Onions", "Salt"],
     nutritionalInfo: {
-      calories: 150,
-      protein: 4,
-      carbs: 20,
-      fat: 6
+      calories: 180,
+      protein: 3,
+      carbs: 8,
+      fat: 15
     },
-    cookingTime: 8
+    cookingTime: 10
   },
   {
-    name: "Beef Burger",
-    description: "Juicy beef patty with lettuce, tomato, cheese, and fries",
-    price: 16.99,
+    name: "Mutton Curry (Jaffna Style)",
+    description: "Tender mutton cooked in traditional Jaffna curry paste with potatoes",
+    price: 2100,
+    currency: 'LKR',
     category: "main-course",
     isAvailable: true,
     isVeg: false,
-    isSpicy: false,
+    isSpicy: true,
     isPopular: true,
-    ingredients: ["Beef patty", "Burger bun", "Lettuce", "Tomato", "Cheese", "Fries"],
+    ingredients: ["Mutton", "Jaffna curry paste", "Potatoes", "Coconut milk", "Curry leaves"],
     nutritionalInfo: {
-      calories: 650,
-      protein: 35,
-      carbs: 45,
-      fat: 35
+      calories: 550,
+      protein: 45,
+      carbs: 20,
+      fat: 28
     },
-    cookingTime: 15
+    cookingTime: 90
   },
   {
-    name: "Iced Coffee",
-    description: "Cold brew coffee served over ice with milk and sugar",
-    price: 3.99,
+    name: "Ceylon Tea",
+    description: "Traditional Sri Lankan tea with milk and sugar",
+    price: 250,
+    currency: 'LKR',
     category: "beverages",
     isAvailable: true,
     isVeg: true,
     isSpicy: false,
     isPopular: false,
-    ingredients: ["Coffee beans", "Ice", "Milk", "Sugar"],
+    ingredients: ["Ceylon tea", "Milk", "Sugar"],
     nutritionalInfo: {
       calories: 80,
       protein: 3,
       carbs: 12,
       fat: 2
     },
-    cookingTime: 3
-  },
-  {
-    name: "Continental Breakfast",
-    description: "Fresh croissants, fruits, yogurt, and coffee",
-    price: 15.99,
-    category: "breakfast",
-    isAvailable: true,
-    isVeg: true,
-    isSpicy: false,
-    isPopular: true,
-    ingredients: ["Croissants", "Fruits", "Yogurt", "Coffee"],
-    nutritionalInfo: {
-      calories: 450,
-      protein: 15,
-      carbs: 60,
-      fat: 18
-    },
     cookingTime: 5
   },
   {
-    name: "Chicken Fried Rice",
-    description: "Wok-tossed rice with chicken, vegetables, and eggs",
-    price: 18.99,
-    category: "lunch",
+    name: "Hoppers with Lunu Miris",
+    description: "Crispy Sri Lankan hoppers served with spicy onion sambol",
+    price: 950,
+    currency: 'LKR',
+    category: "breakfast",
     isAvailable: true,
-    isVeg: false,
-    isSpicy: false,
+    isVeg: true,
+    isSpicy: true,
     isPopular: true,
-    ingredients: ["Rice", "Chicken", "Vegetables", "Eggs", "Soy sauce"],
+    ingredients: ["Rice flour", "Coconut milk", "Onions", "Chili", "Lime"],
     nutritionalInfo: {
-      calories: 520,
-      protein: 28,
-      carbs: 65,
-      fat: 16
+      calories: 280,
+      protein: 6,
+      carbs: 50,
+      fat: 8
     },
     cookingTime: 15
-  },
-  {
-    name: "Grilled Salmon Dinner",
-    description: "Fresh salmon fillet with roasted vegetables and rice",
-    price: 32.99,
-    category: "dinner",
-    isAvailable: true,
-    isVeg: false,
-    isSpicy: false,
-    isPopular: true,
-    ingredients: ["Salmon", "Vegetables", "Rice", "Herbs"],
-    nutritionalInfo: {
-      calories: 480,
-      protein: 35,
-      carbs: 30,
-      fat: 22
-    },
-    cookingTime: 20
   }
 ];
 
@@ -289,7 +264,7 @@ async function seedMenuItems() {
 
     // Display inserted items
     insertedItems.forEach(item => {
-      console.log(`- ${item.name} (${item.category}) - $${item.price} [${item.slug}]`);
+      console.log(`- ${item.name} (${item.category}) - LKR ${item.price} [${item.slug}]`);
     });
 
     console.log('Menu seeding completed successfully!');
