@@ -38,7 +38,6 @@ import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 
-
 const app = express();
 const server = http.createServer(app);
 const io = initSocket(server);
@@ -216,6 +215,9 @@ const startServer = async () => {
   app.use('/api/key-cards', keyCardRoutes);
   app.use("/api/staff", staffRoutes);
   app.use("/api/messages", messageRoutes);
+app.use("/api/manager", managerRoutes); // New manager routes
+app.use("/api/task-management", taskManagementRoutes); // Task management routes
+app.use("/api/reports", reportsRoutes); // Reports routes
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
