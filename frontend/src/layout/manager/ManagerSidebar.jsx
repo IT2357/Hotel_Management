@@ -17,7 +17,7 @@ const ManagerSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
 
   const links = [
     { label: 'Dashboard', to: '/manager/dashboard', icon: <BiSolidDashboard /> },
-    { label: 'Task Management', to: '/manager/tasks', icon: <BiListCheck /> },
+    { label: 'Task Management', to: '/manager/task-management', icon: <BiListCheck /> },
     { label: 'Staff Performance', to: '/manager/staff-performance', icon: <BiUser /> },
     { label: 'Feedback & Reviews', to: '/manager/feedback', icon: <BiCommentDetail /> },
     { label: 'Reports & Analytics', to: '/manager/reports', icon: <BiBarChartAlt2 /> },

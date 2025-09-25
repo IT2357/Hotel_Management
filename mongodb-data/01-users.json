@@ -1,0 +1,104 @@
+[
+  {
+    "name": "John Manager",
+    "email": "manager@hotel.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "manager",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": ["local"],
+    "notificationPreferences": {
+      "email": true,
+      "sms": false,
+      "push": true
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Maria Santos",
+    "email": "maria.santos@hotel.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "staff",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": ["local"],
+    "profile": {
+      "department": "Housekeeping",
+      "position": "Head Housekeeper",
+      "phone": "+94-77-123-4567",
+      "emergencyContact": {
+        "name": "Carlos Santos",
+        "phone": "+94-77-987-6543",
+        "relationship": "Spouse"
+      }
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "John Mitchell",
+    "email": "john.mitchell@hotel.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "staff",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": ["local"],
+    "profile": {
+      "department": "Maintenance",
+      "position": "Maintenance Technician",
+      "phone": "+94-77-234-5678",
+      "emergencyContact": {
+        "name": "Jane Mitchell",
+        "phone": "+94-77-876-5432",
+        "relationship": "Sister"
+      }
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Sarah Wilson",
+    "email": "sarah.wilson@hotel.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "staff",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": ["local"],
+    "profile": {
+      "department": "Kitchen",
+      "position": "Chef",
+      "phone": "+94-77-345-6789",
+      "emergencyContact": {
+        "name": "Robert Wilson",
+        "phone": "+94-77-765-4321",
+        "relationship": "Husband"
+      }
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Guest User",
+    "email": "guest@example.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "guest",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": ["local"],
+    "profile": {
+      "phone": "+94-71-123-4567",
+      "address": "123 Colombo Street, Colombo 03",
+      "nationality": "Sri Lankan",
+      "idType": "passport",
+      "idNumber": "N1234567"
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  }
+]

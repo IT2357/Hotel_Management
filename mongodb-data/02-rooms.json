@@ -1,0 +1,58 @@
+[
+  {
+    "roomNumber": "101",
+    "type": "Standard",
+    "capacity": 2,
+    "pricePerNight": 120,
+    "amenities": ["WiFi", "Air Conditioning", "TV", "Mini Fridge"],
+    "status": "available",
+    "floor": 1,
+    "description": "Comfortable standard room with garden view",
+    "images": [],
+    "isActive": true,
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "roomNumber": "102",
+    "type": "Standard",
+    "capacity": 2,
+    "pricePerNight": 120,
+    "amenities": ["WiFi", "Air Conditioning", "TV", "Mini Fridge"],
+    "status": "occupied",
+    "floor": 1,
+    "description": "Comfortable standard room with garden view",
+    "images": [],
+    "isActive": true,
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "roomNumber": "201",
+    "type": "Deluxe",
+    "capacity": 3,
+    "pricePerNight": 180,
+    "amenities": ["WiFi", "Air Conditioning", "TV", "Mini Fridge", "Balcony", "Room Service"],
+    "status": "available",
+    "floor": 2,
+    "description": "Spacious deluxe room with city view and balcony",
+    "images": [],
+    "isActive": true,
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "roomNumber": "301",
+    "type": "Suite",
+    "capacity": 4,
+    "pricePerNight": 300,
+    "amenities": ["WiFi", "Air Conditioning", "TV", "Mini Fridge", "Balcony", "Room Service", "Jacuzzi", "Living Area"],
+    "status": "maintenance",
+    "floor": 3,
+    "description": "Luxury suite with separate living area and premium amenities",
+    "images": [],
+    "isActive": true,
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  }
+]

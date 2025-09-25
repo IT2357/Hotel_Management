@@ -41,6 +41,7 @@ import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
 import ViewReportPage from './pages/manager/ViewReportPage.jsx';
 import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
 import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
+import TaskManagementDashboard from './pages/manager/TaskManagementDashboard.jsx';
 import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -335,6 +336,15 @@ const App = () => {
             element={
               <ProtectedRoute roles={['manager']}>
                 <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/task-management"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskManagementDashboard />
               </ProtectedRoute>
             }
           />

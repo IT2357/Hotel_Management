@@ -35,6 +35,7 @@ import BookingScheduler from "./services/booking/bookingScheduler.js";
 import staffRoutes from "./routes/staff.js";
 import messageRoutes from "./routes/messages.js";
 import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
+import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task management routes
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 
@@ -216,6 +217,7 @@ const startServer = async () => {
   app.use("/api/staff", staffRoutes);
   app.use("/api/messages", messageRoutes);
 app.use("/api/manager", managerRoutes); // New manager routes
+app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
 app.use("/api/task-management", taskManagementRoutes); // Task management routes
 app.use("/api/reports", reportsRoutes); // Reports routes
 
