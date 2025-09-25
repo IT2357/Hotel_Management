@@ -34,6 +34,10 @@ import { seedSMSTemplates } from "./utils/smsTemplatesSeeder.js";
 import BookingScheduler from "./services/booking/bookingScheduler.js";
 import staffRoutes from "./routes/staff.js";
 import messageRoutes from "./routes/messages.js";
+import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
+import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
+import reportsRoutes from "./routes/reports.js"; // Reports routes
+
 
 const app = express();
 const server = http.createServer(app);
@@ -46,13 +50,16 @@ app.use(passport.initialize()); // Added
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
+
+const isProd = process.env.NODE_ENV === "production";
 const corsOptions = {
-  origin: process.env.FRONTEND_URL,
+  origin: isProd ? process.env.FRONTEND_URL : true, // Allow any origin in dev to prevent CORS issues
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -73,7 +80,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-if (process.env.NODE_ENV === "production") {
+if (isProd) {
   app.use("/api/", limiter);
   app.use("/api/auth/", authLimiter);
   app.use(express.json({ limit: "10mb" }));

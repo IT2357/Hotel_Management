@@ -90,3 +90,37 @@ export const validateChangePassword = [
     ),
   handleValidationErrors,
 ];
+
+export const validateReportRequest = (req, res, next) => {
+  const { startDate, endDate } = req.query;
+  
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Use YYYY-MM-DD format.'
+      });
+    }
+    
+    if (start > end) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start date must be before end date.'
+      });
+    }
+    
+    // Limit date range to prevent excessive queries
+    const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 365) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date range cannot exceed 365 days.'
+      });
+    }
+  }
+  
+  next();
+};

@@ -18,6 +18,7 @@
     "concurrently": "^9.2.0"
   },
   "dependencies": {
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "date-fns": "^4.1.0"
   }
 }

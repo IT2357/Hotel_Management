@@ -27,7 +27,7 @@ export default function DefaultAdminLayout({ children }) {
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 lg:pl-16">
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 g:pl-16">
               {children}
             </main>
           </div>

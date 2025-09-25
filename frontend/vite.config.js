@@ -12,6 +12,9 @@ export default defineConfig({
     },
   },
   server: {
+    hmr: {
+      overlay: false, // Disable error overlay that might cause refreshes
+    },
     proxy: {
       "/api": {
         target: "http://localhost:5000", // 👈 Your backend server

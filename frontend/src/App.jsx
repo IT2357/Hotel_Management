@@ -25,6 +25,23 @@ import MyReviews from './pages/guest/MyReviews.jsx';
 import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
 import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
+
+// Task Management pages
+import ManagerTaskDashboard from './pages/manager/ManagerTaskDashboard.jsx';
+import TestManagerDashboard from './pages/manager/TestManagerDashboard.jsx';
+import AuthTest from './pages/manager/AuthTest.jsx';
+import TestPage from './pages/manager/TestPage.jsx';
+import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
+import TaskListPage from './pages/manager/TaskListPage.jsx';
+import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
+import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
+import FeedbackPage from './pages/manager/FeedbackPage.jsx';
+import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
+import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
+import ViewReportPage from './pages/manager/ViewReportPage.jsx';
+import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
+import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
+import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
 import UserManagementPage from './pages/admin/UserManagementPage.jsx';
@@ -35,6 +52,7 @@ import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
 import GuestServiceRequestForm from './pages/guest/components/GuestServiceRequestForm.jsx';
@@ -269,6 +287,107 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
                 <AdminRefundManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Routes */}
+          <Route
+            path="/manager"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerHomePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 📊 Manager Reports Routes */}
+          <Route
+            path="/manager/reports/view"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ViewReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/reports/*"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Task Management Routes */}
+          <Route
+            path="/manager/tasks/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/test"
+            element={
+              <ManagerDashboardTest />
+            }
+          />
+
+          <Route
+            path="/manager/tasks"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskListPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/create"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <CreateTaskPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/assign"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskAssignPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/feedback"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <FeedbackPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍🔧 Staff Task Routes */}
+          <Route
+            path="/staff/tasks"
+            element={
+              <ProtectedRoute roles={['staff']}>
+                <StaffTasks />
               </ProtectedRoute>
             }
           />
