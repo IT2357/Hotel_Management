@@ -32,6 +32,9 @@ import EmailService from "./services/notification/emailService.js";
 import { seedSMSTemplates } from "./utils/smsTemplatesSeeder.js";
 // Import booking scheduler
 import BookingScheduler from "./services/booking/bookingScheduler.js";
+import staffRoutes from "./routes/staff.js";
+import messageRoutes from "./routes/messages.js";
+
 const app = express();
 const server = http.createServer(app);
 const io = initSocket(server);
@@ -204,6 +207,8 @@ const startServer = async () => {
   app.use("/api/guest-services", guestServiceRoutes);
   app.use("/api/tasks", taskRoutes);
   app.use('/api/key-cards', keyCardRoutes);
+  app.use("/api/staff", staffRoutes);
+  app.use("/api/messages", messageRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
