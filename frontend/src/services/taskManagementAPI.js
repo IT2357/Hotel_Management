@@ -16,8 +16,18 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    console.log('🔍 API Request Debug:', {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
+    });
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('⚠️ No authentication token found - this will likely cause a 401/400 error');
     }
     return config;
   },
@@ -30,7 +40,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('🚨 API Error Details:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.response?.data?.message || error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data
+    });
+    
     if (error.response?.status === 401) {
+      console.warn('🔒 Authentication failed - redirecting to login');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

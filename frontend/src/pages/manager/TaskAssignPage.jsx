@@ -42,16 +42,22 @@ const TaskAssignPage = () => {
   };
 
   const fetchStaffForDepartment = async (department) => {
-    if (availableStaff[department]) return; // Already cached
+    if (availableStaff[department]) {
+      console.log(`📋 Staff already cached for ${department}:`, availableStaff[department]);
+      return; // Already cached
+    }
     
     try {
+      console.log(`🔍 Fetching staff for department: ${department}`);
       const response = await taskAPI.getAvailableStaff(department);
+      console.log(`✅ Staff response for ${department}:`, response);
+      
       setAvailableStaff(prev => ({
         ...prev,
-        [department]: response.data
+        [department]: response.data || response
       }));
     } catch (error) {
-      console.error(`Error fetching staff for ${department}:`, error);
+      console.error(`❌ Error fetching staff for ${department}:`, error);
     }
   };
 
@@ -64,7 +70,13 @@ const TaskAssignPage = () => {
   };
 
   const handleAssignClick = async (task) => {
+    console.log(`🎯 Assigning task: ${task.title} (Department: ${task.department})`);
     await fetchStaffForDepartment(task.department);
+    
+    // Debug: Check available staff after fetching
+    console.log(`📊 Available staff state:`, availableStaff);
+    console.log(`👥 Staff for ${task.department}:`, availableStaff[task.department]);
+    
     setAssignmentModal({
       isOpen: true,
       task,
@@ -338,12 +350,23 @@ const TaskAssignPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Choose staff member...</option>
-                {availableStaff[assignmentModal.task?.department]?.map((staff) => (
-                  <option key={staff._id} value={staff._id}>
-                    {staff.name} - {staff.position}
-                  </option>
-                ))}
+                {availableStaff[assignmentModal.task?.department]?.length === 0 ? (
+                  <option disabled>No staff available in {assignmentModal.task?.department}</option>
+                ) : (
+                  availableStaff[assignmentModal.task?.department]?.map((staff) => (
+                    <option key={staff._id} value={staff._id}>
+                      {staff.name} - {staff.position}
+                    </option>
+                  ))
+                )}
               </select>
+              
+              {/* Debug info */}
+              {availableStaff[assignmentModal.task?.department] && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Found {availableStaff[assignmentModal.task?.department].length} staff member(s) in {assignmentModal.task?.department}
+                </div>
+              )}
             </div>
             
             <div className="mb-6">
