@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Edit, Trash2, ToggleLeft, ToggleRight, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 
 const MenuItemCard = memo(({
   item,

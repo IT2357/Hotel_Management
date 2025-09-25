@@ -131,25 +131,25 @@ const ModernRestaurantMenu = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full"
+          className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full"
         />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       {/* Hero Section */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 py-20"
+        className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 py-20"
       >
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-black/10" />
         <div className="relative container mx-auto px-6 text-center text-white">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -157,69 +157,69 @@ const ModernRestaurantMenu = () => {
             transition={{ delay: 0.2 }}
             className="mb-6"
           >
-            <ChefHat className="w-16 h-16 mx-auto mb-4" />
+            <ChefHat className="w-16 h-16 mx-auto mb-4 drop-shadow-lg" />
           </motion.div>
-          <motion.h1 
+          <motion.h1
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent"
+            className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent drop-shadow-lg"
           >
             Culinary Excellence
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-xl md:text-2xl mb-8 text-purple-100"
+            className="text-xl md:text-2xl mb-8 text-indigo-100 drop-shadow-md"
           >
             Discover extraordinary flavors crafted with passion
           </motion.p>
         </div>
-        
+
         {/* Floating Elements */}
         <div className="absolute top-20 left-10 animate-bounce">
-          <Coffee className="w-8 h-8 text-white/30" />
+          <Coffee className="w-8 h-8 text-white/40 drop-shadow-lg" />
         </div>
         <div className="absolute bottom-20 right-10 animate-pulse">
-          <Star className="w-6 h-6 text-yellow-300/50" />
+          <Star className="w-6 h-6 text-yellow-300/60 drop-shadow-lg" />
         </div>
       </motion.div>
 
       {/* Search and Filter Bar */}
-      <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-purple-500/20">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-indigo-200/50 shadow-lg">
         <div className="container mx-auto px-6 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search delicious dishes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                className="w-full pl-10 pr-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-gray-800 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
               />
             </div>
-            
+
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
             >
               <Filter className="w-5 h-5" />
               Filters
             </button>
           </div>
-          
+
           {/* Category Pills */}
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex flex-wrap gap-3 mt-4">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                 selectedCategory === 'all'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 border border-gray-200'
               }`}
             >
               All Items
@@ -228,10 +228,10 @@ const ModernRestaurantMenu = () => {
               <button
                 key={category._id}
                 onClick={() => setSelectedCategory(category._id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                   selectedCategory === category._id
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'bg-slate-800 text-gray-300 hover:bg-slate-700'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 border border-gray-200'
                 }`}
               >
                 {category.name} ({category.itemCount || 0})
@@ -248,16 +248,19 @@ const ModernRestaurantMenu = () => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="bg-slate-800 border-b border-purple-500/20 overflow-hidden"
+            className="bg-white border-b border-indigo-200/50 overflow-hidden shadow-lg"
           >
             <div className="container mx-auto px-6 py-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Dietary Filters */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3">Dietary Preferences</h3>
-                  <div className="space-y-2">
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100">
+                  <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
+                    <Leaf className="w-5 h-5 text-green-600" />
+                    Dietary Preferences
+                  </h3>
+                  <div className="space-y-3">
                     {['vegetarian', 'vegan', 'halal', 'gluten-free', 'seafood'].map((diet) => (
-                      <label key={diet} className="flex items-center gap-2 text-gray-300">
+                      <label key={diet} className="flex items-center gap-3 text-gray-700 cursor-pointer hover:text-indigo-700 transition-colors">
                         <input
                           type="checkbox"
                           checked={filters.dietary.includes(diet)}
@@ -274,9 +277,9 @@ const ModernRestaurantMenu = () => {
                               }));
                             }
                           }}
-                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
+                          className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-2 border-gray-300"
                         />
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-2 font-medium">
                           {getDietaryIcon(diet)}
                           {diet.charAt(0).toUpperCase() + diet.slice(1).replace('-', ' ')}
                         </span>
@@ -284,21 +287,24 @@ const ModernRestaurantMenu = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Spice Level */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3">Spice Level</h3>
-                  <div className="space-y-2">
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-100">
+                  <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-red-500" />
+                    Spice Level
+                  </h3>
+                  <div className="space-y-3">
                     {['mild', 'medium', 'hot', 'very-hot'].map((level) => (
-                      <label key={level} className="flex items-center gap-2 text-gray-300">
+                      <label key={level} className="flex items-center gap-3 text-gray-700 cursor-pointer hover:text-orange-700 transition-colors">
                         <input
                           type="radio"
                           name="spiceLevel"
                           checked={filters.spiceLevel === level}
                           onChange={() => setFilters(prev => ({ ...prev, spiceLevel: level }))}
-                          className="border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
+                          className="w-5 h-5 text-orange-600 focus:ring-orange-500 border-2 border-gray-300"
                         />
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 font-medium">
                           {getSpiceIcon(level)}
                           {level.charAt(0).toUpperCase() + level.slice(1).replace('-', ' ')}
                         </span>
@@ -306,11 +312,14 @@ const ModernRestaurantMenu = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Price Range */}
-                <div>
-                  <h3 className="text-white font-semibold mb-3">Price Range</h3>
-                  <div className="space-y-3">
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-2xl border border-green-100">
+                  <h3 className="text-gray-800 font-bold mb-4 flex items-center gap-2">
+                    <span className="text-2xl">💰</span>
+                    Price Range
+                  </h3>
+                  <div className="space-y-4">
                     <input
                       type="range"
                       min="0"
@@ -320,9 +329,9 @@ const ModernRestaurantMenu = () => {
                         ...prev,
                         priceRange: [0, parseInt(e.target.value)]
                       }))}
-                      className="w-full accent-purple-600"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
-                    <div className="text-gray-300 text-sm">
+                    <div className="text-gray-700 text-lg font-bold text-center bg-white px-4 py-2 rounded-lg border border-green-200">
                       Up to ${filters.priceRange[1]}
                     </div>
                   </div>
@@ -335,9 +344,9 @@ const ModernRestaurantMenu = () => {
 
       {/* Menu Items Grid */}
       <div className="container mx-auto px-6 py-8">
-        <motion.div 
+        <motion.div
           ref={menuRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
         >
           <AnimatePresence mode="popLayout">
             {filteredItems.map((item, index) => (
@@ -348,7 +357,7 @@ const ModernRestaurantMenu = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ delay: index * 0.05 }}
-                className="group relative bg-slate-800/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20"
+                className="group relative bg-white rounded-2xl overflow-hidden border border-indigo-200/50 shadow-lg hover:shadow-2xl hover:shadow-indigo-200/50 transition-all duration-300 hover:scale-105"
               >
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden">
@@ -357,70 +366,70 @@ const ModernRestaurantMenu = () => {
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
-                  
+
                   {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
                   {/* Favorite Button */}
                   <button
                     onClick={() => toggleFavorite(item._id)}
-                    className="absolute top-3 right-3 p-2 bg-black/50 backdrop-blur-sm rounded-full transition-colors hover:bg-black/70"
+                    className="absolute top-3 right-3 p-3 bg-white/90 backdrop-blur-sm rounded-full transition-all duration-200 hover:bg-white shadow-lg hover:scale-110"
                   >
-                    <Heart 
+                    <Heart
                       className={`w-5 h-5 ${
-                        favorites.has(item._id) 
-                          ? 'text-red-500 fill-current' 
-                          : 'text-white'
-                      }`} 
+                        favorites.has(item._id)
+                          ? 'text-red-500 fill-current'
+                          : 'text-gray-600'
+                      }`}
                     />
                   </button>
-                  
+
                   {/* Badges */}
-                  <div className="absolute top-3 left-3 flex flex-col gap-1">
+                  <div className="absolute top-3 left-3 flex flex-col gap-2">
                     {item.isFeatured && (
-                      <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">
+                      <span className="px-3 py-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs rounded-full font-semibold shadow-lg">
                         Featured
                       </span>
                     )}
                     {item.isPopular && (
-                      <span className="px-2 py-1 bg-yellow-500 text-black text-xs rounded-full">
+                      <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs rounded-full font-semibold shadow-lg">
                         Popular
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Price */}
                   <div className="absolute bottom-3 left-3">
-                    <span className="text-2xl font-bold text-white">
+                    <span className="text-2xl font-bold text-white drop-shadow-lg">
                       ${item.price}
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Content */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-white group-hover:text-purple-300 transition-colors">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">
                       {item.name}
                     </h3>
                     <div className="flex items-center gap-1">
                       {item.dietaryTags?.map((tag, idx) => (
-                        <span key={idx} className="text-xs">
+                        <span key={idx} className="text-sm">
                           {getDietaryIcon(tag)}
                         </span>
                       ))}
                     </div>
                   </div>
-                  
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                     {item.description}
                   </p>
-                  
+
                   {/* Meta Info */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {item.cookingTime || 15} min
+                  <div className="flex items-center justify-between text-sm text-gray-500 mb-6">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-indigo-500" />
+                      <span className="font-medium">{item.cookingTime || 15} min</span>
                     </div>
                     {item.spiceLevel && (
                       <div className="flex items-center gap-1">
@@ -428,20 +437,20 @@ const ModernRestaurantMenu = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Add to Cart Button */}
                   <button
                     onClick={() => addToCart(item)}
                     disabled={!item.isAvailable}
-                    className={`w-full py-3 rounded-xl font-medium transition-all ${
+                    className={`w-full py-3 rounded-xl font-bold transition-all duration-200 transform hover:scale-105 ${
                       item.isAvailable
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl'
-                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl'
+                        : 'bg-gray-400 text-gray-600 cursor-not-allowed'
                     }`}
                   >
                     {item.isAvailable ? (
                       <span className="flex items-center justify-center gap-2">
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-5 h-5" />
                         Add to Cart
                       </span>
                     ) : (
@@ -453,20 +462,22 @@ const ModernRestaurantMenu = () => {
             ))}
           </AnimatePresence>
         </motion.div>
-        
+
         {/* Empty State */}
         {filteredItems?.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16"
+            className="text-center py-20"
           >
-            <ChefHat className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+            <div className="w-20 h-20 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ChefHat className="w-10 h-10 text-indigo-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-700 mb-3">
               No dishes found
             </h3>
-            <p className="text-gray-500">
-              Try adjusting your search or filters
+            <p className="text-gray-500 text-lg">
+              Try adjusting your search or filters to find delicious options
             </p>
           </motion.div>
         )}
@@ -477,12 +488,14 @@ const ModernRestaurantMenu = () => {
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           className="fixed bottom-6 right-6 z-50"
         >
-          <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-full shadow-2xl hover:shadow-purple-500/25 transition-all">
+          <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-indigo-500/50 transition-all duration-200 animate-pulse">
             <div className="relative">
               <ShoppingCart className="w-6 h-6" />
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg">
                 {cartItems.length}
               </span>
             </div>

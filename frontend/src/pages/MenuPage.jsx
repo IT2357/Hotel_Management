@@ -22,7 +22,7 @@ export default function MenuPage() {
     const loadMenuItems = async () => {
       try {
         console.log('🔍 DEBUG: Loading menu items from API');
-        const response = await api.get('/food/menu/items?limit=100');
+        const response = await api.get('/menu/items?limit=100');
         const items = response.data.data || [];
 
         console.log('🔍 DEBUG: Loaded menu items:', items.length);
@@ -504,7 +504,7 @@ export default function MenuPage() {
       {/* Hero Section */}
       <section style={{ background: 'linear-gradient(135deg, #C41E3A 0%, #D2691E 100%)', color: 'white', padding: '4rem 2rem', textAlign: 'center' }}>
         <h1 style={{ fontSize: '3rem', margin: '0 0 1rem 0', fontWeight: 'bold' }}>Our Authentic Jaffna Tamil Menu</h1>
-        <p style={{ fontSize: '1.2rem', margin: '0 0 2rem 0', maxWidth: '600px', margin: '0 auto' }}>
+        <p style={{ fontSize: '1.2rem', margin: '0 auto 2rem auto', maxWidth: '600px' }}>
           Discover the rich flavors of Jaffna Tamil cuisine, prepared with traditional recipes and fresh ingredients
         </p>
 

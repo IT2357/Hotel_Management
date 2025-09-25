@@ -36,6 +36,7 @@ const ModernGuestDashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteItems, setFavoriteItems] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
     // Load recent orders and favorites
@@ -44,14 +45,15 @@ const ModernGuestDashboard = () => {
 
   const loadDashboardData = () => {
     // Mock data - replace with actual API calls
-    setRecentOrders([
+    const mockOrders = [
       {
         id: 1,
         orderNumber: 'ORD-2024-001',
         date: '2024-01-15',
         total: 45.99,
         status: 'delivered',
-        items: ['Grilled Salmon', 'Caesar Salad']
+        items: ['Grilled Salmon', 'Caesar Salad'],
+        review: { rating: 5, comment: 'Excellent food!' }
       },
       {
         id: 2,
@@ -59,9 +61,18 @@ const ModernGuestDashboard = () => {
         date: '2024-01-12',
         total: 32.50,
         status: 'delivered',
-        items: ['Margherita Pizza', 'Iced Coffee']
+        items: ['Margherita Pizza', 'Iced Coffee'],
+        review: null
       }
-    ]);
+    ];
+
+    setRecentOrders(mockOrders);
+
+    // Count pending reviews
+    const pending = mockOrders.filter(order =>
+      order.status === 'delivered' && !order.review
+    ).length;
+    setPendingReviews(pending);
 
     setFavoriteItems([
       {
@@ -90,8 +101,8 @@ const ModernGuestDashboard = () => {
     { name: 'Dashboard', href: '/guest/dashboard', icon: Home, current: true },
     { name: 'Menu', href: '/menu', icon: ChefHat, current: false },
     { name: 'Food Ordering', href: '/food-ordering', icon: Utensils, current: false },
-    { name: 'My Orders', href: '/dashboard/my-orders', icon: FileText, current: false },
-    { name: 'Reviews', href: '/dashboard/reviews', icon: MessageSquare, current: false },
+    { name: 'My Orders', href: '/my-orders', icon: FileText, current: false },
+    { name: 'Reviews', href: '/dashboard/reviews', icon: MessageSquare, current: false, badge: pendingReviews || 0 },
     { name: 'Cart', href: '/cart', icon: ShoppingCart, current: false, badge: getItemCount() || 0 },
     { name: 'Favorites', href: '/dashboard/favorites', icon: Heart, current: false },
   ];
@@ -159,42 +170,42 @@ const ModernGuestDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex">
       {/* Sidebar */}
       <motion.div
         initial={{ x: sidebarOpen ? 0 : -280 }}
         animate={{ x: sidebarOpen ? 0 : -280 }}
-        className="fixed inset-y-0 left-0 z-50 w-64 bg-slate-800/95 backdrop-blur-sm border-r border-purple-500/20 lg:translate-x-0 lg:static lg:inset-0"
+        className="fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-sm border-r border-indigo-200/50 shadow-2xl lg:translate-x-0 lg:static lg:inset-0"
       >
-        <div className="flex items-center justify-between p-4 border-b border-purple-500/20">
+        <div className="flex items-center justify-between p-6 border-b border-indigo-200/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+            <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <User className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-white font-semibold">Guest Portal</h2>
-              <p className="text-gray-400 text-sm">{user?.name || 'Guest'}</p>
+              <h2 className="text-gray-800 font-bold">Guest Portal</h2>
+              <p className="text-gray-600 text-sm">{user?.name || 'Guest'}</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 text-gray-400 hover:text-white"
+            className="lg:hidden p-2 text-gray-500 hover:text-indigo-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <nav className="mt-4 px-4">
+        <nav className="mt-6 px-4">
           {navigationItems.map((item) => (
             <Link
               key={item.name}
               to={item.href}
-              className="flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors mb-1"
+              className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200 mb-2 group"
             >
-              <item.icon className="w-5 h-5" />
-              <span>{item.name}</span>
+              <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="font-medium">{item.name}</span>
               {item.badge > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full ml-auto">
+                <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full ml-auto shadow-lg">
                   {item.badge}
                 </span>
               )}
@@ -202,10 +213,10 @@ const ModernGuestDashboard = () => {
           ))}
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute bottom-6 left-4 right-4">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2 text-gray-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            className="flex items-center gap-3 w-full px-4 py-3 text-red-600 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-pink-500 rounded-xl transition-all duration-200 font-medium shadow-lg"
           >
             <LogOut className="w-5 h-5" />
             <span>Sign Out</span>
@@ -216,15 +227,15 @@ const ModernGuestDashboard = () => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-0">
         {/* Mobile Header */}
-        <div className="lg:hidden bg-slate-800/50 backdrop-blur-sm border-b border-purple-500/20 p-4">
+        <div className="lg:hidden bg-white/95 backdrop-blur-sm border-b border-indigo-200/50 p-4 shadow-lg">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 text-gray-400 hover:text-white"
+              className="p-2 text-gray-600 hover:text-indigo-600 transition-colors"
             >
               <MenuIcon className="w-6 h-6" />
             </button>
-            <h1 className="text-xl font-semibold text-white">Guest Dashboard</h1>
+            <h1 className="text-xl font-bold text-gray-800">Guest Dashboard</h1>
             <div className="w-8" /> {/* Spacer */}
           </div>
         </div>
@@ -237,10 +248,10 @@ const ModernGuestDashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-3xl font-bold text-white mb-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
               Welcome back, {user?.name?.split(' ')[0] || 'Guest'}! 👋
             </h1>
-            <p className="text-gray-400">
+            <p className="text-gray-600 text-lg">
               Ready to explore our culinary delights?
             </p>
           </motion.div>
@@ -249,7 +260,7 @@ const ModernGuestDashboard = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+            className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8"
           >
             {stats.map((stat, index) => (
               <motion.div
@@ -257,15 +268,17 @@ const ModernGuestDashboard = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-purple-500/20"
+                className="bg-white rounded-2xl p-6 border border-indigo-200/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
-                <div className="flex items-center gap-3">
-                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
                   <div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-2xl font-bold text-gray-800">
                       {stat.value}
                     </div>
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-gray-600 font-medium">
                       {stat.label}
                     </div>
                   </div>
@@ -281,7 +294,7 @@ const ModernGuestDashboard = () => {
             transition={{ delay: 0.2 }}
             className="mb-8"
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-8">Quick Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {quickActions.map((action, index) => (
                 <motion.div
@@ -289,34 +302,34 @@ const ModernGuestDashboard = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 + index * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.05, y: -5 }}
                   whileTap={{ scale: 0.95 }}
                 >
                   <Link
                     to={action.link}
                     className="block group"
                   >
-                    <div className="relative bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 overflow-hidden">
+                    <div className="relative bg-white rounded-2xl p-6 border border-indigo-200/50 shadow-lg hover:shadow-2xl hover:shadow-indigo-200/50 transition-all duration-300 overflow-hidden group-hover:border-indigo-300">
                       {/* Background Gradient */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                       {/* Content */}
                       <div className="relative">
                         <div className="flex items-center justify-between mb-4">
-                          <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-xl flex items-center justify-center`}>
+                          <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
                             <action.icon className="w-6 h-6 text-white" />
                           </div>
                           {action.count !== null && action.count > 0 && (
-                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                            <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full shadow-lg font-semibold">
                               {action.count}
                             </span>
                           )}
                         </div>
 
-                        <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                        <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors">
                           {action.title}
                         </h3>
-                        <p className="text-gray-400 text-sm">
+                        <p className="text-gray-600 text-sm font-medium">
                           {action.description}
                         </p>
                       </div>
@@ -333,15 +346,20 @@ const ModernGuestDashboard = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+              className="bg-white rounded-2xl p-6 border border-indigo-200/50 shadow-lg"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-white">Recent Orders</h3>
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-white" />
+                  </div>
+                  Recent Orders
+                </h3>
                 <Link
-                  to="/dashboard/my-orders"
-                  className="text-purple-400 hover:text-purple-300 text-sm transition-colors"
+                  to="/my-orders"
+                  className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold transition-colors"
                 >
-                  View All
+                  View All →
                 </Link>
               </div>
 
@@ -349,13 +367,13 @@ const ModernGuestDashboard = () => {
                 {recentOrders?.slice(0, 3).map((order) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl"
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl border border-indigo-100 hover:shadow-md transition-all duration-200"
                   >
                     <div>
-                      <div className="text-white font-medium">
+                      <div className="text-gray-800 font-semibold">
                         {order.orderNumber}
                       </div>
-                      <div className="text-gray-400 text-sm">
+                      <div className="text-gray-600 text-sm">
                         {order.items.join(', ')}
                       </div>
                       <div className="text-gray-500 text-xs">
@@ -363,16 +381,30 @@ const ModernGuestDashboard = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-white font-semibold">
+                      <div className="text-gray-800 font-bold">
                         ${order.total}
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        order.status === 'delivered'
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {order.status}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                          order.status === 'delivered'
+                            ? 'bg-green-100 text-green-700 border border-green-200'
+                            : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                        }`}>
+                          {order.status}
+                        </span>
+                        {order.status === 'delivered' && (
+                          <div className="flex items-center gap-1">
+                            {order.review ? (
+                              <>
+                                <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                <span className="text-xs text-yellow-600 font-medium">{order.review.rating}</span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-500">Not reviewed</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -384,15 +416,20 @@ const ModernGuestDashboard = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 }}
-              className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+              className="bg-white rounded-2xl p-6 border border-indigo-200/50 shadow-lg"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-white">Your Favorites</h3>
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <Heart className="w-4 h-4 text-white" />
+                  </div>
+                  Your Favorites
+                </h3>
                 <Link
                   to="/dashboard/favorites"
-                  className="text-purple-400 hover:text-purple-300 text-sm transition-colors"
+                  className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold transition-colors"
                 >
-                  View All
+                  View All →
                 </Link>
               </div>
 
@@ -400,31 +437,31 @@ const ModernGuestDashboard = () => {
                 {favoriteItems?.slice(0, 3).map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-4 p-4 bg-slate-700/50 rounded-xl hover:bg-slate-700/70 transition-colors cursor-pointer"
+                    className="flex items-center gap-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-100 hover:shadow-md transition-all duration-200 cursor-pointer"
                   >
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-16 h-16 rounded-lg object-cover"
+                      className="w-16 h-16 rounded-lg object-cover shadow-md"
                     />
                     <div className="flex-1">
-                      <div className="text-white font-medium">
+                      <div className="text-gray-800 font-semibold">
                         {item.name}
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-gray-400 text-sm">
+                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                          <span className="text-gray-600 text-sm font-medium">
                             {item.rating}
                           </span>
                         </div>
-                        <span className="text-gray-500">•</span>
-                        <span className="text-purple-400 font-semibold">
+                        <span className="text-gray-400">•</span>
+                        <span className="text-indigo-600 font-bold">
                           ${item.price}
                         </span>
                       </div>
                     </div>
-                    <Heart className="w-5 h-5 text-red-400 fill-current" />
+                    <Heart className="w-5 h-5 text-red-500 fill-current" />
                   </div>
                 ))}
               </div>
@@ -436,29 +473,40 @@ const ModernGuestDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="mt-8 bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20"
+            className="mt-8 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-200/50 shadow-lg"
           >
-            <h3 className="text-xl font-semibold text-white mb-6">Restaurant Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-purple-400" />
+            <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              Restaurant Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-indigo-100">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <div className="text-white font-medium">Location</div>
-                  <div className="text-gray-400 text-sm">123 Culinary Street, Food City</div>
+                  <div className="text-gray-800 font-bold">Location</div>
+                  <div className="text-gray-600 text-sm">123 Culinary Street, Food City</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-purple-400" />
+              <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-indigo-100">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                  <Phone className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <div className="text-white font-medium">Phone</div>
-                  <div className="text-gray-400 text-sm">+1 (555) 123-4567</div>
+                  <div className="text-gray-800 font-bold">Phone</div>
+                  <div className="text-gray-600 text-sm">+1 (555) 123-4567</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-purple-400" />
+              <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-indigo-100">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <div className="text-white font-medium">Hours</div>
-                  <div className="text-gray-400 text-sm">Mon-Sun: 11AM - 11PM</div>
+                  <div className="text-gray-800 font-bold">Hours</div>
+                  <div className="text-gray-600 text-sm">Mon-Sun: 11AM - 11PM</div>
                 </div>
               </div>
             </div>

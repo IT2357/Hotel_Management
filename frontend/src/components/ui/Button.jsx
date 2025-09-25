@@ -1,5 +1,6 @@
 // src/components/ui
 import React from "react";
+import { motion } from "framer-motion";
 import classNames from "classnames";
 
 const Button = React.forwardRef(({
@@ -30,7 +31,7 @@ const Button = React.forwardRef(({
   };
 
   return (
-    <button
+    <motion.button
       ref={ref}
       type={type}
       className={classNames(
@@ -41,12 +42,16 @@ const Button = React.forwardRef(({
       )}
       disabled={disabled}
       onClick={onClick}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 });
 Button.displayName = "Button";
 
 export { Button };
+export default Button;

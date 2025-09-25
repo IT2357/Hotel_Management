@@ -109,11 +109,7 @@ export const login = async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Login successful",
-      ...result,
-    });
+    sendSuccess(res, result, "Login successful");
   } catch (error) {
     console.error("🔐 Login controller error:", {
       message: error.message,
@@ -307,6 +303,16 @@ export const checkApprovalStatus = async (req, res) => {
     sendSuccess(res, result);
   } catch (error) {
     handleError(res, error, "Failed to check approval status");
+  }
+};
+
+// Delete profile
+export const deleteProfile = async (req, res) => {
+  try {
+    const user = await AuthService.deleteProfile(req.user._id);
+    sendSuccess(res, { user }, "Profile deleted successfully");
+  } catch (error) {
+    handleError(res, error, "Profile deletion failed");
   }
 };
 

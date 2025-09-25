@@ -12,7 +12,12 @@ import {
   User,
   Calendar,
   ChefHat,
-  Truck
+  Truck,
+  Star,
+  MessageSquare,
+  Flag,
+  EyeOff,
+  Eye as EyeIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import api from '@/services/api';
 
@@ -39,6 +45,18 @@ const FoodOrderManagementPage = () => {
     pendingOrders: 0,
     completedOrders: 0,
     totalRevenue: 0
+  });
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({
+    totalReviews: 0,
+    averageRating: 0,
+    visibleReviews: 0,
+    flaggedReviews: 0,
+    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  });
+  const [reviewFilters, setReviewFilters] = useState({
+    status: 'all',
+    flagged: 'all'
   });
 
   const statusOptions = [
@@ -66,7 +84,9 @@ const FoodOrderManagementPage = () => {
   useEffect(() => {
     fetchOrders();
     fetchOrderStats();
-  }, [selectedStatus, selectedDate]);
+    fetchReviews();
+    fetchReviewStats();
+  }, [selectedStatus, selectedDate, reviewFilters]);
 
   const fetchOrders = async () => {
     try {
@@ -75,7 +95,7 @@ const FoodOrderManagementPage = () => {
       if (selectedStatus !== 'all') params.append('status', selectedStatus);
       if (selectedDate) params.append('date', selectedDate);
 
-      const response = await api.get(`/food/orders?${params}`);
+      const response = await api.get(`/menu/orders?${params}`);
       setOrders(response.data.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -87,16 +107,51 @@ const FoodOrderManagementPage = () => {
 
   const fetchOrderStats = async () => {
     try {
-      const response = await api.get('/food/orders/stats');
+      const response = await api.get('/menu/orders/stats');
       setOrderStats(response.data.data);
     } catch (error) {
       console.error('Error fetching order stats:', error);
     }
   };
 
+  const fetchReviews = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (reviewFilters.status !== 'all') params.append('status', reviewFilters.status);
+      if (reviewFilters.flagged !== 'all') params.append('flagged', reviewFilters.flagged);
+
+      const response = await api.get(`/menu/reviews?${params}`);
+      setReviews(response.data.data);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      toast.error('Failed to fetch reviews');
+    }
+  };
+
+  const fetchReviewStats = async () => {
+    try {
+      const response = await api.get('/menu/reviews/stats');
+      setReviewStats(response.data.data);
+    } catch (error) {
+      console.error('Error fetching review stats:', error);
+    }
+  };
+
+  const handleReviewModeration = async (orderId, updates) => {
+    try {
+      await api.put(`/menu/orders/${orderId}/reviews/moderate`, updates);
+      toast.success('Review moderation updated');
+      fetchReviews();
+      fetchReviewStats();
+    } catch (error) {
+      console.error('Error moderating review:', error);
+      toast.error('Failed to moderate review');
+    }
+  };
+
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
-      const response = await api.put(`/food/orders/${orderId}/status`, { status: newStatus });
+      const response = await api.put(`/menu/orders/${orderId}/status`, { status: newStatus });
       setOrders(orders.map(order =>
         order._id === orderId ? response.data.data : order
       ));
@@ -151,13 +206,21 @@ const FoodOrderManagementPage = () => {
           </p>
         </motion.div>
 
-        {/* Stats Cards */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
+        {/* Tabs */}
+        <Tabs defaultValue="orders" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders">
+            {/* Stats Cards */}
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
           <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -498,6 +561,247 @@ const FoodOrderManagementPage = () => {
             )}
           </DialogContent>
         </Dialog>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            {/* Review Stats */}
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Total Reviews</p>
+                      <p className="text-3xl font-bold">{reviewStats.totalReviews}</p>
+                    </div>
+                    <div className="p-3 bg-blue-500/20 rounded-full">
+                      <MessageSquare className="h-6 w-6 text-blue-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Average Rating</p>
+                      <p className="text-3xl font-bold">{reviewStats.averageRating.toFixed(1)}</p>
+                    </div>
+                    <div className="p-3 bg-yellow-500/20 rounded-full">
+                      <Star className="h-6 w-6 text-yellow-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Visible Reviews</p>
+                      <p className="text-3xl font-bold">{reviewStats.visibleReviews}</p>
+                    </div>
+                    <div className="p-3 bg-green-500/20 rounded-full">
+                      <EyeIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Flagged Reviews</p>
+                      <p className="text-3xl font-bold">{reviewStats.flaggedReviews}</p>
+                    </div>
+                    <div className="p-3 bg-red-500/20 rounded-full">
+                      <Flag className="h-6 w-6 text-red-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Rating Distribution</p>
+                    <div className="space-y-1">
+                      {[5, 4, 3, 2, 1].map(rating => (
+                        <div key={rating} className="flex items-center gap-2 text-xs">
+                          <span className="w-3">{rating}★</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-yellow-400 h-2 rounded-full"
+                              style={{
+                                width: `${reviewStats.totalReviews > 0
+                                  ? (reviewStats.ratingDistribution[rating] / reviewStats.totalReviews) * 100
+                                  : 0}%`
+                              }}
+                            />
+                          </div>
+                          <span className="w-6 text-right">{reviewStats.ratingDistribution[rating]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Review Filters */}
+            <motion.div
+              className="flex flex-col md:flex-row gap-4 mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <Select
+                value={reviewFilters.status}
+                onValueChange={(value) => setReviewFilters(prev => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Reviews</SelectItem>
+                  <SelectItem value="visible">Visible Only</SelectItem>
+                  <SelectItem value="hidden">Hidden Only</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={reviewFilters.flagged}
+                onValueChange={(value) => setReviewFilters(prev => ({ ...prev, flagged: value }))}
+              >
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Reviews</SelectItem>
+                  <SelectItem value="true">Flagged Only</SelectItem>
+                  <SelectItem value="false">Not Flagged</SelectItem>
+                </SelectContent>
+              </Select>
+            </motion.div>
+
+            {/* Reviews List */}
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              {reviews.length === 0 ? (
+                <motion.div
+                  className="text-center py-16"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-2xl font-bold mb-2">No reviews found</h3>
+                  <p className="text-muted-foreground">
+                    {reviewFilters.status !== 'all' || reviewFilters.flagged !== 'all'
+                      ? 'Try adjusting your filters'
+                      : 'No reviews have been submitted yet'
+                    }
+                  </p>
+                </motion.div>
+              ) : (
+                reviews.map((order, index) => (
+                  <motion.div
+                    key={order._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-4 mb-3">
+                              <div>
+                                <h3 className="font-semibold text-lg">
+                                  Order #{order._id.slice(-8)}
+                                </h3>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <User className="h-4 w-4" />
+                                  <span>{order.customerDetails?.name || 'Unknown Customer'}</span>
+                                  <span>•</span>
+                                  <span>{order.customerDetails?.email || 'No email'}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-5 h-5 ${
+                                      i < order.review.rating
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                                <span className="text-sm font-medium ml-2">
+                                  {order.review.rating}/5
+                                </span>
+                              </div>
+                            </div>
+
+                            {order.review.comment && (
+                              <div className="mb-4">
+                                <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">
+                                  "{order.review.comment}"
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>Order Total: ${order.totalPrice?.toFixed(2)}</span>
+                              <span>•</span>
+                              <span>Reviewed: {formatDate(order.review.submittedAt)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleReviewModeration(order._id, {
+                                isVisible: !order.review.isVisible
+                              })}
+                              className={order.review.isVisible ? 'text-green-600' : 'text-gray-600'}
+                            >
+                              {order.review.isVisible ? <EyeIcon className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleReviewModeration(order._id, {
+                                flagged: !order.review.flagged
+                              })}
+                              className={order.review.flagged ? 'text-red-600' : 'text-gray-600'}
+                            >
+                              <Flag className={`w-4 h-4 ${order.review.flagged ? 'fill-current' : ''}`} />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))
+              )}
+            </motion.div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

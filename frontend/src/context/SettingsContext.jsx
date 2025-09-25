@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import adminService from '../services/adminService';
+import { useAuth } from './AuthContext';
 
 const SettingsContext = createContext();
 
@@ -12,11 +13,34 @@ export const useSettings = () => {
 };
 
 export const SettingsProvider = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchSettings = useCallback(async () => {
+    // Only fetch settings if user is authenticated and has admin role
+    if (!isAuthenticated || !user || user.role !== 'admin') {
+      setLoading(false);
+      setSettings({
+        siteName: 'Hotel Management System',
+        hotelName: 'Grand Hotel',
+        currency: 'USD',
+        timezone: 'UTC',
+        sessionTimeout: 30,
+        passwordMinLength: 8,
+        maxLoginAttempts: 5,
+        defaultCheckInTime: '15:00',
+        defaultCheckOutTime: '11:00',
+        maxGuestsPerRoom: 4,
+        enableEmailNotifications: true,
+        bookingConfirmations: true,
+        allowGuestBooking: true,
+        requireApproval: false
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -24,8 +48,8 @@ export const SettingsProvider = ({ children }) => {
       setSettings(response.data || {});
     } catch (err) {
       console.error('Failed to fetch settings:', err);
-      // Check if it's an authentication error (403)
-      if (err.status === 403 || err.response?.status === 403) {
+      // Check if it's an authentication error (401 or 403)
+      if (err.response?.status === 401 || err.response?.status === 403) {
         console.log('Admin settings require authentication, using default settings');
       } else {
         console.error('Settings fetch error:', err);
@@ -51,7 +75,7 @@ export const SettingsProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   const updateSettings = useCallback(async (newSettings) => {
     try {
@@ -151,7 +175,7 @@ export const SettingsProvider = ({ children }) => {
 
   useEffect(() => {
     fetchSettings();
-  }, [fetchSettings]);
+  }, [fetchSettings, isAuthenticated, user]);
 
   const value = {
     settings,

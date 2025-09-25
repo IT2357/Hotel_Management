@@ -186,6 +186,62 @@ router.delete('/:id',
 );
 
 /**
+ * @route   GET /api/menu/categories/:category/items
+ * @desc    Get menu items by category name
+ * @access  Public
+ */
+router.get('/categories/:category/items', async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { limit = 50, page = 1 } = req.query;
+
+    // Find category by name
+    const categoryDoc = await Category.findOne({
+      name: { $regex: new RegExp(`^${category}$`, 'i') }
+    });
+
+    if (!categoryDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    // Get menu items for this category
+    const filter = { category: categoryDoc._id, isAvailable: true };
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const menuItems = await MenuItem.find(filter)
+      .populate('category', 'name')
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Add imageUrl to each menu item for frontend display
+    const menuItemsWithImages = menuItems.map(item => {
+      const itemObj = item.toObject();
+      if (itemObj.image && itemObj.image.data) {
+        itemObj.imageUrl = `data:${itemObj.image.contentType};base64,${itemObj.image.data.toString('base64')}`;
+      }
+      return itemObj;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: menuItemsWithImages,
+      count: menuItemsWithImages.length
+    });
+  } catch (error) {
+    console.error('Error fetching menu items by category:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching menu items by category',
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route   GET /api/menu/items/:id
  * @desc    Get single menu item
  * @access  Public

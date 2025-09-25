@@ -23,10 +23,11 @@ import {
   Coffee
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Input from '@/components/ui/input';
+import Card, { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Spinner from '@/components/ui/Spinner';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useCart } from '@/context/CartContext';
@@ -234,7 +235,7 @@ const RestaurantMenuPage = () => {
         {/* Menu Items */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+            <Spinner size="xl" />
           </div>
         ) : Object.keys(groupedItems).length > 0 ? (
           <div className="space-y-16">

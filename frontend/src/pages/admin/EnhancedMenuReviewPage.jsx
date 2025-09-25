@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Edit3,
   Save,
@@ -388,54 +388,103 @@ const EnhancedMenuReviewPage = () => {
               </div>
 
               <div className="relative">
-                {/* Placeholder image for now - in production this would be the actual analyzed image */}
-                <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 aspect-video flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="relative">
-                      <Camera className="w-20 h-20 text-purple-400 mx-auto mb-4" />
-                      {/* AI Detection Animation */}
-                      <div className="absolute -top-2 -right-2">
-                        <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center animate-pulse">
-                          <Zap className="w-3 h-3 text-white" />
+                {/* Display the actual uploaded image */}
+                {menuData?.imageUrl ? (
+                  <div className="relative">
+                    <img
+                      src={menuData.imageUrl}
+                      alt="Analyzed Menu"
+                      className="w-full aspect-video object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.src = 'https://dummyimage.com/800x400/cccccc/000000&text=Menu+Image+Not+Found';
+                      }}
+                    />
+
+                    {/* Floating AI Analysis Indicators */}
+                    <div className="absolute top-4 right-4 space-y-2">
+                      <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <Target className="w-4 h-4 text-green-400" />
+                          <span>Objects Detected</span>
+                        </div>
+                      </div>
+                      <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <Zap className="w-4 h-4 text-purple-400" />
+                          <span>AI Processing</span>
                         </div>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Menu Image Analyzed</h3>
-                    <p className="text-gray-300 mb-4">AI has successfully identified {totalItems} dishes from your menu image</p>
 
-                    {/* Analysis Stats */}
-                    <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-                      <div className="bg-black/40 rounded-lg p-3">
-                        <div className="text-2xl font-bold text-purple-400">{menuData?.categories?.length || 0}</div>
-                        <div className="text-xs text-gray-400">Categories</div>
-                      </div>
-                      <div className="bg-black/40 rounded-lg p-3">
-                        <div className="text-2xl font-bold text-green-400">{totalItems}</div>
-                        <div className="text-xs text-gray-400">Items Found</div>
-                      </div>
-                      <div className="bg-black/40 rounded-lg p-3">
-                        <div className="text-2xl font-bold text-blue-400">{selectedCount}</div>
-                        <div className="text-xs text-gray-400">Selected</div>
+                    {/* Analysis Stats Overlay */}
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-purple-400">{menuData?.categories?.length || 0}</div>
+                            <div className="text-xs text-gray-300">Categories</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-400">{totalItems}</div>
+                            <div className="text-xs text-gray-300">Items Found</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-400">{selectedCount}</div>
+                            <div className="text-xs text-gray-300">Selected</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 aspect-video flex items-center justify-center rounded-lg">
+                    <div className="text-center">
+                      <div className="relative">
+                        <Camera className="w-20 h-20 text-purple-400 mx-auto mb-4" />
+                        {/* AI Detection Animation */}
+                        <div className="absolute -top-2 -right-2">
+                          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center animate-pulse">
+                            <Zap className="w-3 h-3 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">Menu Image Analyzed</h3>
+                      <p className="text-gray-300 mb-4">AI has successfully identified {totalItems} dishes from your menu image</p>
 
-                  {/* Floating AI Analysis Indicators */}
-                  <div className="absolute top-4 right-4 space-y-2">
-                    <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
-                      <div className="flex items-center space-x-2 text-white text-sm">
-                        <Target className="w-4 h-4 text-green-400" />
-                        <span>Objects Detected</span>
+                      {/* Analysis Stats */}
+                      <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                        <div className="bg-black/40 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-purple-400">{menuData?.categories?.length || 0}</div>
+                          <div className="text-xs text-gray-400">Categories</div>
+                        </div>
+                        <div className="bg-black/40 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-green-400">{totalItems}</div>
+                          <div className="text-xs text-gray-400">Items Found</div>
+                        </div>
+                        <div className="bg-black/40 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-blue-400">{selectedCount}</div>
+                          <div className="text-xs text-gray-400">Selected</div>
+                        </div>
                       </div>
                     </div>
-                    <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
-                      <div className="flex items-center space-x-2 text-white text-sm">
-                        <Zap className="w-4 h-4 text-purple-400" />
-                        <span>AI Processing</span>
+
+                    {/* Floating AI Analysis Indicators */}
+                    <div className="absolute top-4 right-4 space-y-2">
+                      <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <Target className="w-4 h-4 text-green-400" />
+                          <span>Objects Detected</span>
+                        </div>
+                      </div>
+                      <div className="bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2">
+                        <div className="flex items-center space-x-2 text-white text-sm">
+                          <Zap className="w-4 h-4 text-purple-400" />
+                          <span>AI Processing</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

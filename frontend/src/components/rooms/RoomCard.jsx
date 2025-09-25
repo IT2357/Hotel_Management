@@ -1,8 +1,8 @@
 // Placeholder for import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../ui/Card';
-import Button from '../ui/Button';
-import Badge from '../ui/Badge';
+import Card from '../ui/card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import { Star, Users, Wifi, Car, Utensils, MapPin, Heart, Eye } from 'lucide-react';
 import React, { useState } from 'react';
 

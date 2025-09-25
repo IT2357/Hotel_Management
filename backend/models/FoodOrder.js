@@ -67,6 +67,13 @@ const foodOrderSchema = new mongoose.Schema(
       enum: ["Pending", "Preparing", "Delivered", "Cancelled"],
       default: "Pending",
     },
+    review: {
+      rating: { type: Number, min: 1, max: 5 },
+      comment: { type: String },
+      submittedAt: { type: Date },
+      isVisible: { type: Boolean, default: true },
+      flagged: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

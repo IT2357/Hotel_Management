@@ -1,7 +1,7 @@
 // Placeholder for import React, { useState, useEffect } from 'react';
-import Card from '../ui/Card';
-import Button from '../ui/Button';
-import Badge from '../ui/Badge';
+import Card from '../ui/card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import Spinner from '../ui/Spinner';
 import { Calendar, MapPin, Users, Eye, Download, Filter, Search } from 'lucide-react';
 

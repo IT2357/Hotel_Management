@@ -27,6 +27,10 @@ class FoodService {
       // Handle different response formats
       if (response.data && response.data.data) {
         // New format with success/data structure
+        if (response.data.data.items) {
+          // Return just the items array for compatibility
+          return { ...response, data: response.data.data.items };
+        }
         return { ...response, data: response.data.data };
       }
       // Legacy format or direct array

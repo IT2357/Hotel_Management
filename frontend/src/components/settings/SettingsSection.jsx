@@ -1,8 +1,8 @@
 import React from 'react';
-import Input from '../ui/Input';
+import Input from '../ui/input';
 import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
-import Button from '../ui/Button';
+import { Button } from '../ui/Button';
 
 const SettingsSection = ({ 
   title, 

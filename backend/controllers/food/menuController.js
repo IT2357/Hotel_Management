@@ -449,9 +449,9 @@ export const getFeaturedItems = async (req, res) => {
 // Get popular menu items
 export const getPopularItems = async (req, res) => {
   try {
-    const popularItems = await MenuItem.find({ 
-      isPopular: true, 
-      isAvailable: true 
+    const popularItems = await MenuItem.find({
+      isPopular: true,
+      isAvailable: true
     })
       .populate("category", "name slug")
       .sort({ createdAt: -1 })
@@ -468,6 +468,50 @@ export const getPopularItems = async (req, res) => {
       success: false,
       message: "Failed to fetch popular items",
       error: error.message,
+    });
+  }
+};
+
+// Get menu items by category name
+export const getFoodItemsByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { available = 'true' } = req.query;
+
+    // Find category by name
+    const categoryDoc = await Category.findOne({ name: category });
+
+    if (!categoryDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    const filter = {
+      category: categoryDoc._id,
+      isAvailable: available === 'true'
+    };
+
+    console.log('Filter:', filter);
+
+    const foodItems = await MenuItem.find(filter)
+      .populate("category", "name slug")
+      .sort({ name: 1 });
+
+    console.log('Found items:', foodItems.length);
+
+    res.status(200).json({
+      success: true,
+      count: foodItems.length,
+      data: foodItems
+    });
+  } catch (error) {
+    console.error('Get food items by category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch food items by category',
+      error: error.message
     });
   }
 };

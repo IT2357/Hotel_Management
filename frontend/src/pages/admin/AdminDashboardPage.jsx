@@ -1,13 +1,15 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { NavLink } from "react-router-dom";
-import Card from "../../components/ui/Card";
+import Card from "../../components/ui/card";
 
 export default function AdminDashboardPage() {
   const { user } = useContext(AuthContext);
   const [bookingStats, setBookingStats] = useState({});
   const [invoiceStats, setInvoiceStats] = useState({});
+  const [foodStats, setFoodStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -16,26 +18,44 @@ export default function AdminDashboardPage() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const [bookingResponse, invoiceResponse] = await Promise.all([
+      setError(null);
+
+      const [bookingResponse, invoiceResponse, foodResponse] = await Promise.all([
         fetch('/api/bookings/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
         fetch('/api/invoices/admin/stats?period=all', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }),
+        fetch('/api/food/orders/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);
 
       const bookingData = await bookingResponse.json();
       const invoiceData = await invoiceResponse.json();
+      const foodData = await foodResponse.json();
 
       if (bookingData.success) {
         setBookingStats(bookingData.data);
+      } else {
+        console.warn('Failed to fetch booking stats:', bookingData.message);
       }
+
       if (invoiceData.success) {
         setInvoiceStats(invoiceData.data);
+      } else {
+        console.warn('Failed to fetch invoice stats:', invoiceData.message);
+      }
+
+      if (foodData.success) {
+        setFoodStats(foodData.data);
+      } else {
+        console.warn('Failed to fetch food stats:', foodData.message);
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      setError('Failed to load dashboard statistics. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -83,16 +103,38 @@ export default function AdminDashboardPage() {
       }
     },
     {
+      title: "Food Management",
+      to: "/admin/food",
+      description: "Manage food orders, menu items, and AI menu extraction.",
+      icon: "🍽️",
+      color: "bg-gradient-to-r from-orange-500 to-red-500",
+      stats: {
+        count: foodStats.totalOrders || 0,
+        subtitle: "Total orders",
+        badge: foodStats.pendingOrders || 0,
+        badgeLabel: "Pending"
+      }
+    },
+    {
       title: "Reports",
       to: "/admin/reports",
       description: "Analyze system performance and metrics.",
       icon: "📊",
-      color: "bg-gradient-to-r from-orange-500 to-red-500",
+      color: "bg-gradient-to-r from-indigo-500 to-purple-500",
     },
   ];
 
   return (
     <div className="space-y-6 p-6">
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+          <div className="flex items-center">
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+        </div>
+      )}
+
       {/* Modern Page Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -102,7 +144,17 @@ export default function AdminDashboardPage() {
               Your central hub for managing the hotel system
             </p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
+            <button
+              onClick={fetchDashboardStats}
+              disabled={loading}
+              className="bg-white/20 hover:bg-white/30 rounded-lg p-2 text-white transition-colors disabled:opacity-50"
+              title="Refresh dashboard data"
+            >
+              <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
             <div className="bg-white/20 rounded-lg p-4 text-center min-w-[120px]">
               <div className="text-2xl font-bold">{bookingStats.totalBookings || 0}</div>
               <div className="text-sm text-indigo-100">Total Bookings</div>
@@ -116,7 +168,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
         <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4 text-white">
             <h3 className="text-lg font-bold">📊 Total Bookings</h3>
@@ -155,7 +207,7 @@ export default function AdminDashboardPage() {
 
         <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 text-white">
-            <h3 className="text-lg font-bold">💰 Revenue</h3>
+            <h3 className="text-lg font-bold">💰 Booking Revenue</h3>
           </div>
           <div className="p-6">
             <div className="text-3xl font-bold text-blue-600 mb-1">
@@ -164,10 +216,34 @@ export default function AdminDashboardPage() {
             <p className="text-gray-600 text-sm">Total bookings value</p>
           </div>
         </Card>
+
+        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
+            <h3 className="text-lg font-bold">🍽️ Total Orders</h3>
+          </div>
+          <div className="p-6">
+            <div className="text-3xl font-bold text-purple-600 mb-1">
+              {loading ? "..." : foodStats.totalOrders || 0}
+            </div>
+            <p className="text-gray-600 text-sm">All food orders</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
+            <h3 className="text-lg font-bold">🍕 Food Revenue</h3>
+          </div>
+          <div className="p-6">
+            <div className="text-3xl font-bold text-orange-600 mb-1">
+              {loading ? "..." : formatCurrency(foodStats.totalRevenue || 0)}
+            </div>
+            <p className="text-gray-600 text-sm">Total food sales</p>
+          </div>
+        </Card>
       </div>
 
       {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
         {dashboardItems.map(({ title, description, to, icon, color, stats }) => (
           <Card
             key={title}

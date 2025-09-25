@@ -5,7 +5,7 @@ export const menuService = {
   // Get all categories
   getCategories: async () => {
     try {
-      const response = await api.get('/api/menu/categories');
+      const response = await api.get('/menu/categories');
       return response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -16,7 +16,7 @@ export const menuService = {
   // Get all menu items
   getMenuItems: async () => {
     try {
-      const response = await api.get('/api/menu/items');
+      const response = await api.get('/menu/items');
       return response.data;
     } catch (error) {
       console.error('Error fetching menu items:', error);
@@ -27,9 +27,9 @@ export const menuService = {
   // Get menu items by category (category is a NAME string in backend schema)
   getMenuItemsByCategory: async (categoryName) => {
     try {
-      // Backend route: GET /api/menu/categories/:category/items
+      // Backend route: GET /menu/categories/:category/items
       const safe = encodeURIComponent(categoryName);
-      const response = await api.get(`/api/menu/categories/${safe}/items`);
+      const response = await api.get(`/menu/categories/${safe}/items`);
       return response.data;
     } catch (error) {
       console.error('Error fetching menu items by category:', error);
@@ -40,7 +40,7 @@ export const menuService = {
   // Get single menu item
   getMenuItem: async (itemId) => {
     try {
-      const response = await api.get(`/api/menu/items/${itemId}`);
+      const response = await api.get(`/menu/items/${itemId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching menu item:', error);
@@ -79,7 +79,7 @@ export const menuService = {
         try { localStorage.setItem('customerEmail', payload.customerInfo.email); } catch {}
       }
 
-      const response = await api.post('/api/orders/customer', payload);
+      const response = await api.post('/orders/customer', payload);
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);

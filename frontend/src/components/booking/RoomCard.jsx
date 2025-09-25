@@ -1,8 +1,8 @@
 // src/components/booking/RoomCard.jsx
 import React from 'react';
-import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card';
-import Badge from '../ui/Badge';
-import Button from '../ui/Button';
+import Card, { CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 import { Users, Star } from 'lucide-react';
 
 export default function RoomCard({

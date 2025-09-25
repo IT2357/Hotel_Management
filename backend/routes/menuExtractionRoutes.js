@@ -8,7 +8,7 @@ import {
 } from '../controllers/menuExtractionController.js';
 import { authenticateToken as protect } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
-import { uploadSingle, uploadToGridFS, handleMulterError } from '../middleware/gridfsUpload.js';
+import { uploadSingle, uploadToGridFS, handleMulterError, uploadForMenuExtraction } from '../middleware/gridfsUpload.js';
 import { validateImageUpload } from '../middleware/validation.js';
 import imageStorageService from '../services/imageStorageService.js';
 
@@ -16,6 +16,26 @@ const router = express.Router();
 
 // Upload and process menu (supports file upload, URL, and file path)
 router.post('/upload', uploadSingle, handleMulterError, uploadToGridFS, protect, authorizeRoles(['admin', 'manager']), extractMenu);
+
+// Alternative route for menu extraction (used by frontend)
+router.post('/extract', uploadForMenuExtraction, handleMulterError, uploadToGridFS, protect, authorizeRoles(['admin', 'manager']), extractMenu);
+
+// Debug route for testing file upload
+router.post('/extract-debug', uploadForMenuExtraction, handleMulterError, protect, authorizeRoles(['admin', 'manager']), (req, res) => {
+  console.log('🔍 DEBUG: Extract debug route hit');
+  console.log('🔍 DEBUG: Files array:', req.files ? req.files.length : 0, 'files');
+  if (req.files && req.files.length > 0) {
+    req.files.forEach((file, index) => {
+      console.log(`🔍 DEBUG: File ${index}: ${file.fieldname} - ${file.originalname} (${file.size} bytes, ${file.mimetype})`);
+    });
+  }
+  console.log('🔍 DEBUG: Body:', req.body);
+  res.json({
+    success: true,
+    files: req.files || [],
+    body: req.body
+  });
+});
 
 // General image upload endpoint
 router.post('/image', protect, authorizeRoles(['admin', 'manager']), uploadSingle, handleMulterError, uploadToGridFS, async (req, res) => {
@@ -55,39 +75,6 @@ router.post('/image', protect, authorizeRoles(['admin', 'manager']), uploadSingl
   }
 });
 
-// Get all extracted menus with pagination and filtering
-router.get('/', listMenus);
-
-// Get single extracted menu by ID
-router.get('/:id', getMenu);
-
-// Update extracted menu (for editing before saving to MenuItem collection)
-router.put('/:id', saveMenu);
-
-// Delete extracted menu
-router.delete('/:id', deleteMenu);
-
-// Get extraction statistics
-router.get('/stats', async (req, res) => {
-  try {
-    // This is a placeholder - implement actual statistics if needed
-    res.json({
-      success: true,
-      data: {
-        totalMenus: 0,
-        totalCategories: 0,
-        totalItems: 0,
-        averageConfidence: 0
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch statistics'
-    });
-  }
-});
-
 // Validate URL before processing
 router.post('/validate-url', async (req, res) => {
   try {
@@ -122,6 +109,39 @@ router.post('/validate-url', async (req, res) => {
     });
   }
 });
+
+// Get extraction statistics
+router.get('/stats', async (req, res) => {
+  try {
+    // This is a placeholder - implement actual statistics if needed
+    res.json({
+      success: true,
+      data: {
+        totalMenus: 0,
+        totalCategories: 0,
+        totalItems: 0,
+        averageConfidence: 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch statistics'
+    });
+  }
+});
+
+// Get all extracted menus with pagination and filtering
+router.get('/', listMenus);
+
+// Get single extracted menu by ID
+router.get('/:id', getMenu);
+
+// Update extracted menu (for editing before saving to MenuItem collection)
+router.put('/:id', saveMenu);
+
+// Delete extracted menu
+router.delete('/:id', deleteMenu);
 
 // Save extracted menu items to MenuItem collection
 router.post('/save-to-menu-items', async (req, res) => {

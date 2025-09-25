@@ -1,7 +1,7 @@
-// src/components/ui/Input.jsx
+// src/components/ui/input.jsx
 import React from "react";
 
-export default function Input({
+function Input({
   label,
   id,
   type = 'text',
@@ -38,3 +38,6 @@ export default function Input({
     </div>
   );
 }
+
+export { Input };
+export default Input;

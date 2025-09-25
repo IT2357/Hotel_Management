@@ -56,6 +56,23 @@ const menuItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Time slot availability
+  isBreakfast: {
+    type: Boolean,
+    default: true,
+  },
+  isLunch: {
+    type: Boolean,
+    default: true,
+  },
+  isDinner: {
+    type: Boolean,
+    default: true,
+  },
+  isSnacks: {
+    type: Boolean,
+    default: true,
+  },
   ingredients: [{
     type: String,
     trim: true,

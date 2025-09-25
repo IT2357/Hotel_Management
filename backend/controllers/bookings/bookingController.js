@@ -1333,3 +1333,89 @@ export const processBookingPayment = async (req, res) => {
     handleError(res, error, "Failed to process booking payment");
   }
 };
+
+// Update booking status (admin only)
+export const updateBookingStatus = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { status, notes } = req.body;
+    const adminId = req.user._id;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required",
+      });
+    }
+
+    const booking = await Booking.findById(bookingId)
+      .populate('userId')
+      .populate('roomId');
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // Update booking status
+    booking.status = status;
+    booking.lastStatusChange = new Date();
+    booking.reviewedBy = adminId;
+    booking.reviewedAt = new Date();
+
+    if (notes) {
+      booking.approvalNotes = notes;
+    }
+
+    await booking.save();
+
+    sendSuccess(res, {
+      bookingId: booking._id,
+      status: booking.status,
+      updatedAt: booking.lastStatusChange
+    }, "Booking status updated successfully");
+
+  } catch (error) {
+    handleError(res, error, "Failed to update booking status");
+  }
+};
+
+// Delete booking (admin only)
+export const deleteBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking ID is required",
+      });
+    }
+
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(bookingId);
+
+    sendSuccess(res, { bookingId }, "Booking deleted successfully");
+
+  } catch (error) {
+    handleError(res, error, "Failed to delete booking");
+  }
+};

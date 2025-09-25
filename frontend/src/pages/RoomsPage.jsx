@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
+import Card from '../components/ui/card';
+import { Button } from '../components/ui/Button';
+import Input from '../components/ui/input';
 import Select from '../components/ui/Select';
 import Spinner from '../components/ui/Spinner';
 import { Calendar, Users, Star, Wifi, Car, Utensils, MapPin } from 'lucide-react';

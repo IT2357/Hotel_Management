@@ -26,6 +26,10 @@ import checkInOutRoutes from "./routes/checkInOutRoutes.js";
 import guestServiceRoutes from "./routes/guestServiceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import keyCardRoutes from './routes/keyCardRoutes.js';
+import foodMenuRoutes from './routes/food/menuRoutes.js';
+import menuExtractionRoutes from './routes/menuExtractionRoutes.js';
+import menuSelectionRoutes from './routes/menuSelectionRoutes.js';
+import foodOrderRoutes from './routes/foodOrderRoutes.js';
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
@@ -204,6 +208,10 @@ const startServer = async () => {
   app.use("/api/guest-services", guestServiceRoutes);
   app.use("/api/tasks", taskRoutes);
   app.use('/api/key-cards', keyCardRoutes);
+  app.use('/api/menu', foodMenuRoutes);
+  app.use('/api/menu-extraction', menuExtractionRoutes);
+  app.use('/api/menu-selection', menuSelectionRoutes);
+  app.use('/api/food/orders', foodOrderRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);

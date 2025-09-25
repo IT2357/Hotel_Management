@@ -4,10 +4,10 @@ import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
 import io from 'socket.io-client';
 import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
+import { Button } from '../../components/ui/Button';
 import Label from '../../components/ui/Label';
 import Textarea from '../../components/ui/Textarea';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner'; // Added Spinner import
 import moment from 'moment';
 

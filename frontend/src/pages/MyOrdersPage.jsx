@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Package, 
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Package,
   ArrowLeft,
   Calendar,
   DollarSign,
   MapPin,
   Phone,
   Mail,
-  ChefHat
+  ChefHat,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +21,13 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import Rating from '@/components/ui/rating';
+import FoodReview from '@/components/food/FoodReview';
 
 const MyOrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviewOrderId, setReviewOrderId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +45,17 @@ const MyOrdersPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReviewUpdate = (orderId, review) => {
+    setOrders(prevOrders =>
+      prevOrders.map(order =>
+        order._id === orderId
+          ? { ...order, review }
+          : order
+      )
+    );
+    setReviewOrderId(null);
   };
 
   const getStatusIcon = (status) => {
@@ -252,6 +268,55 @@ const MyOrdersPage = () => {
                           Total: LKR {order.totalPrice.toFixed(2)}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Review Section */}
+                    <div className="pt-4 border-t border-gray-200">
+                      {order.review ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <h4 className="font-medium text-green-800">Your Review</h4>
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Rating value={order.review.rating} readonly size="sm" />
+                            <span className="text-sm text-gray-600">
+                              {new Date(order.review.submittedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {order.review.comment && (
+                            <p className="text-gray-700 text-sm bg-white p-3 rounded border">
+                              {order.review.comment}
+                            </p>
+                          )}
+                        </div>
+                      ) : order.status === 'Delivered' ? (
+                        <div className="text-center">
+                          {reviewOrderId === order._id ? (
+                            <div className="mt-4">
+                              <FoodReview
+                                orderId={order._id}
+                                order={order}
+                                onReviewSubmitted={(review) => handleReviewUpdate(order._id, review)}
+                                onClose={() => setReviewOrderId(null)}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setReviewOrderId(order._id)}
+                              className="flex items-center gap-2 mx-auto px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                            >
+                              <Star className="w-4 h-4" />
+                              Rate Your Order
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 text-sm">
+                          <MessageSquare className="w-5 h-5 mx-auto mb-2 opacity-50" />
+                          Reviews available after delivery
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

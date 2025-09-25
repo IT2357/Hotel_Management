@@ -129,12 +129,8 @@ export default function Gallery() {
           <nav>
             <ul style={{ listStyle: 'none', display: 'flex', gap: '2rem', margin: 0, padding: 0 }}>
               <li><Link to="/" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Home</Link></li>
-              <li><Link to="/about" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>About</Link></li>
               <li><Link to="/menu" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Menu</Link></li>
-              <li><Link to="/gallery" style={{ textDecoration: 'none', color: '#C41E3A', fontWeight: 500 }}>Gallery</Link></li>
               <li><Link to="/reservations" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Reservation</Link></li>
-              <li><Link to="/blog" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Blog</Link></li>
-              <li><Link to="/contact" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Contact</Link></li>
             </ul>
           </nav>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -277,6 +273,17 @@ export default function Gallery() {
         </div>
       )}
 
+      {/* Bottom Navigation */}
+      <nav style={{ background: '#f8f9fa', borderTop: '1px solid #e9ecef', padding: '1rem 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+          <Link to="/about" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>About</Link>
+          <Link to="/gallery" style={{ textDecoration: 'none', color: '#C41E3A', fontWeight: 500 }}>Gallery</Link>
+          <Link to="/blog" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Blog</Link>
+          <Link to="/contact" style={{ textDecoration: 'none', color: '#333', fontWeight: 500 }}>Contact</Link>
+        </div>
+      </nav>
+
+      {/* Footer */}
       {/* Footer */}
       <footer style={{ background: '#C41E3A', color: 'white', padding: '2rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }}>

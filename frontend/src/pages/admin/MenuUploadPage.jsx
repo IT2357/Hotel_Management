@@ -113,21 +113,33 @@ const MenuUploadPage = () => {
       // Handle different input types
       if (activeTab === 'upload' && formData.file) {
         // For image upload, append the file as 'file' field to match backend multer expectation
+        console.log('📁 Appending file to FormData:', formData.file.name, 'Size:', formData.file.size, 'Type:', formData.file.type);
         submitFormData.append('file', formData.file);
       } else if (activeTab === 'url') {
+        console.log('🌐 Appending URL to FormData:', formData.url);
         submitFormData.append('url', formData.url);
       } else if (activeTab === 'path') {
+        console.log('📂 Appending path to FormData:', formData.filePath);
         submitFormData.append('path', formData.filePath);
       }
 
+      // Debug FormData contents
+      console.log('📋 FormData contents:');
+      for (let [key, value] of submitFormData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+        } else {
+          console.log(`  ${key}: ${value}`);
+        }
+      }
+
       // Call the extraction endpoint directly
-      console.log('🔄 Making API call to /menu/extract with data:', {
-        title: formData.title,
-        hasFile: !!formData.file,
-        hasUrl: !!formData.url,
-        hasPath: !!formData.filePath
+      console.log('🔄 Making API call to /menu-extraction/extract');
+      const response = await api.post('/menu-extraction/extract', submitFormData, {
+        headers: {
+          'Content-Type': undefined, // Let browser set Content-Type with boundary for FormData
+        },
       });
-      const response = await api.post('/menu/extract', submitFormData);
 
       clearInterval(progressInterval);
       setUploadProgress(100);

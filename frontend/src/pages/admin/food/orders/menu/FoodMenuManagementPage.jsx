@@ -21,10 +21,10 @@ import {
   Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -66,6 +66,11 @@ const FoodMenuManagementPage = () => {
     isVeg: false,
     isSpicy: false,
     isPopular: false,
+    // Time slot availability
+    isBreakfast: true,
+    isLunch: true,
+    isDinner: true,
+    isSnacks: true,
     ingredients: [],
     ingredientsText: '',
     dietaryTags: [],
@@ -136,7 +141,7 @@ const FoodMenuManagementPage = () => {
           category: selectedCategory !== 'all' ? selectedCategory : undefined,
           search: searchQuery || undefined
         }),
-        api.get('/food/menu/categories')
+        api.get('/api/menu/categories')
       ]);
 
       setFoodItems(itemsResponse.data || []);
@@ -199,7 +204,7 @@ const FoodMenuManagementPage = () => {
 
   const handleToggleAvailability = useCallback(async (itemId, isAvailable) => {
     try {
-      await api.put(`/menu/items/${itemId}`, { isAvailable });
+      await api.put(`/api/menu/items/${itemId}`, { isAvailable });
       setFoodItems(prev => prev.map(item =>
         item._id === itemId ? { ...item, isAvailable } : item
       ));
@@ -285,6 +290,11 @@ const FoodMenuManagementPage = () => {
       isVeg: item.isVeg || false,
       isSpicy: item.isSpicy || false,
       isPopular: item.isPopular || false,
+      // Time slot availability
+      isBreakfast: item.isBreakfast !== false,
+      isLunch: item.isLunch !== false,
+      isDinner: item.isDinner !== false,
+      isSnacks: item.isSnacks !== false,
       ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
       ingredientsText: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : '',
       dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [],
@@ -361,7 +371,7 @@ const FoodMenuManagementPage = () => {
       const formData = new FormData();
       formData.append('image', aiFormData.image);
 
-      const response = await api.post('/uploadMenu/upload', formData, {
+      const response = await api.post('/api/menu-extraction/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -383,7 +393,7 @@ const FoodMenuManagementPage = () => {
     }
 
     try {
-      const response = await api.post('/food/menu/batch', { items: ocrResult.items });
+      const response = await api.post('/api/menu/batch', { items: ocrResult.items });
       setFoodItems(prev => [...prev, ...response.data]);
       toast.success(`Successfully added ${response.data.length} menu items`);
       setIsAIDialogOpen(false);
@@ -867,6 +877,69 @@ const FoodMenuManagementPage = () => {
                             min="0"
                             className="transition-all duration-200 focus:ring-cyan-500"
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Time Slot Availability Section */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                        Time Slot Availability
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-4">Select which meal times this item should be available for</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isBreakfast"
+                            checked={formData.isBreakfast}
+                            onChange={(e) => setFormData({ ...formData, isBreakfast: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <div>
+                            <Label htmlFor="isBreakfast" className="text-sm font-medium text-gray-700 cursor-pointer">Breakfast</Label>
+                            <p className="text-xs text-gray-500">6:00 - 11:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isLunch"
+                            checked={formData.isLunch}
+                            onChange={(e) => setFormData({ ...formData, isLunch: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
+                          />
+                          <div>
+                            <Label htmlFor="isLunch" className="text-sm font-medium text-gray-700 cursor-pointer">Lunch</Label>
+                            <p className="text-xs text-gray-500">12:00 - 15:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isDinner"
+                            checked={formData.isDinner}
+                            onChange={(e) => setFormData({ ...formData, isDinner: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <div>
+                            <Label htmlFor="isDinner" className="text-sm font-medium text-gray-700 cursor-pointer">Dinner</Label>
+                            <p className="text-xs text-gray-500">18:00 - 22:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isSnacks"
+                            checked={formData.isSnacks}
+                            onChange={(e) => setFormData({ ...formData, isSnacks: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          />
+                          <div>
+                            <Label htmlFor="isSnacks" className="text-sm font-medium text-gray-700 cursor-pointer">Snacks</Label>
+                            <p className="text-xs text-gray-500">All day</p>
+                          </div>
                         </div>
                       </div>
                     </div>

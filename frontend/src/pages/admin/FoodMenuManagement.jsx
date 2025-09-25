@@ -19,12 +19,18 @@ import {
   Image as ImageIcon,
   ChefHat,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { useSettings } from '../../context/SettingsContext';
 
 const FoodMenuManagement = () => {
+  const { settings, updateSettings } = useSettings();
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,19 +97,6 @@ const FoodMenuManagement = () => {
         api.get('/food/menu/categories')
       ]);
 
-        status: itemsRes.status,
-        hasData: !!itemsRes.data,
-        dataKeys: itemsRes.data ? Object.keys(itemsRes.data) : [],
-        itemsCount: itemsRes.data?.data?.items?.length || 0,
-        itemsData: itemsRes.data?.data?.items
-      });
-        status: categoriesRes.status,
-        hasData: !!categoriesRes.data,
-        dataKeys: categoriesRes.data ? Object.keys(categoriesRes.data) : [],
-        categoriesCount: categoriesRes.data?.data?.length || 0,
-        categoriesData: categoriesRes.data?.data
-      });
-
       // Handle different response structures
       let items = [];
       if (itemsRes.data?.data?.items) {
@@ -124,16 +117,11 @@ const FoodMenuManagement = () => {
       setMenuItems(items);
       setCategories(cats);
     } catch (error) {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method
-      });
+      console.error('Error fetching menu data:', error);
 
       // Check if it's a 404 - endpoint doesn't exist
       if (error.response?.status === 404) {
+        console.log('Menu API endpoint not found');
       }
     } finally {
       setLoading(false);
@@ -315,7 +303,11 @@ const MenuItemCard = memo(({ item, onEdit, onDelete, onToggleAvailability }) => 
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-purple-500/20 hover:border-purple-500/40 transition-all"
+      className={`backdrop-blur-sm rounded-xl overflow-hidden border transition-all ${
+        isDarkMode
+          ? 'bg-slate-800/50 border-purple-500/20 hover:border-purple-500/40'
+          : 'bg-white/80 border-purple-500/30 hover:border-purple-500/50 shadow-lg'
+      }`}
     >
       {/* Image */}
       <div className="relative h-48">
@@ -388,14 +380,20 @@ const MenuItemCard = memo(({ item, onEdit, onDelete, onToggleAvailability }) => 
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-white mb-2">
+        <h3 className={`text-lg font-semibold mb-2 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {item.name}
         </h3>
-        <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+        <p className={`text-sm mb-3 line-clamp-2 ${
+          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+        }`}>
           {item.description}
         </p>
 
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className={`flex items-center justify-between text-xs ${
+          isDarkMode ? 'text-gray-500' : 'text-gray-600'
+        }`}>
           <span>{item.category?.name}</span>
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
@@ -453,6 +451,10 @@ MenuItemCard.displayName = 'MenuItemCard';
     }
   };
 
+  const toggleTheme = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -466,7 +468,11 @@ MenuItemCard.displayName = 'MenuItemCard';
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode
+        ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
+        : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+    }`}>
       <div className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -475,14 +481,26 @@ MenuItemCard.displayName = 'MenuItemCard';
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className={`text-4xl font-bold bg-clip-text text-transparent ${
+                isDarkMode
+                  ? 'bg-gradient-to-r from-purple-400 to-pink-400'
+                  : 'bg-gradient-to-r from-purple-600 to-pink-600'
+              }`}>
                 Food Menu Management
               </h1>
-              <p className="text-gray-400">
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
                 Manage your restaurant's menu items and categories
               </p>
             </div>
             <div className="flex gap-4">
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all"
+                title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {isDarkMode ? 'Light' : 'Dark'}
+              </button>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all"
@@ -505,7 +523,11 @@ MenuItemCard.displayName = 'MenuItemCard';
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-purple-500/20"
+          className={`backdrop-blur-sm rounded-xl p-6 mb-6 border transition-colors duration-300 ${
+            isDarkMode
+              ? 'bg-slate-800/50 border-purple-500/20'
+              : 'bg-white/80 border-purple-500/30 shadow-lg'
+          }`}
         >
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -516,14 +538,22 @@ MenuItemCard.displayName = 'MenuItemCard';
                   placeholder="Search menu items..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                    isDarkMode
+                      ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
                 />
               </div>
             </div>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className={`px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                isDarkMode
+                  ? 'bg-slate-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
             >
               <option value="all">All Categories</option>
               {categories.map(category => (
@@ -560,9 +590,13 @@ MenuItemCard.displayName = 'MenuItemCard';
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <ChefHat className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">No menu items found</h3>
-            <p className="text-gray-500">Create your first menu item to get started</p>
+            <ChefHat className={`w-16 h-16 mx-auto mb-4 ${
+              isDarkMode ? 'text-gray-600' : 'text-gray-400'
+            }`} />
+            <h3 className={`text-xl font-semibold mb-2 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>No menu items found</h3>
+            <p className={isDarkMode ? 'text-gray-500' : 'text-gray-600'}>Create your first menu item to get started</p>
           </motion.div>
         )}
 
@@ -579,11 +613,17 @@ MenuItemCard.displayName = 'MenuItemCard';
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-slate-800 rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden"
+                className={`rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden transition-colors duration-300 ${
+                  isDarkMode ? 'bg-slate-800' : 'bg-white'
+                }`}
               >
                 {/* Header - Fixed */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-700 flex-shrink-0">
-                  <h2 className="text-2xl font-bold text-white">
+                <div className={`flex items-center justify-between p-6 border-b flex-shrink-0 transition-colors duration-300 ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <h2 className={`text-2xl font-bold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
                   </h2>
                   <button
@@ -596,140 +636,235 @@ MenuItemCard.displayName = 'MenuItemCard';
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-6">
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Basic Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Item Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                          placeholder="e.g., Chicken Biryani"
-                        />
+                  <form onSubmit={handleSubmit} className="space-y-8">
+                    {/* Basic Information Section */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Basic Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Item Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={formData.name}
+                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="e.g., Chicken Biryani"
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`block font-medium mb-2 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            Price (LKR) *
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            step="0.01"
+                            min="0"
+                            value={formData.price}
+                            onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            placeholder="250.00"
+                          />
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="block text-white font-medium mb-2">
-                          Price (LKR) *
+                      <div className="mt-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Category *
                         </label>
-                        <input
-                          type="number"
+                        <select
                           required
-                          step="0.01"
-                          min="0"
-                          value={formData.price}
-                          onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                          className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                          placeholder="250.00"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-white font-medium mb-2">
-                        Category *
-                      </label>
-                      <select
-                        required
-                        value={formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                      >
-                        <option value="">Select a category</option>
-                        {categories.map(category => (
-                          <option key={category._id} value={category._id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-white font-medium mb-2">
-                        Description *
-                      </label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={formData.description}
-                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                        placeholder="Describe your menu item..."
-                      />
-                    </div>
-
-                    {/* Image Upload */}
-                    <div>
-                      <label className="block text-white font-medium mb-2">
-                        Item Image
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                          id="image-upload"
-                        />
-                        <label
-                          htmlFor="image-upload"
-                          className="flex items-center gap-2 px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white cursor-pointer hover:bg-slate-600 transition-colors"
+                          value={formData.category}
+                          onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
                         >
-                          <Upload className="w-5 h-5" />
-                          Choose Image
+                          <option value="">Select a category</option>
+                          {categories.map(category => (
+                            <option key={category._id} value={category._id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="mt-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Description *
                         </label>
-                        {selectedImageFile && (
-                          <span className="text-green-400 text-sm">
-                            {selectedImageFile.name}
-                          </span>
-                        )}
+                        <textarea
+                          required
+                          rows={3}
+                          value={formData.description}
+                          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                          placeholder="Describe your menu item..."
+                        />
                       </div>
                     </div>
 
-                    {/* Status Options */}
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 text-white cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.isAvailable}
-                          onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
-                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm">Available for Order</span>
-                      </label>
-                      <label className="flex items-center gap-3 text-white cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.isPopular}
-                          onChange={(e) => setFormData(prev => ({ ...prev, isPopular: e.target.checked }))}
-                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm">Mark as Popular</span>
-                      </label>
-                      <label className="flex items-center gap-3 text-white cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.isFeatured}
-                          onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
-                          className="rounded border-gray-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm">Mark as Featured</span>
-                      </label>
+                    {/* Media & Status Section */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Media & Status</h3>
+
+                      {/* Image Upload */}
+                      <div className="mb-6">
+                        <label className={`block font-medium mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          Item Image
+                        </label>
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                            id="image-upload"
+                          />
+                          <label
+                            htmlFor="image-upload"
+                            className={`flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition-colors ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white hover:bg-slate-600'
+                                : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Upload className="w-5 h-5" />
+                            Choose Image
+                          </label>
+                          {selectedImageFile && (
+                            <span className={`text-sm ${
+                              isDarkMode ? 'text-green-400' : 'text-green-600'
+                            }`}>
+                              {selectedImageFile.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status Options */}
+                      <div className="space-y-3">
+                        <h4 className={`text-md font-medium mb-3 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>Item Status</h4>
+                        <label className={`flex items-center gap-3 cursor-pointer ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={formData.isAvailable}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isAvailable: e.target.checked }))}
+                            className={`rounded focus:ring-purple-500 transition-colors ${
+                              isDarkMode
+                                ? 'border-gray-600 bg-slate-700 text-purple-600'
+                                : 'border-gray-300 bg-white text-purple-600'
+                            }`}
+                          />
+                          <span className="text-sm">Available for Order</span>
+                        </label>
+                        <label className={`flex items-center gap-3 cursor-pointer ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={formData.isPopular}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isPopular: e.target.checked }))}
+                            className={`rounded focus:ring-purple-500 transition-colors ${
+                              isDarkMode
+                                ? 'border-gray-600 bg-slate-700 text-purple-600'
+                                : 'border-gray-300 bg-white text-purple-600'
+                            }`}
+                          />
+                          <span className="text-sm">Mark as Popular</span>
+                        </label>
+                        <label className={`flex items-center gap-3 cursor-pointer ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={formData.isFeatured}
+                            onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
+                            className={`rounded focus:ring-purple-500 transition-colors ${
+                              isDarkMode
+                                ? 'border-gray-600 bg-slate-700 text-purple-600'
+                                : 'border-gray-300 bg-white text-purple-600'
+                            }`}
+                          />
+                          <span className="text-sm">Mark as Featured</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Help Section */}
+                    <div className={`p-4 rounded-lg border transition-colors duration-300 ${
+                      isDarkMode ? 'bg-blue-900/20 border-blue-700/50' : 'bg-blue-50 border-blue-200'
+                    }`}>
+                      <h4 className={`text-sm font-semibold mb-2 ${
+                        isDarkMode ? 'text-blue-300' : 'text-blue-800'
+                      }`}>💡 Tips for Better Menu Items</h4>
+                      <ul className={`text-xs space-y-1 ${
+                        isDarkMode ? 'text-blue-200' : 'text-blue-700'
+                      }`}>
+                        <li>• Use clear, descriptive names that highlight key ingredients</li>
+                        <li>• Keep descriptions concise but informative (50-100 words)</li>
+                        <li>• High-quality images improve customer engagement</li>
+                        <li>• Mark popular items to highlight them in the menu</li>
+                        <li>• Featured items appear prominently on the main menu page</li>
+                      </ul>
                     </div>
                   </form>
                 </div>
 
                 {/* Footer - Fixed */}
-                <div className="flex justify-end gap-4 p-6 border-t border-gray-700 bg-slate-800/95 backdrop-blur-sm flex-shrink-0">
+                <div className={`flex justify-end gap-4 p-6 border-t backdrop-blur-sm flex-shrink-0 transition-colors duration-300 ${
+                  isDarkMode
+                    ? 'border-gray-700 bg-slate-800/95'
+                    : 'border-gray-200 bg-white/95'
+                }`}>
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                    className={`px-6 py-3 rounded-lg transition-colors font-medium ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                        : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                    }`}
                   >
                     Cancel
                   </button>
@@ -760,15 +895,21 @@ MenuItemCard.displayName = 'MenuItemCard';
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-slate-800 rounded-2xl p-6 w-full max-w-md"
+                className={`rounded-2xl p-6 w-full max-w-md transition-colors duration-300 ${
+                  isDarkMode ? 'bg-slate-800' : 'bg-white'
+                }`}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className={`text-2xl font-bold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
                     Add New Category
                   </h2>
                   <button
                     onClick={() => setShowCategoryModal(false)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                    className={`p-2 transition-colors ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
                     <X className="w-6 h-6" />
                   </button>
@@ -784,7 +925,9 @@ MenuItemCard.displayName = 'MenuItemCard';
                   handleCreateCategory(categoryData);
                 }} className="space-y-4">
                   <div>
-                    <label className="block text-white font-medium mb-2">
+                    <label className={`block font-medium mb-2 ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
                       Category Name *
                     </label>
                     <input
@@ -792,27 +935,43 @@ MenuItemCard.displayName = 'MenuItemCard';
                       name="categoryName"
                       required
                       placeholder="e.g., Main Course, Appetizers"
-                      className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                        isDarkMode
+                          ? 'bg-slate-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-white font-medium mb-2">
+                    <label className={`block font-medium mb-2 ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
                       Description
                     </label>
                     <textarea
                       name="categoryDescription"
                       rows={3}
                       placeholder="Brief description of this category"
-                      className="w-full px-4 py-3 bg-slate-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:border-purple-500 transition-colors duration-300 ${
+                        isDarkMode
+                          ? 'bg-slate-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                     />
                   </div>
 
-                  <div className="flex justify-end gap-4 pt-4 border-t border-gray-700">
+                  <div className={`flex justify-end gap-4 pt-4 border-t transition-colors duration-300 ${
+                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(false)}
-                      className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      className={`px-6 py-3 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? 'bg-gray-600 text-white hover:bg-gray-700'
+                          : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                      }`}
                     >
                       Cancel
                     </button>

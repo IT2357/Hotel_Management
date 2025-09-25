@@ -87,7 +87,35 @@ export const extractMenu = async (req, res) => {
   try {
     console.log('🔄 Starting menu extraction...');
     console.log('🔍 User authenticated:', !!req.user, 'Role:', req.user?.role);
-    console.log('🔍 Input type detection - File:', !!req.file, 'URL:', !!req.body.url, 'Path:', !!req.body.path);
+    console.log('🔍 Raw body fields:', Object.keys(req.body || {}));
+    console.log('🔍 Raw body values:', req.body);
+    console.log('🔍 Files object:', req.files ? Object.keys(req.files) : 'none');
+    if (req.files) {
+      Object.keys(req.files).forEach(key => {
+        console.log(`🔍 Files in '${key}':`, req.files[key].length, 'files');
+      });
+    }
+
+    // With upload.any(), files are in req.files as an array
+    const uploadedFile = req.files && req.files.length > 0 ? req.files.find(f => f.fieldname === 'file') : null;
+    const hasFile = !!uploadedFile;
+    const hasUrl = req.body.url && req.body.url.trim();
+    const hasPath = req.body.path && req.body.path.trim();
+
+    console.log('🔍 Input type detection - File:', !!hasFile, 'URL:', !!hasUrl, 'Path:', !!hasPath);
+
+    // Set up req.file for compatibility if a file was uploaded
+    if (hasFile) {
+      req.file = {
+        fieldname: uploadedFile.fieldname,
+        originalname: uploadedFile.originalname,
+        encoding: uploadedFile.encoding,
+        mimetype: uploadedFile.mimetype,
+        buffer: uploadedFile.buffer,
+        size: uploadedFile.size
+      };
+      console.log('✅ File processed from req.files:', req.file.originalname);
+    }
 
     let extractionData = {
       source: { type: '', value: '' },

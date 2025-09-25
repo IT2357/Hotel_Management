@@ -8,28 +8,40 @@ import { validationResult } from "express-validator";
 // @access  Public
 export const getMenuItems = async (req, res) => {
   try {
-    const { 
-      category, 
-      type, 
-      spiceLevel, 
-      dietaryTags, 
-      active, 
+    const {
+      category,
+      type,
+      spiceLevel,
+      dietaryTags,
+      active,
       available,
       search,
       page = 1,
-      limit = 50
+      limit = 50,
+      applyTimeFilter = 'true' // Apply time-based filtering by default
     } = req.query;
 
     // Build filter object
     const filter = {};
-    
+
     if (category) filter.category = category;
     if (type) filter.type = type;
     if (spiceLevel) filter.spiceLevel = spiceLevel;
     if (dietaryTags) filter.dietaryTags = { $in: dietaryTags.split(',') };
     if (active !== undefined) filter.isActive = active === 'true';
     if (available !== undefined) filter.isAvailable = available === 'true';
-    
+
+    // Apply time-based filtering for meal availability
+    if (applyTimeFilter === 'true') {
+      const { getCurrentMeal, getAvailabilityFilter } = await import('../utils/timeUtils.js');
+      const currentMeal = await getCurrentMeal();
+      const timeFilter = getAvailabilityFilter(currentMeal);
+
+      // Merge time-based filter with existing filters
+      Object.assign(filter, timeFilter);
+      console.log('🕐 Applied time-based filter for meal:', currentMeal, 'Filter:', timeFilter);
+    }
+
     // Text search
     if (search) {
       filter.$text = { $search: search };

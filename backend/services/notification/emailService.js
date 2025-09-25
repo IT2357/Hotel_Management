@@ -1,7 +1,6 @@
 import nodemailer from "nodemailer";
 import mongoose from "mongoose";
 import AdminSettings from "../../models/AdminSettings.js";
-import mongoose from "mongoose";
 
 const isEmailEnabled = process.env.EMAIL_ENABLED === "true";
 

@@ -104,4 +104,7 @@ export const handleMulterError = (error, req, res, next) => {
 // Single file upload middleware
 export const uploadSingle = upload.single('file');
 
+// Middleware for menu extraction that accepts any fields
+export const uploadForMenuExtraction = upload.any();
+
 export default upload;

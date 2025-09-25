@@ -4,7 +4,7 @@ import getDashboardPath from '../../utils/GetDashboardPath';
 import usePermissions from '../../hooks/usePermissions';
 
 export function ProtectedRoute({ children, roles = [], permissions = [] }) {
-  const { user, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
   const { hasAllPermissions } = usePermissions();
 
@@ -26,14 +26,14 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
   }
 
   //If user is not authenticated and trying to access a protected route
-  if (!user) {
-    if (publicRoutes.includes(location.pathname)) {
-      console.log('Allowing access to public route:', location.pathname);
-      return children;
-    }
-    console.log('Redirecting to /login', { from: location.pathname });
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+   if (!isAuthenticated) {
+     if (publicRoutes.includes(location.pathname)) {
+       console.log('Allowing access to public route:', location.pathname);
+       return children;
+     }
+     console.log('Redirecting to /login', { from: location.pathname });
+     return <Navigate to="/login" state={{ from: location }} replace />;
+   }
 
   console.log('ProtectedRoute user:', {
     userId: user._id,

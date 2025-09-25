@@ -6,50 +6,105 @@ import 'dotenv/config';
 
 const categories = [
   {
+    name: 'Breakfast',
+    slug: 'breakfast',
+    description: 'Morning meals and breakfast items',
+    displayOrder: 1,
+    isActive: true
+  },
+  {
     name: 'Appetizers & Starters',
     slug: 'appetizers-starters',
     description: 'Perfect way to begin your culinary journey',
-    displayOrder: 1,
+    displayOrder: 2,
     isActive: true
   },
   {
     name: 'Main Courses',
     slug: 'main-courses',
     description: 'Hearty and satisfying main dishes',
-    displayOrder: 2,
+    displayOrder: 3,
     isActive: true
   },
   {
     name: 'Seafood Specialties',
     slug: 'seafood-specialties',
     description: 'Fresh catches from the ocean',
-    displayOrder: 3,
+    displayOrder: 4,
     isActive: true
   },
   {
     name: 'Vegetarian Delights',
     slug: 'vegetarian-delights',
     description: 'Plant-based culinary masterpieces',
-    displayOrder: 4,
+    displayOrder: 5,
     isActive: true
   },
   {
     name: 'Desserts & Sweets',
     slug: 'desserts-sweets',
     description: 'Sweet endings to your meal',
-    displayOrder: 5,
+    displayOrder: 6,
     isActive: true
   },
   {
     name: 'Beverages',
     slug: 'beverages',
     description: 'Refreshing drinks and specialty coffees',
-    displayOrder: 6,
+    displayOrder: 7,
     isActive: true
   }
 ];
 
 const menuItems = [
+  // Breakfast
+  {
+    name: 'Idli with Sambar',
+    description: 'Steamed rice cakes served with lentil soup and coconut chutney',
+    price: 250,
+    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500',
+    ingredients: ['Rice flour', 'Urad dal', 'Coconut', 'Tamarind', 'Spices'],
+    allergens: [],
+    nutritionalInfo: {
+      calories: 180,
+      protein: 6,
+      carbs: 32,
+      fat: 3
+    },
+    dietaryTags: ['vegetarian', 'vegan'],
+    spiceLevel: 'mild',
+    cookingTime: 15,
+    portions: [
+      { name: 'Regular', price: 250 }
+    ],
+    isAvailable: true,
+    isPopular: true,
+    isFeatured: false
+  },
+  {
+    name: 'Dosa',
+    description: 'Crispy fermented crepe filled with potato masala',
+    price: 300,
+    image: 'https://images.unsplash.com/photo-1589647363585-f4a7d3877b5c?w=500',
+    ingredients: ['Rice', 'Urad dal', 'Potatoes', 'Onions', 'Spices'],
+    allergens: [],
+    nutritionalInfo: {
+      calories: 220,
+      protein: 8,
+      carbs: 35,
+      fat: 5
+    },
+    dietaryTags: ['vegetarian', 'vegan'],
+    spiceLevel: 'mild',
+    cookingTime: 20,
+    portions: [
+      { name: 'Regular', price: 300 }
+    ],
+    isAvailable: true,
+    isPopular: true,
+    isFeatured: false
+  },
+
   // Appetizers & Starters
   {
     name: 'Truffle Arancini',
@@ -372,16 +427,29 @@ async function seedMenuData() {
     // Assign categories to menu items
     const menuItemsWithCategories = menuItems.map((item, index) => {
       let categorySlug;
-      if (index < 2) categorySlug = 'appetizers-starters';
-      else if (index < 4) categorySlug = 'main-courses';
-      else if (index < 6) categorySlug = 'seafood-specialties';
-      else if (index < 8) categorySlug = 'vegetarian-delights';
-      else if (index < 10) categorySlug = 'desserts-sweets';
+      if (index < 2) categorySlug = 'breakfast';
+      else if (index < 4) categorySlug = 'appetizers-starters';
+      else if (index < 6) categorySlug = 'main-courses';
+      else if (index < 8) categorySlug = 'seafood-specialties';
+      else if (index < 10) categorySlug = 'vegetarian-delights';
+      else if (index < 12) categorySlug = 'desserts-sweets';
       else categorySlug = 'beverages';
+
+      // Generate slug manually
+      const baseSlug = item.name
+        .toLowerCase()
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim()
+        .replace(/^-|-$/g, '');
+
+      const slug = `${baseSlug}-${Date.now()}-${index}`;
 
       return {
         ...item,
-        category: categoryMap[categorySlug]
+        category: categoryMap[categorySlug],
+        slug: slug
       };
     });
 
