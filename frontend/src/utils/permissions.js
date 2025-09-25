@@ -11,6 +11,7 @@ export const PERMISSION_MODULES = [
   "finance",
   "reports",
   "system",
+  "settings"
 ];
 
 export const PERMISSION_ACTIONS = [
@@ -18,10 +19,10 @@ export const PERMISSION_ACTIONS = [
   "read",
   "update",
   "delete",
-//   "approve",
-//   "reject",
-//   "export",
-//   "manage",
+  "approve",
+  "reject",
+  "export",
+  "manage",
 ];
 
 // Helper to flatten adminProfile permissions array -> Set("module:action")

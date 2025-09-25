@@ -16,6 +16,7 @@ const permissionSchema = new mongoose.Schema(
         "finance",
         "reports",
         "system",
+        "settings"
       ],
     },
     actions: [

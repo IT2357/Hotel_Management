@@ -2,102 +2,251 @@ import nodemailer from "nodemailer";
 import mongoose from "mongoose";
 import AdminSettings from "../../models/AdminSettings.js";
 
-const isEmailEnabled = process.env.EMAIL_ENABLED === "true";
-
+const isEmailEnabled = process.env.EMAIL_ENABLED !== "false"; // Default to true if not set
 let transporter = null;
+let isInitializing = false;
+let initializationPromise = null;
 
-const initializeTransporter = async () => {
+const initializeTransporter = async (forceReinitialize = false) => {
   if (!isEmailEnabled) {
     console.log("📧 Email service is disabled (EMAIL_ENABLED=false)");
     return null;
   }
 
-  try {
-    console.log("Checking MongoDB connection state...");
-    if (mongoose.connection.readyState !== 1) {
-      console.warn(
-        "MongoDB connection not ready, skipping transporter initialization"
-      );
-      return null;
-    }
-
-    const settings = await AdminSettings.findOne().lean();
-    const smtpConfig = {
-      host: settings?.smtpHost || process.env.SMTP_HOST,
-      port: settings?.smtpPort || parseInt(process.env.SMTP_PORT, 10) || 587,
-      secure: settings?.smtpSecure ?? process.env.SMTP_SECURE === "true",
-      auth:
-        (settings?.smtpUser || process.env.SMTP_USER) &&
-        (settings?.smtpPassword || process.env.SMTP_PASS)
-          ? {
-              user: settings?.smtpUser || process.env.SMTP_USER,
-              pass: settings?.smtpPassword || process.env.SMTP_PASS,
-            }
-          : undefined,
-    };
-
-    console.log("Initializing transporter with:", {
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      secure: smtpConfig.secure,
-      user: smtpConfig.auth?.user,
-    });
-
-    const requiredFields = ["host", "port", "auth.user", "auth.pass"];
-    const missingFields = requiredFields.filter(
-      (field) => !field.split(".").reduce((obj, key) => obj?.[key], smtpConfig)
-    );
-
-    if (missingFields.length > 0) {
-      console.warn(
-        `Missing email configuration: ${missingFields.join(
-          ", "
-        )}. Transporter not initialized.`
-      );
-      return null;
-    }
-
-    transporter = nodemailer.createTransport(smtpConfig);
-    await transporter.verify();
-    console.log("✅ SMTP server is ready to send emails");
-    return transporter;
-  } catch (error) {
-    console.error("Failed to initialize email transporter:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    return null;
+  // If already initializing, return the existing promise to prevent multiple initializations
+  if (isInitializing && initializationPromise && !forceReinitialize) {
+    console.log("📧 Email transporter initialization already in progress...");
+    return initializationPromise;
   }
+
+  // If we already have a transporter and not forcing reinitialization, return it
+  if (transporter && !forceReinitialize) {
+    return transporter;
+  }
+
+  // Create a new promise for the initialization
+  initializationPromise = (async () => {
+    isInitializing = true;
+    console.log("🔧 Initializing email transporter...");
+    
+    try {
+      console.log("🔍 Checking MongoDB connection state...");
+      if (mongoose.connection.readyState !== 1) {
+        const error = new Error("MongoDB connection not ready");
+        console.warn(error.message);
+        throw error;
+      }
+
+      const settings = await AdminSettings.findOne().lean();
+      if (!settings) {
+        const error = new Error("No settings found in database");
+        console.warn(error.message);
+        throw error;
+      }
+
+      // Get SMTP config from environment variables or database
+      const smtpConfig = {
+        // Use environment variables if available, otherwise use database settings
+        host: process.env.SMTP_HOST || settings?.smtpHost,
+        port: parseInt(process.env.SMTP_PORT, 10) || settings?.smtpPort || 587,
+        secure: process.env.SMTP_SECURE === "true" || settings?.smtpSecure || false,
+        tls: {
+          rejectUnauthorized: false // For self-signed certificates
+        },
+        debug: true, // Enable debug logging
+        logger: true // Enable logging with console.log
+      };
+
+      // Handle authentication separately to ensure proper password handling
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        // Use environment variables for auth
+        smtpConfig.auth = {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        };
+      } else if (settings?.smtpUser) {
+        // Use database settings for auth
+        // Create a new AdminSettings instance to trigger the getter for password decryption
+        const settingsInstance = new AdminSettings(settings);
+        const decryptedPassword = settingsInstance.smtpPassword;
+        
+        smtpConfig.auth = {
+          user: settings.smtpUser,
+          pass: decryptedPassword
+        };
+      }
+
+      // Remove auth if credentials are not provided
+      if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
+        console.warn("⚠️ SMTP credentials not provided, email sending will be disabled");
+        smtpConfig.auth = undefined;
+      }
+
+      console.log("🔧 SMTP Configuration:", {
+        connection: {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          secure: smtpConfig.secure,
+          tlsRejectUnauthorized: smtpConfig.tls?.rejectUnauthorized
+        },
+        authentication: {
+          enabled: !!smtpConfig.auth,
+          user: smtpConfig.auth?.user || 'not configured',
+          passLength: smtpConfig.auth?.pass ? `${smtpConfig.auth.pass.length} chars` : 'not set',
+          source: {
+            host: process.env.SMTP_HOST ? 'env' : 'db',
+            user: process.env.SMTP_USER ? 'env' : 'db',
+            pass: process.env.SMTP_PASS ? 'env' : 'db',
+            port: process.env.SMTP_PORT ? 'env' : 'db',
+            secure: process.env.SMTP_SECURE ? 'env' : 'db'
+          }
+        },
+        debug: {
+          enabled: smtpConfig.debug,
+          logger: smtpConfig.logger ? 'enabled' : 'disabled'
+        }
+      });
+      
+      if (smtpConfig.auth?.pass) {
+        console.log("🔑 Password decryption:", {
+          isEncrypted: smtpConfig.auth.pass.includes(':') ? 'yes' : 'no',
+          firstChars: smtpConfig.auth.pass.substring(0, 2) + '...',
+          lastChars: '...' + smtpConfig.auth.pass.slice(-2)
+        });
+      }
+
+      const requiredFields = ["host", "port"];
+      if (smtpConfig.auth) {
+        requiredFields.push("auth.user", "auth.pass");
+      }
+      
+      const missingFields = requiredFields.filter(
+        (field) => !field.split(".").reduce((obj, key) => obj?.[key], smtpConfig)
+      );
+
+      if (missingFields.length > 0) {
+        const error = new Error(`Missing required SMTP configuration: ${missingFields.join(", ")}`);
+        console.error("❌ SMTP configuration error:", error.message);
+        throw error;
+      }
+
+      // Create the transporter
+      transporter = nodemailer.createTransport(smtpConfig);
+      
+      // Verify the connection configuration
+      try {
+        await transporter.verify();
+        console.log("✅ SMTP server is ready to send emails");
+        return transporter;
+      } catch (verifyError) {
+        console.error("❌ SMTP connection verification failed:", verifyError);
+        throw verifyError;
+      }
+    } catch (error) {
+      console.error("Failed to initialize email transporter:", {
+        message: error.message,
+        stack: error.stack,
+      });
+      return null;
+    } finally {
+      isInitializing = false;
+    }
+  })();
+
+  return initializationPromise;
 };
 
 class EmailService {
   // Base email sending method
   static async sendEmail({ to, subject, html, text }) {
     if (!isEmailEnabled) {
-      throw new Error("Email service is disabled");
+      console.warn("📧 Email sending is disabled (EMAIL_ENABLED=false)");
+      return { success: false, message: "Email sending is disabled" };
     }
-    if (!transporter) {
-      throw new Error("Email transporter not configured");
-    }
-    if (!to || !subject || (!html && !text)) {
-      throw new Error("Missing required email parameters");
-    }
+
     try {
+      // Ensure transporter is initialized
+      if (!transporter) {
+        console.log("📧 Initializing email transporter before sending...");
+        await initializeTransporter();
+      }
+
+      if (!transporter) {
+        throw new Error("❌ Email transporter could not be initialized");
+      }
+
+      if (!to || !subject || (!html && !text)) {
+        throw new Error("Missing required email parameters");
+      }
+
+      // Get the latest settings in case they were updated
       const settings = await AdminSettings.findOne().lean();
-      const from =
-        settings?.smtpFrom || process.env.SMTP_FROM || "noreply@grandhotel.com";
+      const from = settings?.smtpFrom || process.env.SMTP_FROM || 'noreply@hotel.com';
+      const hotelName = settings?.hotelName || 'Hotel Management';
+
+      console.log(`📨 Sending email to: ${to}`);
+      console.log(`📝 Subject: ${subject}`);
+      
       const mailOptions = {
-        from: `"Hotel Management System" <${from}>`,
+        from: `"${hotelName}" <${from}>`,
         to: Array.isArray(to) ? to.join(", ") : to,
         subject,
-        html,
-        text: text || html.replace(/<[^>]*>/g, ""),
+        text: text || (html ? html.replace(/<[^>]*>/g, '') : ''), // Convert HTML to plain text if no text provided
+        html: html || text, // Use text as HTML if no HTML provided
+        envelope: {
+          from: `"${hotelName}" <${from}>`,
+          to: Array.isArray(to) ? to[0] : to
+        },
+        tls: {
+          rejectUnauthorized: false
+        }
       };
-      const info = await transporter.sendMail(mailOptions);
-      console.log("📧 Email sent:", info.messageId);
-      return info;
+
+      try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("✅ Message sent: %s", info.messageId);
+        
+        // If using ethereal.email, log the preview URL
+        if (info.envelope.from.includes('ethereal.email')) {
+          const previewUrl = nodemailer.getTestMessageUrl(info);
+          console.log("📧 Preview URL: %s", previewUrl);
+        }
+
+        return { 
+          success: true, 
+          messageId: info.messageId,
+          previewUrl: nodemailer.getTestMessageUrl(info)
+        };
+      } catch (sendError) {
+        console.error("❌ Failed to send email:", sendError);
+        
+        // If the error is related to authentication or connection, try to reinitialize the transporter
+        if (sendError.code === 'EAUTH' || sendError.code === 'ECONNECTION') {
+          console.log("🔄 Attempting to reinitialize transporter after error...");
+          try {
+            await this.reinitializeTransporter();
+            // Retry sending the email
+            console.log("🔄 Retrying to send email after reinitialization...");
+            const retryInfo = await transporter.sendMail(mailOptions);
+            console.log("✅ Message sent successfully after retry:", retryInfo.messageId);
+            return { 
+              success: true, 
+              messageId: retryInfo.messageId,
+              previewUrl: nodemailer.getTestMessageUrl(retryInfo)
+            };
+          } catch (retryError) {
+            console.error("❌ Failed to send email after retry:", retryError);
+            throw new Error(`Failed to send email after retry: ${retryError.message}`);
+          }
+        }
+        
+        throw sendError;
+      }
     } catch (error) {
-      console.error("❌ Email sending failed:", error);
+      console.error("❌ Error in sendEmail:", {
+        message: error.message,
+        stack: error.stack,
+      });
       throw error;
     }
   }
@@ -147,7 +296,27 @@ class EmailService {
 
   // Reinitialize transporter after settings update
   static async reinitializeTransporter() {
-    transporter = await initializeTransporter();
+    console.log("🔄 Reinitializing email transporter...");
+    try {
+      // Close existing transporter if it exists
+      if (transporter) {
+        try {
+          await transporter.close();
+          console.log("✅ Closed existing transporter");
+        } catch (closeError) {
+          console.warn("⚠️ Error closing existing transporter:", closeError.message);
+        }
+      }
+      
+      // Reset transporter and force reinitialization
+      transporter = null;
+      const newTransporter = await initializeTransporter(true);
+      console.log("✅ Email transporter reinitialized successfully");
+      return newTransporter;
+    } catch (error) {
+      console.error("❌ Failed to reinitialize email transporter:", error);
+      throw error;
+    }
   }
 
   // Existing email methods (unchanged)
@@ -245,7 +414,10 @@ class EmailService {
 
   static async sendInvitationEmail(email, role, token, expiresInHours) {
     const subject = `Invitation to Join as ${role}`;
-    const invitationLink = `${process.env.FRONTEND_URL}/accept-invitation?token=${token}`;
+    // Import config to get FRONTEND_URL
+    const config = (await import('../config/environment.js')).default;
+    const baseUrl = config.FRONTEND_URL || 'http://localhost:5173';
+    const invitationLink = `${baseUrl}/accept-invitation?token=${token}`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2c3e50;">You're Invited!</h2>
