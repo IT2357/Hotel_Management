@@ -43,6 +43,9 @@ import TaskManagementPage from './pages/staff/TaskManagementPage.jsx';
 import RoomStatusPage from './pages/staff/RoomStatusPage.jsx';
 import KeyCardManagementPage from './pages/staff/KeyCardManagementPage.jsx';
 import SchedulePage from './pages/staff/SchedulePage.jsx';
+import Roomspage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRoom from './pages/admin/AdminAddRooms.jsx';
+import AdminEditRoom from './pages/admin/AdminEditRoomsPage.jsx';
 
 const App = () => {
   return (
@@ -233,6 +236,34 @@ const App = () => {
             }
           />
 
+        <Route
+            path="/admin/rooms"
+            element={<ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <Roomspage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>}
+          />
+          <Route
+            path="/admin/add-room"
+            element={
+                <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRoom />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+             <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoom />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/refunds"
             element={
