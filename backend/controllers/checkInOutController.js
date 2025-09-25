@@ -307,7 +307,7 @@ export const getEligibleBookingsForGuest = async (req, res) => {
       status: 'Confirmed',
       checkOut: { $gte: now },
     })
-      .populate('roomId', 'number type')
+      .populate('roomId', 'roomNumber type')
       .select('bookingNumber status checkIn checkOut roomId');
 
     if (!confirmedBookings.length) {
@@ -331,7 +331,7 @@ export const getEligibleBookingsForGuest = async (req, res) => {
         status: b.status,
         checkIn: b.checkIn,
         checkOut: b.checkOut,
-        room: b.roomId ? { number: b.roomId.number, type: b.roomId.type } : null,
+        room: b.roomId ? { roomNumber: b.roomId.roomNumber, type: b.roomId.type } : null,
       }));
 
     return res.status(200).json(eligible);
@@ -346,7 +346,7 @@ export const getCheckInDetails = async (req, res) => {
     const { id } = req.params;
     const checkIn = await CheckInOut.findById(id)
       .populate('guest', 'firstName lastName email phone')
-      .populate('room', 'number type floor')
+      .populate('room', 'roomNumber type floor')
       .populate('booking', 'checkIn checkOut bookingNumber status');
     
     if (!checkIn) {
@@ -400,8 +400,10 @@ export const getGuestCheckInStatus = async (req, res) => {
       guest: guestId,
       status: { $in: ['pre_checkin', 'checked_in'] } // Include both pre_checkin and checked_in
     })
-      .populate('room', 'number type')
+      .populate('guest', 'firstName lastName email phone')
+      .populate('room', 'roomNumber type')
       .populate('booking', 'checkIn checkOut bookingNumber status')
+      .populate('keyCard', 'cardNumber status expirationDate')
       .sort({ checkInTime: -1 });
 
     console.log('📊 Backend: Found check-in record:', checkInStatus ? checkInStatus._id : 'None found');
@@ -414,7 +416,7 @@ export const getGuestCheckInStatus = async (req, res) => {
 
     console.log('✅ Backend: Returning check-in data:', {
       id: checkInStatus._id,
-      room: checkInStatus.room?.number,
+      room: checkInStatus.room?.roomNumber,
       status: checkInStatus.status,
       checkInTime: checkInStatus.checkInTime
     });

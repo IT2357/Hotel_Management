@@ -1,7 +1,7 @@
 // scripts/seedKeyCards.js
 import mongoose from 'mongoose';
-import KeyCard from '../backend/models/KeyCard.js';
-import { connectDB } from '../backend/config/database.js';
+import KeyCard from '../models/KeyCard.js';
+import { connectDB } from '../config/database.js';
 
 const seedKeyCards = async () => {
   try {

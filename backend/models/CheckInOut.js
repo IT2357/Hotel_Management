@@ -34,6 +34,7 @@ const checkInOutSchema = new mongoose.Schema(
     },
     keyCardNumber: { type: String },
     keyCardAssignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    keyCard: { type: mongoose.Schema.Types.ObjectId, ref: "KeyCard" },
     keyCardReturned: { type: Boolean, default: false },
     preferences: {
       roomService: { type: Boolean, default: false },

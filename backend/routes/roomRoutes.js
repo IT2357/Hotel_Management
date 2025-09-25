@@ -7,7 +7,7 @@ import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 const router = express.Router();
 
 router.get("/", getAllRooms);
-router.get("/:id", getRoomById);
+// Note: Keep static routes (like "/available") before dynamic routes (like "/:id") to avoid conflicts
 
 // Get available rooms for specific dates
 router.get("/available", optionalAuth, async (req, res) => {
@@ -133,5 +133,8 @@ router.get("/:roomId/availability", optionalAuth, async (req, res) => {
     });
   }
 });
+
+// Keep this generic dynamic route last to avoid catching static paths like "/available"
+router.get("/:id", getRoomById);
 
 export default router;

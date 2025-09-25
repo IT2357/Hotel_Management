@@ -37,6 +37,7 @@ import messageRoutes from "./routes/messages.js";
 import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
+import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
 
 
 const app = express();
@@ -215,6 +216,7 @@ const startServer = async () => {
   app.use("/api/tasks", taskRoutes);
   app.use('/api/key-cards', keyCardRoutes);
   app.use("/api/staff", staffRoutes);
+  app.use("/api/staff", staffTaskRoutes); // Staff task routes
   app.use("/api/messages", messageRoutes);
 
   app.use("/api", (req, res) => {
