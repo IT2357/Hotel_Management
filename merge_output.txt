@@ -1,0 +1,65 @@
+Auto-merging backend/config/environment.js
+Auto-merging backend/controllers/rooms/roomController.js
+CONFLICT (content): Merge conflict in backend/controllers/rooms/roomController.js
+Auto-merging backend/middleware/validation.js
+CONFLICT (content): Merge conflict in backend/middleware/validation.js
+Auto-merging backend/models/AdminSettings.js
+CONFLICT (content): Merge conflict in backend/models/AdminSettings.js
+Auto-merging backend/package-lock.json
+CONFLICT (content): Merge conflict in backend/package-lock.json
+Auto-merging backend/package.json
+CONFLICT (content): Merge conflict in backend/package.json
+Auto-merging backend/routes/roomRoutes.js
+CONFLICT (content): Merge conflict in backend/routes/roomRoutes.js
+Auto-merging backend/server.js
+CONFLICT (content): Merge conflict in backend/server.js
+Auto-merging frontend/package-lock.json
+CONFLICT (content): Merge conflict in frontend/package-lock.json
+Auto-merging frontend/package.json
+CONFLICT (content): Merge conflict in frontend/package.json
+Auto-merging frontend/src/App.jsx
+CONFLICT (content): Merge conflict in frontend/src/App.jsx
+warning: Cannot merge binary files: frontend/src/assets/images/guest/hotel-hero.jpg (HEAD vs. ahsan1allfeatures)
+Auto-merging frontend/src/assets/images/guest/hotel-hero.jpg
+CONFLICT (add/add): Merge conflict in frontend/src/assets/images/guest/hotel-hero.jpg
+Auto-merging frontend/src/components/rooms/CompareModal.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/CompareModal.jsx
+Auto-merging frontend/src/components/rooms/FilterSidebar.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/FilterSidebar.jsx
+Auto-merging frontend/src/components/rooms/FloorSelector.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/FloorSelector.jsx
+Auto-merging frontend/src/components/rooms/HotelHero.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/HotelHero.jsx
+Auto-merging frontend/src/components/rooms/RoomCard.jsx
+CONFLICT (content): Merge conflict in frontend/src/components/rooms/RoomCard.jsx
+Auto-merging frontend/src/components/rooms/ui/calendar.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/ui/calendar.jsx
+Auto-merging frontend/src/components/rooms/ui/form.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/ui/form.jsx
+Auto-merging frontend/src/components/rooms/ui/label.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/ui/label.jsx
+Auto-merging frontend/src/components/rooms/ui/popover.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/components/rooms/ui/popover.jsx
+Auto-merging frontend/src/layout/admin/AdminSidebar.jsx
+CONFLICT (modify/delete): frontend/src/pages/RoomsPage.jsx deleted in HEAD and modified in ahsan1allfeatures.  Version ahsan1allfeatures of frontend/src/pages/RoomsPage.jsx left in tree.
+Auto-merging frontend/src/pages/admin/AdminAddRooms.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/pages/admin/AdminAddRooms.jsx
+Auto-merging frontend/src/pages/admin/AdminEditRoomsPage.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/pages/admin/AdminEditRoomsPage.jsx
+Auto-merging frontend/src/pages/admin/AdminInvoicesPage.jsx
+Auto-merging frontend/src/pages/admin/AdminRoomsPage.jsx
+CONFLICT (add/add): Merge conflict in frontend/src/pages/admin/AdminRoomsPage.jsx
+Auto-merging frontend/src/pages/guest/GuestServiceRequestsPage.jsx
+Auto-merging frontend/src/services/notificationService.js
+CONFLICT (content): Merge conflict in frontend/src/services/notificationService.js
+Auto-merging frontend/src/services/roomService.js
+CONFLICT (content): Merge conflict in frontend/src/services/roomService.js
+Auto-merging frontend/tailwind.config.js
+CONFLICT (content): Merge conflict in frontend/tailwind.config.js
+Auto-merging frontend/vite.config.js
+CONFLICT (content): Merge conflict in frontend/vite.config.js
+Auto-merging package-lock.json
+CONFLICT (content): Merge conflict in package-lock.json
+Auto-merging package.json
+CONFLICT (content): Merge conflict in package.json
+Automatic merge failed; fix conflicts and then commit the result.
