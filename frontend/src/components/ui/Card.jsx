@@ -89,4 +89,7 @@ function CardFooter({
 
 // Named export for backward compatibility
 const CardComponent = Card;
-export { CardComponent as Card };
+export { CardComponent as Card, CardHeader, CardTitle, CardContent, CardFooter };
+
+// Default export
+export default Card;
