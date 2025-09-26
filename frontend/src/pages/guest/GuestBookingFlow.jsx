@@ -19,6 +19,37 @@ const GuestBookingFlow = () => {
   const location = useLocation();
   const { user, isAuthenticated } = useContext(AuthContext);
 
+  const [step, setStep] = useState(1);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(location.state?.roomId ? {
+    roomId: location.state.roomId,
+    title: location.state.roomTitle,
+    type: location.state.roomType,
+    pricePerNight: location.state.pricePerNight
+  } : null);
+  const [bookingData, setBookingData] = useState({
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+    roomId: location.state?.roomId || '',
+    specialRequests: '',
+    foodPlan: 'None',
+    selectedMeals: []
+  });
+  const [paymentData, setPaymentData] = useState({
+    paymentMethod: 'card',
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvv: '',
+    cardholderName: '',
+    bankDetails: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
+
+
   // Check authentication on component mount
   useEffect(() => {
     if (!isAuthenticated) {
@@ -55,36 +86,6 @@ const GuestBookingFlow = () => {
       </div>
     );
   }
-
-  const [step, setStep] = useState(1);
-  const [availableRooms, setAvailableRooms] = useState([]);
-  const [selectedRoom, setSelectedRoom] = useState(location.state?.roomId ? {
-    roomId: location.state.roomId,
-    title: location.state.roomTitle,
-    type: location.state.roomType,
-    pricePerNight: location.state.pricePerNight
-  } : null);
-  const [bookingData, setBookingData] = useState({
-    checkIn: '',
-    checkOut: '',
-    guests: 1,
-    roomId: location.state?.roomId || '',
-    specialRequests: '',
-    foodPlan: 'None',
-    selectedMeals: []
-  });
-  const [paymentData, setPaymentData] = useState({
-    paymentMethod: 'card',
-    cardNumber: '',
-    expiryMonth: '',
-    expiryYear: '',
-    cvv: '',
-    cardholderName: '',
-    bankDetails: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [bookingResult, setBookingResult] = useState(null);
 
   const renderProgressBar = () => {
     const steps = [

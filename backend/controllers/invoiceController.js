@@ -170,45 +170,169 @@ export const getInvoiceStats = async (req, res) => {
 // Get all invoices (admin)
 export const getAllInvoices = async (req, res) => {
   try {
-    const { status, page = 1, limit = 20, search } = req.query;
+    const { 
+      status, 
+      paymentMethod, 
+      dateFrom, 
+      dateTo, 
+      search, 
+      page = 1, 
+      limit = 20 
+    } = req.query;
 
+    // Import models at the top level to avoid issues with dynamic imports
     const Invoice = (await import("../models/Invoice.js")).default;
-    const User = (await import("../models/User.js")).default;
+    let User;
+    try {
+      // models/User.js exports named { User, Guest, Staff, Manager, Admin }
+      ({ User } = await import("../models/User.js"));
+      if (!User) {
+        throw new Error('User model not found in named exports');
+      }
+    } catch (error) {
+      console.error('Failed to load User model:', error);
+      throw new Error('Failed to load required models');
+    }
 
-    let query = {};
+    // Build the query
+    const query = {};
+    const orConditions = [];
+    const userIds = [];
 
+    // Status filter - normalize status value for case-insensitive matching
     if (status) {
-      query.paymentStatus = status;
+      // Normalize the status by capitalizing first letter of each word
+      const normalizedStatus = status.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      
+      // Map common status variations to the correct values
+      const statusMap = {
+        'Draft': 'Draft',
+        'Draft ': 'Draft',
+        'Sent - Payment Pending': 'Sent - Payment Pending',
+        'Sent - Payment Pending ': 'Sent - Payment Pending',
+        'Sent - Payment Processing': 'Sent - Payment Processing',
+        'Sent - Payment Processing ': 'Sent - Payment Processing',
+        'Paid': 'Paid',
+        'Paid ': 'Paid',
+        'Overdue': 'Overdue',
+        'Overdue ': 'Overdue',
+        'Cancelled': 'Cancelled',
+        'Cancelled ': 'Cancelled',
+        'Refunded': 'Refunded',
+        'Refunded ': 'Refunded',
+        'Failed': 'Failed',
+        'Failed ': 'Failed'
+      };
+
+      // Use the mapped status if it exists, otherwise use the normalized version
+      query.status = statusMap[normalizedStatus] || normalizedStatus;
     }
 
-    if (search) {
-      const users = await User.find({
-        name: { $regex: search, $options: 'i' }
-      }).select('_id');
-
-      query.$or = [
-        { invoiceNumber: { $regex: search, $options: 'i' } },
-        { userId: { $in: users.map(u => u._id) } }
-      ];
+    // Payment method filter - use exact match with index
+    if (paymentMethod) {
+      query.paymentMethod = paymentMethod;
     }
 
-    const invoices = await Invoice.find(query)
-      .populate('userId', 'name email')
-      .populate('bookingId', 'checkIn checkOut roomId')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    // Date range filter - use indexed field with proper range
+    if (dateFrom || dateTo) {
+      query.issuedAt = {};
+      if (dateFrom) {
+        query.issuedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        query.issuedAt.$lte = endOfDay;
+      }
+    }
 
-    const total = await Invoice.countDocuments(query);
+    // Search functionality with optimized queries
+    if (search && search.trim().length > 0) {
+      // Search in invoice number (case-insensitive regex with index hint)
+      orConditions.push({
+        invoiceNumber: { $regex: search, $options: 'i' }
+      });
 
-    sendSuccess(res, {
-      invoices,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / limit),
-        totalInvoices: total,
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
+      // Search in user details - use text index if available
+      const users = await User.find(
+        {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ]
+        },
+        { _id: 1 },
+        { limit: 1000 } // Limit to prevent performance issues
+      ).lean();
+
+      if (users.length > 0) {
+        userIds.push(...users.map(u => u._id));
+      }
+    }
+
+    // Add user IDs to OR conditions if we found any
+    if (userIds.length > 0) {
+      orConditions.push({ userId: { $in: userIds } });
+    }
+
+    // Combine search conditions with OR if we have any
+    if (orConditions.length > 0) {
+      query.$or = orConditions;
+    }
+
+    // Optimize query with index hints and projection
+    const findOptions = {
+      sort: { createdAt: -1 },
+      limit: parseInt(limit, 10),
+      skip: (parseInt(page, 10) - 1) * parseInt(limit, 10),
+      lean: true
+    };
+
+    // Only include necessary fields in the response
+    const projection = {
+      invoiceNumber: 1,
+      status: 1,
+      amount: 1,
+      dueDate: 1,
+      paymentMethod: 1,
+      issuedAt: 1,
+      userId: 1,  // Include userId for population
+      bookingId: 1  // Include bookingId for population
+    };
+
+    // Execute optimized parallel queries
+    const [invoices, total] = await Promise.all([
+      Invoice.find(query, projection, findOptions)
+        .populate({
+          path: 'userId',
+          select: 'name email',
+          options: { lean: true }
+        })
+        .populate({
+          path: 'bookingId',
+          select: 'checkIn checkOut roomId',
+          options: { lean: true }
+        })
+        .lean(),
+      Invoice.countDocuments(query)
+    ]);
+
+    // Cache control headers
+    res.set('Cache-Control', 'no-store, max-age=0');
+    
+    // Response with optimized structure
+    res.json({
+      success: true,
+      data: {
+        invoices,
+        pagination: {
+          currentPage: parseInt(page, 10),
+          totalPages: Math.ceil(total / limit),
+          total,
+          limit: parseInt(limit, 10)
+        }
       }
     });
 
