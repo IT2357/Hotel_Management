@@ -8,8 +8,8 @@ import hpp from "hpp";
 import compression from "compression";
 import morgan from "morgan";
 import passport from "passport"; // Added for social login
-import http from 'http';
-import { initSocket } from './utils/socket.js';
+import http from "http";
+import { initSocket } from "./utils/socket.js";
 import "dotenv/config";
 import "./utils/passport.js"; // Added to initialize Passport strategies
 // Import database configuration
@@ -25,7 +25,7 @@ import roomRoutes from "./routes/roomRoutes.js";
 import checkInOutRoutes from "./routes/checkInOutRoutes.js";
 import guestServiceRoutes from "./routes/guestServiceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
-import keyCardRoutes from './routes/keyCardRoutes.js';
+import keyCardRoutes from "./routes/keyCardRoutes.js";
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
@@ -95,57 +95,71 @@ if (isProd) {
 }
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads', {
-  setHeaders: (res, path) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-  }
-}));
+app.use(
+  "/uploads",
+  express.static("uploads", {
+    setHeaders: (res, path) => {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+    },
+  })
+);
 
 // Start server after attempting database connection
 const startBookingScheduler = () => {
   // Process expired bookings every hour
   const processExpiredBookings = async () => {
     try {
-      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+      if (
+        process.env.NODE_ENV === "production" ||
+        process.env.ENABLE_SCHEDULER === "true"
+      ) {
         const result = await BookingScheduler.processExpiredBookings();
         if (result.processed > 0) {
           console.log(`🕐 Auto-processed ${result.processed} expired bookings`);
         }
       } else {
-        console.log('⏸️  Booking scheduler disabled (set ENABLE_SCHEDULER=true to enable)');
+        console.log(
+          "⏸️  Booking scheduler disabled (set ENABLE_SCHEDULER=true to enable)"
+        );
       }
     } catch (error) {
-      console.error('❌ Booking scheduler error:', error);
+      console.error("❌ Booking scheduler error:", error);
     }
   };
 
   // Send expiry reminders every 6 hours
   const sendExpiryReminders = async () => {
     try {
-      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+      if (
+        process.env.NODE_ENV === "production" ||
+        process.env.ENABLE_SCHEDULER === "true"
+      ) {
         const result = await BookingScheduler.sendExpiryReminders(24); // 24 hours before expiry
         if (result.sent > 0) {
           console.log(`📧 Sent ${result.sent} expiry reminders`);
         }
       }
     } catch (error) {
-      console.error('❌ Expiry reminders error:', error);
+      console.error("❌ Expiry reminders error:", error);
     }
   };
 
   // Cleanup old bookings daily at midnight
   const cleanupOldBookings = async () => {
     try {
-      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+      if (
+        process.env.NODE_ENV === "production" ||
+        process.env.ENABLE_SCHEDULER === "true"
+      ) {
         const deletedCount = await BookingScheduler.cleanupOldBookings(90); // 90 days old
         if (deletedCount > 0) {
           console.log(`🧹 Cleaned up ${deletedCount} old bookings`);
         }
       }
     } catch (error) {
-      console.error('❌ Cleanup error:', error);
+      console.error("❌ Cleanup error:", error);
     }
   };
 
@@ -161,7 +175,15 @@ const startBookingScheduler = () => {
 
   // Daily cleanup at midnight (next day 00:00:00)
   const now = new Date();
-  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
+  const nextMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    0,
+    0
+  ).getTime();
   const timeUntilMidnight = nextMidnight - now.getTime();
 
   setTimeout(() => {
@@ -170,7 +192,7 @@ const startBookingScheduler = () => {
     setInterval(cleanupOldBookings, 24 * 60 * 60 * 1000); // Daily
   }, timeUntilMidnight);
 
-  console.log('✅ Booking scheduler started successfully');
+  console.log("✅ Booking scheduler started successfully");
 };
 
 const startServer = async () => {
@@ -180,7 +202,7 @@ const startServer = async () => {
 
     // Add this line to initialize the email transporter
     await EmailService.reinitializeTransporter();
-    
+
     // Seed SMS templates after successful database connection and email transporter initialization
     await seedSMSTemplates();
 
@@ -214,14 +236,14 @@ const startServer = async () => {
   app.use("/api/check-in-out", checkInOutRoutes);
   app.use("/api/guest-services", guestServiceRoutes);
   app.use("/api/tasks", taskRoutes);
-  app.use('/api/key-cards', keyCardRoutes);
+  app.use("/api/key-cards", keyCardRoutes);
   app.use("/api/staff", staffRoutes);
   app.use("/api/staff", staffTaskRoutes); // Staff task routes
   app.use("/api/messages", messageRoutes);
-app.use("/api/manager", managerRoutes); // New manager routes
-app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
-app.use("/api/task-management", taskManagementRoutes); // Task management routes
-app.use("/api/reports", reportsRoutes); // Reports routes
+  app.use("/api/manager", managerRoutes); // New manager routes
+  app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
+  app.use("/api/task-management", taskManagementRoutes); // Task management routes
+  app.use("/api/reports", reportsRoutes); // Reports routes
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -247,7 +269,7 @@ app.use("/api/reports", reportsRoutes); // Reports routes
         checkInOut: "/api/check-in-out",
         guestServices: "/api/guest-services",
         tasks: "/api/tasks",
-        keyCards: '/api/key-cards',
+        keyCards: "/api/key-cards",
         health: "/health",
       },
     });
@@ -296,15 +318,15 @@ app.use("/api/reports", reportsRoutes); // Reports routes
     });
   });
 
-  io.on('connection', (socket) => {
-    console.log('a user connected');
-    socket.on('disconnect', () => {
-      console.log('user disconnected');
+  io.on("connection", (socket) => {
+    console.log("a user connected");
+    socket.on("disconnect", () => {
+      console.log("user disconnected");
     });
   });
 
   // Start the server regardless of database status
-  const PORT = process.env.PORT || 5002;
+  const PORT = process.env.PORT || 5000;
   server.listen(PORT, () => {
     console.log(`
 🚀 Server running in ${
