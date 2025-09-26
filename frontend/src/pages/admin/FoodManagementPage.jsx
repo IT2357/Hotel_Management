@@ -21,7 +21,7 @@ import {
   Globe,
   FolderOpen
 } from 'lucide-react';
-import Card from '../../components/ui/Card';
+import Card from "../../components/ui/card";
 import api from '../../services/api';
 
 export default function FoodManagementPage() {

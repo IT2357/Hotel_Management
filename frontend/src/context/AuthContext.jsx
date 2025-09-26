@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 import getDashboardPath from "../utils/GetDashboardPath";
@@ -6,7 +6,7 @@ import getDashboardPath from "../utils/GetDashboardPath";
 export const AuthContext = createContext();
 
 export const useAuth = () => {
-  const context = React.useContext(AuthContext);
+  const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
@@ -50,8 +50,11 @@ export function AuthProvider({ children }) {
           localStorage.setItem("user", JSON.stringify(user));
           setState(prev => ({ ...prev, user }));
         } catch (err) {
-          // If token invalid, just clear local user silently here
-          setState(prev => ({ ...prev, user: cachedUser || null }));
+          // If token invalid, clear both token and user
+          console.warn("Token validation failed, clearing auth data:", err.message);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setState(prev => ({ ...prev, user: null }));
         } finally {
           setState(prev => ({ ...prev, loading: false }));
         }

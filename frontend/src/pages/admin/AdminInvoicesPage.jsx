@@ -1,10 +1,10 @@
 // 📁 frontend/src/pages/admin/AdminInvoicesPage.jsx
 import { useState, useEffect } from "react";
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
+import Card from "../../components/ui/card";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import Input from "../../components/ui/input";
+import Select from "../../components/ui/Select";
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
 import Pagination from "../../components/ui/Pagination";

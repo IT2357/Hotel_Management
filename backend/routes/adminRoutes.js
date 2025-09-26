@@ -31,6 +31,16 @@ import {
   checkRefundStatus,
 } from "../controllers/admin/adminController.js";
 import {
+  createRoom,
+  updateRoom,
+  deleteRoom,
+} from "../controllers/rooms/roomController.js";
+import{
+  deleteBooking,
+  updateBookingStatus,
+  getAllBookings
+} from "../controllers/bookings/bookingController.js";
+import {
   getAdminSettings,
   updateAdminSettings,
   testEmailConfig,
@@ -347,5 +357,21 @@ router.get(
   authorizeRoles({ permissions: ["sms:read"] }),
   getSMSDeliveryLogs
 );
+
+// Admin CRUD for rooms
+router.post("/rooms", createRoom);
+router.put("/rooms/:id", updateRoom);
+router.delete("/rooms/:id", deleteRoom);
+
+//Admin CRUD for bookings
+
+// Get all bookings
+router.get("/Allbookings", getAllBookings);
+
+// Update booking status (Confirm / Cancel)
+router.put("/:id/status", updateBookingStatus);
+
+// Delete a booking
+router.delete("/:id", deleteBooking);
 
 export default router;

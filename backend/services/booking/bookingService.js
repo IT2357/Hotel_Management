@@ -98,11 +98,6 @@ class BookingService {
             checkInTime > operationalSettings.endTime) {
           errors.push(`Check-in time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
         }
-
-        if (checkOutTime < operationalSettings.startTime ||
-            checkOutTime > operationalSettings.endTime) {
-          errors.push(`Check-out time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
-        }
       }
 
       // Check check-in/check-out windows
@@ -388,6 +383,14 @@ class BookingService {
       
       console.log('✅ Final booking status:', finalStatus);
 
+      // Transform selectedMeals to match schema
+      const transformedSelectedMeals = bookingData.selectedMeals ? bookingData.selectedMeals.map(meal => ({
+        name: meal.name,
+        price: meal.price,
+        description: meal.description || '',
+        scheduledTime: meal.scheduledTime || new Date() // Default to current time if not provided
+      })) : [];
+
       // Create booking
       const booking = new Booking({
         ...bookingData,
@@ -398,6 +401,7 @@ class BookingService {
         guests: bookingData.guests || bookingData.guestCount || 1,
         guestCount: bookingData.guestCount || { adults: bookingData.guests || 1, children: 0 },
         specialRequests: bookingData.specialRequests,
+        selectedMeals: transformedSelectedMeals,
         costBreakdown,
         status: finalStatus, // Use the determined status
         bookingSettings: {

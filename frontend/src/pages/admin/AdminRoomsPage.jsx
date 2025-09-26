@@ -1,11 +1,11 @@
- // 📁 frontend/pages/admin/AdminRoomsPage.jsx
+// 📁 frontend/pages/admin/AdminRoomsPage.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import Badge from '../../components/ui/Badge';
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { Badge } from "../../components/ui/badge";
 import Spinner from "../../components/ui/Spinner";
 import Pagination from "../../components/ui/Pagination";
 import adminService from "../../services/adminService";
@@ -196,7 +196,7 @@ const fetchRooms = async () => {
                         {(room.occupancy?.adults ?? 0)} Adults, {(room.occupancy?.children ?? 0)} Children
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${room.basePrice ?? 0}
+                        LKR {room.basePrice ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge className={getStatusColor(room.status)}>{room.status || "Unknown"}</Badge>
@@ -208,6 +208,11 @@ const fetchRooms = async () => {
                             <Button size="sm">Edit</Button>
                           </Link>
                           <Button size="sm" variant="danger" onClick={() => deleteRoom(room._id)}>Delete</Button>
+                          {!room.roomNumber?.includes('dummy') && (
+                            <Link to="/ahsan1">
+                              <Button size="sm" variant="secondary">Ahsan1</Button>
+                            </Link>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -231,21 +236,21 @@ const fetchRooms = async () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-          <Card title="Total Rooms" className="p-6">
+          <Card title="Rooms on Page" className="p-6">
             <div className="text-3xl font-bold text-indigo-600">{rooms.length}</div>
-            <p className="text-gray-600">All registered rooms</p>
+            <p className="text-gray-600">Rooms shown on this page</p>
           </Card>
-          <Card title="Available" className="p-6">
+          <Card title="Available on Page" className="p-6">
             <div className="text-3xl font-bold text-green-600">{rooms.filter((r) => r.status === "Available").length}</div>
-            <p className="text-gray-600">Ready to book</p>
+            <p className="text-gray-600">Ready to book on this page</p>
           </Card>
-          <Card title="Booked" className="p-6">
+          <Card title="Booked on Page" className="p-6">
             <div className="text-3xl font-bold text-blue-600">{rooms.filter((r) => r.status === "Booked").length}</div>
-            <p className="text-gray-600">Currently reserved</p>
+            <p className="text-gray-600">Currently reserved on this page</p>
           </Card>
-          <Card title="Maintenance" className="p-6">
+          <Card title="Maintenance on Page" className="p-6">
             <div className="text-3xl font-bold text-yellow-600">{rooms.filter((r) => r.status === "Maintenance").length}</div>
-            <p className="text-gray-600">Unavailable for service</p>
+            <p className="text-gray-600">Unavailable for service on this page</p>
           </Card>
         </div>
       </main>

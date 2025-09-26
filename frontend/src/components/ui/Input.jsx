@@ -1,6 +1,13 @@
-import React from 'react';
+// src/components/ui/input.jsx
+import React from "react";
 
-const Input = React.forwardRef(({
+function Input({
+  label,
+  id,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
   className = '',
   type = 'text',
   ...props
@@ -15,9 +22,7 @@ const Input = React.forwardRef(({
       {...props}
     />
   );
-});
-
-Input.displayName = 'Input';
+}
 
 export { Input };
 export default Input;

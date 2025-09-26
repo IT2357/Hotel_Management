@@ -1,0 +1,214 @@
+# 📁 .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6
+        ports:
+          - 27017:27017
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Seed test database
+      working-directory: ./backend
+      run: npm run seed:db
+      env:
+        MONGODB_URI: mongodb://localhost:27017/hotel_management_test
+
+    - name: Run backend unit tests
+      working-directory: ./backend
+      run: npm run test:unit
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://localhost:27017/hotel_management_test
+        JWT_SECRET: test-jwt-secret-key
+
+    - name: Run backend integration tests
+      working-directory: ./backend
+      run: npm run test:integration
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://localhost:27017/hotel_management_test
+        JWT_SECRET: test-jwt-secret-key
+
+    - name: Start backend server
+      working-directory: ./backend
+      run: |
+        npm run dev &
+        sleep 10
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://localhost:27017/hotel_management_test
+        JWT_SECRET: test-jwt-secret-key
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Start frontend server
+      working-directory: ./frontend
+      run: |
+        npm run preview &
+        sleep 10
+
+    - name: Run E2E tests
+      working-directory: ./frontend
+      run: npm run test:e2e
+      env:
+        CYPRESS_BASE_URL: http://localhost:4173
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: |
+          backend/coverage/
+          backend/test-results/
+          frontend/cypress/screenshots/
+          frontend/cypress/videos/
+
+  accessibility:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build for accessibility testing
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run accessibility tests
+      working-directory: ./frontend
+      run: |
+        npm install -g lighthouse
+        lighthouse http://localhost:4173 --output=json --output-path=./lighthouse-results.json || true
+
+    - name: Upload accessibility results
+      uses: actions/upload-artifact@v4
+      with:
+        name: accessibility-results
+        path: frontend/lighthouse-results.json
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Run security audit
+      working-directory: ./backend
+      run: npm audit --audit-level=moderate || true
+
+    - name: Check for vulnerabilities
+      working-directory: ./backend
+      run: |
+        if [ $(npm audit --audit-level=moderate --json | jq '.metadata.vulnerabilities.total') -gt 0 ]; then
+          echo "Security vulnerabilities found"
+          npm audit --audit-level=moderate
+          exit 1
+        fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, accessibility, security]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci --only=production
+
+    - name: Build backend
+      working-directory: ./backend
+      run: npm run build
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Deploy to staging
+      run: |
+        echo "Deploy to staging server"
+        # Add your deployment commands here
+        # Example: rsync, docker push, etc.
+
+    - name: Run smoke tests on staging
+      run: |
+        # Quick smoke tests on deployed environment
+        curl -f https://staging-api.yourdomain.com/health || exit 1
+        curl -f https://staging.yourdomain.com || exit 1
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [test, accessibility, security, deploy]
+    if: always()
+
+    steps:
+    - name: Send notification
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.accessibility.result }}" == "success" ] && [ "${{ needs.security.result }}" == "success" ]; then
+          echo "✅ All tests passed!"
+          # Send success notification (Slack, email, etc.)
+        else
+          echo "❌ Some tests failed"
+          # Send failure notification
+        fi

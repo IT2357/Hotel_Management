@@ -101,7 +101,6 @@ export const updateRoom = async (req, res) => {
     });
   }
 };
-
 /**
  * @desc    Delete a room
  * @route   DELETE /api/admin/rooms/:id
@@ -109,9 +108,9 @@ export const updateRoom = async (req, res) => {
  */
 export const deleteRoom = async (req, res) => {
   try {
-    const deletedRoom = await Room.findByIdAndDelete(req.params.id);
+    const room = await Room.findByIdAndDelete(req.params.id);
 
-    if (!deletedRoom) {
+    if (!room) {
       return res.status(404).json({
         success: false,
         message: "Room not found",
@@ -126,6 +125,32 @@ export const deleteRoom = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Failed to delete room",
+    });
+  }
+};
+
+/**
+ * @desc    Get featured rooms for homepage display
+ * @route   GET /api/rooms/featured
+ * @access  Public
+ */
+export const getFeaturedRooms = async (req, res) => {
+  try {
+    // Get a few featured rooms (limit to 6 for homepage display)
+    const rooms = await Room.find({ isAvailable: true })
+      .sort({ basePrice: 1 }) // Sort by price ascending
+      .limit(6)
+      .select('title description basePrice capacity images amenities type roomNumber');
+
+    res.status(200).json({
+      success: true,
+      count: rooms.length,
+      data: rooms,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch featured rooms",
     });
   }
 };

@@ -2,6 +2,8 @@ import useAccess from '../hooks/useAccess';
 
 const menuItems = [
   { path: '/', label: 'Home', guest: true },
+  { path: '/food-ordering', label: '🍽️ Food Ordering', guest: true },
+  { path: '/menu', label: '📋 Restaurant Menu', guest: true },
   { path: '/dashboard', label: 'Dashboard' },
   { path: '/staff-portal', label: 'Staff Portal', roles: ['staff', 'manager'] },
   { path: '/admin/users', label: 'User Management', permissions: ['manage-users'] }

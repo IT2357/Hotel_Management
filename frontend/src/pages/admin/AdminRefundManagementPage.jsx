@@ -3,14 +3,14 @@ import { format } from 'date-fns';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
-import Button from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Card } from '../../components/ui/card';
 import Modal from '../../components/ui/modal';
-import { Input } from '../../components/ui/Input';
-import { Textarea } from '../../components/ui/Textarea';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
 import Spinner from '../../components/ui/Spinner';
-import { Select } from '../../components/ui/Select';
+import { Select } from '../../components/ui/select';
 import useDebounce from '../../hooks/useDebounce';
 
 const AdminRefundManagementPage = () => {

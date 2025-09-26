@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Maximize2, Download } from 'lucide-react';
-import Button from '../ui/Button';
+import { Button } from '../ui/Button';
 
 export default function RoomGallery({ images, roomTitle, onClose }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);

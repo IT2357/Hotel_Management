@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import Button from '../ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import Input from '../ui/Input';
-import Label from '../ui/Label';
-import Textarea from '../ui/Textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Badge } from '../ui/Badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import Input from '../ui/input';
+import Label from '../ui/label';
+import Textarea from '../ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { CreditCard, MapPin, User, Phone, Calendar, ShoppingBag, AlertCircle, CheckCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -47,10 +47,6 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       // Validate required fields
       if (!orderDetails.customerName || !orderDetails.customerEmail || !orderDetails.customerPhone) {
         throw new Error('Please fill in all required customer details');
-      }
-
-      if (!orderDetails.deliveryAddress) {
-        throw new Error('Please provide delivery address or table/room information');
       }
 
       if (items.length === 0) {
@@ -392,7 +388,7 @@ const Checkout = ({ onClose, onOrderComplete }) => {
                 <Button
                   onClick={handleSubmitOrder}
                   className="flex-1 bg-green-600 hover:bg-green-700"
-                  disabled={isProcessing || !user || !orderDetails.customerName || !orderDetails.customerEmail || !orderDetails.customerPhone || !orderDetails.deliveryAddress}
+                  disabled={isProcessing || !user || !orderDetails.customerName || !orderDetails.customerEmail || !orderDetails.customerPhone}
                 >
                   {isProcessing ? (
                     <>

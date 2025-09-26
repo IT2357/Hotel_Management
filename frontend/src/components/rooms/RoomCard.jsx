@@ -1,7 +1,10 @@
-import { Button } from "@/components/rooms/ui/button";
-import { Heart, Star, Users, Wifi, Car, Coffee, Bath, Ruler, Bed, MapPin, Eye } from "lucide-react";
-import { useState } from "react";
-import RoomModal from "./ViewDetails";
+// Placeholder for import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Card from '../ui/card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { Star, Users, Wifi, Car, Utensils, MapPin, Heart, Eye } from 'lucide-react';
+import React, { useState } from 'react';
 
 const amenityIcons = {
   WiFi: Wifi,

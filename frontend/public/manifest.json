@@ -1,0 +1,14 @@
+{
+  "name": "Culture Colombo - Digital Menu",
+  "short_name": "Culture Colombo",
+  "description": "Authentic Sri Lankan cuisine digital menu and ordering system",
+  "start_url": "/menu",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [],
+  "categories": ["food", "restaurant", "ordering"],
+  "lang": "en",
+  "dir": "ltr"
+}

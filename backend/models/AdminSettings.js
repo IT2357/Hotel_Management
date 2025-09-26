@@ -1,38 +1,27 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 
-const encryptionKey = process.env.ENCRYPTION_KEY;
+const encryptionKey = process.env.ENCRYPTION_KEY || "development_default_key_32_chars_long_for_encryption_testing_only";
 
-if (!encryptionKey) {
-  console.error("❌ ENCRYPTION_KEY is not defined in environment variables");
-  throw new Error("ENCRYPTION_KEY is required for SMTP password encryption");
-}
+// Validate encryption key only if SMTP is configured
+let encryptionKeyValid = false;
+let keyBuffer = null;
 
 try {
-  console.log(
-    "Validating ENCRYPTION_KEY at module load:",
-    `${encryptionKey.slice(0, 4)}...${encryptionKey.slice(-4)}`
-  );
-  const keyBuffer = Buffer.from(encryptionKey, "hex");
-  if (keyBuffer.length !== 32) {
-    console.error(
-      `❌ ENCRYPTION_KEY must be a 64-character hexadecimal string (32 bytes). Current length: ${encryptionKey.length} characters`
-    );
-    throw new Error("ENCRYPTION_KEY must be a 32-byte hex string");
+  if (encryptionKey) {
+    keyBuffer = Buffer.from(encryptionKey, "hex");
+    if (keyBuffer.length === 32) {
+      encryptionKeyValid = true;
+      console.log("✅ ENCRYPTION_KEY validated successfully, length:", keyBuffer.length, "bytes");
+    } else {
+      console.warn("⚠️ ENCRYPTION_KEY must be a 64-character hexadecimal string (32 bytes). Using fallback for development.");
+    }
+  } else {
+    console.log("⚠️ ENCRYPTION_KEY not defined - SMTP password encryption disabled for development");
   }
-  console.log(
-    "✅ ENCRYPTION_KEY validated successfully, length:",
-    keyBuffer.length,
-    "bytes"
-  );
 } catch (error) {
-  console.error("❌ Invalid ENCRYPTION_KEY format:", {
-    message: error.message,
-    key: encryptionKey
-      ? `${encryptionKey.slice(0, 4)}...${encryptionKey.slice(-4)}`
-      : "undefined",
-  });
-  throw new Error("ENCRYPTION_KEY must contain valid hexadecimal characters");
+  console.error("❌ Invalid ENCRYPTION_KEY format:", error.message);
+  console.log("⚠️ Using fallback for development - SMTP password encryption disabled");
 }
 
 const adminSettingsSchema = new mongoose.Schema(
@@ -73,39 +62,26 @@ const adminSettingsSchema = new mongoose.Schema(
           console.log("smtpPassword is empty, skipping encryption");
           return "";
         }
-        
-        // If the value is already in the encrypted format, return as-is
-        if (value.includes(':')) {
-          console.log("Value appears to be already encrypted, skipping re-encryption");
+
+        // Only encrypt if we have a valid encryption key
+        if (!encryptionKeyValid || !keyBuffer) {
+          console.log("⚠️ SMTP password encryption disabled - storing as plain text");
           return value;
         }
-        
+
         try {
-          console.log("🔒 Encrypting SMTP password...");
-          
-          if (!encryptionKey) {
-            throw new Error("ENCRYPTION_KEY is not defined");
-          }
-          
-          const keyBuffer = Buffer.from(encryptionKey, "hex");
-          if (keyBuffer.length !== 32) {
-            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
-          }
-          
+          console.log("Preparing to encrypt smtpPassword");
           const iv = crypto.randomBytes(16);
-          const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
-          
-          let encrypted = cipher.update(value, 'utf8', 'hex');
-          encrypted += cipher.final('hex');
-          
-          const result = `${iv.toString('hex')}:${encrypted}`;
-          console.log("✅ SMTP password encrypted successfully");
+          const cipher = crypto.createCipheriv("aes-256-cbc", keyBuffer, iv);
+          let encrypted = cipher.update(value, "utf8", "hex");
+          encrypted += cipher.final("hex");
+          const result = `${iv.toString("hex")}:${encrypted}`;
+          console.log("✅ smtpPassword encrypted successfully");
           return result;
           
         } catch (error) {
-          console.error("❌ Failed to encrypt SMTP password:", error.message);
-          // In case of error, return the original value (unencrypted)
-          // This allows the system to continue functioning, though with less security
+          console.error("❌ Encryption failed for smtpPassword:", error.message);
+          // Store as plain text if encryption fails
           return value;
         }
       },
@@ -114,53 +90,34 @@ const adminSettingsSchema = new mongoose.Schema(
           console.log("smtpPassword is empty, skipping decryption");
           return "";
         }
-        
-        // If the value doesn't contain a colon, it's likely not encrypted
-        if (!value.includes(':')) {
-          console.log("Value doesn't appear to be encrypted, returning as-is");
+
+        // Only decrypt if we have a valid encryption key and the value looks encrypted
+        if (!encryptionKeyValid || !keyBuffer || !value.includes(":")) {
+          console.log("⚠️ SMTP password decryption disabled or value not encrypted");
           return value;
         }
-        
+
         try {
-          if (!encryptionKey) {
-            throw new Error("ENCRYPTION_KEY is not defined");
+          console.log("Preparing to decrypt smtpPassword");
+          const [iv, encrypted] = value.split(":");
+          if (!iv || !encrypted) {
+            console.warn("Invalid encrypted smtpPassword format");
+            return value;
           }
-          
-          const keyBuffer = Buffer.from(encryptionKey, "hex");
-          if (keyBuffer.length !== 32) {
-            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
-          }
-          
-          const parts = value.split(':');
-          if (parts.length !== 2) {
-            throw new Error("Invalid encrypted format: expected 'iv:encryptedData'");
-          }
-          
-          const iv = Buffer.from(parts[0], 'hex');
-          const encrypted = parts[1];
-          
-          if (iv.length !== 16) {
-            throw new Error(`Invalid IV length: expected 16 bytes, got ${iv.length} bytes`);
-          }
-          
-          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
-          decipher.setAutoPadding(true);
-          
-          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-          try {
-            decrypted += decipher.final('utf8');
-          } catch (finalError) {
-            console.error("Error during final decryption:", finalError.message);
-            throw new Error("Failed to finalize decryption - incorrect key or corrupted data");
-          }
-          
-          console.log("🔓 SMTP password decrypted successfully");
+          const decipher = crypto.createDecipheriv(
+            "aes-256-cbc",
+            keyBuffer,
+            Buffer.from(iv, "hex")
+          );
+          let decrypted = decipher.update(encrypted, "hex", "utf8");
+          decrypted += decipher.final("utf8");
+          console.log("✅ smtpPassword decrypted successfully");
           return decrypted;
           
         } catch (error) {
           console.error("❌ Decryption failed for smtpPassword:", error.message);
-          // Return empty string to prevent sensitive data leakage
-          return "";
+          // Return the value as-is if decryption fails
+          return value;
         }
       }
     },

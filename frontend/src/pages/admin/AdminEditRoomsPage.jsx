@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import adminService from "../../services/adminService";
 import roomService from "../../services/roomService";
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 const amenityOptions = [
   "WiFi",
@@ -218,7 +218,18 @@ export default function EditRoomPage() {
           </div>
 
           {/* Status, Bed, View, Policy */}
-         
+          <Select
+            label="Status"
+            name="status"
+            value={roomData.status}
+            onChange={handleChange}
+          >
+            <option value="Available">Available</option>
+            <option value="Booked">Booked</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="OutOfService">OutOfService</option>
+          </Select>
           <Select
             label="Bed Type"
             name="bedType"

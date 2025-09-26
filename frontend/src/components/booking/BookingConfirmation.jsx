@@ -1,8 +1,8 @@
 // Placeholder for import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../ui/Card';
-import Button from '../ui/Button';
-import Badge from '../ui/Badge';
+import Card from '../ui/card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2, Mail } from 'lucide-react';
 
 export default function BookingConfirmation({ bookingData, onClose }) {

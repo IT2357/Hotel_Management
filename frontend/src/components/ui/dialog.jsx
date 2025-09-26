@@ -1,113 +1,99 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import classNames from 'classnames';
 
-const DialogContext = createContext();
+const DialogContext = React.createContext();
 
-const Dialog = ({ children, open, onOpenChange }) => {
-  const [isOpen, setIsOpen] = useState(open || false);
+const Dialog = ({ open, onOpenChange, children }) => {
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && open) {
+        onOpenChange(false);
+      }
+    };
 
-  const handleOpenChange = (newOpen) => {
-    setIsOpen(newOpen);
-    if (onOpenChange) {
-      onOpenChange(newOpen);
+    if (open) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
     }
-  };
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [open, onOpenChange]);
+
+  if (!open) return null;
 
   return (
-    <DialogContext.Provider value={{ isOpen, setIsOpen: handleOpenChange }}>
-      {children}
+    <DialogContext.Provider value={{ onOpenChange }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div
+          className="fixed inset-0 bg-black/50"
+          onClick={() => onOpenChange(false)}
+        />
+        {children}
+      </div>
     </DialogContext.Provider>
   );
 };
 
-const DialogTrigger = ({ children, asChild = false, ...props }) => {
-  const { setIsOpen } = useContext(DialogContext);
-
-  if (asChild) {
-    return React.cloneElement(children, {
-      onClick: () => setIsOpen(true),
-      ...props
-    });
-  }
-
-  return (
-    <button onClick={() => setIsOpen(true)} {...props}>
-      {children}
-    </button>
-  );
+const DialogTrigger = ({ children, asChild, ...props }) => {
+  const child = React.Children.only(children);
+  return React.cloneElement(child, props);
 };
 
-const DialogContent = ({ children, className = "", ...props }) => {
-  const { isOpen, setIsOpen } = useContext(DialogContext);
+const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={classNames(
+      "relative z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+));
+DialogContent.displayName = "DialogContent";
 
-  if (!isOpen) return null;
+const DialogHeader = ({ className, ...props }) => (
+  <div
+    className={classNames(
+      "flex flex-col space-y-1.5 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+);
+DialogHeader.displayName = "DialogHeader";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => setIsOpen(false)}
-      />
-      
-      {/* Dialog */}
-      <div 
-        className={`
-          relative z-50 w-full max-w-lg mx-4 bg-white dark:bg-gray-800 
-          rounded-lg shadow-lg border border-gray-200 dark:border-gray-700
-          max-h-[90vh] overflow-y-auto
-          ${className}
-        `}
-        {...props}
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
+const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <h2
+    ref={ref}
+    className={classNames(
+      "text-lg font-semibold leading-none tracking-tight",
+      className
+    )}
+    {...props}
+  />
+));
+DialogTitle.displayName = "DialogTitle";
 
-const DialogHeader = ({ children, className = "", ...props }) => {
-  return (
-    <div 
-      className={`
-        flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700
-        ${className}
-      `}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-
-const DialogTitle = ({ children, className = "", ...props }) => {
-  return (
-    <h2 
-      className={`
-        text-lg font-semibold text-gray-900 dark:text-white
-        ${className}
-      `}
-      {...props}
-    >
-      {children}
-    </h2>
-  );
-};
-
-const DialogClose = ({ children, className = "", ...props }) => {
-  const { setIsOpen } = useContext(DialogContext);
+const DialogClose = ({ className, ...props }) => {
+  const { onOpenChange } = React.useContext(DialogContext);
 
   return (
     <button
-      onClick={() => setIsOpen(false)}
-      className={`
-        p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
-        hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
-        ${className}
-      `}
+      className={classNames(
+        "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        className
+      )}
+      onClick={() => onOpenChange(false)}
       {...props}
     >
-      {children || <X className="h-4 w-4" />}
+      <X className="h-4 w-4" />
+      <span className="sr-only">Close</span>
     </button>
   );
 };
@@ -118,5 +104,5 @@ export {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose
+  DialogClose,
 };

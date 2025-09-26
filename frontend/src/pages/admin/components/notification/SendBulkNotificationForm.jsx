@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { toast } from "react-toastify";
-import Input from '../../../../components/ui/Input';
-import Select from '../../../../components/ui/Select';
-import Textarea from '../../../../components/ui/Textarea';
-import Button from '../../../../components/ui/Button';
+import { Input } from "../../../../components/ui/input";
+import { Select } from "../../../../components/ui/select";
+import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "../../../../components/ui/button";
 import Spinner from "../../../../components/ui/Spinner";
 import useDebounce from "../../../../hooks/useDebounce";
 

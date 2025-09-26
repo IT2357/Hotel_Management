@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
-import Select from '../../../../components/ui/Select';
-import Input from '../../../../components/ui/Input';
-import Button from '../../../../components/ui/Button';
+import { Select } from "../../../../components/ui/select";
+import { Input } from "../../../../components/ui/input";
+import { Button } from "../../../../components/ui/button";
 import Spinner from "../../../../components/ui/Spinner";
 
 export default function UserPreferencesManager({ 

@@ -1,14 +1,13 @@
-// src/components/ui/Badge.jsx
 import React from "react";
 import classNames from "classnames";
 
-function Badge({
+const Badge = React.forwardRef(({
   children,
   variant = "primary",
   size = "md",
   className = "",
   rounded = "full",
-}) {
+}, ref) => {
   const variants = {
     primary: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
     secondary: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
@@ -34,6 +33,7 @@ function Badge({
 
   return (
     <span
+      ref={ref}
       className={classNames(
         "inline-flex items-center font-medium",
         variants[variant],
@@ -45,7 +45,8 @@ function Badge({
       {children}
     </span>
   );
-}
+});
+Badge.displayName = "Badge";
 
 export { Badge };
 export default Badge;

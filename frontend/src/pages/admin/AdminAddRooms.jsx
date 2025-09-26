@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import adminService from "../../services/adminService";
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
+import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
 
 const amenityOptions = [
   "WiFi",
@@ -52,20 +51,6 @@ export default function AddRoomPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
-
-  // Accordion state for each section
-  const [openSections, setOpenSections] = useState({
-    details: true,
-    specs: false,
-    view: false,
-    occupancy: false,
-    amenities: false,
-    images: false,
-  });
-
-  const toggleSection = (section) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
 
   // Validation function
   const validateField = (name, value) => {
@@ -149,99 +134,12 @@ export default function AddRoomPage() {
 
     if (Object.values(newErrors).some((err) => err)) {
       setErrors(newErrors);
-      return (
-        <div className="container mx-auto py-8 px-2 md:px-0">
-          <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg px-6 py-4">Add New Room</h2>
+      return;
+    }
 
-          <div className="space-y-6">
-            {/* Room Details Section */}
-            <AccordionCard
-              title="Room Details"
-              open={openSections.details}
-              onClick={() => toggleSection('details')}
-            >
-              {/* Room Details form fields go here */}
-            </AccordionCard>
-
-            {/* Specifications Section */}
-            <AccordionCard
-              title="Specifications"
-              open={openSections.specs}
-              onClick={() => toggleSection('specs')}
-            >
-              {/* Specifications form fields go here */}
-            </AccordionCard>
-
-            {/* View & Policy Section */}
-            <AccordionCard
-              title="View & Policy"
-              open={openSections.view}
-              onClick={() => toggleSection('view')}
-            >
-              {/* View & Policy form fields go here */}
-            </AccordionCard>
-
-            {/* Occupancy Section */}
-            <AccordionCard
-              title="Occupancy"
-              open={openSections.occupancy}
-              onClick={() => toggleSection('occupancy')}
-            >
-              {/* Occupancy form fields go here */}
-            </AccordionCard>
-
-            {/* Amenities Section */}
-            <AccordionCard
-              title="Amenities"
-              open={openSections.amenities}
-              onClick={() => toggleSection('amenities')}
-            >
-              {/* Amenities form fields go here */}
-            </AccordionCard>
-
-            {/* Images Section */}
-            <AccordionCard
-              title="Images"
-              open={openSections.images}
-              onClick={() => toggleSection('images')}
-            >
-              {/* Images form fields go here */}
-            </AccordionCard>
-          </div>
-        </div>
-      );
-// AccordionCard component for collapsible sections
-function AccordionCard({ title, open, onClick, children }) {
-  return (
-    <div
-      className="rounded-2xl shadow-xl border border-gray-100 bg-gradient-to-br from-indigo-50 to-purple-50 mb-2 transition-all duration-300"
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className="w-full flex items-center justify-between px-6 py-4 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded-2xl bg-white/60 hover:bg-indigo-100/60 transition-all duration-200"
-        aria-expanded={open}
-      >
-        <span>{title}</span>
-        {open ? (
-          <ChevronUp className="w-5 h-5 text-indigo-500" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-indigo-400" />
-        )}
-      </button>
-      <div
-        className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-[1000px] opacity-100 py-4 px-6' : 'max-h-0 opacity-0 py-0 px-6'}`}
-        style={{
-          background: open ? 'rgba(255,255,255,0.7)' : 'transparent',
-          borderRadius: '0 0 1rem 1rem',
-        }}
-      >
-        {open && children}
-      </div>
-    </div>
-  );
-}}
-try {
+    setLoading(true);
+    setSubmitError("");
+    try {
       console.log("Sending token:", localStorage.getItem("token"));
       await adminService.createRoom(roomData);
       navigate("/admin/rooms");
@@ -467,7 +365,23 @@ try {
             </div>
           </div>
 
-         
+          {/* Status */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-800">Status</h2>
+            <Select
+              label="Room Status"
+              name="status"
+              value={roomData.status}
+              onChange={handleChange}
+              className="w-full rounded-lg border-gray-300 focus:border-indigo-600 focus:ring-indigo-600 transition-all"
+            >
+              <option value="Available">Available</option>
+              <option value="Booked">Booked</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Cleaning">Cleaning</option>
+              <option value="OutOfService">Out of Service</option>
+            </Select>
+          </div>
 
           {/* Amenities Section */}
           <div className="space-y-4">
