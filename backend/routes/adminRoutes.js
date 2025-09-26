@@ -42,6 +42,11 @@ import {
   testSocialAuthConfig,
 } from "../controllers/admin/settingsController.js";
 import {
+  createRoom,
+  updateRoom,
+  deleteRoom,
+} from "../controllers/rooms/roomController.js";
+import {
   initiatePayment,
   handleWebhook,
   getPaymentStatus,
@@ -347,5 +352,11 @@ router.get(
   authorizeRoles({ permissions: ["sms:read"] }),
   getSMSDeliveryLogs
 );
+
+// Admin CRUD for rooms
+router.post("/rooms", createRoom);
+router.put("/rooms/:id", updateRoom);
+router.delete("/rooms/:id", deleteRoom);
+
 
 export default router;

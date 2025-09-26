@@ -21,7 +21,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     { label: 'Refunds', to: '/admin/refunds', icon: '💸' },
     { label: 'Reports', to: '/admin/reports', icon: '📊' },
     { label: 'Settings', to: '/admin/settings', icon: '⚙️' },
-    { label: 'Rooms', to: '/admin/rooms' }
+    { label: 'Rooms', to: '/admin/rooms', icon: '🛏️ ' }
   ];
 
   useEffect(() => {

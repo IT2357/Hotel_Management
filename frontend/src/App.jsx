@@ -67,6 +67,9 @@ import SchedulePage from './pages/staff/SchedulePage.jsx';
 import Roomspage from './pages/admin/AdminRoomsPage.jsx';
 import AdminAddRoom from './pages/admin/AdminAddRooms.jsx';
 import AdminEditRoom from './pages/admin/AdminEditRoomsPage.jsx';
+import AdminviewPage from './pages/admin/AdminViewRooms.jsx';
+// import CompareModal from './components/rooms/CompareModal.jsx';
+import CompareRooms from './pages/guest/CompareRoomsPage.jsx';
 
 const App = () => {
   return (
@@ -144,6 +147,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+  
+
           <Route
             path="/guest/my-requests"
             element={
@@ -152,6 +157,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+
           <Route
             path="/guest/check-in"
             element={
@@ -160,6 +167,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          
           <Route
             path="/admin/profile"
             element={
@@ -281,6 +290,16 @@ const App = () => {
              <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
                   <AdminEditRoom />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/view-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminviewPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
@@ -543,6 +562,16 @@ const App = () => {
           {/* 🚧 Error Routes */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
+          {/* Compare Rooms Route */}
+          <Route
+            path="/compare-rooms"
+            element={
+              <ProtectedRoute roles={['guest']}>
+                <CompareRooms />
+              </ProtectedRoute>
+            }
+          />
+
           </Routes>
         </BookingProvider>
         </SettingsProvider>

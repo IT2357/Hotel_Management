@@ -1,6 +1,6 @@
  // 📁 frontend/pages/admin/AdminRoomsPage.jsx
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -12,6 +12,7 @@ import adminService from "../../services/adminService";
 import roomService from "../../services/roomService";
 
 export default function AdminRoomsPage() {
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -203,7 +204,7 @@ const fetchRooms = async () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => alert("View Room modal")}>View</Button>
+                          <Button size="sm" variant="outline" onClick={() => navigate(`/admin/view-room/${room._id}`)}>View</Button>
                           <Link to={`/admin/edit-room/${room._id}`}>
                             <Button size="sm">Edit</Button>
                           </Link>
