@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import { Trash2, Plus, Minus, ShoppingBag, Clock, Star } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 
