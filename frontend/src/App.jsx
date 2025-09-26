@@ -15,7 +15,6 @@ import Blog from './pages/Blog.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
-import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -95,8 +94,8 @@ const AppContent = () => {
           <Route path="/blog" element={wrapWithTransition(<Blog />)} />
           <Route path="/food" element={wrapWithTransition(<FoodPage />)} />
           <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
+          <Route path="/food-ordering" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
-          <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
           <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
           <Route
             path="/login"
