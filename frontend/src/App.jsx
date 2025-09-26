@@ -94,7 +94,6 @@ const AppContent = () => {
           <Route path="/blog" element={wrapWithTransition(<Blog />)} />
           <Route path="/food" element={wrapWithTransition(<FoodPage />)} />
           <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
-          <Route path="/food-ordering" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
           <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
           <Route
