@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import {
   getDashboardOverview,
   getBookingReports,
@@ -81,6 +82,32 @@ router.post(
   authorizeRoles(['manager', 'admin']),
   validateReportRequest,
   exportReport
+);
+
+/**
+ * @route   GET /api/reports/exports/:filename
+ * @desc    Download exported report file
+ * @access  Manager, Admin
+ * @param   filename - The exported file name
+ */
+router.get(
+  '/exports/:filename',
+  authorizeRoles(['manager', 'admin']),
+  (req, res) => {
+    const { filename } = req.params;
+    const filePath = `./exports/${filename}`;
+    
+    // Check if file exists and send it
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error('Download error:', err);
+        return res.status(404).json({
+          success: false,
+          message: 'File not found or download error'
+        });
+      }
+    });
+  }
 );
 
 /**
@@ -200,6 +227,36 @@ router.get(
     } catch (error) {
       next(error);
     }
+  }
+);
+
+/**
+ * @route   GET /api/reports/download/:filename
+ * @desc    Download exported report file
+ * @access  Manager, Admin
+ * @param   filename - The exported file name
+ */
+router.get(
+  '/download/:filename',
+  authorizeRoles(['manager', 'admin']),
+  (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(process.cwd(), 'exports', filename);
+    
+    console.log('📥 Download request for:', filename);
+    console.log('📂 File path:', filePath);
+    
+    // Check if file exists and send it
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error('❌ Download error:', err);
+        return res.status(404).json({
+          success: false,
+          message: 'File not found or download error'
+        });
+      }
+      console.log('✅ File download completed:', filename);
+    });
   }
 );
 

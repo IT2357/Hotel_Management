@@ -34,7 +34,7 @@ class ExportService {
     const stats = await fs.promises.stat(filePath);
 
     return {
-      downloadUrl: `/api/exports/${fileName}`,
+      downloadUrl: `/api/reports/download/${fileName}`,
       fileName,
       filePath,
       fileSize: stats.size,

@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import authRoutes from './auth.js';
 import bookingRoutes from './bookings.js';
 import roomRoutes from './rooms.js';
@@ -13,6 +14,8 @@ import financialRoutes from './financial.js';
 import messagesRoutes from './messages.js';
 import webhooksRoutes from './webhooks.js';
 import reportsRoutes from './reports.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { authorizeRoles } from '../middleware/roleAuth.js';
 
 const router = express.Router();
 

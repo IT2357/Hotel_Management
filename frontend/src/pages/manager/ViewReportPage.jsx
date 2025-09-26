@@ -149,9 +149,37 @@ const ViewReportPage = () => {
         includeCharts: exportOptions.includeCharts
       });
 
-      // Handle file download
+      // Handle file download with authentication
       if (response.data.data.downloadUrl) {
-        window.open(response.data.data.downloadUrl, '_blank');
+        try {
+          const token = localStorage.getItem('token');
+          const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api';
+          // Remove /api from baseURL if downloadUrl already includes it
+          const cleanBaseURL = baseURL.replace('/api', '');
+          const downloadResponse = await fetch(`${cleanBaseURL}${response.data.data.downloadUrl}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (downloadResponse.ok) {
+            const blob = await downloadResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = response.data.data.fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+          } else {
+            throw new Error(`Download failed: ${downloadResponse.statusText}`);
+          }
+        } catch (downloadError) {
+          console.error('Download error:', downloadError);
+          alert('Download failed. Please try again.');
+        }
       }
       
       setExportModalOpen(false);

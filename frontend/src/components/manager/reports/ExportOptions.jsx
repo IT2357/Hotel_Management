@@ -49,14 +49,47 @@ const ExportOptions = ({
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (exportStatus?.downloadUrl) {
-      const link = document.createElement('a');
-      link.href = exportStatus.downloadUrl;
-      link.download = exportStatus.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        // Get auth token
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication required');
+        }
+
+        // Make authenticated request to download file
+        const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api';
+        // Remove /api from baseURL if downloadUrl already includes it
+        const cleanBaseURL = baseURL.replace('/api', '');
+        const response = await fetch(`${cleanBaseURL}${exportStatus.downloadUrl}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Download failed: ${response.statusText}`);
+        }
+
+        // Convert response to blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = exportStatus.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Download error:', error);
+        setExportStatus({
+          type: 'error',
+          message: `Download failed: ${error.message}`
+        });
+      }
     }
   };
 
