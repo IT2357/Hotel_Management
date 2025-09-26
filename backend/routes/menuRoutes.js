@@ -13,12 +13,31 @@ const router = express.Router();
 // Get all menu items (for guests and staff)
 router.get('/items', async (req, res) => {
   try {
-    const { category, search, isAvailable } = req.query;
+    const { category, search, isAvailable, limit } = req.query;
 
     let filter = {};
 
+    // Handle category filtering - category field is ObjectId reference
     if (category && category !== 'all') {
-      filter.category = category;
+      // First try to find category by name
+      const Category = (await import('../models/Category.js')).default;
+      const categoryDoc = await Category.findOne({
+        $or: [
+          { name: { $regex: new RegExp(`^${category}$`, 'i') } },
+          { slug: category.toLowerCase() }
+        ]
+      });
+
+      if (categoryDoc) {
+        filter.category = categoryDoc._id;
+      } else {
+        // If category not found, return empty result
+        return res.status(200).json({
+          success: true,
+          data: [],
+          count: 0
+        });
+      }
     }
 
     if (isAvailable !== undefined) {
@@ -28,13 +47,23 @@ router.get('/items', async (req, res) => {
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { category: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
-    const menuItems = await MenuItem.find(filter)
+    let query = MenuItem.find(filter)
+      .populate('category', 'name slug')
       .sort({ createdAt: -1 });
+
+    // Apply limit if specified
+    if (limit) {
+      const limitNum = parseInt(limit);
+      if (!isNaN(limitNum) && limitNum > 0) {
+        query = query.limit(limitNum);
+      }
+    }
+
+    const menuItems = await query;
 
     // Add imageUrl to each menu item for frontend display
     const menuItemsWithImages = menuItems.map(item => {
@@ -47,8 +76,7 @@ router.get('/items', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: menuItemsWithImages,
-      count: menuItems.length
+      data: menuItemsWithImages
     });
   } catch (error) {
     console.error('Error fetching menu items:', error);

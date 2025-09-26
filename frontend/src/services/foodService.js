@@ -24,15 +24,18 @@ class FoodService {
       const url = `${FOOD_API_BASE}/items${queryString ? `?${queryString}` : ''}`;
 
       const response = await api.get(url);
-      // Handle different response formats
+
+      // Handle the API response format: { success: true, data: { items: [...], pagination: {...} } }
+      if (response.data && response.data.success && response.data.data && response.data.data.items) {
+        // Return the items array directly for frontend compatibility
+        return { ...response, data: response.data.data.items };
+      }
+
+      // Fallback for other formats
       if (response.data && response.data.data) {
-        // New format with success/data structure
-        if (response.data.data.items) {
-          // Return just the items array for compatibility
-          return { ...response, data: response.data.data.items };
-        }
         return { ...response, data: response.data.data };
       }
+
       // Legacy format or direct array
       return response;
     } catch (error) {

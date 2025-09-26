@@ -15,9 +15,9 @@ import {
   Star,
   MessageSquare
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import Button from '../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/services/api';

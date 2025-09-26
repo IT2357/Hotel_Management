@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import Button from "../../../../components/ui/Button";
+import Button from '../../../../components/ui/Button';
 import Modal from "../../../../components/ui/Modal";
-import Input from "../../../../components/ui/Input";
-import Select from "../../../../components/ui/Select";
-import Textarea from "../../../../components/ui/Textarea";
+import Input from '../../../../components/ui/Input';
+import Select from '../../../../components/ui/Select';
+import Textarea from '../../../../components/ui/Textarea';
 import Spinner from "../../../../components/ui/Spinner";
 
 const TemplateForm = ({ template = null, onSubmit, onCancel, isLoading = false }) => {

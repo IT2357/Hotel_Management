@@ -6,10 +6,10 @@ import NotificationList from "./components/notification/NotificationList";
 import NotificationStats from "./components/notification/NotificationStats";
 import { toast } from "react-toastify";
 import Spinner from "../../components/ui/Spinner";
-import { Button } from "../../components/ui/Button";
-import Card from "../../components/ui/card";
-import Input from "../../components/ui/input";
-import Select from "../../components/ui/Select";
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import useDebounce from "../../hooks/useDebounce";
 import DefaultAdminLayout from "../../layout/admin/DefaultAdminLayout";
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Card, CardContent, CardFooter, CardHeader } from '../ui/Card';
+import Button from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import { Clock, Users, Star, Leaf, Flame } from 'lucide-react';
 
 const FoodCard = ({

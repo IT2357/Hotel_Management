@@ -1,11 +1,11 @@
 import { useState, useEffect, useContext } from 'react';
 
 import { AuthContext } from "../../context/AuthContext";
-import Card from "../../components/ui/Card";
-import Button from "../../components/ui/Button";
-import Badge from "../../components/ui/Badge";
-import Input from "../../components/ui/Input";
-import Select from "../../components/ui/Select";
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
 import Pagination from "../../components/ui/Pagination";

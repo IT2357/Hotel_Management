@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { Edit, Trash2, ToggleLeft, ToggleRight, Clock, DollarSign } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import Button from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '../ui/Card';
 
 // Get API base URL for images
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL

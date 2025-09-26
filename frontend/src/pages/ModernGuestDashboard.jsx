@@ -31,7 +31,7 @@ import { useCart } from '../context/CartContext';
 
 const ModernGuestDashboard = () => {
   const { user, logout } = useAuth();
-  const { addToCart, cartItems = [] } = useCart();
+  const { addToCart, cartItems = [], getItemCount } = useCart();
   const navigate = useNavigate();
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteItems, setFavoriteItems] = useState([]);

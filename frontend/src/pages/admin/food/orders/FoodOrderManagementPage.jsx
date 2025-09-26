@@ -19,17 +19,16 @@ import {
   EyeOff,
   Eye as EyeIcon
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import  Label  from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Button from '../../../../components/ui/Button';
+import { Input } from '../../../../components/ui/Input';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
+import { Badge } from '../../../../components/ui/Badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/Select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../../../components/ui/dialog';
+import  Label  from '../../../../components/ui/Label';
+import { Textarea } from '../../../../components/ui/Textarea';
 import { toast } from 'sonner';
-import api from '@/services/api';
+import api from '../../../../services/api';
 
 const FoodOrderManagementPage = () => {
   const [orders, setOrders] = useState([]);
@@ -39,6 +38,7 @@ const FoodOrderManagementPage = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [activeTab, setActiveTab] = useState('orders');
   const [orderStats, setOrderStats] = useState({
     totalOrders: 0,
     todayOrders: 0,
@@ -207,13 +207,27 @@ const FoodOrderManagementPage = () => {
         </motion.div>
 
         {/* Tabs */}
-        <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          </TabsList>
+        <div className="w-full mb-8">
+          <div className="grid w-full grid-cols-2 gap-2">
+            <Button
+              variant={activeTab === 'orders' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('orders')}
+              className="rounded-lg"
+            >
+              Orders
+            </Button>
+            <Button
+              variant={activeTab === 'reviews' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('reviews')}
+              className="rounded-lg"
+            >
+              Reviews
+            </Button>
+          </div>
+        </div>
 
-          <TabsContent value="orders">
+        {activeTab === 'orders' ? (
+          <div>
             {/* Stats Cards */}
             <motion.div
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
@@ -221,19 +235,19 @@ const FoodOrderManagementPage = () => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-          <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Total Orders</p>
-                  <p className="text-3xl font-bold">{orderStats.totalOrders}</p>
+              <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Orders</p>
+                    <p className="text-3xl font-bold">{orderStats.totalOrders}</p>
+                  </div>
+                  <div className="p-3 bg-blue-500/20 rounded-full">
+                    <Truck className="h-6 w-6 text-blue-500" />
+                  </div>
                 </div>
-                <div className="p-3 bg-blue-500/20 rounded-full">
-                  <Truck className="h-6 w-6 text-blue-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
           <Card className="border-border/50 hover:border-primary/30 transition-all duration-300">
             <CardContent className="p-6">
@@ -561,9 +575,7 @@ const FoodOrderManagementPage = () => {
             )}
           </DialogContent>
         </Dialog>
-          </TabsContent>
-
-          <TabsContent value="reviews">
+        ) : (
             {/* Review Stats */}
             <motion.div
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
@@ -800,8 +812,8 @@ const FoodOrderManagementPage = () => {
                 ))
               )}
             </motion.div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        ) : null}
       </div>
     </div>
   );

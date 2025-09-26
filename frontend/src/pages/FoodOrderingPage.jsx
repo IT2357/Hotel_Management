@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import Button from '../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import ModernCart from '../components/food/Cart';
-import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { CheckCircle, ArrowLeft, ShoppingCart, Search, Filter, Plus, Minus, Trash2, ChefHat, Clock, Star, Leaf, Flame, MapPin, Phone, Mail, Loader2, AlertCircle } from 'lucide-react';
 import Checkout from '../components/food/Checkout';

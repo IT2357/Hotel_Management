@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../../../../context/AuthContext";
-import Button from "../../../../components/ui/Button";
-import Input from "../../../../components/ui/Input";
-import Select from "../../../../components/ui/Select";
-import Textarea from "../../../../components/ui/Textarea";
+import Button from '../../../../components/ui/Button';
+import Input from '../../../../components/ui/Input';
+import Select from '../../../../components/ui/Select';
+import Textarea from '../../../../components/ui/Textarea';
 import Spinner from "../../../../components/ui/Spinner";
 
 export default function SendNotificationForm({ users, onSubmit, templates, staffProfiles = [] }) {

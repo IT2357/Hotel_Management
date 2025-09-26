@@ -1,9 +1,17 @@
-import { createContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 import getDashboardPath from "../utils/GetDashboardPath";
 
 export const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({

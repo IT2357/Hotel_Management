@@ -1,28 +1,29 @@
-// src/components/ui/separator.jsx
-import React from "react";
-import classNames from "classnames";
+import React from 'react';
 
-const Separator = React.forwardRef(({
-  className = "",
-  orientation = "horizontal",
-  decorative = true,
-  ...props
+const Separator = React.forwardRef(({ 
+  orientation = "horizontal", 
+  className = "", 
+  ...props 
 }, ref) => {
   return (
     <div
       ref={ref}
-      role={decorative ? "none" : "separator"}
+      role="separator"
       aria-orientation={orientation}
-      className={classNames(
-        "shrink-0 bg-gray-200 dark:bg-gray-700",
-        orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
-        className
-      )}
+      className={`
+        shrink-0 bg-gray-200 dark:bg-gray-700
+        ${orientation === "horizontal" 
+          ? "h-[1px] w-full" 
+          : "h-full w-[1px]"
+        }
+        ${className}
+      `}
       {...props}
     />
   );
 });
 
-Separator.displayName = "Separator";
+Separator.displayName = 'Separator';
 
 export { Separator };
+export default Separator;

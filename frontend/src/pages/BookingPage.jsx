@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Card from '../components/ui/card';
-import { Button } from '../components/ui/Button';
-import Input from '../components/ui/input';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { Calendar, Users, MapPin, Clock } from 'lucide-react';
 

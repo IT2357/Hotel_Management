@@ -18,25 +18,26 @@ import {
   Star,
   Users,
   Save,
-  Clock
+  Clock,
+  Edit,
+  Trash2
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/input';
-import Label  from '@/components/ui/Label';
-import { Textarea } from '@/components/ui/Textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
+import Button from '../../../../../components/ui/Button';
+import { Input } from '../../../../../components/ui/Input';
+import Label  from '../../../../../components/ui/Label';
+import { Textarea } from '../../../../../components/ui/Textarea';
+import { Card, CardContent } from '../../../../../components/ui/Card';
+import { Badge } from '../../../../../components/ui/Badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../../../../components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/Select';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import api from '@/services/api';
-import foodService from '@/services/foodService';
-import { MenuItemCard } from '@/components/admin/MenuItemCard';
-import { MenuItemForm } from '@/components/admin/MenuItemForm';
-import { StatisticsCard } from '@/components/admin/StatisticsCard';
-import { useSettings } from '@/context/SettingsContext';
+import api from '../../../../../services/api';
+import foodService from '../../../../../services/foodService';
+import { MenuItemCard } from '../../../../../components/admin/MenuItemCard';
+import { MenuItemForm } from '../../../../../components/admin/MenuItemForm';
+import { StatisticsCard } from '../../../../../components/admin/StatisticsCard';
+import { useSettings } from '../../../../../context/SettingsContext';
 import { Sun, Moon } from 'lucide-react';
 
 // Get API base URL for images
@@ -61,6 +62,7 @@ const FoodMenuManagementPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
   const [uploadError, setUploadError] = useState('');
+  const [activeTab, setActiveTab] = useState('manage');
   const navigate = useNavigate();
 
   const toggleTheme = () => {
@@ -96,6 +98,38 @@ const FoodMenuManagementPage = () => {
     cookingTime: 15,
     customizations: []
   });
+
+  // Reset form to empty state
+  const resetFormData = () => {
+    setFormData({
+      name: '',
+      category: '',
+      description: '',
+      price: '',
+      image: '',
+      imageFile: null,
+      imagePreview: null,
+      isAvailable: true,
+      isVeg: false,
+      isSpicy: false,
+      isPopular: false,
+      // Time slot availability
+      isBreakfast: true,
+      isLunch: true,
+      isDinner: true,
+      isSnacks: true,
+      ingredients: [],
+      dietaryTags: [],
+      nutritionalInfo: {
+        calories: '',
+        protein: '',
+        carbs: '',
+        fat: ''
+      },
+      cookingTime: 15,
+      customizations: []
+    });
+  };
 
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,7 +177,15 @@ const FoodMenuManagementPage = () => {
     fetchMenuData();
   }, [selectedCategory, searchQuery]);
 
-  // Fetch menu items and categories from API
+  // Add debugging for authentication
+  useEffect(() => {
+    console.log('FoodMenuManagementPage - Auth Status:', {
+      token: localStorage.getItem('token'),
+      user: localStorage.getItem('user'),
+      isLoading: loading
+    });
+  }, []);
+
   const fetchMenuData = useCallback(async () => {
     try {
       setLoading(true);
@@ -157,8 +199,14 @@ const FoodMenuManagementPage = () => {
         api.get('/menu/categories')
       ]);
 
+      console.log('Items Response:', itemsResponse);
+      console.log('Categories Response:', categoriesResponse);
+
       setFoodItems(itemsResponse.data || []);
       setCategoriesList(categoriesResponse.data?.data || []);
+
+      console.log('Food Items Set:', itemsResponse.data || []);
+      console.log('Categories Set:', categoriesResponse.data?.data || []);
     } catch (error) {
       console.error('Error fetching menu data:', error);
       setError(error.message || 'Failed to load menu items');
@@ -188,34 +236,7 @@ const FoodMenuManagementPage = () => {
       setFoodItems(prev => [...prev, response.data]);
       setIsCreateDialogOpen(false);
       setEditingItem(null);
-      // Reset form data
-      setFormData({
-        name: '',
-        category: '',
-        description: '',
-        price: '',
-        image: '',
-        imageFile: null,
-        imagePreview: null,
-        isAvailable: true,
-        isVeg: false,
-        isSpicy: false,
-        isPopular: false,
-        isBreakfast: true,
-        isLunch: true,
-        isDinner: true,
-        isSnacks: true,
-        ingredients: [],
-        dietaryTags: [],
-        nutritionalInfo: {
-          calories: '',
-          protein: '',
-          carbs: '',
-          fat: ''
-        },
-        cookingTime: 15,
-        customizations: []
-      });
+      resetFormData();
       toast.success('Menu item created successfully');
       // Removed fetchMenuData() call to prevent filtering issues
     } catch (error) {
@@ -350,17 +371,18 @@ const FoodMenuManagementPage = () => {
       errors.price = 'Valid price is required';
     }
 
-    if (!formData.image && !formData.imageFile) {
+    if (!formData.image && !formData.imageFile && !formData.imagePreview) {
       errors.image = 'Image is required (upload file or provide URL)';
     }
 
-    if (formData.image && !formData.image.startsWith('http')) {
-      errors.image = 'Please provide a valid image URL starting with http';
+    if (formData.image && formData.image.trim() && !formData.image.startsWith('http') && !formData.image.startsWith('data:')) {
+      errors.image = 'Please provide a valid image URL starting with http or upload an image file';
     }
 
-    if (!formData.ingredients || formData.ingredients.length === 0) {
-      errors.ingredients = 'At least one ingredient is required';
-    }
+    // Ingredients are optional - remove validation
+    // if (!formData.ingredients || formData.ingredients.length === 0) {
+    //   errors.ingredients = 'At least one ingredient is required';
+    // }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -406,6 +428,9 @@ const FoodMenuManagementPage = () => {
   // Add new category functionality
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState(null);
+  const [categoryFormData, setCategoryFormData] = useState({ name: '', description: '' });
 
   const handleAddNewCategory = useCallback(async () => {
     if (!newCategoryName.trim()) return;
@@ -427,16 +452,90 @@ const FoodMenuManagementPage = () => {
     }
   }, [newCategoryName]);
 
+  // Category management functions
+  const openCategoryDialog = (category = null) => {
+    setCategoryToEdit(category);
+    setCategoryFormData({
+      name: category?.name || '',
+      description: category?.description || ''
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryFormData.name.trim()) {
+      toast.error('Category name is required');
+      return;
+    }
+
+    try {
+      if (categoryToEdit) {
+        // Update existing category
+        const response = await api.put(`/menu/categories/${categoryToEdit._id}`, categoryFormData);
+        setCategoriesList(prev => prev.map(cat => 
+          cat._id === categoryToEdit._id ? response.data : cat
+        ));
+        toast.success('Category updated successfully');
+      } else {
+        // Create new category
+        const response = await api.post('/menu/categories', categoryFormData);
+        setCategoriesList(prev => [...prev, response.data]);
+        toast.success('Category created successfully');
+      }
+      setIsCategoryDialogOpen(false);
+      setCategoryToEdit(null);
+      setCategoryFormData({ name: '', description: '' });
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Failed to save category');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/menu/categories/${categoryId}`);
+      setCategoriesList(prev => prev.filter(cat => cat._id !== categoryId));
+      toast.success('Category deleted successfully');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error('Failed to delete category');
+    }
+  };
+
   // Memoized filtered items
   const filteredItems = useMemo(() => {
-    return (foodItems || []).filter(item => {
+    console.log('Filtering items:', {
+      foodItemsLength: foodItems?.length || 0,
+      selectedCategory,
+      searchQuery,
+      foodItems: foodItems
+    });
+    
+    const filtered = (foodItems || []).filter(item => {
       // Get category ID for comparison
       const itemCategoryId = typeof item.category === 'object' ? item.category?._id : item.category;
       const matchesCategory = selectedCategory === 'all' || itemCategoryId === selectedCategory;
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      console.log('Item filter check:', {
+        itemName: item.name,
+        itemCategoryId,
+        selectedCategory,
+        matchesCategory,
+        matchesSearch,
+        finalMatch: matchesCategory && matchesSearch
+      });
+      
       return matchesCategory && matchesSearch;
     });
+    
+    console.log('Filtered items result:', filtered);
+    return filtered;
   }, [foodItems, selectedCategory, searchQuery]);
 
   // Statistics calculations
@@ -679,6 +778,17 @@ const FoodMenuManagementPage = () => {
               Refresh
             </Button>
 
+            <Button 
+              onClick={() => openCategoryDialog()} 
+              variant="outline" 
+              className={`flex items-center gap-2 ${
+                isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''
+              }`}
+            >
+              <Plus className="h-4 w-4" />
+              Manage Categories
+            </Button>
+
             <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="button-gradient text-white flex items-center gap-2 shadow-lg">
@@ -814,7 +924,7 @@ const FoodMenuManagementPage = () => {
                                         ? 'bg-purple-900/50 text-purple-300'
                                         : 'bg-purple-100 text-purple-800'
                                     }`}>
-                                      {item.category || 'Uncategorized'}
+                                      {typeof item.category === 'object' ? item.category?.name : item.category || 'Uncategorized'}
                                     </span>
                                   </td>
                                 </tr>
@@ -850,13 +960,19 @@ const FoodMenuManagementPage = () => {
               </DialogContent>
             </Dialog>
 
+            <Button 
+              onClick={() => {
+                setEditingItem(null);
+                resetFormData();
+                setIsCreateDialogOpen(true);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Plus className="h-4 w-4" />
+              Add Menu Item
+            </Button>
+
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <Plus className="h-4 w-4" />
-                  Add Menu Item
-                </Button>
-              </DialogTrigger>
                 <DialogContent className={`sm:max-w-4xl max-h-[90vh] overflow-y-auto transition-colors duration-300 ${
                   isDarkMode ? 'bg-slate-800' : 'bg-white'
                 }`}>
@@ -1626,8 +1742,8 @@ const FoodMenuManagementPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {categoriesList.slice(1).map((category) => (
-                      <SelectItem key={category._id} value={category.name}>
+                    {categoriesList.map((category) => (
+                      <SelectItem key={category._id} value={category._id}>
                         {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
                       </SelectItem>
                     ))}
@@ -1642,29 +1758,48 @@ const FoodMenuManagementPage = () => {
           isDarkMode ? 'bg-slate-800/50 border-purple-500/20' : 'bg-white border-gray-200'
         }`}>
           <div className="p-6">
-            <Tabs defaultValue="manage" className="w-full">
-              <TabsList className={`grid w-full grid-cols-2 mb-6 p-1 rounded-lg transition-colors duration-300 ${
-                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-              }`}>
-                <TabsTrigger value="manage" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
-                  isDarkMode
-                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
-                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
-                }`}>
-                  <ChefHat className="h-4 w-4" />
-                  Manage Menu Items
-                </TabsTrigger>
-                <TabsTrigger value="ai-generate" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
-                  isDarkMode
-                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
-                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
-                }`}>
-                  <Sparkles className="h-4 w-4" />
-                  AI Generate Menu
-                </TabsTrigger>
-              </TabsList>
+            {/* Tab Navigation */}
+            <div className={`flex rounded-lg p-1 mb-6 transition-colors duration-300 ${
+              isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+            }`}>
+              <button
+                onClick={() => setActiveTab('manage')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 flex-1 ${
+                  activeTab === 'manage'
+                    ? isDarkMode
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-white shadow-sm'
+                    : isDarkMode
+                      ? 'text-gray-300 hover:bg-gray-600'
+                      : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <ChefHat className="h-4 w-4" />
+                Manage Menu Items
+              </button>
+              <button
+                onClick={() => setActiveTab('ai-generate')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 flex-1 ${
+                  activeTab === 'ai-generate'
+                    ? isDarkMode
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-white shadow-sm'
+                    : isDarkMode
+                      ? 'text-gray-300 hover:bg-gray-600'
+                      : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Generate Menu
+              </button>
+            </div>
 
-              <TabsContent value="manage" className="mt-0">
+            {/* Tab Content */}
+            <div className="mb-4">
+              Current active tab: {activeTab} | Items: {filteredItems.length} | Loading: {loading ? 'yes' : 'no'}
+            </div>
+            {activeTab === 'manage' && (
+              <>
                 {loading ? (
                   <div className="flex justify-center items-center py-12">
                     <div className={`animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 ${
@@ -1843,60 +1978,200 @@ const FoodMenuManagementPage = () => {
                    </Button>
                  </div>
                )}
-              </TabsContent>
+             </>
+           )}
 
-              <TabsContent value="ai-generate" className="mt-0">
-                <div className="text-center py-12">
-                  <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                    isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
-                  }`}>
-                    <Sparkles className={`h-8 w-8 ${
-                      isDarkMode ? 'text-purple-400' : 'text-purple-600'
-                    }`} />
-                  </div>
-                  <h3 className={`text-xl font-semibold mb-2 ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>AI Menu Extractor</h3>
-                  <p className={`mb-6 max-w-md mx-auto ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
-                  </p>
-                  <div className="flex justify-center gap-6 mb-6">
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Upload menu images
-                    </div>
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Extract from URLs
-                    </div>
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Process file paths
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => navigate('/admin/menu-upload')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Go to AI Menu Extractor
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+           {activeTab === 'ai-generate' && (
+             <div className="text-center py-12">
+               <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                 isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
+               }`}>
+                 <Sparkles className={`h-8 w-8 ${
+                   isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                 }`} />
+               </div>
+               <h3 className={`text-xl font-semibold mb-2 ${
+                 isDarkMode ? 'text-white' : 'text-gray-900'
+               }`}>AI Menu Extractor</h3>
+               <p className={`mb-6 max-w-md mx-auto ${
+                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
+               }`}>
+                 Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
+               </p>
+               <div className="flex justify-center gap-6 mb-6">
+                 <div className={`flex items-center text-sm ${
+                   isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                 }`}>
+                   <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                   Upload menu images
+                 </div>
+                 <div className={`flex items-center text-sm ${
+                   isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                 }`}>
+                   <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                   Extract from URLs
+                 </div>
+                 <div className={`flex items-center text-sm ${
+                   isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                 }`}>
+                   <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                   Process file paths
+                 </div>
+               </div>
+               <Button
+                 onClick={() => navigate('/admin/menu-upload')}
+                 className="bg-purple-600 hover:bg-purple-700 text-white"
+               >
+                 <ExternalLink className="h-4 w-4 mr-2" />
+                 Go to AI Menu Extractor
+               </Button>
+             </div>
+           )}
+         </div>
+       </div>
+
+       {/* Category Management Dialog */}
+       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+         <DialogContent className={`sm:max-w-2xl transition-colors duration-300 ${
+           isDarkMode ? 'bg-slate-800' : 'bg-white'
+         }`}>
+           <DialogHeader>
+             <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+               {categoryToEdit ? 'Edit Category' : 'Manage Categories'}
+             </DialogTitle>
+             <p className={`text-sm ${
+               isDarkMode ? 'text-gray-400' : 'text-gray-500'
+             }`}>
+               {categoryToEdit ? 'Update category details' : 'Add new category or manage existing ones'}
+             </p>
+           </DialogHeader>
+           
+           <div className="space-y-6 py-4">
+             {/* Add/Edit Category Form */}
+             <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+               isDarkMode
+                 ? 'bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-800'
+                 : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+             }`}>
+               <h3 className={`text-lg font-semibold mb-4 ${
+                 isDarkMode ? 'text-gray-100' : 'text-gray-800'
+               }`}>
+                 {categoryToEdit ? 'Edit Category' : 'Add New Category'}
+               </h3>
+               
+               <div className="space-y-4">
+                 <div>
+                   <Label htmlFor="categoryName" className={`text-sm font-medium ${
+                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                   }`}>Category Name *</Label>
+                   <Input
+                     id="categoryName"
+                     value={categoryFormData.name}
+                     onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                     placeholder="e.g., Appetizers, Main Course, Desserts"
+                     className="mt-1"
+                   />
+                 </div>
+                 
+                 <div>
+                   <Label htmlFor="categoryDescription" className={`text-sm font-medium ${
+                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                   }`}>Description</Label>
+                   <Textarea
+                     id="categoryDescription"
+                     value={categoryFormData.description}
+                     onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                     placeholder="Brief description of this category"
+                     rows={3}
+                     className="mt-1"
+                   />
+                 </div>
+                 
+                 <div className="flex gap-3">
+                   <Button
+                     onClick={handleSaveCategory}
+                     disabled={!categoryFormData.name.trim()}
+                     className="bg-green-600 hover:bg-green-700 text-white"
+                   >
+                     <Save className="h-4 w-4 mr-2" />
+                     {categoryToEdit ? 'Update Category' : 'Add Category'}
+                   </Button>
+                   
+                   {categoryToEdit && (
+                     <Button
+                       onClick={() => {
+                         setCategoryToEdit(null);
+                         setCategoryFormData({ name: '', description: '' });
+                       }}
+                       variant="outline"
+                     >
+                       Cancel Edit
+                     </Button>
+                   )}
+                 </div>
+               </div>
+             </div>
+
+             {/* Existing Categories List */}
+             <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+               isDarkMode
+                 ? 'bg-gradient-to-r from-gray-900/20 to-slate-900/20 border-gray-700'
+                 : 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200'
+             }`}>
+               <h3 className={`text-lg font-semibold mb-4 ${
+                 isDarkMode ? 'text-gray-100' : 'text-gray-800'
+               }`}>
+                 Existing Categories ({categoriesList.length})
+               </h3>
+               
+               <div className="space-y-3 max-h-60 overflow-y-auto">
+                 {categoriesList.map((category) => (
+                   <div key={category._id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                     isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-white border-gray-200'
+                   }`}>
+                     <div className="flex-1">
+                       <h4 className={`font-medium ${
+                         isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                       }`}>
+                         {category.name}
+                       </h4>
+                       {category.description && (
+                         <p className={`text-sm ${
+                           isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                         }`}>
+                           {category.description}
+                         </p>
+                       )}
+                     </div>
+                     
+                     <div className="flex gap-2">
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => openCategoryDialog(category)}
+                         className="px-3"
+                       >
+                         <Edit className="h-3 w-3" />
+                       </Button>
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => handleDeleteCategory(category._id)}
+                         className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                       >
+                         <Trash2 className="h-3 w-3" />
+                       </Button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
+     </div>
+   </div>
+ );
 };
 
 export default FoodMenuManagementPage;

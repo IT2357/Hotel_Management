@@ -5,9 +5,9 @@ import 'react-toastify/dist/ReactToastify.css';
 import useAuth from '../hooks/useAuth';
 import authService from '../services/authService';
 import DefaultLayout from '../layout/admin/DefaultAdminLayout';
-import Input from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Card } from '../components/ui/card';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
 

@@ -1,7 +1,7 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { NavLink } from "react-router-dom";
-import Card from "../../components/ui/Card";
+import Card from '../../components/ui/Card';
 
 export default function AdminDashboardPage() {
   const { user } = useContext(AuthContext);
