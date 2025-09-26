@@ -24,13 +24,18 @@ export default function AdminBookingsPage() {
   const [alert, setAlert] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
-    status: '', // Default to show all bookings so admins can see everything
-    paymentMethod: '',
+    status: '', // Empty string means no status filter
+    paymentMethod: '', // Empty string means no payment method filter
     dateFrom: '',
     dateTo: '',
     page: 1,
     limit: 20
   });
+  
+  // Debug effect to log filter changes
+  useEffect(() => {
+    console.log('Filters changed:', filters);
+  }, [filters]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -52,6 +57,13 @@ export default function AdminBookingsPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Format date to YYYY-MM-DD for API
+  const formatDateForAPI = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
   const formatRemaining = (endIso) => {
     if (!endIso) return '—';
     const end = new Date(endIso).getTime();
@@ -69,26 +81,87 @@ export default function AdminBookingsPage() {
   }, [filters]);
 
   const fetchBookings = async () => {
-
     try {
       setLoading(true);
+      
+      // Create URLSearchParams and only append non-empty filter values
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+      
+      // Handle each filter explicitly to ensure correct formatting
+      if (filters.search && filters.search.trim()) {
+        params.append('search', filters.search.trim());
+      }
+      if (filters.status) {
+        params.append('status', filters.status);
+      }
+      if (filters.paymentMethod) {
+        params.append('paymentMethod', filters.paymentMethod);
+      }
+      
+      // Format dates for API
+      if (filters.dateFrom) {
+        const fromDate = formatDateForAPI(filters.dateFrom);
+        params.append('dateFrom', fromDate);
+        console.log('Filtering from date:', fromDate);
+      }
+      if (filters.dateTo) {
+        // Set time to end of day for dateTo
+        const endOfDay = new Date(filters.dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        const toDate = endOfDay.toISOString();
+        params.append('dateTo', toDate);
+        console.log('Filtering to date:', toDate);
+      }
+      
+      // Always include pagination parameters
+      const page = filters.page || 1;
+      const limit = filters.limit || 20;
+      params.append('page', page);
+      params.append('limit', limit);
+      
+      const apiUrl = `/api/bookings/admin/all?${params.toString()}`;
+      console.log('API Request URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
 
-      const response = await fetch(`/api/bookings/admin/all?${params}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
+      console.log('API Response:', data);
+      
       if (data.success) {
-        setBookings(data.data.bookings);
-        setPagination(data.data.pagination);
+        const bookings = data.data?.bookings || [];
+        const pagination = data.data?.pagination || {};
+        
+        console.log(`Found ${bookings.length} bookings`);
+        console.log('Pagination:', pagination);
+        
+        setBookings(bookings);
+        setPagination({
+          currentPage: pagination.currentPage || 1,
+          totalPages: pagination.totalPages || 1,
+          totalBookings: pagination.total || 0
+        });
+      } else {
+        console.error('API returned success:false', data);
+        throw new Error(data.message || 'Failed to fetch bookings');
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
-      setAlert({ type: 'error', message: 'Failed to fetch bookings' });
+      setAlert({ 
+        type: 'error', 
+        message: error.message || 'Failed to fetch bookings. Please try again.' 
+      });
     } finally {
       setLoading(false);
     }
@@ -136,7 +209,38 @@ export default function AdminBookingsPage() {
   };
 
   const updateFilters = (newFilters) => {
-    setFilters(newFilters);
+    setFilters(prev => {
+      // Create a new filters object by merging the new filters with the previous state
+      const updatedFilters = {
+        ...prev,
+        ...newFilters
+      };
+      
+      // If any filter except page is changing, reset to page 1
+      const isPageChange = Object.keys(newFilters).length === 1 && 'page' in newFilters;
+      if (!isPageChange) {
+        updatedFilters.page = 1;
+      }
+      
+      // Remove any empty strings or undefined values
+      Object.keys(updatedFilters).forEach(key => {
+        if (updatedFilters[key] === '' || updatedFilters[key] === undefined) {
+          delete updatedFilters[key];
+        }
+      });
+      
+      // Ensure we always have default values
+      return {
+        page: 1,
+        limit: 20,
+        search: '',
+        status: '',
+        paymentMethod: '',
+        dateFrom: '',
+        dateTo: '',
+        ...updatedFilters
+      };
+    });
   };
 
   const getStatusColor = (status) => {
@@ -193,28 +297,38 @@ export default function AdminBookingsPage() {
   };
 
   const openDetailsModal = (booking) => {
-    setSelectedBooking(booking);
+    // Set both states in a single batch update to prevent flashing
     setShowDetailsModal(true);
+    setSelectedBooking(booking);
   };
 
   const closeDetailsModal = () => {
+    // First hide the modal, then clear the booking data after the animation completes
     setShowDetailsModal(false);
-    setSelectedBooking(null);
+    // Use a small timeout to ensure the modal has time to animate out
+    setTimeout(() => {
+      setSelectedBooking(null);
+    }, 300); // Match this with your modal's transition duration
   };
 
   const openActionModal = (booking, type) => {
+    // Set all states in a single batch update
+    setShowActionModal(true);
     setSelectedBooking(booking);
     setActionType(type);
-    setShowActionModal(true);
   };
 
   const closeActionModal = () => {
+    // First hide the modal
     setShowActionModal(false);
-    setSelectedBooking(null);
-    setActionType('');
-    setApprovalNotes('');
-    setRejectionReason('');
-    setHoldUntil('');
+    // Then clear the state after the animation completes
+    setTimeout(() => {
+      setSelectedBooking(null);
+      setActionType('');
+      setApprovalNotes('');
+      setRejectionReason('');
+      setHoldUntil('');
+    }, 300); // Match this with your modal's transition duration
   };
 
   const handleStatusChange = async (bookingId, newStatus, notes = '') => {
@@ -380,11 +494,15 @@ export default function AdminBookingsPage() {
   };
 
   const closeBulkModal = () => {
+    // First hide the modal
     setShowBulkModal(false);
-    setBulkActionType('');
-    setApprovalNotes('');
-    setRejectionReason('');
-    setHoldUntil('');
+    // Then clear the state after the animation completes
+    setTimeout(() => {
+      setBulkActionType('');
+      setApprovalNotes('');
+      setRejectionReason('');
+      setHoldUntil('');
+    }, 300); // Match this with your modal's transition duration
   };
 
   const stats = {
@@ -404,7 +522,7 @@ export default function AdminBookingsPage() {
 
   return (
     <DefaultAdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
         {/* Modern Page Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -516,8 +634,9 @@ export default function AdminBookingsPage() {
 
         {/* Filter Section */}
         <Card className="bg-white shadow-xl rounded-2xl border-0 p-4 lg:p-6">
-          <div className="flex flex-col xl:flex-row gap-4">
-            <div className="flex-1 min-w-0">
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="w-full">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -529,66 +648,92 @@ export default function AdminBookingsPage() {
                   placeholder="🔍 Search bookings, guests, rooms..."
                   value={filters.search}
                   onChange={(e) => updateFilters({...filters, search: e.target.value, page: 1})}
-                  className="pl-10 py-3 text-base rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  className="pl-10 py-3 text-base rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 w-full"
                 />
               </div>
             </div>
-            <div className="w-full xl:w-64">
-              <Select
-                value={filters.status}
-                onChange={(e) => updateFilters({...filters, status: e.target.value, page: 1})}
-                className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option value="">All Status</option>
-                <option value="Pending Approval">Pending Approval</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Approved - Payment Pending">Approved (Pay at Hotel)</option>
-                <option value="Approved - Payment Processing">Approved (Payment Processing)</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Completed">Completed</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Cancelled">Cancelled</option>
-              </Select>
+
+            {/* Status and Payment Method - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <Select
+                  value={filters.status}
+                  onChange={(e) => updateFilters({...filters, status: e.target.value, page: 1})}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 w-full"
+                >
+                  <option value="">All Status</option>
+                  <option value="Pending Approval">Pending Approval</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Approved - Payment Pending">Approved (Pay at Hotel)</option>
+                  <option value="Approved - Payment Processing">Approved (Payment Processing)</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Cancelled">Cancelled</option>
+                </Select>
+              </div>
+              
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <Select
+                  value={filters.paymentMethod}
+                  onChange={(e) => updateFilters({...filters, paymentMethod: e.target.value, page: 1})}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 w-full"
+                >
+                  <option value="">All Payment Methods</option>
+                  <option value="card">Credit/Debit Card</option>
+                  <option value="cash">Pay at Hotel</option>
+                  <option value="bank">Bank Transfer</option>
+                  <option value="online">Online Payment</option>
+                </Select>
+              </div>
             </div>
-            <div className="w-full xl:w-64">
-              <Select
-                value={filters.paymentMethod}
-                onChange={(e) => updateFilters({...filters, paymentMethod: e.target.value, page: 1})}
-                className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option value="">All Payment Methods</option>
-                <option value="card">Credit/Debit Card</option>
-                <option value="cash">Pay at Hotel</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="Online">Online Payment</option>
-              </Select>
-            </div>
-            <div className="w-full xl:w-48">
-              <Input
-                type="date"
-                placeholder="From Date"
-                value={filters.dateFrom}
-                onChange={(e) => updateFilters({...filters, dateFrom: e.target.value, page: 1})}
-                className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="w-full xl:w-48">
-              <Input
-                type="date"
-                placeholder="To Date"
-                value={filters.dateTo}
-                onChange={(e) => updateFilters({...filters, dateTo: e.target.value, page: 1})}
-                className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="w-full xl:w-auto flex items-end">
-              <Button
-                variant="outline"
-                onClick={() => updateFilters({ ...filters, status: 'On Hold', page: 1 })}
-                className="whitespace-nowrap"
-              >
-                Show Only Held
-              </Button>
+
+            {/* Date Range - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                <Input 
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => updateFilters({...filters, dateFrom: e.target.value, page: 1})}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 w-full"
+                />
+              </div>
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <Input 
+                  type="date"
+                  value={filters.dateTo}
+                  min={filters.dateFrom}
+                  onChange={(e) => updateFilters({...filters, dateTo: e.target.value, page: 1})}
+                  className="py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 w-full"
+                />
+              </div>
+              <div className="flex items-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => updateFilters({ ...filters, status: 'On Hold', page: 1 })}
+                  className="h-[42px] whitespace-nowrap bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
+                >
+                  Show Only Held
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => updateFilters({
+                    search: '',
+                    status: '',
+                    paymentMethod: '',
+                    dateFrom: '',
+                    dateTo: '',
+                    page: 1
+                  })}
+                  className="h-[42px] whitespace-nowrap text-gray-700 border-gray-200 hover:bg-gray-50"
+                >
+                  Reset Filters
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -788,7 +933,7 @@ export default function AdminBookingsPage() {
       >
         {selectedBooking && (
           <>
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <h4 className="font-medium text-gray-700 mb-3">Booking Information</h4>
@@ -1303,3 +1448,5 @@ export default function AdminBookingsPage() {
     </DefaultAdminLayout>
   );
 }
+
+

@@ -49,14 +49,18 @@ export default function NotificationManagementPage() {
 
   const extractNotifications = useCallback((res) => {
     try {
-      const responseData = res?.data?.data || res?.data;
+      // res can be:
+      // - an array of notifications
+      // - an object with { notifications, pagination }
+      // - a raw axios response (legacy)
+      const responseData = Array.isArray(res)
+        ? res
+        : res?.notifications || res?.data?.data?.notifications || res?.data || [];
+
       const rawNotifications = Array.isArray(responseData)
         ? responseData
-        : responseData?.notifications || [];
-      if (!Array.isArray(rawNotifications)) {
-        console.warn("Expected array of notifications but got:", rawNotifications);
-        return [];
-      }
+        : [];
+
       return rawNotifications.map((notification) => ({
         ...notification,
         id: notification._id || notification.id,
@@ -72,6 +76,7 @@ export default function NotificationManagementPage() {
     }
   }, []);
 
+
   const fetchNotifications = useCallback(async () => {
     try {
       const params = {
@@ -83,9 +88,10 @@ export default function NotificationManagementPage() {
         ),
       };
       
-      const res = await notificationService.getAdminNotifications(params);
-      const extracted = extractNotifications(res);
-      setTotalPages(res.data?.data?.pagination?.pages || 1);
+      // notificationService returns the parsed data object, not the raw Axios response
+      const data = await notificationService.getAdminNotifications(params);
+      const extracted = extractNotifications(data?.notifications || data || []);
+      setTotalPages(data?.pagination?.pages || 1);
       return extracted;
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
@@ -137,13 +143,13 @@ export default function NotificationManagementPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Always fetch users and staff profiles for forms
         const [fetchedUsers, fetchedStaffProfiles] = await Promise.all([
           fetchUsers(),
           fetchStaffProfiles(),
         ]);
-        
+
         if (isMounted) {
           setUsers(fetchedUsers);
           setStaffProfiles(fetchedStaffProfiles);
@@ -157,11 +163,10 @@ export default function NotificationManagementPage() {
 
         if (activeTab === "overview") {
           try {
-            const statsRes = await notificationService.getNotificationStats({
-              signal: abortController.signal,
-            });
+            // service returns the stats object directly
+            const statsRes = await notificationService.getNotificationStats();
             if (isMounted) {
-              setStats(statsRes?.data?.data ?? statsRes?.data ?? null);
+              setStats(statsRes ?? null);
             }
           } catch (error) {
             if (error.name !== "AbortError" && isMounted) {
@@ -360,7 +365,10 @@ export default function NotificationManagementPage() {
             </div>
             <div className="flex gap-3">
               <Button
-                onClick={() => fetchNotifications()}
+                onClick={async () => {
+                  const updated = await fetchNotifications();
+                  setNotifications(updated);
+                }}
                 variant="outline"
                 className="bg-white/10 border-white/30 text-white hover:bg-white/20"
               >
@@ -430,7 +438,7 @@ export default function NotificationManagementPage() {
                   <option value="email">Email</option>
                   <option value="sms">SMS</option>
                   <option value="push">Push</option>
-                  <option value="in-app">In-App</option>
+                  <option value="inApp">In-App</option>
                 </Select>
               </div>
               <div className="w-full lg:w-64">

@@ -7,6 +7,7 @@ export default function AdminDashboardPage() {
   const { user } = useContext(AuthContext);
   const [bookingStats, setBookingStats] = useState({});
   const [invoiceStats, setInvoiceStats] = useState({});
+  const [userStats, setUserStats] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,23 +17,30 @@ export default function AdminDashboardPage() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const [bookingResponse, invoiceResponse] = await Promise.all([
+      const [bookingResponse, invoiceResponse, userResponse] = await Promise.all([
         fetch('/api/bookings/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
         fetch('/api/invoices/admin/stats?period=all', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }),
+        fetch('/api/users/admin/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);
 
       const bookingData = await bookingResponse.json();
       const invoiceData = await invoiceResponse.json();
+      const userData = await userResponse.json();
 
       if (bookingData.success) {
         setBookingStats(bookingData.data);
       }
       if (invoiceData.success) {
         setInvoiceStats(invoiceData.data);
+      }
+      if (userData.success) {
+        setUserStats(userData.data);
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -44,24 +52,50 @@ export default function AdminDashboardPage() {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'LKR'
+      currency: 'LKR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
-  const dashboardItems = [
+  const quickStatsItems = [
     {
-      title: "Users",
-      to: "/admin/users",
-      description: "Manage user accounts and permissions.",
-      icon: "👥",
-      color: "bg-gradient-to-r from-blue-500 to-indigo-500",
+      title: "Total Bookings",
+      stat: bookingStats.totalBookings || 0,
+      description: "All time bookings",
+      icon: "📊",
+      color: "from-indigo-500 to-purple-600",
     },
+    {
+      title: "Pending Approvals",
+      stat: bookingStats.pendingApprovals || 0,
+      description: "Require review",
+      icon: "⏳",
+      color: "from-yellow-500 to-orange-500",
+    },
+    {
+      title: "Confirmed",
+      stat: bookingStats.confirmed || 0,
+      description: "Ready for check-in",
+      icon: "✅",
+      color: "from-green-500 to-emerald-500",
+    },
+    {
+      title: "Revenue",
+      stat: formatCurrency(bookingStats.totalRevenue || 0),
+      description: "Total bookings value",
+      icon: "💰",
+      color: "from-blue-500 to-cyan-500",
+    },
+  ];
+
+  const dashboardItems = [
     {
       title: "Bookings",
       to: "/admin/bookings",
       description: "View and handle reservations.",
       icon: "📅",
-      color: "bg-gradient-to-r from-green-500 to-emerald-500",
+      color: "from-green-400 to-emerald-500",
       stats: {
         count: bookingStats.totalBookings || 0,
         subtitle: "Total bookings",
@@ -74,7 +108,7 @@ export default function AdminDashboardPage() {
       to: "/admin/invoices",
       description: "Manage invoices and payments.",
       icon: "📄",
-      color: "bg-gradient-to-r from-purple-500 to-pink-500",
+      color: "from-purple-400 to-pink-500",
       stats: {
         count: invoiceStats.totalInvoices || 0,
         subtitle: "Total invoices",
@@ -82,130 +116,98 @@ export default function AdminDashboardPage() {
         badgeLabel: "Paid"
       }
     },
-    {
-      title: "Reports",
-      to: "/admin/reports",
-      description: "Analyze system performance and metrics.",
-      icon: "📊",
-      color: "bg-gradient-to-r from-orange-500 to-red-500",
-    },
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-8 p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
       {/* Modern Page Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">👋 Welcome, {user?.name?.split(" ")[0] || "Admin"}!</h1>
-            <p className="text-indigo-100 text-lg">
-              Your central hub for managing the hotel system
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="flex-1">
+            <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 leading-tight">
+              👋 Welcome, {user?.name?.split(" ")[0] || "Admin"}!
+            </h1>
+            <p className="text-indigo-100 text-base sm:text-lg">
+              Your central hub for managing the hotel system.
             </p>
           </div>
-          <div className="flex gap-4">
-            <div className="bg-white/20 rounded-lg p-4 text-center min-w-[120px]">
+          <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center flex-1">
               <div className="text-2xl font-bold">{bookingStats.totalBookings || 0}</div>
-              <div className="text-sm text-indigo-100">Total Bookings</div>
+              <div className="text-sm text-indigo-100 mt-1">Total Bookings</div>
             </div>
-            <div className="bg-white/20 rounded-lg p-4 text-center min-w-[120px]">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center flex-1">
               <div className="text-2xl font-bold">{formatCurrency(bookingStats.totalRevenue || 0)}</div>
-              <div className="text-sm text-indigo-100">Revenue</div>
+              <div className="text-sm text-indigo-100 mt-1">Revenue</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4 text-white">
-            <h3 className="text-lg font-bold">📊 Total Bookings</h3>
-          </div>
-          <div className="p-6">
-            <div className="text-3xl font-bold text-indigo-600 mb-1">
-              {loading ? "..." : bookingStats.totalBookings || 0}
+        {quickStatsItems.map((item, index) => (
+          <Card
+            key={index}
+            className="shadow-xl rounded-2xl overflow-hidden flex flex-col justify-between"
+          >
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                <span className="text-2xl mr-2">{item.icon}</span> {item.title}
+              </h3>
+              <div className="text-4xl font-extrabold text-gray-800 mt-2">
+                {loading ? "..." : item.stat}
+              </div>
+              <p className="text-gray-600 text-sm mt-1">{item.description}</p>
             </div>
-            <p className="text-gray-600 text-sm">All time bookings</p>
-          </div>
-        </Card>
-
-        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 text-white">
-            <h3 className="text-lg font-bold">⏳ Pending Approvals</h3>
-          </div>
-          <div className="p-6">
-            <div className="text-3xl font-bold text-yellow-600 mb-1">
-              {loading ? "..." : bookingStats.pendingApprovals || 0}
-            </div>
-            <p className="text-gray-600 text-sm">Require review</p>
-          </div>
-        </Card>
-
-        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-4 text-white">
-            <h3 className="text-lg font-bold">✅ Confirmed</h3>
-          </div>
-          <div className="p-6">
-            <div className="text-3xl font-bold text-green-600 mb-1">
-              {loading ? "..." : bookingStats.confirmed || 0}
-            </div>
-            <p className="text-gray-600 text-sm">Ready for check-in</p>
-          </div>
-        </Card>
-
-        <Card className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 text-white">
-            <h3 className="text-lg font-bold">💰 Revenue</h3>
-          </div>
-          <div className="p-6">
-            <div className="text-3xl font-bold text-blue-600 mb-1">
-              {loading ? "..." : formatCurrency(bookingStats.totalRevenue || 0)}
-            </div>
-            <p className="text-gray-600 text-sm">Total bookings value</p>
-          </div>
-        </Card>
+            <div className={`h-1 bg-gradient-to-r ${item.color}`}></div>
+          </Card>
+        ))}
       </div>
 
-      {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {dashboardItems.map(({ title, description, to, icon, color, stats }) => (
           <Card
             key={title}
-            className="bg-white shadow-xl rounded-2xl border-0 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+            className="shadow-xl rounded-2xl overflow-hidden flex flex-col justify-between"
           >
-            <div className={`${color} rounded-t-xl p-4 text-white relative`}>
-              <h3 className="text-lg font-bold">{icon} {title}</h3>
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center mb-2">
+                <span className="text-xl mr-2">{icon}</span> {title}
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">{description}</p>
               {stats && (
-                <div className="absolute top-2 right-2 bg-white/20 rounded-full px-2 py-1">
-                  <span className="text-xs font-medium">
-                    {stats.count} {stats.subtitle}
-                  </span>
+                <div className="flex items-center text-xs text-gray-500 h-6">
+                  {stats.count !== undefined && (
+                    <>
+                      <span className="font-medium mr-1">{stats.count}</span>
+                      <span className="mr-2">{stats.subtitle}</span>
+                    </>
+                  )}
                   {stats.badge > 0 && (
-                    <div className="text-xs bg-yellow-400 text-yellow-900 rounded-full px-1 mt-1">
+                    <div className="bg-yellow-100 text-yellow-800 rounded-full px-2 py-1">
                       {stats.badge} {stats.badgeLabel}
                     </div>
                   )}
                 </div>
               )}
             </div>
-            <div className="p-6">
-              <p className="text-gray-600 text-sm mb-4">{description}</p>
+            <div className="p-6 pt-0">
               <NavLink
                 to={to}
-                className="inline-block px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm rounded-full hover:from-indigo-700 hover:to-purple-700 transition duration-300"
+                className={`inline-block w-full text-center px-4 py-2 text-sm font-semibold rounded-full text-white bg-gray-800 hover:bg-gray-900 transition duration-300`}
               >
                 Go to {title}
               </NavLink>
             </div>
+            <div className={`h-1 bg-gradient-to-r ${color}`}></div>
           </Card>
         ))}
       </div>
 
-      {/* Recent Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white shadow-xl rounded-2xl border-0">
+        <Card className="shadow-xl rounded-2xl overflow-hidden flex flex-col justify-between">
           <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">📈 Booking Trends</h3>
+            <h3 className="text-lg font-bold mb-4 text-gray-900">📈 Booking Trends</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">This Week</span>
@@ -227,11 +229,12 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
+          <div className="h-1 bg-gradient-to-r from-gray-200 to-gray-300"></div>
         </Card>
 
-        <Card className="bg-white shadow-xl rounded-2xl border-0">
+        <Card className="shadow-xl rounded-2xl overflow-hidden flex flex-col justify-between">
           <div className="p-6">
-            <h3 className="text-lg font-bold mb-4">⚡ Quick Actions</h3>
+            <h3 className="text-lg font-bold mb-4 text-gray-900">⚡ Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
               <NavLink
                 to="/admin/bookings"
@@ -263,6 +266,7 @@ export default function AdminDashboardPage() {
               </NavLink>
             </div>
           </div>
+          <div className="h-1 bg-gradient-to-r from-gray-200 to-gray-300"></div>
         </Card>
       </div>
     </div>
