@@ -24,7 +24,7 @@ const ManagerReportsDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dateRange, setDateRange] = useState('today');
+  const [dateRange, setDateRange] = useState('week');
 
   useEffect(() => {
     fetchDashboardData();
