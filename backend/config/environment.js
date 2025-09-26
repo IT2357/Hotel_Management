@@ -66,9 +66,6 @@ const config = {
     API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
   },
 
-  // Frontend Configuration
-  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
-
   // Security Configuration
   BCRYPT_ROUNDS: parseInt(process.env.BCRYPT_ROUNDS) || 12,
   RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000, // 15 minutes

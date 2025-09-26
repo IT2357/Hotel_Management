@@ -415,7 +415,7 @@ class EmailService {
   static async sendInvitationEmail(email, role, token, expiresInHours) {
     const subject = `Invitation to Join as ${role}`;
     // Import config to get FRONTEND_URL
-    const config = (await import('../config/environment.js')).default;
+    const config = (await import('../../config/environment.js')).default;
     const baseUrl = config.FRONTEND_URL || 'http://localhost:5173';
     const invitationLink = `${baseUrl}/accept-invitation?token=${token}`;
     const html = `

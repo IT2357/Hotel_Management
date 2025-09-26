@@ -24,7 +24,7 @@ export default function AdminDashboardPage() {
         fetch('/api/invoices/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
-        fetch('/api/users/admin/stats', {
+        fetch('/api/admin/users/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);

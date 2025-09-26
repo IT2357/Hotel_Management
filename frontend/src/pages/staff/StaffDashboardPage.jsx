@@ -1602,7 +1602,7 @@ function TaskCard({ task, onStatusChange, index = 0 }) {
                 className="relative appearance-none px-5 py-3 pr-10 text-sm font-bold border-2 border-transparent bg-gradient-to-r from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm rounded-2xl text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-400/20 focus:border-indigo-400 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105"
               >
                <option value="pending" style={{color: 'black'}}>⏳ Pending</option>
-              <option value="process" style={{color: 'black'}}>🔄 In Progress</option>
+              <option value="in_progress" style={{color: 'black'}}>🔄 In Progress</option>
               <option value="completed" style={{color: 'black'}}>✅ Completed</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
@@ -1671,7 +1671,7 @@ function generateSampleTasks(department, user) {
         description: "Several light bulbs in the main lobby area need replacement.",
         category: "electrical",
         priority: "medium",
-        status: "process",
+        status: "in_progress",
         location: "lobby",
         estimatedDuration: 30,
         isUrgent: false
@@ -1724,7 +1724,7 @@ function generateSampleTasks(department, user) {
         description: "Deep clean and sanitize all food preparation surfaces and equipment.",
         category: "cleaning",
         priority: "medium",
-        status: "process",
+        status: "in_progress",
         location: "kitchen",
         estimatedDuration: 45,
         isUrgent: false
@@ -1754,7 +1754,7 @@ function generateSampleTasks(department, user) {
         description: "Prepare gluten-free and vegan options for guests with dietary restrictions.",
         category: "cooking",
         priority: "high",
-        status: "process",
+        status: "in_progress",
         location: "kitchen",
         estimatedDuration: 75,
         isUrgent: false
@@ -1777,7 +1777,7 @@ function generateSampleTasks(department, user) {
         description: "Prepare welcome amenities and room setup for VIP guest arrival.",
         category: "guest_request",
         priority: "high",
-        status: "process",
+        status: "in_progress",
         location: "room",
         roomNumber: "501",
         estimatedDuration: 40,
@@ -1833,7 +1833,7 @@ function generateSampleTasks(department, user) {
         description: "Process and clean bed linens from checkout rooms.",
         category: "laundry",
         priority: "medium",
-        status: "process",
+        status: "in_progress",
         location: "other",
         estimatedDuration: 120,
         isUrgent: false
@@ -1863,7 +1863,7 @@ function generateSampleTasks(department, user) {
         description: "Daily sanitization of all gym equipment and surfaces.",
         category: "cleaning",
         priority: "high",
-        status: "process",
+        status: "in_progress",
         location: "gym",
         estimatedDuration: 60,
         isUrgent: false

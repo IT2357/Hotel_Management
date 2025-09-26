@@ -137,35 +137,59 @@ const STATUS_ORDER = {
 // Grace period in milliseconds during which a downgrade is allowed (e.g., 5 minutes)
 const DOWNGRADE_GRACE_MS = 5 * 60 * 1000;
 
+// Lock period for completed tasks (15 minutes - matches frontend timer)
+const COMPLETION_LOCK_MS = 15 * 60 * 1000;
+
 staffTaskSchema.pre('save', function(next) {
-  // Only act if status changed
-  if (!this.isModified('status')) return next();
+  try {
+    // Only act if status changed
+    if (!this.isModified('status')) return next();
 
-  const prev = this.get('status', null, { getters: false, virtuals: false, defaults: false });
-  // Mongoose doesn't provide previous value directly in pre('save'), use this.modifiedPaths if needed
-  // We can approximate by reading this._doc and this.$__.activePaths, but simpler: use this.$__.priorDoc if available
-  const prior = this.$__.priorDoc;
-  const fromStatus = prior ? prior.status : undefined;
-  const toStatus = this.status;
+    const prior = this.$__.priorDoc;
+    const fromStatus = prior ? prior.status : this.status;
+    const toStatus = this.status;
 
-  if (fromStatus && toStatus && STATUS_ORDER[fromStatus] !== undefined && STATUS_ORDER[toStatus] !== undefined) {
-    const now = new Date();
-    const lastChange = this.lastStatusChange || this.createdAt || now;
-    const timeSince = now - lastChange;
+    console.log('Status change:', { from: fromStatus, to: toStatus });
 
-    const isDowngrade = STATUS_ORDER[toStatus] < STATUS_ORDER[fromStatus];
-    if (isDowngrade && timeSince > DOWNGRADE_GRACE_MS) {
-      return next(new Error(`Backward status change from ${fromStatus} to ${toStatus} is not allowed after grace period`));
+    // Check if task is completed and locked
+    if (fromStatus === 'completed' && this.completedAt) {
+      const now = new Date();
+      const timeSinceCompletion = now - this.completedAt;
+
+      if (timeSinceCompletion > COMPLETION_LOCK_MS) {
+        return next(new Error(`Task was completed ${Math.floor(timeSinceCompletion / (1000 * 60))} minutes ago and is now locked. No further updates are allowed.`));
+      }
     }
-  }
 
-  // Record history and bump lastStatusChange
-  this.statusHistory = this.statusHistory || [];
-  if (fromStatus && fromStatus !== this.status) {
-    this.statusHistory.push({ from: fromStatus, to: this.status, changedAt: new Date() });
+    if (fromStatus && toStatus && STATUS_ORDER[fromStatus] !== undefined && STATUS_ORDER[toStatus] !== undefined) {
+      const now = new Date();
+      const lastChange = this.lastStatusChange || this.createdAt || now;
+      const timeSince = now - lastChange;
+
+      const isDowngrade = STATUS_ORDER[toStatus] < STATUS_ORDER[fromStatus];
+      if (isDowngrade && timeSince > DOWNGRADE_GRACE_MS) {
+        return next(new Error(`Backward status change from ${fromStatus} to ${toStatus} is not allowed after grace period`));
+      }
+    }
+
+    // Record history and bump lastStatusChange
+    this.statusHistory = this.statusHistory || [];
+    if (fromStatus && fromStatus !== this.status) {
+      this.statusHistory.push({
+        from: fromStatus,
+        to: this.status,
+        changedAt: new Date(),
+        changedBy: this.$__.priorDoc?.lastModifiedBy || null,
+        reason: 'Status update'
+      });
+    }
+    this.lastStatusChange = new Date();
+    next();
+  } catch (error) {
+    console.error('Error in StaffTask pre-save middleware:', error);
+    // Don't fail the save, just log the error
+    next();
   }
-  this.lastStatusChange = new Date();
-  next();
 });
 
 const StaffTask = mongoose.model("StaffTask", staffTaskSchema);

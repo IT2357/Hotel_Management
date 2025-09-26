@@ -38,12 +38,8 @@ const ManagerSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
           to: '/manager', 
           icon: <BiHome />,
           exact: true
-        },
-        { 
-          label: 'Dashboard', 
-          to: '/manager/dashboard', 
-          icon: <BiSolidDashboard />
         }
+        
       ]
     },
     {
@@ -59,11 +55,7 @@ const ManagerSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
               to: '/manager/task-management', 
               icon: <BiTask />
             },
-            { 
-              label: 'All Tasks', 
-              to: '/manager/tasks', 
-              icon: <BiListCheck />
-            },
+           
             { 
               label: 'Create Task', 
               to: '/manager/tasks/create', 
@@ -74,11 +66,7 @@ const ManagerSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
               to: '/manager/tasks/assign', 
               icon: <UserPlus />
             },
-            { 
-              label: 'Staff Workload', 
-              to: '/manager/tasks/staff-workload', 
-              icon: <BarChart3 />
-            },
+            
             { 
               label: 'Task Feedback', 
               to: '/manager/tasks/feedback', 
@@ -119,53 +107,8 @@ const ManagerSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
           ]
         }
       ]
-    },
-    {
-      section: 'Staff & Performance',
-      items: [
-        { 
-          label: 'Staff Performance', 
-          to: '/manager/staff-performance', 
-          icon: <BiUser />
-        },
-        { 
-          label: 'Feedback & Reviews', 
-          to: '/manager/feedback', 
-          icon: <BiCommentDetail />
-        }
-      ]
-    },
-    {
-      section: 'Communication',
-      items: [
-        { 
-          label: 'Notifications', 
-          to: '/manager/notifications', 
-          icon: <BiBell />,
-          badge: 2
-        },
-        { 
-          label: 'Staff Messages', 
-          to: '/manager/staff-messages',
-          icon: <BiMessageSquareDetail />
-        },
-        { 
-          label: 'Manager Inbox', 
-          to: '/manager/inbox',
-          icon: <BiEnvelope />
-        }
-      ]
-    },
-    {
-      section: 'Settings',
-      items: [
-        { 
-          label: 'Settings', 
-          to: '/manager/settings',
-          icon: <BiCog />
-        }
-      ]
     }
+    
   ];
 
   const toggleMenu = (menuId) => {

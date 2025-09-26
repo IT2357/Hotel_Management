@@ -12,6 +12,7 @@ import {
   approveUser,
   getPendingApprovals,
   getUsers,
+  getUserStats,
   updateUserRole,
   deactivateUser,
   reactivateUser,
@@ -129,6 +130,7 @@ router.post(
   createPrivilegedUser
 );
 router.get("/users", authorizeRoles({ permissions: ["users:read"] }), getUsers);
+router.get("/users/stats", authorizeRoles({ permissions: ["users:read"] }), getUserStats);
 router.put(
   "/users/:userId/role",
   authorizeRoles({ permissions: ["users:update"] }),

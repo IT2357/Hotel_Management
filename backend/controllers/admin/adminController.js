@@ -218,6 +218,31 @@ export const getUsers = async (req, res) => {
   }
 };
 
+// Get user statistics
+export const getUserStats = async (req, res) => {
+  try {
+    const User = (await import("../../models/User.js")).default;
+
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const adminUsers = await User.countDocuments({ role: 'admin' });
+    const staffUsers = await User.countDocuments({ role: 'staff' });
+    const managerUsers = await User.countDocuments({ role: 'manager' });
+    const guestUsers = await User.countDocuments({ role: 'guest' });
+
+    sendSuccess(res, {
+      totalUsers,
+      activeUsers,
+      adminUsers,
+      staffUsers,
+      managerUsers,
+      guestUsers
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to fetch user stats");
+  }
+};
+
 // Update user role
 export const updateUserRole = async (req, res) => {
   try {

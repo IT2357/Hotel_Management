@@ -6,7 +6,7 @@ const API_BASE_URL = String(rawBase).replace(/\/$/, ''); // trim trailing slash
 
 // Create an axios instance with default config
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/tasks`,
+  baseURL: `${API_BASE_URL}/task-management`,
   headers: {
     'Content-Type': 'application/json',
   },

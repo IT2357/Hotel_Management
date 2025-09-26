@@ -323,7 +323,7 @@ export default function MyBookings() {
           /* Bookings List */
           <div className="space-y-6">
             {filteredBookings.map((booking) => (
-              <Card key={booking.id} className="overflow-hidden">
+              <Card key={booking._id || booking.id} className="overflow-hidden">
                 <div className="md:flex">
                   {/* Image */}
                   <div className="md:w-1/4">
@@ -353,7 +353,7 @@ export default function MyBookings() {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div key={`checkin-${booking.id}`} className="flex items-center space-x-2">
+                      <div key={`checkin-${booking._id || booking.id}`} className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Check-in</p>
@@ -361,7 +361,7 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      <div key={`checkout-${booking.id}`} className="flex items-center space-x-2">
+                      <div key={`checkout-${booking._id || booking.id}`} className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Check-out</p>
@@ -369,7 +369,7 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      <div key={`guests-${booking.id}`} className="flex items-center space-x-2">
+                      <div key={`guests-${booking._id || booking.id}`} className="flex items-center space-x-2">
                         <Users className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Guests</p>
@@ -377,7 +377,7 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      <div key={`room-${booking.id}`} className="flex items-center space-x-2">
+                      <div key={`room-${booking._id || booking.id}`} className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Room</p>
@@ -388,7 +388,7 @@ export default function MyBookings() {
 
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center space-x-4">
-                        <div key={`total-${booking.id}`}>
+                        <div key={`total-${booking._id || booking.id}`}>
                           <p className="text-sm text-gray-600">
                             {booking.status === 'Completed' || booking.status === 'Confirmed'
                               ? 'Total Paid'
@@ -400,7 +400,7 @@ export default function MyBookings() {
                             {formatPrice(booking.costBreakdown?.total || booking.totalPrice)}
                           </p>
                         </div>
-                        <div key={`nights-${booking.id}`}>
+                        <div key={`nights-${booking._id || booking.id}`}>
                           <p className="text-sm text-gray-600">Nights</p>
                           <p className="text-sm font-medium text-gray-800">
                             {booking.costBreakdown?.nights || getNights(booking.checkIn, booking.checkOut)}
@@ -410,28 +410,27 @@ export default function MyBookings() {
 
                       <div className="flex items-center space-x-2">
                         <Button
-                          key={`view-${booking.id}`}
+                          key={`view-${booking._id || booking.id}`}
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewDetails(booking.id)}
+                          onClick={() => handleViewDetails(booking._id || booking.id)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </Button>
                         {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
-                          <Button key={`receipt-${booking.id}`} variant="outline" size="sm">
+                          <Button key={`receipt-${booking._id || booking.id}`} variant="outline" size="sm">
                             <Download className="h-4 w-4 mr-2" />
                             Receipt
                           </Button>
                         )}
                         {booking.status === 'Pending Approval' ||
-                         booking.status === 'On Hold' ||
-                         booking.status === 'Approved - Payment Pending' ? (
+                         booking.status === 'On Hold' ? (
                           <Button
-                            key={`cancel-${booking.id}`}
+                            key={`cancel-${booking._id || booking.id}`}
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCancelBooking(booking.id)}
+                            onClick={() => handleCancelBooking(booking._id || booking.id)}
                             className="text-red-600 border-red-300 hover:bg-red-50"
                           >
                             Cancel

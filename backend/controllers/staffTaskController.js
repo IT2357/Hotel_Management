@@ -57,6 +57,8 @@ export const getStaffTasks = async (req, res) => {
       ];
     }
     
+    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+    
     const tasks = await StaffTask.find(filter)
       .populate('assignedTo', 'firstName lastName email')
       .populate('assignedBy', 'firstName lastName')
@@ -64,7 +66,10 @@ export const getStaffTasks = async (req, res) => {
     
     res.status(200).json(tasks);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
@@ -138,22 +143,28 @@ export const updateStaffTaskStatus = async (req, res) => {
   try {
     const { taskId } = req.params;
     const { status, notes } = req.body;
-    
+
+    console.log('Updating task status:', { taskId, status, notes, userId: req.user?.id });
+
     const task = await StaffTask.findById(taskId);
     if (!task) {
+      console.log('Task not found:', taskId);
       return res.status(404).json({ message: 'Task not found' });
     }
-    
+
+    console.log('Found task:', { id: task._id, assignedTo: task.assignedTo, assignedBy: task.assignedBy });
+
     // Check if user is assigned to the task or is the assigner
-    if (task.assignedTo.toString() !== req.user.id && task.assignedBy.toString() !== req.user.id) {
+    if (task.assignedTo?.toString() !== req.user.id && task.assignedBy?.toString() !== req.user.id) {
+      console.log('Authorization failed:', { taskAssignedTo: task.assignedTo, taskAssignedBy: task.assignedBy, userId: req.user.id });
       return res.status(403).json({ message: 'Not authorized to update this task' });
     }
-    
+
     task.status = status;
     if (status === 'completed') {
       task.completedAt = new Date();
     }
-    
+
     if (notes) {
       task.notes = task.notes || [];
       task.notes.push({
@@ -162,15 +173,22 @@ export const updateStaffTaskStatus = async (req, res) => {
         createdAt: new Date()
       });
     }
-    
+
+    console.log('Saving task...');
     await task.save();
-    
-    // Notify relevant users
-    getIO().emit('taskUpdated', task);
-    
+    console.log('Task saved successfully');
+
+    // Notify relevant users (optional - don't fail if socket fails)
+    try {
+      getIO().emit('taskUpdated', task);
+    } catch (socketError) {
+      console.warn('Socket notification failed:', socketError);
+    }
+
     res.status(200).json(task);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error updating task status:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 

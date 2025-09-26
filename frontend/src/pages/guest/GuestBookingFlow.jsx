@@ -497,7 +497,7 @@ const GuestBookingFlow = () => {
         </svg>
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed!</h2>
+        <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Submitted!</h2>
         <p className="text-gray-600">Your booking has been successfully created. Please proceed to payment.</p>
       </div>
       {bookingResult && (
@@ -865,7 +865,7 @@ const GuestBookingFlow = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed!</h2>
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Submitted!</h2>
             <p className="text-gray-600 mb-4">
               Your booking has been confirmed! Payment will be collected when you arrive at the hotel.
             </p>
@@ -909,7 +909,7 @@ const GuestBookingFlow = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-green-600 mb-2">
-              {bookingResult?.paymentMethod === 'card' ? 'Payment Successful!' : 'Booking Confirmed!'}
+              {bookingResult?.paymentMethod === 'card' ? 'Payment Successful!' : 'Booking Submitted!'}
             </h2>
             <p className="text-gray-600 mb-4">
               {bookingResult?.paymentMethod === 'card'
