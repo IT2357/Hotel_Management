@@ -54,6 +54,7 @@ import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
 
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
@@ -293,113 +294,172 @@ const App = () => {
             }
           />
 
-          {/* 👨‍💼 Manager Routes */}
-          <Route
-            path="/manager"
+          {/* 👨‍💼 Manager Routes - Restructured with Layout */}
+          <Route 
+            path="/manager/*" 
             element={
               <ProtectedRoute roles={['manager']}>
-                <ManagerHomePage />
+                <Routes>
+                  {/* Manager Home/Dashboard */}
+                  <Route 
+                    index 
+                    element={
+                      <DefaultManagerLayout>
+                        <ManagerHomePage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  {/* Task Management Section */}
+                  <Route 
+                    path="dashboard" 
+                    element={
+                      <DefaultManagerLayout>
+                        <ManagerTaskDashboard />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="task-management" 
+                    element={
+                      <DefaultManagerLayout>
+                        <TaskManagementDashboard />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="tasks" 
+                    element={
+                      <DefaultManagerLayout>
+                        <TaskListPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="tasks/create" 
+                    element={
+                      <DefaultManagerLayout>
+                        <CreateTaskPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="tasks/assign" 
+                    element={
+                      <DefaultManagerLayout>
+                        <TaskAssignmentPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="tasks/feedback" 
+                    element={
+                      <DefaultManagerLayout>
+                        <FeedbackPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="tasks/staff-workload" 
+                    element={
+                      <DefaultManagerLayout>
+                        <StaffWorkloadPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  {/* Reports Section */}
+                  <Route 
+                    path="reports/*" 
+                    element={
+                      <DefaultManagerLayout>
+                        <ManagerDashboard />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="reports/view" 
+                    element={
+                      <DefaultManagerLayout>
+                        <ViewReportPage />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  {/* Settings and Other Pages */}
+                  <Route 
+                    path="settings" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Settings Page - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="notifications" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Notifications Page - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="staff-performance" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Staff Performance Page - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="feedback" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Feedback Page - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="inbox" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Manager Inbox - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  <Route 
+                    path="staff-messages" 
+                    element={
+                      <DefaultManagerLayout>
+                        <div className="p-8">Staff Messages - Coming Soon</div>
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                  
+                  {/* Test Routes */}
+                  <Route 
+                    path="test" 
+                    element={
+                      <DefaultManagerLayout>
+                        <ManagerDashboardTest />
+                      </DefaultManagerLayout>
+                    } 
+                  />
+                </Routes>
               </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/dashboard"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <ManagerTaskDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* 📊 Manager Reports Routes */}
-          <Route
-            path="/manager/reports/view"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <ViewReportPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/reports/*"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <ManagerDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* 👨‍💼 Manager Task Management Routes */}
-          <Route
-            path="/manager/tasks/dashboard"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <ManagerTaskDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/task-management"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <TaskManagementDashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/test"
-            element={
-              <ManagerDashboardTest />
-            }
-          />
-
-          <Route
-            path="/manager/tasks"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <TaskListPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/tasks/create"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <CreateTaskPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/tasks/assign"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <TaskAssignmentPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/tasks/feedback"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <FeedbackPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/tasks/staff-workload"
-            element={
-              <ProtectedRoute roles={['manager']}>
-                <StaffWorkloadPage />
-              </ProtectedRoute>
-            }
+            } 
           />
 
           {/* 👨‍🔧 Staff Task Routes */}

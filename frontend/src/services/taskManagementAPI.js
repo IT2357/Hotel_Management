@@ -6,7 +6,7 @@ const API_BASE_URL = String(rawBase).replace(/\/$/, ''); // trim trailing slash
 
 // Create an axios instance with default config
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/task-management`,
+  baseURL: `${API_BASE_URL}/tasks`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -66,37 +66,37 @@ api.interceptors.response.use(
 export const taskAPI = {
   // Get all tasks with filtering
   getAllTasks: async (params = {}) => {
-    const response = await api.get('/tasks', { params });
+    const response = await api.get('/', { params });
     return response.data;
   },
 
   // Get single task by ID
   getTaskById: async (taskId) => {
-    const response = await api.get(`/tasks/${taskId}`);
+    const response = await api.get(`/${taskId}`);
     return response.data;
   },
 
   // Create new task
   createTask: async (taskData) => {
-    const response = await api.post('/tasks', taskData);
+    const response = await api.post('/', taskData);
     return response.data;
   },
 
   // Assign task to staff
   assignTask: async (taskId, assignmentData) => {
-    const response = await api.put(`/tasks/${taskId}/assign`, assignmentData);
+    const response = await api.put(`/${taskId}/assign`, assignmentData);
     return response.data;
   },
 
   // Update task status
   updateTaskStatus: async (taskId, statusData) => {
-    const response = await api.put(`/tasks/${taskId}/status`, statusData);
+    const response = await api.put(`/${taskId}/status`, statusData);
     return response.data;
   },
 
   // Get available staff for department
   getAvailableStaff: async (department) => {
-    const response = await api.get(`/tasks/staff/${department}`);
+    const response = await api.get(`/staff/${department}`);
     return response.data;
   },
 
@@ -108,19 +108,19 @@ export const taskAPI = {
 
   // Get my tasks (for staff)
   getMyTasks: async (params = {}) => {
-    const response = await api.get('/tasks/my-tasks', { params });
+    const response = await api.get('/my-tasks', { params });
     return response.data;
   },
 
   // Delete task
   deleteTask: async (taskId) => {
-    const response = await api.delete(`/tasks/${taskId}`);
+    const response = await api.delete(`/${taskId}`);
     return response.data;
   },
 
   // Get task statistics
   getTaskStats: async (params = {}) => {
-    const response = await api.get('/tasks/stats', { params });
+    const response = await api.get('/stats', { params });
     return response.data;
   },
 };

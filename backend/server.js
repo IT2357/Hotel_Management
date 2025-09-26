@@ -302,7 +302,7 @@ app.use("/api/reports", reportsRoutes); // Reports routes
   });
 
   // Start the server regardless of database status
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5002;
   server.listen(PORT, () => {
     console.log(`
 🚀 Server running in ${
