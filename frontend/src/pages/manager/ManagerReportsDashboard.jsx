@@ -44,6 +44,95 @@ const ManagerReportsDashboard = () => {
     }
   };
 
+  const handleExportAll = async () => {
+    try {
+      // Show loading state
+      const button = document.activeElement;
+      const originalText = button.innerHTML;
+      button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Exporting All Reports...';
+      button.disabled = true;
+
+      const token = localStorage.getItem('token');
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api';
+      const cleanBaseURL = baseURL.replace('/api', '');
+
+      // Define all report types to export
+      const reportTypes = [
+        { type: 'booking', name: 'Booking Report' },
+        { type: 'financial', name: 'Financial Report' },
+        { type: 'kpi', name: 'KPI Report' }
+      ];
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Export all report types one by one
+      for (const report of reportTypes) {
+        try {
+          button.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Exporting ${report.name}...`;
+
+          const response = await api.post('/reports/export', {
+            reportType: report.type,
+            format: 'pdf',
+            includeCharts: true
+          });
+
+          if (response.data.data.downloadUrl) {
+            const downloadResponse = await fetch(`${cleanBaseURL}${response.data.data.downloadUrl}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (downloadResponse.ok) {
+              const blob = await downloadResponse.blob();
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = response.data.data.fileName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+              
+              successCount++;
+              // Small delay between downloads
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+              failCount++;
+            }
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to export ${report.name}:`, error);
+          failCount++;
+        }
+      }
+
+      // Show final result
+      if (successCount === reportTypes.length) {
+        alert(`All ${successCount} reports exported successfully!`);
+      } else if (successCount > 0) {
+        alert(`${successCount} reports exported successfully, ${failCount} failed. Please check your downloads folder.`);
+      } else {
+        alert('All exports failed. Please try again.');
+      }
+
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    } finally {
+      // Restore button state
+      const button = document.activeElement;
+      if (button) {
+        button.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>Export All';
+        button.disabled = false;
+      }
+    }
+  };
+
   const quickStats = [
     {
       title: "Today's Bookings",
@@ -174,7 +263,10 @@ const ManagerReportsDashboard = () => {
                 <Settings className="w-4 h-4" />
                 Settings
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button 
+                onClick={handleExportAll}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
                 <Download className="w-4 h-4" />
                 Export All
               </button>
@@ -381,7 +473,10 @@ const ManagerReportsDashboard = () => {
               <BarChart3 className="w-5 h-5 text-blue-600" />
               <span className="font-medium text-blue-700">View Dashboard Report</span>
             </button>
-            <button className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={handleExportAll}
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <Download className="w-5 h-5 text-blue-600" />
               <span className="font-medium">Export All Reports</span>
             </button>

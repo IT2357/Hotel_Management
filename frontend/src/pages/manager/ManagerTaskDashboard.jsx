@@ -377,7 +377,7 @@ const ManagerTaskDashboard = () => {
                   </div>
                 </div>
                 <Link
-                  to="/manager/tasks/feedback"
+                  to="/manager/tasks/staff-workload"
                   className="mt-4 block text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
                 >
                   View Details
