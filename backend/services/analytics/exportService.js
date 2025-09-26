@@ -48,31 +48,45 @@ class ExportService {
    * Generate PDF report
    */
   async _generatePDFReport(filePath, type, data, includeCharts, dateRange) {
-    const doc = new PDFDocument({ margin: 50 });
-    doc.pipe(fs.createWriteStream(filePath));
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
 
-    // Header
-    this._addPDFHeader(doc, type, dateRange);
+      // Handle stream events
+      stream.on('finish', () => {
+        resolve({ success: true });
+      });
 
-    // Content based on report type
-    switch (type) {
-      case 'booking':
-        await this._addBookingContent(doc, data, includeCharts);
-        break;
-      case 'financial':
-        await this._addFinancialContent(doc, data, includeCharts);
-        break;
-      case 'kpi':
-        await this._addKPIContent(doc, data, includeCharts);
-        break;
-    }
+      stream.on('error', (error) => {
+        reject(error);
+      });
 
-    // Footer
-    this._addPDFFooter(doc);
+      try {
+        // Header
+        this._addPDFHeader(doc, type, dateRange);
 
-    doc.end();
+        // Content based on report type
+        switch (type) {
+          case 'booking':
+            this._addBookingContent(doc, data, includeCharts);
+            break;
+          case 'financial':
+            this._addFinancialContent(doc, data, includeCharts);
+            break;
+          case 'kpi':
+            this._addKPIContent(doc, data, includeCharts);
+            break;
+        }
 
-    return { success: true };
+        // Footer
+        this._addPDFFooter(doc);
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   /**
@@ -393,15 +407,51 @@ class ExportService {
   }
 
   _formatExcelTable(worksheet, range) {
-    worksheet.addTable({
-      name: `Table${Math.random().toString(36).substr(2, 9)}`,
-      ref: range,
-      headerRow: true,
-      style: {
-        theme: 'TableStyleMedium2',
-        showRowStripes: true,
-      },
-    });
+    try {
+      // Get the range bounds
+      const rangeMatch = range.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
+      if (rangeMatch) {
+        const startCol = rangeMatch[1];
+        const startRow = parseInt(rangeMatch[2]);
+        const endCol = rangeMatch[3];
+        const endRow = parseInt(rangeMatch[4]);
+        
+        // Make sure we have data in the range
+        if (endRow > startRow) {
+          worksheet.addTable({
+            name: `Table${Math.random().toString(36).substr(2, 9)}`,
+            ref: range,
+            headerRow: true,
+            columns: this._generateTableColumns(worksheet, startCol, endCol, startRow),
+            style: {
+              theme: 'TableStyleMedium2',
+              showRowStripes: true,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.log('Warning: Could not format Excel table:', error.message);
+      // Continue without table formatting
+    }
+  }
+  
+  _generateTableColumns(worksheet, startCol, endCol, headerRow) {
+    const columns = [];
+    let colIndex = startCol.charCodeAt(0) - 'A'.charCodeAt(0);
+    const endColIndex = endCol.charCodeAt(0) - 'A'.charCodeAt(0);
+    
+    while (colIndex <= endColIndex) {
+      const col = String.fromCharCode('A'.charCodeAt(0) + colIndex);
+      const headerCell = worksheet.getCell(`${col}${headerRow}`);
+      columns.push({
+        name: headerCell.value || `Column ${colIndex + 1}`,
+        filterButton: true
+      });
+      colIndex++;
+    }
+    
+    return columns;
   }
 
   // Utility Methods
@@ -412,12 +462,12 @@ class ExportService {
     }
   }
 
-  _generateFileName(type, format, dateRange) {
+  _generateFileName(type, fileFormat, dateRange) {
     const startDate = format(dateRange.start, 'yyyy-MM-dd');
     const endDate = format(dateRange.end, 'yyyy-MM-dd');
     const timestamp = format(new Date(), 'yyyyMMdd-HHmmss');
     
-    return `${type}-report_${startDate}_to_${endDate}_${timestamp}.${format}`;
+    return `${type}-report_${startDate}_to_${endDate}_${timestamp}.${fileFormat}`;
   }
 
   _formatReportTitle(type) {

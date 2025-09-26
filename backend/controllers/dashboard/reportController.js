@@ -575,10 +575,25 @@ export const exportReport = async (req, res, next) => {
         });
         break;
       case 'financial':
-        reportData = await reportService.getFinancialAnalytics({
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        });
+        const [revenueData, expenseData] = await Promise.all([
+          reportService.getRevenueAnalytics({
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          }),
+          reportService.getExpenseAnalytics({
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          })
+        ]);
+        reportData = {
+          revenue: revenueData,
+          expenses: expenseData,
+          summary: {
+            totalRevenue: revenueData.totalRevenue || 0,
+            totalExpenses: expenseData.totalExpenses || 0,
+            netProfit: (revenueData.totalRevenue || 0) - (expenseData.totalExpenses || 0)
+          }
+        };
         break;
       case 'kpi':
         reportData = await kpiService.getKPIReport({
