@@ -6,7 +6,7 @@ import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Label from '../../components/ui/Label';
-import Select from '../../components/ui/Select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Alert from '../../components/common/Alert';
 import { Calendar, Users } from 'lucide-react';
@@ -321,13 +321,18 @@ const GuestBookingFlow = () => {
         <Label htmlFor="guests">Number of Guests</Label>
         <Select
           value={bookingData.guests}
-          onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
+          onValueChange={(value) => handleInputChange('guests', parseInt(value))}
         >
-          <option value={1}>1 Guest</option>
-          <option value={2}>2 Guests</option>
-          <option value={3}>3 Guests</option>
-          <option value={4}>4 Guests</option>
-          <option value={5}>5+ Guests</option>
+          <SelectTrigger>
+            <SelectValue placeholder="Select number of guests" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">1 Guest</SelectItem>
+            <SelectItem value="2">2 Guests</SelectItem>
+            <SelectItem value="3">3 Guests</SelectItem>
+            <SelectItem value="4">4 Guests</SelectItem>
+            <SelectItem value="5">5+ Guests</SelectItem>
+          </SelectContent>
         </Select>
       </div>
       {calculateNights() > 0 && (
@@ -456,13 +461,18 @@ const GuestBookingFlow = () => {
               <Label htmlFor="foodPlan">Food Plan</Label>
               <Select
                 value={bookingData.foodPlan}
-                onChange={(e) => handleInputChange('foodPlan', e.target.value)}
+                onValueChange={(value) => handleInputChange('foodPlan', value)}
               >
-                <option value="None">No Food Plan</option>
-                <option value="Breakfast">Breakfast Only</option>
-                <option value="Half Board">Half Board (Breakfast + Dinner)</option>
-                <option value="Full Board">Full Board (All Meals)</option>
-                <option value="A la carte">A la carte</option>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select food plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="None">No Food Plan</SelectItem>
+                  <SelectItem value="Breakfast">Breakfast Only</SelectItem>
+                  <SelectItem value="Half Board">Half Board (Breakfast + Dinner)</SelectItem>
+                  <SelectItem value="Full Board">Full Board (All Meals)</SelectItem>
+                  <SelectItem value="A la carte">A la carte</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             <div>
@@ -576,18 +586,20 @@ const GuestBookingFlow = () => {
               <div>
                 <Label htmlFor="paymentMethod">Payment Method</Label>
                 <Select
-                  id="paymentMethod"
                   value={paymentData.paymentMethod}
-                  onChange={(e) => {
-                    const newPaymentMethod = e.target.value;
-                    console.log('Payment method changed to:', newPaymentMethod);
-                    setPaymentData({ ...paymentData, paymentMethod: newPaymentMethod });
+                  onValueChange={(value) => {
+                    console.log('Payment method changed to:', value);
+                    setPaymentData({ ...paymentData, paymentMethod: value });
                   }}
-                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                 >
-                  <option value="card">💳 Credit/Debit Card</option>
-                  <option value="bank">🏦 Bank Transfer</option>
-                  <option value="cash">💵 Pay at Hotel</option>
+                  <SelectTrigger className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="card">💳 Credit/Debit Card</SelectItem>
+                    <SelectItem value="bank">🏦 Bank Transfer</SelectItem>
+                    <SelectItem value="cash">💵 Pay at Hotel</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -670,36 +682,42 @@ const GuestBookingFlow = () => {
                     <Label htmlFor="expiryMonth">Expiry Date</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <Select
-                        id="expiryMonth"
                         value={paymentData.expiryMonth}
-                        onChange={(e) => setPaymentData({ ...paymentData, expiryMonth: e.target.value })}
-                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        onValueChange={(value) => setPaymentData({ ...paymentData, expiryMonth: value })}
                       >
-                        <option value="">MM</option>
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const month = i + 1;
-                          return (
-                            <option key={month} value={month.toString().padStart(2, '0')}>
-                              {month.toString().padStart(2, '0')}
-                            </option>
-                          );
-                        })}
+                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
+                          <SelectValue placeholder="MM" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const month = i + 1;
+                            const monthStr = month.toString().padStart(2, '0');
+                            return (
+                              <SelectItem key={month} value={monthStr}>
+                                {monthStr}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
                       </Select>
                       <Select
-                        id="expiryYear"
                         value={paymentData.expiryYear}
-                        onChange={(e) => setPaymentData({ ...paymentData, expiryYear: e.target.value })}
-                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        onValueChange={(value) => setPaymentData({ ...paymentData, expiryYear: value })}
                       >
-                        <option value="">YY</option>
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const year = new Date().getFullYear() + i;
-                          return (
-                            <option key={year} value={year.toString().slice(-2)}>
-                              {year.toString().slice(-2)}
-                            </option>
-                          );
-                        })}
+                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
+                          <SelectValue placeholder="YY" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 10 }, (_, i) => {
+                            const year = new Date().getFullYear() + i;
+                            const yearStr = year.toString().slice(-2);
+                            return (
+                              <SelectItem key={year} value={yearStr}>
+                                {yearStr}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
                       </Select>
                     </div>
                   </div>
