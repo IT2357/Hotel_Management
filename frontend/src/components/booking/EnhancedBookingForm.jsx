@@ -8,9 +8,9 @@ import {
   formatCurrency,
   getCancellationPolicy 
 } from '../../utils/bookingValidation';
-import Input from '../ui/Input';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
+import Input from '../ui/input';
+import { Button } from '../ui/Button';
+import Card from '../ui/card';
 
 const EnhancedBookingForm = ({ roomId, roomRate = 100, onSubmit }) => {
   const bookingSettings = useBookingSettings();

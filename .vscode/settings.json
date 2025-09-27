@@ -1,0 +1,11 @@
+{
+  "json.schemas": [],
+  "json.validate.enable": true,
+  "files.associations": {
+    "package.json": "json"
+  },
+  "json.schemaDownload.enable": false,
+  "editor.quickSuggestions": {
+    "strings": false
+  }
+}

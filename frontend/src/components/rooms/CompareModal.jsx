@@ -1,117 +1,199 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { X, BarChart3, Users, Bed, Maximize, Wifi, Car, Coffee, Bath } from 'lucide-react';
-import { Button } from '@/components/rooms/ui/button';
-import { Badge } from '@/components/rooms/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/rooms/ui/card';
+import { X, Star, Users, Bed, Eye, Square, Wifi, Car, Coffee, Bath } from "lucide-react";
+import { Button } from "@/components/rooms/ui/button";
+import { Badge } from "@/components/rooms/ui/badge";
 
 const amenityIcons = {
-  WiFi: Wifi,
-  Parking: Car,
-  Coffee: Coffee,
-  Bathtub: Bath,
+  'WiFi': Wifi,
+  'Parking': Car,
+  'Coffee': Coffee,
+ 'Bathtub': Bath,
 };
 
-export const CompareFeature = ({ rooms, onRemove, onClear }) => {
-  const navigate = useNavigate();
-  
-  if (rooms.length === 0) return null;
+const CompareModal = ({ isOpen, onClose, rooms }) => {
+  if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed bottom-6 right-6 z-40"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0, opacity: 0 }}
-        transition={{ type: "spring", damping: 20 }}
-      >
-        <div className="w-80 max-h-96 overflow-hidden rounded-2xl bg-gray-900/90 backdrop-blur-lg border border-gray-700/50 shadow-2xl">
-          {/* Header */}
-          <div className="p-4 pb-3 border-b border-gray-700/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-400" />
-                <span className="text-white font-medium">Compare Rooms</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClear}
-                className="hover:bg-red-500/20 hover:text-red-400 text-gray-400 h-8 w-8 p-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-6xl -translate-x-1/2 -translate-y-1/2 bg-card border border-border rounded-2xl shadow-luxury max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div>
+            <h2 className="text-2xl font-display font-bold text-foreground">Compare Rooms</h2>
+            <p className="text-muted-foreground">Compare {rooms.length} selected rooms</p>
           </div>
-          
-          {/* Room List */}
-          <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
-            {rooms.map((room, index) => (
-              <motion.div
-                key={room.id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/60 backdrop-blur-sm border border-gray-700/30 hover:bg-gray-800/80 transition-colors"
-                initial={{ x: 50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <img 
-                  src={room.image} 
-                  alt={room.name}
-                  className="w-12 h-12 rounded-lg object-cover"
-                />
-                
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm text-white truncate">{room.name}</h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span>${room.price}/night</span>
-                    <span>•</span>
-                    <span>{room.view}</span>
-                  </div>
-                </div>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onRemove(room.id)}
-                  className="hover:bg-red-500/20 hover:text-red-400 text-gray-400 p-1 h-auto"
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </motion.div>
-            ))}
-            
-            {rooms.length < 3 && (
-              <motion.div 
-                className="text-center py-4 px-4 rounded-xl border-2 border-dashed border-gray-600/50 bg-gray-800/30"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-xs text-gray-400">
-                  Add {3 - rooms.length} more room{3 - rooms.length !== 1 ? 's' : ''} to compare
-                </p>
-              </motion.div>
-            )}
-          </div>
-          
-          {/* Compare Button */}
-          {rooms.length > 1 && (
-            <div className="p-4 pt-0">
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-medium transition-colors"
-                onClick={() => {
-                  // Navigate to comparison page in same window
-                  const roomIds = rooms.map(r => r.id).join(',');
-                  navigate(`/compare-rooms?rooms=${roomIds}`);
-                }}
-              >
-                Compare Details
-              </Button>
-            </div>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0 hover:bg-accent"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
-      </motion.div>
-    </AnimatePresence>
+
+        {/* Comparison Table */}
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <td className="py-4 pr-4 font-display font-semibold text-foreground">Features</td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <div className="font-display font-semibold text-foreground">{room.name}</div>
+                    </td>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {/* Price */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      Price per night
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <div className="text-lg font-display font-bold text-primary">${room.price}</div>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Bed Type */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Bed className="w-4 h-4" />
+                      Bed Type
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <Badge variant="secondary" className="bg-accent text-accent-foreground">
+                        {room.bedType}
+                      </Badge>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Room Size */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Square className="w-4 h-4" />
+                      Size (m²)
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <span className="text-foreground font-medium">{room.size} m²</span>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Max Guests */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Max Guests
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <span className="text-foreground font-medium">{room.maxGuests} guests</span>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* View */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      View
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <Badge variant="outline" className="border-primary text-primary">
+                        {room.view} View
+                      </Badge>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Rating */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4" />
+                      Rating
+                    </div>
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium text-foreground">{room.reviews.rating}</span>
+                        <span className="text-xs text-muted-foreground">({room.reviews.count})</span>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Amenities */}
+                <tr>
+                  <td className="py-4 pr-4 font-medium text-muted-foreground">
+                    Amenities
+                  </td>
+                  {rooms.map((room) => (
+                    <td key={room.id} className="py-4 px-4">
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {room.amenities.slice(0, 6).map((amenity) => {
+                          const IconComponent = amenityIcons[amenity];
+                          return (
+                            <div
+                              key={amenity}
+                              className="flex items-center gap-1 bg-accent-light text-accent px-2 py-1 rounded-full text-xs"
+                            >
+                              {IconComponent && <IconComponent className="w-3 h-3" />}
+                              {amenity}
+                            </div>
+                          );
+                        })}
+                        {room.amenities.length > 6 && (
+                          <div className="text-xs text-muted-foreground px-2 py-1">
+                            +{room.amenities.length - 6} more
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-center gap-4 mt-8 pt-6 border-t border-border">
+            <Button variant="outline" onClick={onClose}>
+              Close Comparison
+            </Button>
+            <Button
+  variant="luxury"
+  onClick={() => onBook(room.id)}
+  className="bg-primary text-white hover:bg-primary-dark hover:text-white transition-all duration-300"
+>
+  Book Now
+</Button>
+
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
+
+export default CompareModal;

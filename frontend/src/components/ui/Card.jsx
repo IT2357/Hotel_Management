@@ -1,7 +1,8 @@
-// src/components/ui/Card.jsx
+// src/components/ui/card.jsx
 import React from "react";
+import { motion } from "framer-motion";
 
-export default function Card({
+function Card({
   title,
   children,
   className = "",
@@ -11,7 +12,11 @@ export default function Card({
   footerClassName = "",
 }) {
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}>
+    <motion.div
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}
+      whileHover={{ y: -5, boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+    >
       {title && (
         <div className={`px-4 py-3 border-b border-gray-200 dark:border-gray-700 ${headerClassName}`}>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
@@ -25,12 +30,13 @@ export default function Card({
           {footer}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
+
 // Card Header Component
-export function CardHeader({
+function CardHeader({
   children,
   className = "",
   ...props
@@ -43,7 +49,7 @@ export function CardHeader({
 }
 
 // Card Title Component
-export function CardTitle({
+function CardTitle({
   children,
   className = "",
   ...props
@@ -56,7 +62,7 @@ export function CardTitle({
 }
 
 // Card Content Component
-export function CardContent({
+function CardContent({
   children,
   className = "",
   ...props
@@ -69,7 +75,7 @@ export function CardContent({
 }
 
 // Card Footer Component
-export function CardFooter({
+function CardFooter({
   children,
   className = "",
   ...props
@@ -80,3 +86,10 @@ export function CardFooter({
     </div>
   );
 }
+
+// Named export for backward compatibility
+const CardComponent = Card;
+export { CardComponent as Card, CardHeader, CardTitle, CardContent, CardFooter };
+
+// Default export
+export default Card;

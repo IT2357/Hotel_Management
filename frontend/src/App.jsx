@@ -1,10 +1,21 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
+import { CartProvider } from './context/CartContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import { SnackbarProvider } from 'notistack';
+import PageTransition from './components/shared/PageTransition.jsx';
 import HomePage from './pages/HomePage.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
+import Gallery from './pages/Gallery.jsx';
+import Blog from './pages/Blog.jsx';
+import FoodPage from './pages/FoodPage.jsx';
+import MenuPage from './pages/MenuPage.jsx';
+import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
+import CartPage from './pages/CartPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -15,10 +26,10 @@ import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
-import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
+import GuestDashboardPage from './pages/ModernGuestDashboard.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
-import RoomsPage from './pages/guest/RoomsPage.jsx';
+import RoomsPage from './pages/RoomsPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import MyBookings from './pages/guest/MyBookings.jsx';
 import MyReviews from './pages/guest/MyReviews.jsx';
@@ -34,15 +45,13 @@ import TestPage from './pages/manager/TestPage.jsx';
 import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
 import TaskListPage from './pages/manager/TaskListPage.jsx';
 import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
-import TaskAssignmentPage from './pages/manager/TaskAssignmentPage.jsx';
+import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
 import FeedbackPage from './pages/manager/FeedbackPage.jsx';
-import StaffWorkloadPage from './pages/manager/StaffWorkloadPage.jsx';
 import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
 import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
 import ViewReportPage from './pages/manager/ViewReportPage.jsx';
 import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
 import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
-import TaskManagementDashboard from './pages/manager/TaskManagementDashboard.jsx';
 import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -52,9 +61,17 @@ import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
+import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRooms from './pages/admin/AdminAddRooms.jsx';
+import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
+import FoodManagementPage from './pages/admin/FoodManagementPage.jsx';
+import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
+import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
+import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
+import EnhancedMenuReviewPage from './pages/admin/EnhancedMenuReviewPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
-import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
+import GuestLayout from './layout/guest/GuestLayout.jsx';
 
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
@@ -67,27 +84,46 @@ import SchedulePage from './pages/staff/SchedulePage.jsx';
 import Roomspage from './pages/admin/AdminRoomsPage.jsx';
 import AdminAddRoom from './pages/admin/AdminAddRooms.jsx';
 import AdminEditRoom from './pages/admin/AdminEditRoomsPage.jsx';
-import AdminviewPage from './pages/admin/AdminViewRooms.jsx';
-// import CompareModal from './components/rooms/CompareModal.jsx';
-import CompareRooms from './pages/guest/CompareRoomsPage.jsx';
 
-const App = () => {
+const AppContent = () => {
+  const location = useLocation();
+
+  const wrapWithTransition = (element) => (
+    <PageTransition key={location.pathname}>
+      {element}
+    </PageTransition>
+  );
+
   return (
-    <BrowserRouter>
-      <SnackbarProvider maxSnack={3}>
-        <AuthProvider>
-          <SettingsProvider>
-            <BookingProvider>
+    <SnackbarProvider maxSnack={3}>
+      <AuthProvider>
+        <SettingsProvider>
+          <BookingProvider>
+            <CartProvider>
+              <AnimatePresence mode="wait">
               <Routes>
-          {/* 🔒 Booking Routes */}
-          <Route path="/booking" element={<GuestBookingFlow />} />
-          <Route path="/booking/guest" element={<GuestBookingFlow />} />
-          <Route path="/rooms" element={<RoomsPage />} />
+        {/* 🏠 Home Page */}
+        <Route path="/" element={wrapWithTransition(<HomePage />)} />
+
+        {/* 🔒 Booking Routes */}
+        <Route path="/booking" element={wrapWithTransition(<GuestBookingFlow />)} />
+          <Route path="/booking/guest" element={wrapWithTransition(<GuestBookingFlow />)} />
+          <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
+          <Route path="/about" element={wrapWithTransition(<About />)} />
+          <Route path="/contact" element={wrapWithTransition(<Contact />)} />
+          <Route path="/gallery" element={wrapWithTransition(<Gallery />)} />
+          <Route path="/blog" element={wrapWithTransition(<Blog />)} />
+          <Route path="/food" element={wrapWithTransition(<FoodPage />)} />
+          <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
+          <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
+          <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
+          <Route path="/checkout" element={wrapWithTransition(<CheckoutPage />)} />
+          <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
           <Route
             path="/login"
             element={
               <RedirectIfAuthenticated>
-                <LoginPage />
+                {wrapWithTransition(<LoginPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -95,21 +131,21 @@ const App = () => {
             path="/register"
             element={
               <RedirectIfAuthenticated>
-                <RegisterPage />
+                {wrapWithTransition(<RegisterPage />)}
               </RedirectIfAuthenticated>
             }
           />
           <Route
             path="/verify-email"
             element={
-                <OTPVerificationPage />
+                wrapWithTransition(<OTPVerificationPage />)
             }
           />
           <Route
             path="/forgot-password"
             element={
               <RedirectIfAuthenticated>
-                <ForgotPasswordPage />
+                {wrapWithTransition(<ForgotPasswordPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -117,7 +153,7 @@ const App = () => {
             path="/reset-password"
             element={
               <RedirectIfAuthenticated>
-                <ResetPasswordPage />
+                {wrapWithTransition(<ResetPasswordPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -125,7 +161,7 @@ const App = () => {
             path="/accept-invitation"
             element={
               <RedirectIfAuthenticated>
-                <InviteRegisterPage />
+                {wrapWithTransition(<InviteRegisterPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -133,39 +169,67 @@ const App = () => {
           {/* 🔐 Protected Routes */}
           <Route
             path="/guest/dashboard"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestDashboardPage />
+                <GuestLayout>
+                  <GuestDashboardPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
           <Route
             path="/guest/my-bookings"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <MyBookings />
+                <GuestLayout>
+                  <MyBookings />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
   
 
           <Route
             path="/guest/my-requests"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestServiceRequestsPage />
+                <GuestLayout>
+                  <GuestServiceRequestsPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
 
 
           <Route
             path="/guest/check-in"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestCheckInOutPage />
+                <GuestLayout>
+                  <GuestCheckInOutPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
+          />
+          <Route
+            path="/guest/favorite-rooms"
+            element={wrapWithTransition(
+              <ProtectedRoute roles={['guest']}>
+                <GuestLayout>
+                  <FavoriteRooms />
+                </GuestLayout>
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/guest/reviews"
+            element={wrapWithTransition(
+              <ProtectedRoute roles={['guest']}>
+                <GuestLayout>
+                  <MyReviews />
+                </GuestLayout>
+              </ProtectedRoute>
+            )}
           />
 
           
@@ -227,6 +291,39 @@ const App = () => {
           />
 
           <Route
+            path="/admin/rooms"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/add-room"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRooms />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/bookings"
             element={
               <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
@@ -266,44 +363,51 @@ const App = () => {
             }
           />
 
-        <Route
-            path="/admin/rooms"
-            element={<ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <Roomspage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>}
-          />
+          {/* 🍽️ Admin Food Management Routes */}
           <Route
-            path="/admin/add-room"
-            element={
-                <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminAddRoom />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/edit-room/:id"
-            element={
-             <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminEditRoom />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/view-room/:id"
+            path="/admin/food/menu"
             element={
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
-                  <AdminviewPage />
+                  <FoodManagementPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/food/orders"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodOrderManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/menu-upload"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <MenuUploadPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/menu-extractor"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <MenuExtractorPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/refunds"
             element={
@@ -313,172 +417,95 @@ const App = () => {
             }
           />
 
-          {/* 👨‍💼 Manager Routes - Restructured with Layout */}
-          <Route 
-            path="/manager/*" 
+          {/* 👨‍💼 Manager Routes */}
+          <Route
+            path="/manager"
             element={
               <ProtectedRoute roles={['manager']}>
-                <Routes>
-                  {/* Manager Home/Dashboard */}
-                  <Route 
-                    index 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerHomePage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Task Management Section */}
-                  <Route 
-                    path="dashboard" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerTaskDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="task-management" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskManagementDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskListPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/create" 
-                    element={
-                      <DefaultManagerLayout>
-                        <CreateTaskPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/assign" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskAssignmentPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/feedback" 
-                    element={
-                      <DefaultManagerLayout>
-                        <FeedbackPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/staff-workload" 
-                    element={
-                      <DefaultManagerLayout>
-                        <StaffWorkloadPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Reports Section */}
-                  <Route 
-                    path="reports/*" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="reports/view" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ViewReportPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Settings and Other Pages */}
-                  <Route 
-                    path="settings" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Settings Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="notifications" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Notifications Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="staff-performance" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Staff Performance Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="feedback" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Feedback Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="inbox" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Manager Inbox - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="staff-messages" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Staff Messages - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Test Routes */}
-                  <Route 
-                    path="test" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerDashboardTest />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                </Routes>
+                <ManagerHomePage />
               </ProtectedRoute>
-            } 
+            }
+          />
+
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 📊 Manager Reports Routes */}
+          <Route
+            path="/manager/reports/view"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ViewReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/reports/*"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Task Management Routes */}
+          <Route
+            path="/manager/tasks/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/test"
+            element={
+              <ManagerDashboardTest />
+            }
+          />
+
+          <Route
+            path="/manager/tasks"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskListPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/create"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <CreateTaskPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/assign"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskAssignPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/feedback"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <FeedbackPage />
+              </ProtectedRoute>
+            }
           />
 
           {/* 👨‍🔧 Staff Task Routes */}
@@ -501,13 +528,15 @@ const App = () => {
           />
 
           {/* Guest Service Request Routes */}
-          <Route 
-            path="/guest/services" 
+          <Route
+            path="/guest/services"
             element={
               <ProtectedRoute roles={['guest']}>
-                <GuestServiceRequestForm />
+                <GuestLayout>
+                  <GuestServiceRequestForm />
+                </GuestLayout>
               </ProtectedRoute>
-            } 
+            }
           />
           
           <Route 
@@ -562,21 +591,20 @@ const App = () => {
           {/* 🚧 Error Routes */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
-          {/* Compare Rooms Route */}
-          <Route
-            path="/compare-rooms"
-            element={
-              <ProtectedRoute roles={['guest']}>
-                <CompareRooms />
-              </ProtectedRoute>
-            }
-          />
+        </Routes>
+        </AnimatePresence>
+        </CartProvider>
+      </BookingProvider>
+      </SettingsProvider>
+    </AuthProvider>
+    </SnackbarProvider>
+  );
+};
 
-          </Routes>
-        </BookingProvider>
-        </SettingsProvider>
-      </AuthProvider>
-      </SnackbarProvider>
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 };

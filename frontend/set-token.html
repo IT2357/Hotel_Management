@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Set Admin Token</title>
+</head>
+<body>
+    <h1>Admin Login Token Setter</h1>
+    <p>Click the button below to set the admin token in localStorage:</p>
+    <button onclick="setToken()">Set Admin Token</button>
+    <p id="status"></p>
+    
+    <script>
+        function setToken() {
+            const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGQyNjRmYTY3ZTdiZTJlNWM0MjU2MWUiLCJyb2xlIjoiYWRtaW4iLCJpc0FwcHJvdmVkIjp0cnVlLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTc1ODYyMTQxMiwiZXhwIjoxNzU5MjI2MjEyfQ.AvUQEW4bQwukjyzc9ZxlnfQ4hgLyOegEcBFQYG1Mu5A';
+            localStorage.setItem('token', token);
+            document.getElementById('status').textContent = '✅ Admin token set successfully! You can now use the menu upload page.';
+            document.getElementById('status').style.color = 'green';
+        }
+    </script>
+</body>
+</html>

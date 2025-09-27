@@ -31,6 +31,15 @@ const sendSuccess = (
   });
 };
 
+// Check if notification service is available
+const checkNotificationService = () => {
+  if (!NotificationService) {
+    console.warn('⚠️ Notification service is not available');
+    return false;
+  }
+  return true;
+};
+
 export const getNotificationMetadata = (req, res) => {
   const roles = ["guest", "staff", "manager", "admin"];
   const typeSet = new Set();
@@ -54,6 +63,13 @@ export const getNotificationMetadata = (req, res) => {
 
 export const sendNotification = async (req, res) => {
   try {
+    if (!checkNotificationService()) {
+      return res.status(503).json({
+        success: false,
+        message: "Notification service is currently unavailable",
+      });
+    }
+
     console.log("Send notification request body:", req.body); // Debug log
 
     const { userId, userType, type, title, message, channel, priority } =
@@ -620,6 +636,13 @@ export const getNotificationStats = async (req, res) => {
 // ==============================================
 export const getMyNotifications = async (req, res) => {
   try {
+    if (!checkNotificationService()) {
+      return res.status(503).json({
+        success: false,
+        message: "Notification service is currently unavailable",
+      });
+    }
+
     const options = {
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 20,
