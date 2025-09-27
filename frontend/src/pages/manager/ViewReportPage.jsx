@@ -153,7 +153,7 @@ const ViewReportPage = () => {
       if (response.data.data.downloadUrl) {
         try {
           const token = localStorage.getItem('token');
-          const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004/api';
+          const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
           // Remove /api from baseURL if downloadUrl already includes it
           const cleanBaseURL = baseURL.replace('/api', '');
           const downloadResponse = await fetch(`${cleanBaseURL}${response.data.data.downloadUrl}`, {

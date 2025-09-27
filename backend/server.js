@@ -8,8 +8,8 @@ import hpp from "hpp";
 import compression from "compression";
 import morgan from "morgan";
 import passport from "passport"; // Added for social login
-import http from "http";
-import { initSocket } from "./utils/socket.js";
+import http from 'http';
+import { initSocket } from './utils/socket.js';
 import "dotenv/config";
 import "./utils/passport.js"; // Added to initialize Passport strategies
 // Import database configuration
@@ -25,21 +25,18 @@ import roomRoutes from "./routes/roomRoutes.js";
 import checkInOutRoutes from "./routes/checkInOutRoutes.js";
 import guestServiceRoutes from "./routes/guestServiceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
-import keyCardRoutes from "./routes/keyCardRoutes.js";
+import keyCardRoutes from './routes/keyCardRoutes.js';
+import foodMenuRoutes from './routes/food/menuRoutes.js';
+import menuExtractionRoutes from './routes/menuExtractionRoutes.js';
+import menuSelectionRoutes from './routes/menuSelectionRoutes.js';
+import foodOrderRoutes from './routes/foodOrderRoutes.js';
+import valdorFoodRoutes from './routes/valdorFoodRoutes.js';
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
 import { seedSMSTemplates } from "./utils/smsTemplatesSeeder.js";
 // Import booking scheduler
 import BookingScheduler from "./services/booking/bookingScheduler.js";
-import staffRoutes from "./routes/staff.js";
-import messageRoutes from "./routes/messages.js";
-import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
-import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task management routes
-import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
-import reportsRoutes from "./routes/reports.js"; // Reports routes
-import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
-
 const app = express();
 const server = http.createServer(app);
 const io = initSocket(server);
@@ -51,16 +48,13 @@ app.use(passport.initialize()); // Added
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
-
-const isProd = process.env.NODE_ENV === "production";
 const corsOptions = {
-  origin: isProd ? process.env.FRONTEND_URL : true, // Allow any origin in dev to prevent CORS issues
+  origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -81,7 +75,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-if (isProd) {
+if (process.env.NODE_ENV === "production") {
   app.use("/api/", limiter);
   app.use("/api/auth/", authLimiter);
   app.use(express.json({ limit: "10mb" }));
@@ -95,71 +89,57 @@ if (isProd) {
 }
 
 // Serve static files from uploads directory
-app.use(
-  "/uploads",
-  express.static("uploads", {
-    setHeaders: (res, path) => {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "GET");
-      res.set("Access-Control-Allow-Headers", "Content-Type");
-    },
-  })
-);
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res, path) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+  }
+}));
 
 // Start server after attempting database connection
 const startBookingScheduler = () => {
   // Process expired bookings every hour
   const processExpiredBookings = async () => {
     try {
-      if (
-        process.env.NODE_ENV === "production" ||
-        process.env.ENABLE_SCHEDULER === "true"
-      ) {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
         const result = await BookingScheduler.processExpiredBookings();
         if (result.processed > 0) {
           console.log(`🕐 Auto-processed ${result.processed} expired bookings`);
         }
       } else {
-        console.log(
-          "⏸️  Booking scheduler disabled (set ENABLE_SCHEDULER=true to enable)"
-        );
+        console.log('⏸️  Booking scheduler disabled (set ENABLE_SCHEDULER=true to enable)');
       }
     } catch (error) {
-      console.error("❌ Booking scheduler error:", error);
+      console.error('❌ Booking scheduler error:', error);
     }
   };
 
   // Send expiry reminders every 6 hours
   const sendExpiryReminders = async () => {
     try {
-      if (
-        process.env.NODE_ENV === "production" ||
-        process.env.ENABLE_SCHEDULER === "true"
-      ) {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
         const result = await BookingScheduler.sendExpiryReminders(24); // 24 hours before expiry
         if (result.sent > 0) {
           console.log(`📧 Sent ${result.sent} expiry reminders`);
         }
       }
     } catch (error) {
-      console.error("❌ Expiry reminders error:", error);
+      console.error('❌ Expiry reminders error:', error);
     }
   };
 
   // Cleanup old bookings daily at midnight
   const cleanupOldBookings = async () => {
     try {
-      if (
-        process.env.NODE_ENV === "production" ||
-        process.env.ENABLE_SCHEDULER === "true"
-      ) {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
         const deletedCount = await BookingScheduler.cleanupOldBookings(90); // 90 days old
         if (deletedCount > 0) {
           console.log(`🧹 Cleaned up ${deletedCount} old bookings`);
         }
       }
     } catch (error) {
-      console.error("❌ Cleanup error:", error);
+      console.error('❌ Cleanup error:', error);
     }
   };
 
@@ -175,15 +155,7 @@ const startBookingScheduler = () => {
 
   // Daily cleanup at midnight (next day 00:00:00)
   const now = new Date();
-  const nextMidnight = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-    0,
-    0,
-    0,
-    0
-  ).getTime();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
   const timeUntilMidnight = nextMidnight - now.getTime();
 
   setTimeout(() => {
@@ -192,7 +164,7 @@ const startBookingScheduler = () => {
     setInterval(cleanupOldBookings, 24 * 60 * 60 * 1000); // Daily
   }, timeUntilMidnight);
 
-  console.log("✅ Booking scheduler started successfully");
+  console.log('✅ Booking scheduler started successfully');
 };
 
 const startServer = async () => {
@@ -202,7 +174,7 @@ const startServer = async () => {
 
     // Add this line to initialize the email transporter
     await EmailService.reinitializeTransporter();
-
+    
     // Seed SMS templates after successful database connection and email transporter initialization
     await seedSMSTemplates();
 
@@ -236,14 +208,12 @@ const startServer = async () => {
   app.use("/api/check-in-out", checkInOutRoutes);
   app.use("/api/guest-services", guestServiceRoutes);
   app.use("/api/tasks", taskRoutes);
-  app.use("/api/key-cards", keyCardRoutes);
-  app.use("/api/staff", staffRoutes);
-  app.use("/api/staff", staffTaskRoutes); // Staff task routes
-  app.use("/api/messages", messageRoutes);
-  app.use("/api/manager", managerRoutes); // New manager routes
-  app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
-  app.use("/api/task-management", taskManagementRoutes); // Task management routes
-  app.use("/api/reports", reportsRoutes); // Reports routes
+  app.use('/api/key-cards', keyCardRoutes);
+  app.use('/api/menu', foodMenuRoutes);
+  app.use('/api/menu-extraction', menuExtractionRoutes);
+  app.use('/api/menu-selection', menuSelectionRoutes);
+  app.use('/api/food/orders', foodOrderRoutes);
+  app.use('/api/valdor', valdorFoodRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -269,7 +239,7 @@ const startServer = async () => {
         checkInOut: "/api/check-in-out",
         guestServices: "/api/guest-services",
         tasks: "/api/tasks",
-        keyCards: "/api/key-cards",
+        keyCards: '/api/key-cards',
         health: "/health",
       },
     });
@@ -318,20 +288,21 @@ const startServer = async () => {
     });
   });
 
-  io.on("connection", (socket) => {
-    console.log("a user connected");
-    socket.on("disconnect", () => {
-      console.log("user disconnected");
+  io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+      console.log('user disconnected');
     });
   });
 
   // Start the server regardless of database status
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
+  const HOST = process.env.HOST || '0.0.0.0';
+  server.listen(PORT, HOST, () => {
     console.log(`
 🚀 Server running in ${
       process.env.NODE_ENV || "development"
-    } mode on port ${PORT}
+    } mode on ${HOST}:${PORT}
 📊 Health check: http://localhost:${PORT}/health
 🔐 Auth API: http://localhost:${PORT}/api/auth
 📚 Admin API: http://localhost:${PORT}/api/admin
