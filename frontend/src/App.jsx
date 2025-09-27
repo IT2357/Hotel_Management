@@ -15,6 +15,7 @@ import Blog from './pages/Blog.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
+import CartPage from './pages/CartPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -70,6 +71,7 @@ import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
 import EnhancedMenuReviewPage from './pages/admin/EnhancedMenuReviewPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
+import GuestLayout from './layout/guest/GuestLayout.jsx';
 
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
@@ -115,6 +117,8 @@ const AppContent = () => {
           <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
           <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
+          <Route path="/checkout" element={wrapWithTransition(<CheckoutPage />)} />
+          <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
           <Route
             path="/login"
             element={
@@ -359,34 +363,51 @@ const AppContent = () => {
             }
           />
 
-        <Route
-            path="/admin/rooms"
-            element={<ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <Roomspage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>}
-          />
+          {/* 🍽️ Admin Food Management Routes */}
           <Route
-            path="/admin/add-room"
+            path="/admin/food/menu"
             element={
-                <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
-                  <AdminAddRoom />
+                  <FoodManagementPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
+
           <Route
-            path="/admin/edit-room/:id"
+            path="/admin/food/orders"
             element={
-             <ProtectedRoute roles={['admin']}>
+              <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
-                  <AdminEditRoom />
+                  <FoodOrderManagementPage />
                 </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/menu-upload"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <MenuUploadPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/menu-extractor"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <MenuExtractorPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/refunds"
             element={
@@ -570,11 +591,13 @@ const AppContent = () => {
           {/* 🚧 Error Routes */}
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </BookingProvider>
-        </SettingsProvider>
-      </AuthProvider>
-      </SnackbarProvider>
+        </Routes>
+        </AnimatePresence>
+        </CartProvider>
+      </BookingProvider>
+      </SettingsProvider>
+    </AuthProvider>
+    </SnackbarProvider>
   );
 };
 

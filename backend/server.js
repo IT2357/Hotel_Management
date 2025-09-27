@@ -277,6 +277,11 @@ const startServer = async () => {
         guestServices: "/api/guest-services",
         tasks: "/api/tasks",
         keyCards: "/api/key-cards",
+        foodMenu: "/api/menu",
+        menuExtraction: "/api/menu-extraction",
+        menuSelection: "/api/menu-selection",
+        foodOrders: "/api/food/orders",
+        valdor: "/api/valdor",
         health: "/health",
       },
     });
@@ -346,8 +351,9 @@ const startServer = async () => {
 📅 Bookings API: http://localhost:${PORT}/api/bookings
 🧾 Invoices API: http://localhost:${PORT}/api/invoices
 🏨 Rooms API: http://localhost:${PORT}/api/rooms
+🍽️ Food Menu API: http://localhost:${PORT}/api/menu
 📱 Webhooks: http://localhost:${PORT}/api/webhooks
-    `);
+   `);
   });
 
   // Handle termination
