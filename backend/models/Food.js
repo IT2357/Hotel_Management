@@ -3,27 +3,51 @@ import mongoose from "mongoose";
 
 const foodSchema = new mongoose.Schema(
   {
-    name: String,
+    name: {
+      type: String,
+      required: [true, 'Food name is required'],
+      trim: true
+    },
     category: {
       type: String,
       enum: ["Breakfast", "Lunch", "Dinner", "Snacks", "Beverage", "Dessert"],
+      required: [true, 'Category is required'],
       index: true,
     },
-    description: String,
+    description: {
+      type: String,
+      trim: true
+    },
     imageUrl: String,
-    price: Number,
+    price: {
+      type: Number,
+      required: [true, 'Price is required'],
+      min: [0, 'Price cannot be negative']
+    },
+    currency: {
+      type: String,
+      default: 'LKR',
+      enum: ['LKR'],
+      required: true
+    },
     preparationTimeMinutes: Number,
     ingredients: [String],
     allergens: [String],
     dietaryTags: [String],
-    seasonal: Boolean,
-    isAvailable: Boolean,
+    seasonal: {
+      type: Boolean,
+      default: false
+    },
+    isAvailable: {
+      type: Boolean,
+      default: true
+    },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     // ❌ Removed rating/reviewCount – use aggregation from FoodReview
     sentimentBreakdown: {
-      positive: Number,
-      neutral: Number,
-      negative: Number,
+      positive: { type: Number, default: 0 },
+      neutral: { type: Number, default: 0 },
+      negative: { type: Number, default: 0 },
     },
   },
   { timestamps: true }

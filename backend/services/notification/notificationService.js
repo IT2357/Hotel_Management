@@ -294,6 +294,11 @@ class NotificationService {
 
   // Get staff notifications
   async getStaffNotifications(userId, options = {}) {
+    // Validate userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
     const {
       limit = 20,
       page = 1,
@@ -377,6 +382,11 @@ class NotificationService {
 
   // Get user notifications with filtering and pagination
   async getUserNotifications(userId, options = {}) {
+    // Validate userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
     const {
       limit = 20,
       page = 1,
@@ -505,6 +515,11 @@ class NotificationService {
 
   // Get unread notification count
   async getUnreadCount(userId) {
+    // Validate userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
     return await Notification.countDocuments({ userId, isRead: false });
   }
 

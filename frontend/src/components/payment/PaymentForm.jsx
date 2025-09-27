@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import paymentService from '../../services/paymentService';
 import adminService from '../../services/adminService';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
+import { Button } from '../ui/Button';
+import Card from '../ui/card';
 import Alert from '../common/Alert';
 
 const PaymentForm = ({

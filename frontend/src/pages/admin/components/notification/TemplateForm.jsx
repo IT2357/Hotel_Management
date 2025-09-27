@@ -1,10 +1,10 @@
 // src/components/admin/components/notification/TemplateForm.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Input from "../../../../components/ui/Input";
-import Select from "../../../../components/ui/Select";
-import Textarea from "../../../../components/ui/Textarea";
-import Button from "../../../../components/ui/Button";
+import { Input } from "../../../../components/ui/input";
+import { Select } from "../../../../components/ui/select";
+import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "../../../../components/ui/button";
 
 export default function TemplateForm({ template = null, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({

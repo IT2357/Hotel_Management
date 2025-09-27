@@ -1,9 +1,9 @@
 // Placeholder for import React, { useState } from 'react';
 import Card from '../ui/card';
-import Button from '../ui/button';
+import { Button } from '../ui/button';
 import Input from '../ui/input';
 import Select from '../ui/select';
-import Badge from '../ui/badge';
+import { Badge } from '../ui/badge';
 import { CreditCard, Lock, Shield, Calendar, User, MapPin } from 'lucide-react';
 
 export default function PaymentForm({ bookingData, onPaymentComplete, onCancel }) {

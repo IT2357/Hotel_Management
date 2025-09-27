@@ -1,8 +1,8 @@
 // src/pages/admin/components/notification/NotificationList.jsx
 import React, { useState } from "react";
 import { format } from "date-fns";
-import Badge from "../../../../components/ui/Badge";
-import Button from "../../../../components/ui/Button";
+import { Badge } from "../../../../components/ui/badge";
+import { Button } from "../../../../components/ui/button";
 import Pagination from "../../../../components/ui/Pagination";
 
 export default function NotificationListWrapper({

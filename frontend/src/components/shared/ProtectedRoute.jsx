@@ -4,7 +4,7 @@ import getDashboardPath from '../../utils/GetDashboardPath';
 import usePermissions from '../../hooks/usePermissions';
 
 export function ProtectedRoute({ children, roles = [], permissions = [] }) {
-  const { user, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
   const { hasAllPermissions } = usePermissions();
 
@@ -25,15 +25,15 @@ export function ProtectedRoute({ children, roles = [], permissions = [] }) {
     );
   }
 
-  // If user is not authenticated and trying to access a protected route
-  if (!user) {
-    if (publicRoutes.includes(location.pathname)) {
-      console.log('Allowing access to public route:', location.pathname);
-      return children;
-    }
-    console.log('Redirecting to /login', { from: location.pathname });
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+  //If user is not authenticated and trying to access a protected route
+   if (!isAuthenticated) {
+     if (publicRoutes.includes(location.pathname)) {
+       console.log('Allowing access to public route:', location.pathname);
+       return children;
+     }
+     console.log('Redirecting to /login', { from: location.pathname });
+     return <Navigate to="/login" state={{ from: location }} replace />;
+   }
 
   console.log('ProtectedRoute user:', {
     userId: user._id,
@@ -136,7 +136,10 @@ export function RedirectIfAuthenticated({ children }) {
   // Only redirect if user is authenticated, email is verified, active, and no password reset pending
   if (user && user.emailVerified && user.isActive && !user.passwordResetPending) {
     const dashboardPath = getDashboardPath(user.role);
-    if (location.pathname !== dashboardPath) {
+    // Don't redirect to dashboard if user is already on home page or other public pages
+    const publicRoutesAfterLogin = ['/', '/about', '/menu', '/gallery', '/reservations', '/blog', '/contact'];
+
+    if (!publicRoutesAfterLogin.includes(location.pathname) && location.pathname !== dashboardPath) {
       console.log('Redirecting authenticated user to dashboard', {
         userId: user._id,
         dashboardPath,

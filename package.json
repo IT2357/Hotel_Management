@@ -13,18 +13,27 @@
     "install-all": "npm install --prefix backend && npm install --prefix frontend",
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "start": "concurrently \"npm run start --prefix backend\" \"npm run preview --prefix frontend\"",
-    "build": "npm run build --prefix frontend"
+    "build": "npm run build --prefix frontend",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open",
+    "test:api": "cypress run --spec 'cypress/e2e/api/**/*'",
+    "test:guest": "cypress run --spec 'cypress/e2e/guest/**/*'",
+    "test:admin": "cypress run --spec 'cypress/e2e/admin/**/*'",
+    "test:all": "npm run test:e2e && npm run test:api"
   },
   "keywords": [],
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "concurrently": "^9.2.0",
+    "cypress": "^13.0.0",
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.4.0"
   },
   "dependencies": {
+    "axios": "^1.12.2",
     "date-fns": "^4.1.0",
+    "form-data": "^4.0.4",
     "socket.io-client": "^4.8.1"
   }
 }

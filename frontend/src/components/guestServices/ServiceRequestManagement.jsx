@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
+import { Button } from '../../components/ui/Button';
 import Textarea from '../../components/ui/Textarea';
 import Label from '../../components/ui/Label';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import Select from '../../components/ui/Select';
 import guestServiceApi from '../../services/guestServiceApi';

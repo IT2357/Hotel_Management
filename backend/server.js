@@ -26,6 +26,11 @@ import checkInOutRoutes from "./routes/checkInOutRoutes.js";
 import guestServiceRoutes from "./routes/guestServiceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import keyCardRoutes from "./routes/keyCardRoutes.js";
+import foodMenuRoutes from './routes/food/menuRoutes.js';
+import menuExtractionRoutes from './routes/menuExtractionRoutes.js';
+import menuSelectionRoutes from './routes/menuSelectionRoutes.js';
+import foodOrderRoutes from './routes/foodOrderRoutes.js';
+import valdorFoodRoutes from './routes/valdorFoodRoutes.js';
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
@@ -51,16 +56,13 @@ app.use(passport.initialize()); // Added
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
-
-const isProd = process.env.NODE_ENV === "production";
 const corsOptions = {
-  origin: isProd ? process.env.FRONTEND_URL : true, // Allow any origin in dev to prevent CORS issues
+  origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -81,7 +83,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-if (isProd) {
+if (process.env.NODE_ENV === "production") {
   app.use("/api/", limiter);
   app.use("/api/auth/", authLimiter);
   app.use(express.json({ limit: "10mb" }));
@@ -244,6 +246,11 @@ const startServer = async () => {
   app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
   app.use("/api/task-management", taskManagementRoutes); // Task management routes
   app.use("/api/reports", reportsRoutes); // Reports routes
+  app.use('/api/menu', foodMenuRoutes);
+  app.use('/api/menu-extraction', menuExtractionRoutes);
+  app.use('/api/menu-selection', menuSelectionRoutes);
+  app.use('/api/food/orders', foodOrderRoutes);
+  app.use('/api/valdor', valdorFoodRoutes);
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -327,11 +334,12 @@ const startServer = async () => {
 
   // Start the server regardless of database status
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
+  const HOST = process.env.HOST || '0.0.0.0';
+  server.listen(PORT, HOST, () => {
     console.log(`
 🚀 Server running in ${
       process.env.NODE_ENV || "development"
-    } mode on port ${PORT}
+    } mode on ${HOST}:${PORT}
 📊 Health check: http://localhost:${PORT}/health
 🔐 Auth API: http://localhost:${PORT}/api/auth
 📚 Admin API: http://localhost:${PORT}/api/admin

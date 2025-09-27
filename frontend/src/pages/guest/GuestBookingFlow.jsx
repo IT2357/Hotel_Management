@@ -3,16 +3,110 @@ import { AuthContext } from '../../context/AuthContext.jsx';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RoomCard from '../../components/booking/RoomCard';
 import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
+import { Button } from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import Label from '../../components/ui/Label';
+import Label from '../../components/ui/label';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Alert from '../../components/common/Alert';
 import { Calendar, Users } from 'lucide-react';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
+import { menuService } from '../../services/menuService';
+
+const FoodSelectionCards = ({ mealType, day, selectedFood, setSelectedFood, guests }) => {
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      setLoading(true);
+      try {
+        const response = await menuService.getMenuItemsByCategory(mealType);
+        if (response.success) {
+          setMenuItems(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching menu items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMenuItems();
+  }, [mealType]);
+
+  const handleQuantityChange = (itemId, quantity) => {
+    setSelectedFood(prev => {
+      const newSelected = { ...prev };
+      if (!newSelected[day]) newSelected[day] = {};
+      if (!newSelected[day][mealType]) newSelected[day][mealType] = {};
+      if (quantity > 0) {
+        newSelected[day][mealType][itemId] = quantity;
+      } else {
+        delete newSelected[day][mealType][itemId];
+        if (Object.keys(newSelected[day][mealType]).length === 0) {
+          delete newSelected[day][mealType];
+        }
+        if (Object.keys(newSelected[day]).length === 0) {
+          delete newSelected[day];
+        }
+      }
+      return newSelected;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-200 border-t-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto">
+      {menuItems.map((item) => {
+        const currentQuantity = selectedFood[day]?.[mealType]?.[item._id] || 0;
+        return (
+          <div key={item._id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <img
+                src={item.image || '/api/placeholder/80/80'}
+                alt={item.name}
+                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <h6 className="font-medium text-gray-800 dark:text-gray-100 text-sm truncate">{item.name}</h6>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.description}</p>
+                <p className="text-sm font-semibold text-green-600">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'LKR' }).format(item.price)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => handleQuantityChange(item._id, Math.max(0, currentQuantity - 1))}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+              >
+                -
+              </button>
+              <span className="w-8 text-center text-sm font-medium text-gray-800 dark:text-gray-100">
+                {currentQuantity}
+              </span>
+              <button
+                onClick={() => handleQuantityChange(item._id, currentQuantity + 1)}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 flex items-center justify-center text-gray-600 dark:text-gray-300"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const GuestBookingFlow = () => {
   const navigate = useNavigate();
@@ -69,7 +163,7 @@ const GuestBookingFlow = () => {
           <CardContent className="p-6 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-gray-600">Checking authentication...</p>
+              <p className="text-gray-600 dark:text-gray-300">Checking authentication...</p>
             </div>
             {bookingResult && bookingResult.status !== 'Confirmed' && (
               <div className="bg-blue-50 p-3 rounded-md border border-blue-200 text-blue-800 text-sm">
@@ -87,8 +181,58 @@ const GuestBookingFlow = () => {
     );
   }
 
+  const [step, setStep] = useState(1);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(location.state?.roomId ? {
+    roomId: location.state.roomId,
+    title: location.state.roomTitle,
+    type: location.state.roomType,
+    pricePerNight: location.state.pricePerNight
+  } : null);
+  const isRoomPreSelected = !!location.state?.roomId;
+
+  const getNextStep = (currentStep) => {
+    if (isRoomPreSelected && currentStep === 1) return 3;
+    if (isRoomPreSelected && currentStep === 3) return 4;
+    if (isRoomPreSelected && currentStep === 4) return 5;
+    if (isRoomPreSelected && currentStep === 5) return 6;
+    return currentStep + 1;
+  };
+
+  const getPrevStep = (currentStep) => {
+    if (isRoomPreSelected && currentStep === 3) return 1;
+    if (isRoomPreSelected && currentStep === 4) return 3;
+    if (isRoomPreSelected && currentStep === 5) return 4;
+    if (isRoomPreSelected && currentStep === 6) return 5;
+    return currentStep - 1;
+  };
+  const [bookingData, setBookingData] = useState({
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+    roomId: location.state?.roomId || '',
+    specialRequests: '',
+    foodPlan: 'None',
+    selectedMeals: []
+  });
+  const [paymentData, setPaymentData] = useState({
+    paymentMethod: 'card',
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvv: '',
+    cardholderName: '',
+    bankDetails: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loadingMenu, setLoadingMenu] = useState(false);
+  const [selectedFood, setSelectedFood] = useState({}); // {day: {mealType: {itemId: quantity}}}
+
   const renderProgressBar = () => {
-    const steps = [
+    const allSteps = [
       { number: 1, title: 'Search Rooms', description: 'Select dates and guests' },
       { number: 2, title: 'Select Room', description: 'Choose your perfect room' },
       { number: 3, title: 'Booking Details', description: 'Add preferences and confirm' },
@@ -97,45 +241,50 @@ const GuestBookingFlow = () => {
       { number: 6, title: 'Complete', description: 'Booking completed' }
     ];
 
+    const steps = isRoomPreSelected ? allSteps.filter(s => s.number !== 2) : allSteps;
+
     return (
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+      <div className="mb-12">
+        <div className="flex items-center justify-between relative">
+          {/* Background line */}
+          <div className="absolute top-5 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-200 via-purple-200 to-indigo-200"></div>
+          {/* Active progress line */}
+          <div
+            className="absolute top-5 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out"
+            style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
+          ></div>
+
           {steps.map((stepInfo, index) => (
             <React.Fragment key={stepInfo.number}>
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center relative z-10">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 shadow-lg ${
                     stepInfo.number < step
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-gradient-to-r from-green-400 to-green-600 text-white shadow-green-200'
                       : stepInfo.number === step
-                      ? 'bg-indigo-500 text-white'
-                      : 'bg-gray-200 text-gray-500'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-indigo-200 animate-pulse'
+                      : 'bg-white dark:bg-gray-900 border-2 border-gray-300 text-gray-500 shadow-gray-100'
                   }`}
                 >
                   {stepInfo.number < step ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
                     stepInfo.number
                   )}
                 </div>
-                <div className="text-center mt-2">
-                  <div className={`text-xs font-medium ${stepInfo.number <= step ? 'text-indigo-600' : 'text-gray-500'}`}>
+                <div className="text-center mt-3">
+                  <div className={`text-sm font-semibold transition-colors ${
+                    stepInfo.number <= step ? 'text-indigo-700' : 'text-gray-500'
+                  }`}>
                     {stepInfo.title}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1 hidden md:block">
+                  <div className="text-xs text-gray-400 mt-1 hidden md:block max-w-24">
                     {stepInfo.description}
                   </div>
                 </div>
               </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={`flex-1 h-0.5 mx-4 transition-colors ${
-                    stepInfo.number < step ? 'bg-green-500' : 'bg-gray-200'
-                  }`}
-                />
-              )}
             </React.Fragment>
           ))}
         </div>
@@ -150,7 +299,19 @@ const GuestBookingFlow = () => {
     if (nights === 0) return 0;
 
     const basePrice = selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0;
-    const subtotal = basePrice * nights;
+    const roomSubtotal = basePrice * nights;
+
+    // Calculate food cost
+    const foodCost = Object.values(selectedFood).reduce((dayTotal, dayMeals) => {
+      return dayTotal + Object.values(dayMeals).reduce((mealTotal, mealItems) => {
+        return mealTotal + Object.entries(mealItems).reduce((itemTotal, [itemId, quantity]) => {
+          // Find item price - this is simplified, in real app you'd have item data
+          return itemTotal + (quantity * 1000); // Placeholder price
+        }, 0);
+      }, 0);
+    }, 0);
+
+    const subtotal = roomSubtotal + foodCost;
     const tax = subtotal * 0.1; // 10% tax
     const serviceFee = subtotal * 0.05; // 5% service fee
     const total = subtotal + tax + serviceFee;
@@ -174,6 +335,13 @@ const GuestBookingFlow = () => {
       fetchAvailableRooms();
     }
   }, [bookingData.checkIn, bookingData.checkOut]);
+
+  // Fetch rooms when entering step 2 if not already fetched
+  useEffect(() => {
+    if (step === 2 && availableRooms.length === 0 && bookingData.checkIn && bookingData.checkOut) {
+      fetchAvailableRooms();
+    }
+  }, [step]);
 
   // Debug payment data changes
   useEffect(() => {
@@ -241,6 +409,44 @@ const GuestBookingFlow = () => {
     }));
   };
 
+  const handleFoodOptionChange = async (option) => {
+    setBookingData(prev => ({
+      ...prev,
+      foodPlan: option,
+      selectedMeals: option === 'None' ? [] : prev.selectedMeals
+    }));
+
+    if (option !== 'None') {
+      await fetchMenuItems(option);
+    } else {
+      setMenuItems([]);
+    }
+  };
+
+  const fetchMenuItems = async (category) => {
+    setLoadingMenu(true);
+    try {
+      const response = await menuService.getMenuItemsByCategory(category);
+      if (response.success) {
+        setMenuItems(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching menu items:', error);
+      setMenuItems([]);
+    } finally {
+      setLoadingMenu(false);
+    }
+  };
+
+  const handleMealSelection = (itemId, checked) => {
+    setBookingData(prev => ({
+      ...prev,
+      selectedMeals: checked
+        ? [...prev.selectedMeals, menuItems.find(item => item._id === itemId)]
+        : prev.selectedMeals.filter(meal => meal._id !== itemId)
+    }));
+  };
+
   const calculateNights = () => {
     if (!bookingData.checkIn || !bookingData.checkOut) return 0;
     const checkIn = new Date(bookingData.checkIn);
@@ -259,16 +465,23 @@ const GuestBookingFlow = () => {
   const handleBookingSubmit = async () => {
     setLoading(true);
     try {
+      // Set appropriate check-in and check-out times based on hotel policy
+      const checkInDate = new Date(bookingData.checkIn);
+      checkInDate.setHours(14, 0, 0, 0); // 14:00 (2 PM) check-in
+
+      const checkOutDate = new Date(bookingData.checkOut);
+      checkOutDate.setHours(12, 0, 0, 0); // 12:00 (noon) check-out
+
       const bookingPayload = {
         ...bookingData,
         roomId: selectedRoom.roomId,
-        checkIn: new Date(bookingData.checkIn).toISOString(),
-        checkOut: new Date(bookingData.checkOut).toISOString(),
-        totalAmount: selectedRoom.pricing.total,
+        checkIn: checkInDate.toISOString(),
+        checkOut: checkOutDate.toISOString(),
+        totalAmount: calculateTotal(),
         nights: calculateNights(),
         status: 'Pending Approval',
         roomBasePrice: selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0,
-        foodPlan: bookingData.foodPlan || 'None',
+        selectedFood: selectedFood,
         guests: bookingData.guests || 1,
         specialRequests: bookingData.specialRequests || '',
         paymentMethod: paymentData.paymentMethod || 'cash'
@@ -293,60 +506,96 @@ const GuestBookingFlow = () => {
   };
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Search Available Rooms</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="checkIn">Check-in Date</Label>
-          <Input
-            id="checkIn"
-            type="date"
-            value={bookingData.checkIn}
-            onChange={(e) => handleInputChange('checkIn', e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-          />
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Search Available Rooms
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300">Find the perfect room for your stay</p>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-100 p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="checkIn" className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-indigo-500" />
+              Check-in Date
+            </Label>
+            <Input
+              id="checkIn"
+              type="date"
+              value={bookingData.checkIn}
+              onChange={(e) => handleInputChange('checkIn', e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full h-12 rounded-xl border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="checkOut" className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-indigo-500" />
+              Check-out Date
+            </Label>
+            <Input
+              id="checkOut"
+              type="date"
+              value={bookingData.checkOut}
+              onChange={(e) => handleInputChange('checkOut', e.target.value)}
+              min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
+              className="w-full h-12 rounded-xl border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
+            />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="checkOut">Check-out Date</Label>
-          <Input
-            id="checkOut"
-            type="date"
-            value={bookingData.checkOut}
-            onChange={(e) => handleInputChange('checkOut', e.target.value)}
-            min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
-          />
+
+        <div className="mt-6 space-y-2">
+          <Label htmlFor="guests" className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+            <Users className="w-4 h-4 text-indigo-500" />
+            Number of Guests
+          </Label>
+          <Select
+            value={bookingData.guests}
+            onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
+            className="w-full h-12 rounded-xl border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white focus:border-indigo-500 focus:ring-indigo-500 transition-all duration-200"
+          >
+            <option value={1}>1 Guest</option>
+            <option value={2}>2 Guests</option>
+            <option value={3}>3 Guests</option>
+            <option value={4}>4 Guests</option>
+            <option value={5}>5+ Guests</option>
+          </Select>
+        </div>
+
+        {calculateNights() > 0 && (
+          <div className="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100">
+            <div className="flex items-center justify-center gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-indigo-600">
+                  {calculateNights()} Night{calculateNights() > 1 ? 's' : ''}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {new Date(bookingData.checkIn).toLocaleDateString()} - {new Date(bookingData.checkOut).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <Button
+            onClick={() => setStep(getNextStep(1))}
+            disabled={!bookingData.checkIn || !bookingData.checkOut || loading}
+            className="w-full h-14 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Searching...
+              </div>
+            ) : (
+              'Search Available Rooms'
+            )}
+          </Button>
         </div>
       </div>
-      <div>
-        <Label htmlFor="guests">Number of Guests</Label>
-        <Select
-          value={bookingData.guests}
-          onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
-        >
-          <option value={1}>1 Guest</option>
-          <option value={2}>2 Guests</option>
-          <option value={3}>3 Guests</option>
-          <option value={4}>4 Guests</option>
-          <option value={5}>5+ Guests</option>
-        </Select>
-      </div>
-      {calculateNights() > 0 && (
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <p className="text-lg font-semibold">
-            {calculateNights()} Night{calculateNights() > 1 ? 's' : ''}
-          </p>
-          <p className="text-gray-600">
-            {new Date(bookingData.checkIn).toLocaleDateString()} - {new Date(bookingData.checkOut).toLocaleDateString()}
-          </p>
-        </div>
-      )}
-      <Button
-        onClick={() => setStep(2)}
-        disabled={!bookingData.checkIn || !bookingData.checkOut || loading}
-        className="w-full"
-      >
-        Search Available Rooms
-      </Button>
     </div>
   );
 
@@ -355,26 +604,48 @@ const GuestBookingFlow = () => {
     console.log('RenderStep2 - availableRooms:', availableRooms);
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Select a Room</h2>
-          <Button variant="outline" onClick={() => setStep(1)}>
-            Back to Search
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Select Your Room
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">Choose the perfect accommodation for your stay</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setStep(getPrevStep(2))}
+            className="border-2 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200"
+          >
+            ← Back to Search
           </Button>
         </div>
+
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+          <div className="flex flex-col justify-center items-center h-64 space-y-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
+            <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">Finding available rooms...</p>
           </div>
         ) : availableRooms.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-500 mb-4">No rooms available for the selected dates.</p>
-              <Button onClick={() => setStep(1)}>Modify Search</Button>
+          <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
+            <CardContent className="p-12 text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">No Rooms Available</h3>
+              <p className="text-gray-500 mb-6">No rooms are available for the selected dates. Try different dates or modify your search.</p>
+              <Button
+                onClick={() => setStep(1)}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              >
+                Modify Search
+              </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {availableRooms.map((room) => (
               <RoomCard
                 key={room.roomId}
@@ -386,17 +657,30 @@ const GuestBookingFlow = () => {
             ))}
           </div>
         )}
+
         {selectedRoom && (
-          <div className="flex justify-between items-center pt-6 border-t">
-            <div>
-              <p className="text-lg font-semibold">Selected: {selectedRoom.title}</p>
-              <p className="text-gray-600">
-                {calculateNights()} nights • {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}
-              </p>
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200 shadow-lg">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-800 dark:text-gray-100">Selected: {selectedRoom.title}</p>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    {calculateNights()} nights • {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setStep(3)}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                Continue to Details →
+              </Button>
             </div>
-            <Button onClick={() => setStep(3)}>
-              Continue to Booking Details
-            </Button>
           </div>
         )}
       </div>
@@ -404,145 +688,323 @@ const GuestBookingFlow = () => {
   };
 
   const renderStep3 = () => (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Booking Details</h2>
-        <Button variant="outline" onClick={() => setStep(2)}>
-          Back to Room Selection
+        <div>
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Booking Details
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Customize your stay with food options and special requests</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setStep(getPrevStep(3))}
+          className="border-2 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200"
+        >
+          ← Back to {isRoomPreSelected ? 'Search' : 'Rooms'}
         </Button>
       </div>
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Booking Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold mb-2">Room Details</h4>
-              <p className="text-lg">{selectedRoom?.title}</p>
-              <p className="text-gray-600">Room {selectedRoom?.roomNumber}</p>
-              <p className="text-gray-600">{selectedRoom?.type}</p>
+
+      {/* Booking Summary */}
+      <Card className="border-0 shadow-xl bg-gradient-to-r from-indigo-50 to-purple-50">
+        <CardContent className="p-8">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">Stay Details</h4>
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar size={16} />
-                <span>
-                  {new Date(bookingData.checkIn).toLocaleDateString()} - {new Date(bookingData.checkOut).toLocaleDateString()}
-                </span>
+            Booking Summary
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h4 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                Room Details
+              </h4>
+              <div className="bg-white dark:bg-gray-900/70 rounded-lg p-4">
+                <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">{selectedRoom?.title}</p>
+                <p className="text-gray-600 dark:text-gray-300">Room {selectedRoom?.roomNumber}</p>
+                <p className="text-gray-600 dark:text-gray-300">{selectedRoom?.type}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Users size={16} />
-                <span>{bookingData.guests} Guest{bookingData.guests > 1 ? 's' : ''}</span>
+            </div>
+            <div className="space-y-4">
+              <h4 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                Stay Details
+              </h4>
+              <div className="bg-white dark:bg-gray-900/70 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm">
+                    {new Date(bookingData.checkIn).toLocaleDateString()} - {new Date(bookingData.checkOut).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm">{bookingData.guests} Guest{bookingData.guests > 1 ? 's' : ''}</span>
+                </div>
               </div>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex justify-between items-center text-lg font-semibold">
-              <span>Total Amount:</span>
-              <span className="text-green-600">
+          <div className="mt-6 pt-6 border-t border-indigo-200">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">Total Amount:</span>
+              <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
                 {selectedRoom && new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: 'LKR'
-                }).format(selectedRoom.pricing.total)}
+                }).format(calculateTotal())}
               </span>
             </div>
           </div>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Additional Options</h3>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="foodPlan">Food Plan</Label>
-              <Select
-                value={bookingData.foodPlan}
-                onChange={(e) => handleInputChange('foodPlan', e.target.value)}
-              >
-                <option value="None">No Food Plan</option>
-                <option value="Breakfast">Breakfast Only</option>
-                <option value="Half Board">Half Board (Breakfast + Dinner)</option>
-                <option value="Full Board">Full Board (All Meals)</option>
-                <option value="A la carte">A la carte</option>
-              </Select>
+
+      {/* Food Options */}
+      <Card className="border-0 shadow-xl bg-white dark:bg-gray-900">
+        <CardContent className="p-8">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
             </div>
+            Food Options
+          </h3>
+
+          <div className="space-y-6">
             <div>
-              <Label htmlFor="specialRequests">Special Requests</Label>
+              <Label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Choose Your Meal Plan</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { value: 'None', label: 'No Food', icon: '🚫', desc: 'Self-catering' },
+                  { value: 'Breakfast', label: 'Breakfast', icon: '🥐', desc: 'Morning meal' },
+                  { value: 'Lunch', label: 'Lunch', icon: '🍽️', desc: 'Midday meal' },
+                  { value: 'Dinner', label: 'Dinner', icon: '🍽️', desc: 'Evening meal' }
+                ].map((option) => (
+                  <label key={option.value} className="relative">
+                    <input
+                      type="radio"
+                      name="foodOption"
+                      value={option.value}
+                      checked={bookingData.foodPlan === option.value}
+                      onChange={(e) => handleFoodOptionChange(e.target.value)}
+                      className="sr-only peer"
+                    />
+                    <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                      bookingData.foodPlan === option.value
+                        ? 'border-indigo-500 bg-gradient-to-r from-indigo-50 to-purple-50 shadow-lg'
+                        : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                    }`}>
+                      <div className="text-center">
+                        <div className="text-2xl mb-2">{option.icon}</div>
+                        <div className="font-semibold text-gray-800 dark:text-gray-100">{option.label}</div>
+                        <div className="text-xs text-gray-500">{option.desc}</div>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {bookingData.foodPlan !== 'None' && (
+              <div className="border-t pt-6">
+                <Label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Select Menu Items</Label>
+                {loadingMenu ? (
+                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-200 border-t-indigo-600"></div>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">Loading delicious options...</p>
+                  </div>
+                ) : menuItems.length > 0 ? (
+                  <div className="grid gap-3 max-h-80 overflow-y-auto">
+                    {menuItems.map((item) => (
+                      <label key={item._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={bookingData.selectedMeals.some(meal => meal._id === item._id)}
+                            onChange={(e) => handleMealSelection(item._id, e.target.checked)}
+                            className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                          />
+                          <div>
+                            <span className="font-medium text-gray-800 dark:text-gray-100">{item.name}</span>
+                            {item.description && (
+                              <p className="text-sm text-gray-500">{item.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'LKR'
+                          }).format(item.price)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-500 font-medium">No menu items available for this category.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="border-t pt-6">
+              <Label htmlFor="specialRequests" className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">
+                Special Requests
+              </Label>
               <Textarea
                 id="specialRequests"
-                placeholder="Any special requests or preferences..."
+                placeholder="Any special dietary requirements, allergies, or preferences..."
                 value={bookingData.specialRequests}
                 onChange={(e) => handleInputChange('specialRequests', e.target.value)}
+                className="w-full h-24 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 resize-none"
               />
             </div>
           </div>
         </CardContent>
       </Card>
+
       <div className="flex justify-end">
         <Button
           onClick={handleBookingSubmit}
           disabled={loading}
-          className="px-8 py-3"
+          className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
         >
-          {loading ? 'Processing...' : 'Confirm Booking'}
+          {loading ? (
+            <div className="flex items-center justify-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Creating Booking...</span>
+            </div>
+          ) : (
+            'Confirm Booking'
+          )}
         </Button>
       </div>
     </div>
   );
 
   const renderStep4 = () => (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
+    <div className="text-center space-y-8">
+      <div className="relative">
+        <div className="w-24 h-24 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-pulse">
+          <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-bounce">
+          <div className="w-full h-full bg-yellow-400 rounded-full animate-ping"></div>
+        </div>
       </div>
-      <div>
-        <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Submitted!</h2>
-        <p className="text-gray-600">Your booking has been successfully created. Please proceed to payment.</p>
+
+      <div className="space-y-3">
+        <h2 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+          Booking Confirmed!
+        </h2>
+        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+          Your booking has been successfully created. Please proceed to payment to secure your reservation.
+        </p>
       </div>
+
       {bookingResult && (
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-6">
-            <div className="space-y-2 text-left">
-              <div className="flex justify-between">
-                <span className="font-medium">Booking Number:</span>
-                <span className="font-mono">{bookingResult.bookingNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Status:</span>
-                <Badge className={bookingResult.requiresApproval ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}>
-                  {bookingResult.status}
-                </Badge>
-              </div>
-              {bookingResult.status !== 'Confirmed' && (
-                <div className="mt-3 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-sm">
-                  A temporary hold has been placed on your room to secure availability.
-                  {bookingResult.holdUntil && (
-                    <>
-                      {' '}This hold will expire on <strong>{new Date(bookingResult.holdUntil).toLocaleString()}</strong> unless approved/paid.
-                    </>
-                  )}
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="font-medium">Total Amount:</span>
-                <span className="font-semibold">
-                  {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'LKR'
-                  }).format(bookingResult?.totalAmount || calculateTotal())}
-                </span>
+        <Card className="max-w-2xl mx-auto border-0 shadow-2xl bg-gradient-to-br from-white to-green-50">
+          <CardContent className="p-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Booking Created Successfully
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">Booking Number:</span>
+                  <span className="font-mono text-indigo-600 font-bold">{bookingResult.bookingNumber}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+                  <Badge className={`${
+                    bookingResult.status === 'Confirmed'
+                      ? 'bg-green-100 text-green-800 border-green-200'
+                      : bookingResult.status === 'On Hold'
+                      ? 'bg-blue-100 text-blue-800 border-blue-200'
+                      : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                  } border`}>
+                    {bookingResult.status}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">Room:</span>
+                  <span className="font-medium">{bookingResult.roomTitle}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">Total Amount:</span>
+                  <span className="font-bold text-green-600 text-lg">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'LKR'
+                    }).format(bookingResult?.totalAmount || calculateTotal())}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {bookingResult.status !== 'Confirmed' && (
+              <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-blue-800 mb-1">Room on Hold</h4>
+                    <p className="text-sm text-blue-700">
+                      A temporary hold has been placed on your room to secure availability.
+                      {bookingResult.holdUntil && (
+                        <>
+                          {' '}This hold will expire on <strong>{new Date(bookingResult.holdUntil).toLocaleString()}</strong> unless approved/paid.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
+
       <div className="flex gap-4 justify-center">
-        <Button variant="outline" onClick={() => setStep(3)}>
-          Back to Booking Details
+        <Button
+          variant="outline"
+          onClick={() => setStep(getPrevStep(4))}
+          className="px-8 py-3 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+        >
+          ← Back to Details
         </Button>
-        <Button onClick={() => setStep(5)}>
-          Proceed to Payment
+        <Button
+          onClick={() => setStep(getNextStep(4))}
+          className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        >
+          Proceed to Payment →
         </Button>
       </div>
     </div>
@@ -552,7 +1014,7 @@ const GuestBookingFlow = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Payment</h2>
-        <Button variant="outline" onClick={() => setStep(3)}>
+        <Button variant="outline" onClick={() => setStep(getPrevStep(5))}>
           Back to Booking Details
         </Button>
       </div>
@@ -733,7 +1195,7 @@ const GuestBookingFlow = () => {
               <div className="border-t pt-4">
                 <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border">
                   <h4 className="font-semibold text-gray-900 mb-2">Payment Instructions</h4>
-                  <div className="space-y-2 text-sm text-gray-700">
+                  <div className="space-y-2 text-sm text-gray-700 dark:text-gray-200">
                     <p>• Your booking will be confirmed after admin approval</p>
                     <p>• Pay the full amount at the hotel reception</p>
                     <p>• Bring a valid ID for verification</p>
@@ -806,7 +1268,7 @@ const GuestBookingFlow = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-blue-600 mb-2">Payment Received - Awaiting Approval</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Your payment has been processed successfully. Your booking is now awaiting admin approval.
             </p>
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
@@ -824,7 +1286,7 @@ const GuestBookingFlow = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-yellow-600 mb-2">Booking Request Submitted - Pay at Hotel</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Your booking request has been submitted successfully. Payment will be collected at the hotel upon check-in.
             </p>
             <div className="bg-yellow-50 p-4 rounded-lg mb-4">
@@ -842,7 +1304,7 @@ const GuestBookingFlow = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Approved!</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Your booking has been approved! Payment will be collected at the hotel upon check-in.
             </p>
           </>
@@ -854,7 +1316,7 @@ const GuestBookingFlow = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-blue-600 mb-2">Booking Approved - Payment Processing</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Your booking has been approved and payment is being processed. We'll notify you once payment is confirmed.
             </p>
           </>
@@ -865,8 +1327,8 @@ const GuestBookingFlow = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Submitted!</h2>
-            <p className="text-gray-600 mb-4">
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed!</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               Your booking has been confirmed! Payment will be collected when you arrive at the hotel.
             </p>
             <div className="bg-green-50 p-4 rounded-lg mb-4">
@@ -885,7 +1347,7 @@ const GuestBookingFlow = () => {
             <h2 className="text-2xl font-bold text-yellow-600 mb-2">
               {bookingResult?.paymentMethod === 'cash' ? 'Booking Request Submitted - Pay at Hotel' : 'Payment Recorded - Awaiting Approval'}
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               {bookingResult?.paymentMethod === 'cash'
                 ? 'Your booking request has been submitted successfully. Payment will be collected at the hotel upon check-in.'
                 : 'Your payment information has been recorded. Your booking is now awaiting admin approval.'
@@ -911,7 +1373,7 @@ const GuestBookingFlow = () => {
             <h2 className="text-2xl font-bold text-green-600 mb-2">
               {bookingResult?.paymentMethod === 'card' ? 'Payment Successful!' : 'Booking Submitted!'}
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               {bookingResult?.paymentMethod === 'card'
                 ? 'Your payment has been processed successfully.'
                 : 'Your booking has been confirmed! Payment is due when you arrive at the hotel.'}
@@ -981,12 +1443,19 @@ const GuestBookingFlow = () => {
           </CardContent>
         </Card>
       )}
-      <div className="flex gap-4 justify-center">
-        <Button variant="outline" onClick={() => navigate('/guest/my-bookings')}>
-          View My Bookings
+      <div className="flex gap-6 justify-center">
+        <Button
+          variant="outline"
+          onClick={() => navigate('/guest/my-bookings')}
+          className="px-8 py-3 border-2 border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 font-semibold"
+        >
+          📋 View My Bookings
         </Button>
-        <Button onClick={() => navigate('/')}>
-          Go to Homepage
+        <Button
+          onClick={() => navigate('/')}
+          className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        >
+          🏠 Go to Homepage
         </Button>
       </div>
     </div>
@@ -1051,16 +1520,39 @@ const GuestBookingFlow = () => {
     }
   };
 
+  // Step background images
+  const stepBackgrounds = {
+    1: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200', // Hotel lobby/search
+    2: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=1200', // Hotel room selection
+    3: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=1200', // Booking details/form
+    4: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200', // Confirmation
+    5: 'https://images.unsplash.com/photo-1556742111-a301076d9d18?w=1200', // Payment
+    6: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1200'  // Success/completion
+  };
+
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <Card className="min-h-[80vh]">
-        <CardContent className="p-6">
-          {renderProgressBar()}
-          <div className="mt-8">
-            {renderCurrentStep()}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen relative">
+      {/* Background Image */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000 ease-in-out"
+        style={{
+          backgroundImage: `url('${stepBackgrounds[step] || stepBackgrounds[1]}')`
+        }}
+      />
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/40" />
+
+      {/* Content */}
+      <div className="relative z-10 container mx-auto p-4 md:p-8 min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-4xl bg-white dark:bg-gray-900/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-2xl border-0">
+          <CardContent className="p-6 md:p-8">
+            {renderProgressBar()}
+            <div className="mt-8">
+              {renderCurrentStep()}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

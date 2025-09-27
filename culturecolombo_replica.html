@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Lankan Restaurant in Colombo | Culture Colombo</title>
+    <meta name="description" content="Culture Colombo is the ultimate Sri Lankan Restaurant in Colombo. Tantalize your taste buds with the finest authentic Sri Lankan cuisine with a modern twist.">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400,500,700|Merriweather:300,400,700|Great+Vibes">
+    <style>
+        body {
+            font-family: 'Rubik', sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: #333;
+        }
+        header {
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .logo img {
+            height: 50px;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+            margin: 0;
+            padding: 0;
+        }
+        nav a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+        .order-btn {
+            background: #d19831;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+        .hero {
+            background: url('https://culturecolombo.lk/wp-content/uploads/2020/09/culturecmb1.jpg') center/cover;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+        .hero h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 4rem;
+            margin: 0;
+        }
+        .hero p {
+            font-size: 1.5rem;
+            margin: 1rem 0;
+        }
+        .section {
+            padding: 4rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .why-section {
+            background: #f9f9f9;
+        }
+        .why-content {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .why-text h2 {
+            color: #d19831;
+            font-family: 'Merriweather', serif;
+        }
+        .menu-section h2 {
+            text-align: center;
+            color: #d19831;
+            font-family: 'Merriweather', serif;
+        }
+        .menu-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .flavours-section {
+            background: #333;
+            color: white;
+        }
+        .testimonials {
+            display: flex;
+            gap: 2rem;
+            overflow-x: auto;
+        }
+        .testimonial {
+            min-width: 300px;
+            padding: 1rem;
+            background: white;
+            color: #333;
+            border-radius: 5px;
+        }
+        .blog-posts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        .blog-post img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        footer {
+            background: #d19831;
+            color: white;
+            padding: 2rem;
+        }
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .social-icons {
+            display: flex;
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .why-content {
+                flex-direction: column;
+            }
+            .hero h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <img src="https://culturecolombo.lk/wp-content/uploads/elementor/thumbs/Culture-Colombo-logo_1200x1200-q9u9u66uoa1vem3jx5uy95291k1elrp9hlwct1p71k.png" alt="Culture Colombo Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#menu">Menu</a></li>
+                    <li><a href="#gallery">Gallery</a></li>
+                    <li><a href="#reservation">Reservation</a></li>
+                    <li><a href="#blog">Blog</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </nav>
+            <a href="#" class="order-btn">Order Online</a>
+        </div>
+    </header>
+
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h3>Authentic Sri Lankan Cuisine</h3>
+            <h1>Culture Colombo</h1>
+            <p>Bringing the authentic Sri Lankan culinary experience to the Heart of Colombo.🌴</p>
+        </div>
+    </section>
+
+    <section class="section why-section" id="about">
+        <div class="why-content">
+            <div class="why-text">
+                <h3>Two simple reasons. One simple Answer.</h3>
+                <h2>Why CULTURE COLOMBO ?</h2>
+                <p>Designed to be the Culinary epicenter, We try to uphold the traditions of the Local Household while bringing out the flavours of Sri Lanka with a bounty of fresh seasonal ingredients. We take extra care to deliver fresh farm produce to a local classy table cuisine with an emphasis on seasonal & locally sourced ingredients and with the freshest Seafood.</p>
+                <a href="#" class="order-btn">Learn more</a>
+            </div>
+            <div>
+                <!-- Placeholder for image -->
+                <img src="https://culturecolombo.lk/wp-content/uploads/2020/09/Sea-Food-Bowl-in-sri-lankan-style-750x632.jpg" alt="Sea Food Bowl" style="width: 100%; max-width: 500px;">
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="menu">
+        <h2>discover our MOUTH WATERING MENU</h2>
+        <div class="menu-items">
+            <div class="menu-item">
+                <span>Mixed Seafood Dry Curry Bowl (W/Roast Bread)</span>
+                <span>4550</span>
+            </div>
+            <div class="menu-item">
+                <span>Culture Colombo Tasting Basket</span>
+                <span>5550</span>
+            </div>
+            <div class="menu-item">
+                <span>Bamboo Biriyani (Chicken)</span>
+                <span>1950</span>
+            </div>
+            <div class="menu-item">
+                <span>Kachal Rice</span>
+                <span>4250</span>
+            </div>
+            <div class="menu-item">
+                <span>Waw Malu Meal</span>
+                <span>2550</span>
+            </div>
+            <div class="menu-item">
+                <span>Hot Butter Chicken Hopper Meal</span>
+                <span>1950</span>
+            </div>
+            <div class="menu-item">
+                <span>Negambo Crab curry</span>
+                <span>2250</span>
+            </div>
+            <div class="menu-item">
+                <span>Culture Special Chicken Kottu</span>
+                <span>2750</span>
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="#" class="order-btn">Check Full Menu</a>
+        </div>
+    </section>
+
+    <section class="section flavours-section">
+        <h2>we offer WONDERFUL FLAVOURS</h2>
+        <p>We want you to sit down and enjoy your meal just like the way you enjoy your homemade dishes! We have embarked on this journey and we are glad that you have taken the time off of your schedule to know our story to experience our experience.</p>
+    </section>
+
+    <section class="section">
+        <h2>Testimonials</h2>
+        <div class="testimonials">
+            <div class="testimonial">
+                <p>"Culture Colombo is one of the best Sri Lankan Cuisine restaurant I visited in Colombo. The food is fantastic and well-priced for the quality. Specially the Kachal Rice and Bamboo Biriyani is delicious The staff is friendly and make great recommendations"</p>
+                <cite>- Dinuka</cite>
+            </div>
+            <div class="testimonial">
+                <p>"Best place for authentic sri lankan food. They are very creative in presenting their dishes and I loved the ambience. Recommended this to all my loved ones. Definitely visiting this amazing place more frequently"</p>
+                <cite>- Sanjeew</cite>
+            </div>
+            <div class="testimonial">
+                <p>"We had lunch here with the family while on a trip to Colombo in December 2019. I have tried traditional Sri Lankan meals at a few places but this was the one I have liked the best so far. Everything tasted good."</p>
+                <cite>- Sameeta</cite>
+            </div>
+            <div class="testimonial">
+                <p>"My wife and I had many a meal Culture Colombo with both family and friends while on holiday in Sri Lanka. The food was authentic, traditional Sri Lankan and the Jaffna prawn curry and mutton curry reminded me of my youth"</p>
+                <cite>- Pratha</cite>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2>Learn Authentic Sri Lankan Cuisine From The Blog</h2>
+        <div class="blog-posts">
+            <div class="blog-post">
+                <img src="https://culturecolombo.lk/wp-content/uploads/2020/10/DSC04161-2-970x728.jpg" alt="Interior Design">
+                <h3>An insight to our interior designing: A Walawwa Experience awaits you.</h3>
+                <a href="#" class="order-btn">Read More</a>
+            </div>
+            <div class="blog-post">
+                <img src="https://culturecolombo.lk/wp-content/uploads/2020/10/Tasting-Basket-970x728.jpg" alt="Popular Dishes">
+                <h3>Culture Colombo's most popular dishes</h3>
+                <a href="#" class="order-btn">Read More</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div>
+                <img src="https://culturecolombo.lk/wp-content/uploads/2020/09/Culture-Colombo-logo_1200x1200-150x150.png" alt="Logo" style="height: 50px;">
+                <p>No 25 Kensington Garden, Colombo 00400</p>
+                <p>Email: reservations@culturecolombo.lk</p>
+                <p>Phone: (+94) 77 442 2448</p>
+            </div>
+            <div>
+                <h4>QUICK LINKS</h4>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#menu">Menu</a></li>
+                    <li><a href="#gallery">Gallery</a></li>
+                    <li><a href="#reservation">Reservation</a></li>
+                    <li><a href="#blog">Blog</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>OPENING HOURS</h4>
+                <p>MONDAY – THURSDAY<br>12.00 – 3.30 PM & 6.30 -10.30 PM</p>
+                <p>FRIDAY – SUNDAY<br>12.00 – 3.30 PM & 6.30 -10.30 PM</p>
+                <p>(Hours might differ)</p>
+            </div>
+            <div>
+                <h4>SIGN UP</h4>
+                <p>Subscribe to our newsletter to receive upcoming promotions and events at Culture Colombo</p>
+                <input type="email" placeholder="Enter Your Email Address">
+                <button class="order-btn">Submit</button>
+                <div class="social-icons">
+                    <a href="https://www.facebook.com/culturecolombosl/">FB</a>
+                    <a href="https://www.instagram.com/culturecolombosl/">IG</a>
+                    <a href="https://www.tripadvisor.com/Restaurant_Review-g293962-d15111352-Reviews-Culture_Colombo-Colombo_Western_Province.html">TA</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Simple slideshow for hero
+        let slideIndex = 0;
+        const slides = [
+            'https://culturecolombo.lk/wp-content/uploads/2020/09/culturecmb1.jpg',
+            'https://culturecolombo.lk/wp-content/uploads/2020/09/culturecmb2.jpg',
+            'https://culturecolombo.lk/wp-content/uploads/2020/09/Curry-Bowl--scaled.jpg'
+        ];
+
+        function changeSlide() {
+            slideIndex = (slideIndex + 1) % slides.length;
+            document.querySelector('.hero').style.backgroundImage = `url('${slides[slideIndex]}')`;
+        }
+
+        setInterval(changeSlide, 5000);
+
+        // Testimonials carousel
+        let testimonialIndex = 0;
+        const testimonials = document.querySelectorAll('.testimonial');
+
+        function showTestimonial() {
+            testimonials.forEach((t, i) => {
+                t.style.display = i === testimonialIndex ? 'block' : 'none';
+            });
+            testimonialIndex = (testimonialIndex + 1) % testimonials.length;
+        }
+
+        showTestimonial();
+        setInterval(showTestimonial, 5000);
+    </script>
+</body>
+</html>

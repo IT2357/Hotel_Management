@@ -1,10 +1,10 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Select from '../../components/ui/Select';
-import StatsCard from '../../components/ui/StatsCard';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Select } from '../../components/ui/select';
+import StatsCard from '../../components/ui/statscard';
 import Spinner from '../../components/ui/Spinner';
 
 export default function AdminReportsPage() {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
+import Card from '../../components/ui/card';
+import { Button } from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import { Heart, Star, Users, MapPin, Calendar, Wifi, Car, Utensils } from 'lucide-react';
 import roomService from '../../services/roomService';
 

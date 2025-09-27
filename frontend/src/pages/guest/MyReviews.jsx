@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
+import Card from '../../components/ui/card';
+import { Button } from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import { Star, Edit, Trash2, Calendar, MapPin, ThumbsUp, MessageCircle } from 'lucide-react';
 
 export default function MyReviews() {
