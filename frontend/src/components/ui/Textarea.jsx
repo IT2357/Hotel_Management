@@ -1,7 +1,7 @@
 // src/components/ui/Textarea.jsx
 import React from "react";
 
-function Textarea({
+export default function Textarea({
   label,
   id,
   value,
@@ -38,6 +38,3 @@ function Textarea({
     </div>
   );
 }
-
-export { Textarea };
-export default Textarea;

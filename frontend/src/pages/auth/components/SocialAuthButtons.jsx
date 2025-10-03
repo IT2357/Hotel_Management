@@ -21,12 +21,7 @@ const SocialAuthButtons = () => {
           facebook: settings.enableFacebookAuth || false
         });
       } catch (error) {
-        console.warn('Failed to fetch social settings:', error.message);
-        // If unauthorized or other error, keep providers disabled
-        setEnabledProviders({
-          google: false,
-          facebook: false
-        });
+        console.error('Failed to fetch social settings:', error);
       }
     };
 

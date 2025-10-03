@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut, AlertCircle, Plus, Minus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import useAuth from '../hooks/useAuth';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 
