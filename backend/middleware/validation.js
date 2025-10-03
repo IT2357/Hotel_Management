@@ -91,36 +91,92 @@ export const validateChangePassword = [
   handleValidationErrors,
 ];
 
-export const validateReportRequest = (req, res, next) => {
-  const { startDate, endDate } = req.query;
-  
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format. Use YYYY-MM-DD format.'
-      });
-    }
-    
-    if (start > end) {
-      return res.status(400).json({
-        success: false,
-        message: 'Start date must be before end date.'
-      });
-    }
-    
-    // Limit date range to prevent excessive queries
-    const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    if (daysDiff > 365) {
-      return res.status(400).json({
-        success: false,
-        message: 'Date range cannot exceed 365 days.'
-      });
-    }
-  }
-  
-  next();
-};
+export const validateMenuItem = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Menu item name must be between 2 and 100 characters"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description must not exceed 500 characters"),
+  body("price")
+    .isFloat({ min: 0, max: 100000 })
+    .withMessage("Price must be a positive number and not exceed 100,000 LKR"),
+  body("category")
+    .isMongoId()
+    .withMessage("Invalid category ID"),
+  body("image")
+    .optional()
+    .custom((value) => {
+      if (!value) return true; // Allow empty
+      // Allow relative URLs starting with / or full URLs
+      if (value.startsWith('/')) return true;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .withMessage("Image must be a valid URL or relative path"),
+  body("ingredients")
+    .optional()
+    .isArray()
+    .withMessage("Ingredients must be an array"),
+  body("ingredients.*")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage("Each ingredient must be between 1 and 50 characters"),
+  body("cookingTime")
+    .optional()
+    .isInt({ min: 1, max: 300 })
+    .withMessage("Cooking time must be between 1 and 300 minutes"),
+  body("portions")
+    .optional()
+    .isArray()
+    .withMessage("Portions must be an array"),
+  body("portions.*.name")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage("Portion name must be between 1 and 50 characters"),
+  body("portions.*.price")
+    .optional()
+    .isFloat({ min: 0, max: 100000 })
+    .withMessage("Portion price must be a positive number and not exceed 100,000 LKR"),
+  handleValidationErrors,
+];
+
+export const validateMenuCategory = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Category name must be between 2 and 50 characters"),
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage("Description must not exceed 200 characters"),
+  handleValidationErrors,
+];
+
+export const validateImageUpload = [
+  body("title")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Title must be between 1 and 100 characters"),
+  body("url")
+    .optional()
+    .isURL()
+    .withMessage("URL must be valid"),
+  body("filePath")
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage("File path must be between 1 and 500 characters"),
+  handleValidationErrors,
+];

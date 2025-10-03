@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
+import { motion } from 'framer-motion';
+import Card from '../components/ui/card';
+import { Button } from '../components/ui/Button';
+import Input from '../components/ui/input';
 import Select from '../components/ui/Select';
 import { Calendar, Users, MapPin, Clock } from 'lucide-react';
 
@@ -39,16 +40,26 @@ export default function BookingPage() {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-white py-12">
+    <motion.div
+      className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-white py-12"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
       <div className="max-w-4xl mx-auto px-4">
-        <div className="text-center mb-12">
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <h1 className="text-4xl font-bold text-indigo-800 mb-4">
             Book Your Stay
           </h1>
           <p className="text-gray-600 text-lg">
             Find the perfect room for your next visit
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Booking Form */}
@@ -175,6 +186,6 @@ export default function BookingPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
