@@ -1,132 +1,83 @@
+import { uploadSingle, handleMulterError } from "../../middleware/gridfsUpload.js";
 // 📁 backend/routes/food/menuRoutes.js
-import express from 'express';
-import MenuItem from '../../models/MenuItem.js';
-import Category from '../../models/Category.js';
+import express from "express";
+import {
+  getMenuItems,
+  getMenuItem,
+  createMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
+  createCategory,
+  getCategories,
+  getFeaturedItems,
+  getPopularItems,
+  batchCreateMenuItems,
+  getFoodItemsByCategory,
+} from "../../controllers/food/menuController.js";
+import {
+  getFoodItems,
+  getFoodCategories,
+  getFoodItem,
+  getFoodItemsByCategory as getMenuItemsByCategory
+} from "../../controllers/menu/foodController.js";
+import { getMenuImage } from "../../controllers/menuExtractionController.js";
+import {
+  getAllFoodOrders,
+  getFoodOrder,
+  updateOrderStatus,
+  getOrderStats,
+  getCustomerOrders,
+  createFoodOrder
+} from "../../controllers/food/foodOrderController.js";
+import {
+  submitOrderReview,
+  getOrderReview,
+  getAllReviews,
+  moderateReview,
+  deleteReview,
+  getReviewStats
+} from "../../controllers/food/foodReviewController.js";
+import { authenticateToken } from "../../middleware/auth.js";
+import { authorizeRoles } from "../../middleware/roleAuth.js";
+import { validateMenuItem, validateMenuCategory } from "../../middleware/validation.js";
 
 const router = express.Router();
 
-// Get all menu items
-router.get('/items', async (req, res) => {
-  try {
-    const menuItems = await MenuItem.find({ isAvailable: true }).populate('category');
-    res.json({
-      success: true,
-      data: menuItems
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching menu items',
-      error: error.message
-    });
-  }
-});
+// Public routes (no authentication required)
+router.get("/items", getMenuItems);
+router.get("/items/:id", getMenuItem);
+router.get("/categories", getCategories);
+router.get("/categories/:category/items", getFoodItemsByCategory);
+router.get("/featured", getFeaturedItems);
+router.get("/popular", getPopularItems);
+router.get("/image/:imageId", getMenuImage);
 
-// Get menu item by ID
-router.get('/items/:id', async (req, res) => {
-  try {
-    const menuItem = await MenuItem.findById(req.params.id).populate('category');
-    if (!menuItem) {
-      return res.status(404).json({
-        success: false,
-        message: 'Menu item not found'
-      });
-    }
-    res.json({
-      success: true,
-      data: menuItem
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching menu item',
-      error: error.message
-    });
-  }
-});
+// Protected routes (admin/manager only)
+router.post("/categories", authenticateToken, authorizeRoles(["admin", "manager"]), validateMenuCategory, createCategory);
+router.post("/items", authenticateToken, authorizeRoles(["admin", "manager"]), uploadSingle, handleMulterError, validateMenuItem, createMenuItem);
+router.post("/batch", authenticateToken, authorizeRoles(["admin", "manager"]), batchCreateMenuItems);
+router.put("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), uploadSingle, handleMulterError, validateMenuItem, updateMenuItem);
+router.delete("/items/:id", authenticateToken, authorizeRoles(["admin", "manager"]), deleteMenuItem);
 
-// Get all categories
-router.get('/categories', async (req, res) => {
-  try {
-    const categories = await Category.find({ isActive: true });
-    res.json({
-      success: true,
-      data: categories
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching categories',
-      error: error.message
-    });
-  }
-});
+// Food order routes
+router.get("/orders", authenticateToken, authorizeRoles(["admin", "manager"]), getAllFoodOrders);
+router.get("/orders/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getOrderStats);
+router.get("/orders/:id", authenticateToken, getFoodOrder);
+router.put("/orders/:id/status", authenticateToken, updateOrderStatus);
 
-// Get menu items by category
-router.get('/categories/:category/items', async (req, res) => {
-  try {
-    const category = await Category.findOne({ name: req.params.category });
-    if (!category) {
-      return res.status(404).json({
-        success: false,
-        message: 'Category not found'
-      });
-    }
-    const menuItems = await MenuItem.find({
-      category: category._id,
-      isAvailable: true
-    });
-    res.json({
-      success: true,
-      data: menuItems
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching menu items by category',
-      error: error.message
-    });
-  }
-});
+// Customer food order routes
+router.post("/orders", createFoodOrder); // Public for customers
+router.get("/orders/customer/:customerEmail", getCustomerOrders);
+router.get("/orders/customer/status/:orderNumber", getCustomerOrders);
 
-// Get featured items
-router.get('/featured', async (req, res) => {
-  try {
-    const featuredItems = await MenuItem.find({
-      isAvailable: true,
-      isFeatured: true
-    }).populate('category').limit(10);
-    res.json({
-      success: true,
-      data: featuredItems
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching featured items',
-      error: error.message
-    });
-  }
-});
+// Review routes
+router.post("/orders/:orderId/reviews", authenticateToken, submitOrderReview);
+router.get("/orders/:orderId/reviews", authenticateToken, getOrderReview);
+router.delete("/orders/:orderId/reviews", authenticateToken, deleteReview);
 
-// Get popular items
-router.get('/popular', async (req, res) => {
-  try {
-    const popularItems = await MenuItem.find({ isAvailable: true })
-      .populate('category')
-      .sort({ orderCount: -1 })
-      .limit(10);
-    res.json({
-      success: true,
-      data: popularItems
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching popular items',
-      error: error.message
-    });
-  }
-});
+// Admin review management routes
+router.get("/reviews", authenticateToken, authorizeRoles(["admin", "manager"]), getAllReviews);
+router.get("/reviews/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getReviewStats);
+router.put("/orders/:orderId/reviews/moderate", authenticateToken, authorizeRoles(["admin", "manager"]), moderateReview);
 
 export default router;

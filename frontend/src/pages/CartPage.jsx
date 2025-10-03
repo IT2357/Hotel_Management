@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Plus, Minus, ShoppingCart, User, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import useAuth from '../hooks/useAuth';
 import { useCart } from '../context/CartContext';
 
 function CartPage() {

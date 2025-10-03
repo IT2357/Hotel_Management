@@ -1,4 +1,5 @@
 //src/services/authService.js
+console.log('authService loaded');
 
 import api from "./api";
 
@@ -10,7 +11,7 @@ const authService = {
   resendOTP: (data) => api.post("/auth/resend-otp", data),
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (data) => api.post("/auth/reset-password", data),
-  updateUserPassword: (data) => api.post("/auth/change-password", data),
+  updateUserPassword: (userId, newPassword) => api.put("/auth/change-password", { userId, newPassword }),
   getCurrentUser: () => api.get("/auth/me"),
   updateProfile: (profileData) => api.put("/auth/profile", profileData),
   changePassword: (passwordData) =>

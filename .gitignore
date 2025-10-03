@@ -1,3 +1,8 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log
@@ -7,14 +12,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build files
 dist
 dist-ssr
+build
+
+# Local development
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -23,5 +35,13 @@ dist-ssr
 *.sln
 *.sw?
 
-node_modules/
+# Service account keys
+*.json
+!package.json
+!package-lock.json
+!.vscode/settings.json
+
+# Uploads directory
+/uploads
+/backend/uploads
 .env

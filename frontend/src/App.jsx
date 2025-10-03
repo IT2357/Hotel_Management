@@ -15,7 +15,7 @@ import Blog from './pages/Blog.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
-import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
+import CartPage from './pages/CartPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -36,6 +36,23 @@ import MyReviews from './pages/guest/MyReviews.jsx';
 import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
 import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
+
+// Task Management pages
+import ManagerTaskDashboard from './pages/manager/ManagerTaskDashboard.jsx';
+import TestManagerDashboard from './pages/manager/TestManagerDashboard.jsx';
+import AuthTest from './pages/manager/AuthTest.jsx';
+import TestPage from './pages/manager/TestPage.jsx';
+import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
+import TaskListPage from './pages/manager/TaskListPage.jsx';
+import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
+import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
+import FeedbackPage from './pages/manager/FeedbackPage.jsx';
+import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
+import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
+import ViewReportPage from './pages/manager/ViewReportPage.jsx';
+import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
+import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
+import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
 import UserManagementPage from './pages/admin/UserManagementPage.jsx';
@@ -55,6 +72,7 @@ import EnhancedMenuReviewPage from './pages/admin/EnhancedMenuReviewPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import GuestLayout from './layout/guest/GuestLayout.jsx';
+
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
 import GuestServiceRequestForm from './pages/guest/components/GuestServiceRequestForm.jsx';
@@ -63,7 +81,9 @@ import TaskManagementPage from './pages/staff/TaskManagementPage.jsx';
 import RoomStatusPage from './pages/staff/RoomStatusPage.jsx';
 import KeyCardManagementPage from './pages/staff/KeyCardManagementPage.jsx';
 import SchedulePage from './pages/staff/SchedulePage.jsx';
-import CartPage from './pages/CartPage.jsx';
+import Roomspage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRoom from './pages/admin/AdminAddRooms.jsx';
+import AdminEditRoom from './pages/admin/AdminEditRoomsPage.jsx';
 
 const AppContent = () => {
   const location = useLocation();
@@ -96,8 +116,9 @@ const AppContent = () => {
           <Route path="/food" element={wrapWithTransition(<FoodPage />)} />
           <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/restaurant-menu" element={wrapWithTransition(<RestaurantMenuPage />)} />
-          <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
           <Route path="/cart" element={wrapWithTransition(<CartPage />)} />
+          <Route path="/checkout" element={wrapWithTransition(<CheckoutPage />)} />
+          <Route path="/food-ordering" element={wrapWithTransition(<FoodOrderingPage />)} />
           <Route
             path="/login"
             element={
@@ -166,6 +187,8 @@ const AppContent = () => {
               </ProtectedRoute>
             )}
           />
+  
+
           <Route
             path="/guest/my-requests"
             element={wrapWithTransition(
@@ -176,6 +199,8 @@ const AppContent = () => {
               </ProtectedRoute>
             )}
           />
+
+
           <Route
             path="/guest/check-in"
             element={wrapWithTransition(
@@ -206,6 +231,8 @@ const AppContent = () => {
               </ProtectedRoute>
             )}
           />
+
+          
           <Route
             path="/admin/profile"
             element={
@@ -336,18 +363,9 @@ const AppContent = () => {
             }
           />
 
+          {/* 🍽️ Admin Food Management Routes */}
           <Route
-            path="/admin/refunds"
-            element={
-              <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
-                <AdminRefundManagementPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Food Management Routes */}
-          <Route
-            path="/admin/food"
+            path="/admin/food/menu"
             element={
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
@@ -369,17 +387,6 @@ const AppContent = () => {
           />
 
           <Route
-            path="/admin/food/menu"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <FoodMenuManagementPage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
             path="/admin/menu-upload"
             element={
               <ProtectedRoute roles={['admin']}>
@@ -391,12 +398,122 @@ const AppContent = () => {
           />
 
           <Route
-            path="/admin/menu-review/:id"
+            path="/admin/menu-extractor"
             element={
               <ProtectedRoute roles={['admin']}>
                 <DefaultAdminLayout>
-                  <EnhancedMenuReviewPage />
+                  <MenuExtractorPage />
                 </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/refunds"
+            element={
+              <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
+                <AdminRefundManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Routes */}
+          <Route
+            path="/manager"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerHomePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 📊 Manager Reports Routes */}
+          <Route
+            path="/manager/reports/view"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ViewReportPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/reports/*"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍💼 Manager Task Management Routes */}
+          <Route
+            path="/manager/tasks/dashboard"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerTaskDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/test"
+            element={
+              <ManagerDashboardTest />
+            }
+          />
+
+          <Route
+            path="/manager/tasks"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskListPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/create"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <CreateTaskPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/assign"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <TaskAssignPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/tasks/feedback"
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <FeedbackPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 👨‍🔧 Staff Task Routes */}
+          <Route
+            path="/staff/tasks"
+            element={
+              <ProtectedRoute roles={['staff']}>
+                <StaffTasks />
               </ProtectedRoute>
             }
           />
@@ -472,15 +589,15 @@ const AppContent = () => {
           />
 
           {/* 🚧 Error Routes */}
-          <Route path="/unauthorized" element={wrapWithTransition(<UnauthorizedPage />)} />
-          <Route path="*" element={wrapWithTransition(<NotFoundPage />)} />
-                </Routes>
-              </AnimatePresence>
-            </CartProvider>
-          </BookingProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </SnackbarProvider>
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+        </AnimatePresence>
+        </CartProvider>
+      </BookingProvider>
+      </SettingsProvider>
+    </AuthProvider>
+    </SnackbarProvider>
   );
 };
 

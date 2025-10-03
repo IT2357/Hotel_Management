@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import ModernCart from '../components/food/Cart';
-import { Badge } from '../components/ui/badge';
+import { Badge } from '../components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { CheckCircle, ArrowLeft, ShoppingCart, Search, Filter, Plus, Minus, Trash2, ChefHat, Clock, Star, Leaf, Flame, MapPin, Phone, Mail, Loader2, AlertCircle } from 'lucide-react';
 import Checkout from '../components/food/Checkout';
@@ -50,14 +50,26 @@ const ModernFoodOrderingPageContent = () => {
   // Use real data if available, otherwise show empty state
   const displayMenuItems = menuItems;
 
-  const categories = ['all', ...new Set(displayMenuItems.map(item => item.category))];
+  // Create unique categories list
+  const categoryMap = new Map();
+  displayMenuItems.forEach(item => {
+    if (item.category) {
+      const catId = typeof item.category === 'object' ? item.category._id : item.category;
+      const catName = typeof item.category === 'object' ? item.category.name : item.category;
+      if (!categoryMap.has(catId)) {
+        categoryMap.set(catId, catName);
+      }
+    }
+  });
+  const categories = ['all', ...Array.from(categoryMap.keys())];
 
   const filteredItems = displayMenuItems.filter(item => {
     const matchesSearch = !searchTerm ||
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    const itemCategoryId = typeof item.category === 'object' ? item.category._id : item.category;
+    const matchesCategory = selectedCategory === 'all' || itemCategoryId === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
@@ -224,7 +236,7 @@ const ModernFoodOrderingPageContent = () => {
                       : 'bg-white/10 text-gray-300 hover:bg-white/20'
                   }`}
                 >
-                  {category === 'all' ? 'All Categories' : category}
+                  {category === 'all' ? 'All Categories' : (categoryMap.get(category) || category)}
                 </button>
               ))}
             </div>

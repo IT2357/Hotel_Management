@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Star, ShoppingCart, Heart, User, LogOut, AlertCircle, Plus, Minus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import useAuth from '../hooks/useAuth';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 
@@ -28,7 +28,7 @@ export default function MenuPage() {
       try {
         console.log('🔍 DEBUG: Loading menu items from API');
         const response = await api.get('/menu/items?limit=100');
-        const items = response.data.data || [];
+        const items = response.data.data.items || [];
 
         console.log('🔍 DEBUG: Loaded menu items:', items.length);
 
@@ -390,16 +390,18 @@ export default function MenuPage() {
       return item.imageUrl; // Full URL
     } else if (item.image && item.image.startsWith('http')) {
       return item.image; // Full URL in image field
-    } else if (item.image && item.image.startsWith('/api/menu/image/')) {
-      // Backend image URL - construct full URL
-      return `${API_BASE_URL}${item.image}`;
-    } else if (item.image && !item.image.startsWith('http') && !item.image.startsWith('data:')) {
-      // Fallback for other paths
-      return `${API_BASE_URL}/api${item.image}`;
+    } else if (item.imageUrl && item.imageUrl.startsWith('/api/')) {
+      // Backend image URL - construct full URL (this is the main fix)
+      return `${window.location.protocol}//${window.location.host}${item.imageUrl}`;
+    } else if (item.image && item.image.startsWith('/api/')) {
+      // Backend image URL in image field
+      return `${window.location.protocol}//${window.location.host}${item.image}`;
+    } else if (item.imageId) {
+      // Direct imageId - construct the full path
+      return `${window.location.protocol}//${window.location.host}/api/menu/image/${item.imageId}`;
     }
     return 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
   };
-
   // Show loading state
   if (loading) {
     return (

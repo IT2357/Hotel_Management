@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import Input from '../ui/input';
+import { Button } from '../ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
+import Input from '../ui/Input';
 import Label from '../ui/label';
-import Textarea from '../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Badge } from '../ui/badge';
+import Textarea from '../ui/Textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+import { Badge } from '../ui/Badge';
 import { Separator } from '../ui/separator';
 import { CreditCard, MapPin, User, Phone, Calendar, ShoppingBag, AlertCircle, CheckCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -297,10 +297,13 @@ const Checkout = ({ onClose, onOrderComplete }) => {
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       id="customerPhone"
+                      type="tel"
                       value={orderDetails.customerPhone}
                       onChange={(e) => handleInputChange('customerPhone', e.target.value)}
                       placeholder="Enter your phone number"
                       className="pl-10"
+                      pattern="[\+]?[0-9\s\-\(\)]{10,15}"
+                      title="Please enter a valid phone number"
                       required
                     />
                   </div>

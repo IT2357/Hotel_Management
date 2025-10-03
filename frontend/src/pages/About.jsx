@@ -1,6 +1,6 @@
 // Placeholder for import React from 'react';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Card from '../components/ui/card';
+import { Button } from '../components/ui/Button';
 import { Star, Award, Users, MapPin, Phone, Mail, Clock, Shield, Heart } from 'lucide-react';
 
 export default function About() {

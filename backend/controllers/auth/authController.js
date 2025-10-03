@@ -1,5 +1,6 @@
 // 📁 backend/controllers/auth/authController.js
 import AuthService from "../../services/auth/authService.js";
+import jwt from "jsonwebtoken";
 
 // Helper for consistent error responses
 const handleError = (res, error, defaultMessage = "Operation failed") => {
@@ -108,11 +109,7 @@ export const login = async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
 
-    return res.status(200).json({
-      success: true,
-      data: result,
-      message: "Login successful",
-    });
+    sendSuccess(res, result, "Login successful");
   } catch (error) {
     console.error("🔐 Login controller error:", {
       message: error.message,
@@ -290,12 +287,12 @@ export const updateProfile = async (req, res) => {
 
 // Logout
 export const logout = async (req, res) => {
-  try {
-    const result = await AuthService.logout(req.user._id);
-    sendSuccess(res, result, result.message);
-  } catch (error) {
-    handleError(res, error, "Logout failed");
-  }
+try {
+  const result = await AuthService.logout(req.user._id);
+  sendSuccess(res, result, "Login successful");
+} catch (error) {
+  handleError(res, error, "Login failed");
+}
 };
 
 // Check approval status
@@ -309,31 +306,57 @@ export const checkApprovalStatus = async (req, res) => {
   }
 };
 
-// Social login callback
-export const socialCallback = (req, res) => {
+// Delete profile
+export const deleteProfile = async (req, res) => {
   try {
-    const result = AuthService.processSocialCallback(req.user);
-
-    // Redirect to frontend with token
-    res.redirect(
-      `${process.env.FRONTEND_URL}/auth/callback?token=${result.token}`
-    );
+    const user = await AuthService.deleteProfile(req.user._id);
+    sendSuccess(res, { user }, "Profile deleted successfully");
   } catch (error) {
-    console.error("Social callback error:", error);
-    res.redirect(
-      `${process.env.FRONTEND_URL}/auth/error?message=${encodeURIComponent(
-        error.message
-      )}`
-    );
+    handleError(res, error, "Profile deletion failed");
   }
 };
 
-export const deleteProfile = async (req, res) => {
+// Social login callback
+export const socialCallback = async (req, res) => {
   try {
-    const result = await AuthService.deleteProfile(req.user._id);
-    sendSuccess(res, result, "Profile deleted successfully");
+    // Get user data from social login
+    const user = req.user;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
+    );
+
+    // Create response data
+    const responseData = {
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        emailVerified: user.emailVerified,
+        profileImage: user.profileImage,
+      },
+    };
+
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(responseData.user))}`;
+
+    res.redirect(redirectUrl);
   } catch (error) {
-    handleError(res, error, "Profile deletion failed");
+    console.error("Social login callback error:", error);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    res.redirect(`${frontendUrl}/login?error=Social login failed`);
   }
 };
 
@@ -352,5 +375,4 @@ export default {
   logout,
   checkApprovalStatus,
   socialCallback,
-  deleteProfile,
 };

@@ -2,17 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSnackbar } from 'notistack';
 import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
-import io from 'socket.io-client';
+import { socket } from '../../services/socket';
 import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
+import { Button } from '../../components/ui/Button';
 import Label from '../../components/ui/Label';
 import Textarea from '../../components/ui/Textarea';
-import Badge from '../../components/ui/Badge';
+import { Badge } from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner'; // Added Spinner import
 import moment from 'moment';
-
-
-const socket = io('http://localhost:5000');
 
 const statusColors = {
   pending: 'warning',

@@ -115,7 +115,11 @@ export const NotificationProvider = ({ children }) => {
       
       // Handle different response structures
       let notifications = [];
-      if (response.data && response.data.notifications) {
+      if (response.data && response.data.data && response.data.data.notifications) {
+        notifications = response.data.data.notifications;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        notifications = response.data.data;
+      } else if (response.data && response.data.notifications) {
         notifications = response.data.notifications;
       } else if (response.notifications) {
         notifications = response.notifications;
@@ -141,7 +145,9 @@ export const NotificationProvider = ({ children }) => {
       
       // Handle different response structures
       let count = 0;
-      if (response.data && typeof response.data.count === 'number') {
+      if (response.data && response.data.data && typeof response.data.data.count === 'number') {
+        count = response.data.data.count;
+      } else if (response.data && typeof response.data.count === 'number') {
         count = response.data.count;
       } else if (typeof response.count === 'number') {
         count = response.count;
