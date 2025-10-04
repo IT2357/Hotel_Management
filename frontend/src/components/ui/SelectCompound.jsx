@@ -81,4 +81,4 @@ export function SelectValue({ placeholder, ...props }) {
 }
 
 // Named exports for backward compatibility
-export { Select, SelectTrigger, SelectContent, SelectItem, SelectValue };
+export { Select, SelectTrigger, SelectContent, SelectItem };
