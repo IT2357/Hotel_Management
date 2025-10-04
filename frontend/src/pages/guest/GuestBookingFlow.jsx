@@ -2,11 +2,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RoomCard from '../../components/booking/RoomCard';
-import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
+import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
+import Input from '../../components/ui/input';
 import Label from '../../components/ui/Label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Alert from '../../components/common/Alert';
 import { Calendar, Users } from 'lucide-react';
@@ -681,44 +680,38 @@ const GuestBookingFlow = () => {
                   <div>
                     <Label htmlFor="expiryMonth">Expiry Date</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <Select
+                      <select
                         value={paymentData.expiryMonth}
-                        onValueChange={(value) => setPaymentData({ ...paymentData, expiryMonth: value })}
+                        onChange={(e) => setPaymentData({ ...paymentData, expiryMonth: e.target.value })}
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2"
                       >
-                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                          <SelectValue placeholder="MM" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const month = i + 1;
-                            const monthStr = month.toString().padStart(2, '0');
-                            return (
-                              <SelectItem key={month} value={monthStr}>
-                                {monthStr}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                      <Select
+                        <option value="">MM</option>
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const month = i + 1;
+                          const monthStr = month.toString().padStart(2, '0');
+                          return (
+                            <option key={month} value={monthStr}>
+                              {monthStr}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <select
                         value={paymentData.expiryYear}
-                        onValueChange={(value) => setPaymentData({ ...paymentData, expiryYear: value })}
+                        onChange={(e) => setPaymentData({ ...paymentData, expiryYear: e.target.value })}
+                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2"
                       >
-                        <SelectTrigger className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                          <SelectValue placeholder="YY" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => {
-                            const year = new Date().getFullYear() + i;
-                            const yearStr = year.toString().slice(-2);
-                            return (
-                              <SelectItem key={year} value={yearStr}>
-                                {yearStr}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
+                        <option value="">YY</option>
+                        {Array.from({ length: 10 }, (_, i) => {
+                          const year = new Date().getFullYear() + i;
+                          const yearStr = year.toString().slice(-2);
+                          return (
+                            <option key={year} value={yearStr}>
+                              {yearStr}
+                            </option>
+                          );
+                        })}
+                      </select>
                     </div>
                   </div>
                   <div>

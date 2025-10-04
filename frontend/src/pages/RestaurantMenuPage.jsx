@@ -24,9 +24,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Input from '@/components/ui/input';
-import Card, { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectCompound';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Spinner from '@/components/ui/Spinner';
 import { toast } from 'sonner';
 import api from '@/services/api';
