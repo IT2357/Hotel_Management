@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import MenuUploader from '../../components/MenuUploader';
-import MenuReview from '../../components/MenuReview';
+import MenuReview from '../../components/food/MenuReview';
 import { CheckCircle2, ArrowRight, Home } from 'lucide-react';
 
 const MenuExtractorPage = () => {

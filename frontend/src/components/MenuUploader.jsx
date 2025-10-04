@@ -1,127 +1,106 @@
-import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { 
-  Upload, 
-  Link, 
-  Folder, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle2,
-  X,
-  FileImage,
-  Globe,
-  HardDrive
-} from 'lucide-react';
-import menuApi from '../api/menuApi';
+import React, { useState } from 'react';
+import { Upload, Link, FolderOpen, Image, Globe, FileText, Loader2, AlertCircle } from 'lucide-react';
+import menuExtractionService from '../services/menuExtractionService';
+import { toast } from 'react-hot-toast';
 
 const MenuUploader = ({ onExtractionComplete, onError }) => {
+  const [activeTab, setActiveTab] = useState('upload');
   const [loading, setLoading] = useState(false);
-  const [inputType, setInputType] = useState('upload'); // 'upload', 'url', 'path'
-  const [urlInput, setUrlInput] = useState('');
-  const [pathInput, setPathInput] = useState('');
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    title: '',
+    url: '',
+    filePath: '',
+    file: null
+  });
+  const [dragActive, setDragActive] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
-  // Handle file drop
-  const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
-    setError('');
-    
-    if (rejectedFiles.length > 0) {
-      const rejection = rejectedFiles[0];
-      if (rejection.errors[0]?.code === 'file-too-large') {
-        setError('File too large. Maximum size is 15MB.');
-      } else if (rejection.errors[0]?.code === 'file-invalid-type') {
-        setError('Invalid file type. Only JPEG, PNG, WEBP, and GIF images are allowed.');
-      } else {
-        setError('File upload failed. Please try again.');
-      }
+  // Handle file selection
+  const handleFileSelect = (file) => {
+    if (file && file.type.startsWith('image/')) {
+      setFormData(prev => ({ ...prev, file }));
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => setPreviewImage(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      toast.error('Please select a valid image file');
+    }
+  };
+
+  // Handle drag and drop
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      toast.error('Please enter a menu title');
       return;
     }
 
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-      setUploadedFile(file);
-      
-      // Create preview URL
-      const preview = URL.createObjectURL(file);
-      setPreviewUrl(preview);
+    // Validate based on active tab
+    if (activeTab === 'upload' && !formData.file) {
+      toast.error('Please select an image file');
+      return;
     }
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif']
-    },
-    maxFiles: 1,
-    maxSize: 15 * 1024 * 1024, // 15MB
-    disabled: loading
-  });
-
-  // Clear uploaded file
-  const clearFile = () => {
-    setUploadedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+    if (activeTab === 'url' && !formData.url.trim()) {
+      toast.error('Please enter a valid URL');
+      return;
     }
-    setError('');
-  };
+    if (activeTab === 'path' && !formData.filePath.trim()) {
+      toast.error('Please enter a valid file path');
+      return;
+    }
 
-  // Handle extraction
-  const handleExtraction = async () => {
     setLoading(true);
-    setError('');
 
     try {
-      let result;
+      // Create FormData for the extraction request
+      const submitFormData = new FormData();
+      submitFormData.append('title', formData.title);
 
-      switch (inputType) {
-        case 'upload':
-          if (!uploadedFile) {
-            throw new Error('Please select an image file');
-          }
-          result = await menuApi.extractFromImage(uploadedFile);
-          break;
-
-        case 'url':
-          if (!urlInput.trim()) {
-            throw new Error('Please enter a valid URL');
-          }
-          // Basic URL validation
-          try {
-            new URL(urlInput);
-          } catch {
-            throw new Error('Please enter a valid URL');
-          }
-          result = await menuApi.extractFromURL(urlInput.trim());
-          break;
-
-        case 'path':
-          if (!pathInput.trim()) {
-            throw new Error('Please enter a valid file path');
-          }
-          result = await menuApi.extractFromPath(pathInput.trim());
-          break;
-
-        default:
-          throw new Error('Invalid input type');
+      // Handle different input types
+      if (activeTab === 'upload' && formData.file) {
+        submitFormData.append('file', formData.file);
+      } else if (activeTab === 'url') {
+        submitFormData.append('url', formData.url);
+      } else if (activeTab === 'path') {
+        submitFormData.append('path', formData.filePath);
       }
+
+      // Call the extraction service
+      const result = await menuExtractionService.uploadMenu(submitFormData);
 
       if (result.success) {
         onExtractionComplete(result);
-        // Clear form after successful extraction
-        clearForm();
       } else {
         throw new Error(result.message || 'Extraction failed');
       }
 
     } catch (error) {
-      console.error('Extraction error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Extraction failed';
-      setError(errorMessage);
-      onError?.(errorMessage);
+      console.error('Upload error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to process menu';
+      onError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -129,239 +108,234 @@ const MenuUploader = ({ onExtractionComplete, onError }) => {
 
   // Clear form
   const clearForm = () => {
-    setUrlInput('');
-    setPathInput('');
-    clearFile();
-    setError('');
+    setFormData({
+      title: '',
+      url: '',
+      filePath: '',
+      file: null
+    });
+    setPreviewImage(null);
   };
 
-  // Input type options
-  const inputTypes = [
-    { 
-      value: 'upload', 
-      label: 'Upload Image', 
-      icon: FileImage, 
-      description: 'Upload a menu image from your device' 
-    },
-    { 
-      value: 'url', 
-      label: 'Website URL', 
-      icon: Globe, 
-      description: 'Extract menu from a restaurant website' 
-    },
-    { 
-      value: 'path', 
-      label: 'File Path', 
-      icon: HardDrive, 
-      description: 'Process image from server file path (for development)' 
-    }
-  ];
-
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          🤖 AI Menu Extractor
-        </h2>
-        <p className="text-gray-600">
-          Upload a menu image, provide a website URL, or specify a file path to automatically extract menu items using AI.
-        </p>
+    <div className="bg-white rounded-lg shadow-sm p-8">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 bg-gray-50 rounded-t-lg">
+        <nav className="flex justify-center">
+          {[
+            { id: 'upload', label: 'Upload Image', icon: Upload },
+            { id: 'url', label: 'From URL', icon: Globe },
+            { id: 'path', label: 'File Path', icon: FolderOpen }
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`py-4 px-6 font-medium text-sm flex items-center space-x-2 transition-colors border-b-2 ${
+                activeTab === id
+                  ? 'border-blue-500 text-blue-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Input Type Selection */}
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Input Method</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {inputTypes.map((type) => {
-            const IconComponent = type.icon;
-            return (
-              <button
-                key={type.value}
-                onClick={() => {
-                  setInputType(type.value);
-                  clearForm();
-                }}
-                className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
-                  inputType === type.value
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                }`}
-                disabled={loading}
-              >
-                <div className="flex items-center mb-2">
-                  <IconComponent className={`h-5 w-5 mr-2 ${
-                    inputType === type.value ? 'text-blue-600' : 'text-gray-500'
-                  }`} />
-                  <span className={`font-medium ${
-                    inputType === type.value ? 'text-blue-900' : 'text-gray-900'
-                  }`}>
-                    {type.label}
-                  </span>
-                </div>
-                <p className={`text-sm ${
-                  inputType === type.value ? 'text-blue-700' : 'text-gray-600'
-                }`}>
-                  {type.description}
-                </p>
-              </button>
-            );
-          })}
+      {/* Form Content */}
+      <form onSubmit={handleSubmit} className="p-6">
+        {/* Menu Title */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Menu Title *
+          </label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Enter a descriptive title for this menu"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
+            required
+          />
         </div>
-      </div>
 
-      {/* Input Forms */}
-      <div className="mb-8">
-        {inputType === 'upload' && (
+        {/* Tab Content */}
+        {activeTab === 'upload' && (
           <div className="space-y-4">
             <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                isDragActive
+              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                dragActive
                   ? 'border-blue-500 bg-blue-50'
-                  : uploadedFile
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-300 hover:border-gray-400'
-              } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                  : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
             >
-              <input {...getInputProps()} />
-              <div className="space-y-4">
-                {uploadedFile ? (
-                  <div className="space-y-4">
-                    <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
-                    <div>
-                      <p className="text-lg font-medium text-green-900">
-                        File Selected: {uploadedFile.name}
-                      </p>
-                      <p className="text-sm text-green-700">
-                        Size: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                    {previewUrl && (
-                      <div className="mt-4">
-                        <img
-                          src={previewUrl}
-                          alt="Preview"
-                          className="max-h-64 mx-auto rounded-lg shadow-md"
-                        />
-                      </div>
-                    )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileSelect(e.target.files[0])}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+
+              {previewImage ? (
+                <div className="space-y-4">
+                  <div className="relative inline-block">
+                    <img
+                      src={previewImage}
+                      alt="Preview"
+                      className="max-w-full max-h-64 mx-auto rounded-lg shadow-lg border-4 border-white"
+                    />
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearFile();
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, file: null }));
+                        setPreviewImage(null);
                       }}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
-                      disabled={loading}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors shadow-lg"
                     >
-                      <X className="h-4 w-4 mr-1" />
-                      Remove File
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
                   </div>
-                ) : (
-                  <div>
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <div>
-                      <p className="text-lg font-medium text-gray-900">
-                        {isDragActive ? 'Drop the image here' : 'Drag & drop a menu image here'}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        or click to browse files (JPEG, PNG, WEBP, GIF up to 15MB)
-                      </p>
-                    </div>
+                  <div className="space-y-2">
+                    <p className="text-lg font-medium text-gray-900">
+                      {formData.file?.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Image ready for analysis
+                    </p>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Image className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xl font-semibold text-gray-900">
+                      Drop your menu image here
+                    </p>
+                    <p className="text-gray-600">
+                      or click to browse files from your device
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+                    <span className="flex items-center space-x-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>JPG, PNG, WEBP, GIF</span>
+                    </span>
+                    <span className="flex items-center space-x-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Max 15MB</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'url' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Website URL *
+              </label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="url"
+                  value={formData.url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                  placeholder="https://restaurant.com/menu"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">URL Requirements:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Must be a publicly accessible website</li>
+                    <li>Should contain menu items with prices</li>
+                    <li>Works best with restaurant websites</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {inputType === 'url' && (
+        {activeTab === 'path' && (
           <div className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Restaurant Website URL
-            </label>
-            <div className="relative">
-              <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://restaurant-website.com/menu"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                disabled={loading}
-              />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Local File Path *
+              </label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={formData.filePath}
+                  onChange={(e) => setFormData(prev => ({ ...prev, filePath: e.target.value }))}
+                  placeholder="/path/to/menu/image.jpg"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
-            <p className="text-sm text-gray-600">
-              Enter the URL of a restaurant website with menu information. The system will attempt to extract menu items from the webpage.
-            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">File Path Requirements:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Must be an absolute path to an image file</li>
+                    <li>File must be accessible by the server</li>
+                    <li>Supports common image formats (JPG, PNG, etc.)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {inputType === 'path' && (
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Server File Path
-            </label>
-            <div className="relative">
-              <HardDrive className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                value={pathInput}
-                onChange={(e) => setPathInput(e.target.value)}
-                placeholder="/path/to/menu/image.jpg"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                disabled={loading}
-              />
-            </div>
-            <p className="text-sm text-gray-600">
-              Enter the full path to an image file on the server. This option is primarily for development and testing purposes.
-            </p>
-          </div>
-        )}
-      </div>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={clearForm}
+            className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+            disabled={loading}
+          >
+            Clear Form
+          </button>
 
-      {/* Error Display */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-700">{error}</p>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2 font-medium shadow-lg"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="h-5 w-5" />
+                <span>Extract Menu</span>
+              </>
+            )}
+          </button>
         </div>
-      )}
-
-      {/* Extract Button */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleExtraction}
-          disabled={loading || (inputType === 'upload' && !uploadedFile) || (inputType === 'url' && !urlInput.trim()) || (inputType === 'path' && !pathInput.trim())}
-          className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Extracting Menu...
-            </>
-          ) : (
-            <>
-              <Upload className="h-5 w-5 mr-2" />
-              Extract Menu Items
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Help Text */}
-      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-900 mb-2">💡 Tips for Best Results:</h4>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Use high-quality, well-lit images with clear text</li>
-          <li>• Ensure menu items and prices are clearly visible</li>
-          <li>• For URLs, provide direct links to menu pages</li>
-          <li>• Supported formats: JPEG, PNG, WEBP, GIF (max 15MB)</li>
-          <li>• The AI will automatically detect categories and extract pricing</li>
-        </ul>
-      </div>
+      </form>
     </div>
   );
 };
