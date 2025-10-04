@@ -24,7 +24,6 @@ import {
   updateUserPassword,
   getPendingRefunds,
   getRefunds,
-  getRefundDetails,
   approveRefund,
   denyRefund,
   requestMoreInfo,
@@ -36,11 +35,6 @@ import {
   updateRoom,
   deleteRoom,
 } from "../controllers/rooms/roomController.js";
-import{
-  deleteBooking,
-  updateBookingStatus,
-  getAllBookings
-} from "../controllers/bookings/bookingController.js";
 import {
   getAdminSettings,
   updateAdminSettings,
@@ -52,11 +46,6 @@ import {
   validatePaymentGateway,
   testSocialAuthConfig,
 } from "../controllers/admin/settingsController.js";
-import {
-  createRoom,
-  updateRoom,
-  deleteRoom,
-} from "../controllers/rooms/roomController.js";
 import {
   initiatePayment,
   handleWebhook,

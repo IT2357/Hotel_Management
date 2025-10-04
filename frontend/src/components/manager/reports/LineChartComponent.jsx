@@ -1,11 +1,10 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const LineChartComponent = ({ 
-  data, 
-  xKey = 'date', 
-  lines = [], 
-  title, 
+const LineChartComponent = ({
+  data,
+  xKey = 'date',
+  lines = [],
+  title,
   height = 300,
   className = '',
   colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
@@ -13,9 +12,17 @@ const LineChartComponent = ({
   if (!data || data.length === 0) {
     return (
       <div className={`bg-white p-4 rounded-lg shadow ${className}`}>
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
-        <div className="flex items-center justify-center h-48 text-gray-500">
-          No data available
+        {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
+        <div className="bg-gray-50 rounded p-4" style={{ height }}>
+          <div className="flex items-center justify-center h-full text-gray-600">
+            <div className="text-center">
+              <div className="text-4xl mb-2">📈</div>
+              <p>Line Chart Component</p>
+              <p className="text-sm text-gray-500 mt-1">
+                No data available
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -24,53 +31,17 @@ const LineChartComponent = ({
   return (
     <div className={`bg-white p-4 rounded-lg shadow ${className}`}>
       {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
-      <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey={xKey} 
-            tick={{ fontSize: 12 }}
-            tickFormatter={(value) => {
-              if (typeof value === 'string' && value.includes('-')) {
-                const date = new Date(value);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              }
-              return value;
-            }}
-          />
-          <YAxis tick={{ fontSize: 12 }} />
-          <Tooltip 
-            labelFormatter={(value) => {
-              if (typeof value === 'string' && value.includes('-')) {
-                const date = new Date(value);
-                return date.toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                });
-              }
-              return value;
-            }}
-            formatter={(value, name) => [
-              typeof value === 'number' ? value.toLocaleString() : value,
-              name
-            ]}
-          />
-          <Legend />
-          {lines.map((line, index) => (
-            <Line
-              key={line.key}
-              type="monotone"
-              dataKey={line.key}
-              stroke={line.color || colors[index % colors.length]}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              name={line.name || line.key}
-              connectNulls={false}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="bg-gray-50 rounded p-4" style={{ height }}>
+        <div className="flex items-center justify-center h-full text-gray-600">
+          <div className="text-center">
+            <div className="text-4xl mb-2">📈</div>
+            <p>Line Chart Component</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {data.length} data points available
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

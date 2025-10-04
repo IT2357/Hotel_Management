@@ -15,7 +15,9 @@ import Blog from './pages/Blog.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 import RestaurantMenuPage from './pages/RestaurantMenuPage.jsx';
+import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
 import CartPage from './pages/CartPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -39,10 +41,6 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 
 // Task Management pages
 import ManagerTaskDashboard from './pages/manager/ManagerTaskDashboard.jsx';
-import TestManagerDashboard from './pages/manager/TestManagerDashboard.jsx';
-import AuthTest from './pages/manager/AuthTest.jsx';
-import TestPage from './pages/manager/TestPage.jsx';
-import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
 import TaskListPage from './pages/manager/TaskListPage.jsx';
 import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
 import TaskAssignPage from './pages/manager/TaskAssignPage.jsx';
@@ -50,7 +48,6 @@ import FeedbackPage from './pages/manager/FeedbackPage.jsx';
 import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
 import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
 import ViewReportPage from './pages/manager/ViewReportPage.jsx';
-import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
 import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
 import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
@@ -69,6 +66,7 @@ import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManageme
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 import MenuUploadPage from './pages/admin/MenuUploadPage.jsx';
 import EnhancedMenuReviewPage from './pages/admin/EnhancedMenuReviewPage.jsx';
+import MenuExtractorPage from './pages/admin/MenuExtractorPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import GuestLayout from './layout/guest/GuestLayout.jsx';
@@ -462,13 +460,6 @@ const AppContent = () => {
               <ProtectedRoute roles={['manager']}>
                 <ManagerTaskDashboard />
               </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/manager/test"
-            element={
-              <ManagerDashboardTest />
             }
           />
 
