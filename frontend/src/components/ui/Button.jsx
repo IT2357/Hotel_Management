@@ -45,3 +45,6 @@ export default function Button({
     </button>
   );
 }
+
+// Named export for backward compatibility
+export { Button };
