@@ -38,3 +38,6 @@ export default function Input({
     </div>
   );
 }
+
+// Named export for backward compatibility
+export { Input };
