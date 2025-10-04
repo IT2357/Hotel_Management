@@ -8,8 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Label  from '@/components/ui/label';
 import { Textarea } from '@/components/ui/Textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
-import { Switch } from '@/components/ui/switch';
+import Select from '@/components/ui/Select';
 import { toast } from 'sonner';
 
 const MenuItemForm = ({
@@ -267,19 +266,19 @@ const MenuItemForm = ({
               <div className="space-y-2">
                 <Label htmlFor="category" className="text-sm font-medium text-gray-700">Category *</Label>
                 <Select
+                  id="category"
                   value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  label="Category"
+                  required
+                  className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
                 >
-                  <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category._id || category.value} value={category._id || category.value}>
-                        {category.name || category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <option value="">Select a category</option>
+                  {categories.map((category) => (
+                    <option key={category._id || category.value} value={category._id || category.value}>
+                      {category.name || category.label}
+                    </option>
+                  ))}
                 </Select>
                 {formErrors.category && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.category}</p>}
               </div>
