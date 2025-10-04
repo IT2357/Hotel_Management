@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import Input from '../ui/Input';
 import Label from '../ui/label';
 import Textarea from '../ui/Textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/FoodSelectCompound';
 import { Badge } from '../ui/Badge';
 import { Separator } from '../ui/separator';
 import { CreditCard, MapPin, User, Phone, Calendar, ShoppingBag, AlertCircle, CheckCircle } from 'lucide-react';
