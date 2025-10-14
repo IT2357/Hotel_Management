@@ -21,13 +21,35 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/food/ui/FoodSelectCompound';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import  Label  from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Card as FoodCard, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/food/ui/FoodCard';
+import { Badge as FoodBadge } from '@/components/food/ui/FoodBadge';
+import { 
+  FoodSelect as Select, 
+  FoodSelectContent as SelectContent, 
+  FoodSelectItem as SelectItem, 
+  FoodSelectTrigger as SelectTrigger, 
+  FoodSelectValue as SelectValue 
+} from '@/components/food/ui';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/food/ui/FoodDialog';
+import { Label as FoodLabel } from '@/components/food/ui/FoodLabel';
+import { Textarea as FoodTextarea } from '@/components/food/ui/FoodTextarea';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/food/ui/FoodTabs';
 import { toast } from 'sonner';
 import api from '@/services/api';
 

@@ -28,7 +28,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../../../components/food/ui/FoodSelectCompound';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/food/ui/FoodSelectCompound';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
