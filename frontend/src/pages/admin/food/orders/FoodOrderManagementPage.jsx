@@ -27,7 +27,7 @@ import {
   FoodCardHeader as CardHeader, 
   FoodCardTitle as CardTitle 
 } from '@/components/food/ui/FoodCard';
-import { Badge as FoodBadge } from '@/components/food/ui/FoodBadge';
+import FoodBadge from '@/components/food/ui/FoodBadge';
 import { 
   FoodSelect as Select, 
   FoodSelectContent as SelectContent, 
@@ -393,10 +393,10 @@ const FoodOrderManagementPage = () => {
                                 <span>{order.userId?.email || 'No email'}</span>
                               </div>
                             </div>
-                            <Badge className={statusColors[order.status]}>
+                            <FoodBadge className={statusColors[order.status]}>
                               <StatusIcon className="h-4 w-4 mr-1" />
                               {order.status}
-                            </Badge>
+                            </FoodBadge>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -495,9 +495,9 @@ const FoodOrderManagementPage = () => {
                   </div>
                   <div>
                     <Label>Order Status</Label>
-                    <Badge className={statusColors[selectedOrder.status]}>
+                    <FoodBadge className={statusColors[selectedOrder.status]}>
                       {selectedOrder.status}
-                    </Badge>
+                    </FoodBadge>
                   </div>
                   <div>
                     <Label>Total Amount</Label>
