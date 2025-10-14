@@ -22,10 +22,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  Card as FoodCard, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+  FoodCard, 
+  FoodCardContent as CardContent, 
+  FoodCardHeader as CardHeader, 
+  FoodCardTitle as CardTitle 
 } from '@/components/food/ui/FoodCard';
 import { Badge as FoodBadge } from '@/components/food/ui/FoodBadge';
 import { 
