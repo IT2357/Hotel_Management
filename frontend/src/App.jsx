@@ -15,6 +15,10 @@ import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
+import FoodOrderingPage from './pages/FoodOrderingPage.jsx'; // Food ordering page
+import FoodPage from './pages/FoodPage.jsx'; // Food display page
+import MyOrdersPage from './pages/MyOrdersPage.jsx'; // Order management page
+import OrderDetailsPage from './pages/OrderDetailsPage.jsx'; // Order details page
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
@@ -52,6 +56,9 @@ import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
+import FoodManagementPage from './pages/admin/FoodManagementPage.jsx'; // Food management
+import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx'; // Food orders
+import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx'; // Menu management
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
@@ -168,6 +175,40 @@ const App = () => {
             }
           />
 
+          {/* Food System Routes */}
+          <Route
+            path="/food"
+            element={
+              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
+                <FoodPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/food/order"
+            element={
+              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
+                <FoodOrderingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-orders"
+            element={
+              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
+                <MyOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId"
+            element={
+              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
+                <OrderDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+
           
           <Route
             path="/admin/profile"
@@ -262,6 +303,38 @@ const App = () => {
                 <DefaultAdminLayout>
                   <AdminSettingsPage />
                   </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Food Management Routes */}
+          <Route
+            path="/admin/food"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/food/orders"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodOrderManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/food/menu"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodMenuManagementPage />
+                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />

@@ -1,0 +1,1898 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { useDropzone } from 'react-dropzone';
+import {
+  Plus,
+  Search,
+  Sparkles,
+  ChefHat,
+  Upload,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ArrowLeft,
+  ExternalLink,
+  RefreshCw,
+  DollarSign,
+  Star,
+  Users,
+  Save,
+  Clock
+} from 'lucide-react';
+import FoodButton from '@/components/food/FoodButton';
+import FoodInput from '@/components/food/FoodInput';
+import FoodLabel from '@/components/food/FoodLabel';
+import FoodTextarea from '@/components/food/FoodTextarea';
+import FoodBadge from '@/components/food/FoodBadge';
+import FoodTabs from '@/components/food/FoodTabs';
+import FoodDialog from '@/components/food/FoodDialog';
+import FoodSelect from '@/components/food/FoodSelect';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import api from '@/services/api';
+import foodService from '@/services/foodService';
+import { useSettings } from '@/context/SettingsContext';
+import { Sun, Moon } from 'lucide-react';
+
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
+
+const FoodMenuManagementPage = () => {
+  const { settings, updateSettings } = useSettings();
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+
+  const [foodItems, setFoodItems] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const navigate = useNavigate();
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    description: '',
+    price: '',
+    image: '',
+    imageFile: null,
+    imagePreview: null,
+    isAvailable: true,
+    isVeg: false,
+    isSpicy: false,
+    isPopular: false,
+    // Time slot availability
+    isBreakfast: true,
+    isLunch: true,
+    isDinner: true,
+    isSnacks: true,
+    ingredients: [],
+    dietaryTags: [],
+    nutritionalInfo: {
+      calories: '',
+      protein: '',
+      carbs: '',
+      fat: ''
+    },
+    cookingTime: 15,
+    customizations: []
+  });
+
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // AI form state
+  const [aiFormData, setAiFormData] = useState({
+    cuisine: '',
+    dietaryRestrictions: [],
+    mealType: '',
+    budget: '',
+    image: null,
+    preview: null
+  });
+
+  // Categories for form
+  const categories = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'appetizers', label: 'Appetizers' },
+    { value: 'main-course', label: 'Main Course' },
+    { value: 'desserts', label: 'Desserts' },
+    { value: 'beverages', label: 'Beverages' },
+    { value: 'sides', label: 'Sides' },
+    { value: 'specials', label: 'Chef\'s Specials' },
+    { value: 'breakfast', label: 'Breakfast' },
+    { value: 'lunch', label: 'Lunch' },
+    { value: 'dinner', label: 'Dinner' },
+    { value: 'snacks', label: 'Snacks' }
+  ];
+
+  // Dietary options
+  const dietaryOptions = [
+    'Vegetarian',
+    'Vegan',
+    'Gluten-Free',
+    'Dairy-Free',
+    'Nut-Free',
+    'Keto',
+    'Low-Carb',
+    'Halal',
+    'Kosher'
+  ];
+
+  // Fetch menu data when component mounts or filters change
+  useEffect(() => {
+    fetchMenuData();
+  }, [selectedCategory, searchQuery]);
+
+  // Fetch menu items and categories from API
+  const fetchMenuData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [itemsResponse, categoriesResponse] = await Promise.all([
+        foodService.getMenuItems({
+          category: selectedCategory !== 'all' ? selectedCategory : undefined,
+          search: searchQuery || undefined
+        }),
+        api.get('/menu/categories')
+      ]);
+
+      setFoodItems(itemsResponse.data || []);
+      setCategoriesList(categoriesResponse.data?.data || []);
+    } catch (error) {
+      console.error('Error fetching menu data:', error);
+      setError(error.message || 'Failed to load menu items');
+      toast.error('Failed to load menu items');
+      setFoodItems([]);
+      setCategoriesList([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, searchQuery]);
+
+  // Handler functions
+  const handleCreateItem = useCallback(async (formData) => {
+    try {
+      setIsSubmitting(true);
+      // Prepare data for service - map imageFile to image field and ensure category is ID
+      const serviceData = {
+        ...formData,
+        image: formData.imageFile || formData.image, // Use imageFile if available, otherwise image URL
+        category: getCategoryId(formData.category) // Ensure category is an ID
+      };
+      // Remove imageFile and imagePreview as they're not needed by the service
+      delete serviceData.imageFile;
+      delete serviceData.imagePreview;
+
+      const response = await foodService.createMenuItem(serviceData);
+      setFoodItems(prev => [...prev, response.data]);
+      setIsCreateDialogOpen(false);
+      setEditingItem(null);
+      // Reset form data
+      setFormData({
+        name: '',
+        category: '',
+        description: '',
+        price: '',
+        image: '',
+        imageFile: null,
+        imagePreview: null,
+        isAvailable: true,
+        isVeg: false,
+        isSpicy: false,
+        isPopular: false,
+        isBreakfast: true,
+        isLunch: true,
+        isDinner: true,
+        isSnacks: true,
+        ingredients: [],
+        dietaryTags: [],
+        nutritionalInfo: {
+          calories: '',
+          protein: '',
+          carbs: '',
+          fat: ''
+        },
+        cookingTime: 15,
+        customizations: []
+      });
+      toast.success('Menu item created successfully');
+      // Removed fetchMenuData() call to prevent filtering issues
+    } catch (error) {
+      console.error('Error creating menu item:', error);
+      toast.error(error.response?.data?.message || 'Failed to create menu item');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [fetchMenuData]);
+
+  const handleUpdateItem = useCallback(async (formData) => {
+    if (!editingItem) return;
+
+    try {
+      setIsSubmitting(true);
+      // Prepare data for service - map imageFile to image field and ensure category is ID
+      const serviceData = {
+        ...formData,
+        image: formData.imageFile || formData.image, // Use imageFile if available, otherwise image URL
+        category: getCategoryId(formData.category) // Ensure category is an ID
+      };
+      // Remove imageFile and imagePreview as they're not needed by the service
+      delete serviceData.imageFile;
+      delete serviceData.imagePreview;
+
+      const response = await foodService.updateMenuItem(editingItem._id, serviceData);
+      setFoodItems(prev => prev.map(item =>
+        item._id === editingItem._id ? response.data : item
+      ));
+      setIsCreateDialogOpen(false);
+      setEditingItem(null);
+      toast.success('Menu item updated successfully');
+      // Removed fetchMenuData() call to prevent items disappearing due to filtering
+    } catch (error) {
+      console.error('Error updating menu item:', error);
+      toast.error(error.response?.data?.message || 'Failed to update menu item');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [editingItem]);
+
+  const handleDeleteItem = useCallback(async (itemId) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+
+    try {
+      await foodService.deleteMenuItem(itemId);
+      setFoodItems(prev => prev.filter(item => item._id !== itemId));
+      toast.success('Menu item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete menu item');
+    }
+  }, []);
+
+  const handleToggleAvailability = useCallback(async (itemId, isAvailable) => {
+    try {
+      await api.put(`/menu/items/${itemId}`, { isAvailable });
+      setFoodItems(prev => prev.map(item =>
+        item._id === itemId ? { ...item, isAvailable } : item
+      ));
+      toast.success(`Menu item ${isAvailable ? 'enabled' : 'disabled'} successfully`);
+    } catch (error) {
+      console.error('Error updating menu item availability:', error);
+      toast.error('Failed to update item availability');
+    }
+  }, []);
+
+  const handleEditItem = useCallback((item) => {
+    setEditingItem(item);
+    setIsEditDialogOpen(true);
+  }, []);
+
+  // Form image dropzone
+  const onFormImageDrop = useCallback((acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file),
+        image: '' // Clear URL if file is selected
+      }));
+      setFormErrors(prev => ({ ...prev, image: '' }));
+    }
+  }, []);
+
+  const { getRootProps: getFormImageRootProps, getInputProps: getFormImageInputProps, isDragActive: isFormImageDragActive } = useDropzone({
+    onDrop: onFormImageDrop,
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] },
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024 // 5MB
+  });
+
+  // Helper function to get category ID from name or ID
+  const getCategoryId = (categoryValue) => {
+    if (!categoryValue) return '';
+
+    // If it's already an ID, return it
+    const existingCategory = categoriesList.find(cat => cat._id === categoryValue);
+    if (existingCategory) return categoryValue;
+
+    // If it's a string name, find the matching category
+    const categoryByName = categoriesList.find(cat =>
+      cat.name.toLowerCase() === categoryValue.toLowerCase()
+    );
+    if (categoryByName) return categoryByName._id;
+
+    // Default fallback
+    return '';
+  };
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Item name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
+      errors.name = 'Item name should contain only English letters and spaces';
+    }
+
+    const categoryId = getCategoryId(formData.category);
+    if (!categoryId) {
+      errors.category = 'Category is required';
+    }
+
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      errors.price = 'Valid price is required';
+    }
+
+    if (!formData.image && !formData.imageFile) {
+      errors.image = 'Image is required (upload file or provide URL)';
+    }
+
+    if (formData.image && !formData.image.startsWith('http')) {
+      errors.image = 'Please provide a valid image URL starting with http';
+    }
+
+    if (!formData.ingredients || formData.ingredients.length === 0) {
+      errors.ingredients = 'At least one ingredient is required';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Open edit dialog with item data
+  const openEditDialog = useCallback((item) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name || '',
+      category: item.category?._id || item.category || '',
+      description: item.description || '',
+      price: item.price ? item.price.toString() : '',
+      image: item.image || item.imageUrl || '',
+      isAvailable: item.isAvailable !== false,
+      isVeg: item.isVeg || false,
+      isSpicy: item.isSpicy || false,
+      isPopular: item.isPopular || false,
+      // Time slot availability
+      isBreakfast: item.isBreakfast !== false,
+      isLunch: item.isLunch !== false,
+      isDinner: item.isDinner !== false,
+      isSnacks: item.isSnacks !== false,
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients : [],
+      dietaryTags: Array.isArray(item.dietaryTags) ? item.dietaryTags : [],
+      nutritionalInfo: item.nutritionalInfo && typeof item.nutritionalInfo === 'object' ? {
+        calories: item.nutritionalInfo.calories ? item.nutritionalInfo.calories.toString() : '',
+        protein: item.nutritionalInfo.protein ? item.nutritionalInfo.protein.toString() : '',
+        carbs: item.nutritionalInfo.carbs ? item.nutritionalInfo.carbs.toString() : '',
+        fat: item.nutritionalInfo.fat ? item.nutritionalInfo.fat.toString() : ''
+      } : {
+        calories: '',
+        protein: '',
+        carbs: '',
+        fat: ''
+      },
+      cookingTime: item.cookingTime ? item.cookingTime.toString() : '15',
+      customizations: Array.isArray(item.customizations) ? item.customizations : []
+    });
+    setIsCreateDialogOpen(true); // Use the same dialog for both create and edit
+  }, []);
+
+  // Add new category functionality
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleAddNewCategory = useCallback(async () => {
+    if (!newCategoryName.trim()) return;
+
+    try {
+      const response = await api.post('/menu/categories', {
+        name: newCategoryName.trim(),
+        description: `${newCategoryName.trim()} category`
+      });
+
+      setCategoriesList(prev => [...prev, response.data]);
+      setFormData(prev => ({ ...prev, category: response.data._id }));
+      setNewCategoryName('');
+      setShowAddCategory(false);
+      toast.success('Category added successfully');
+    } catch (error) {
+      console.error('Error adding category:', error);
+      toast.error('Failed to add category');
+    }
+  }, [newCategoryName]);
+
+  // Memoized filtered items
+  const filteredItems = useMemo(() => {
+    return (foodItems || []).filter(item => {
+      // Get category ID for comparison
+      const itemCategoryId = typeof item.category === 'object' ? item.category?._id : item.category;
+      const matchesCategory = selectedCategory === 'all' || itemCategoryId === selectedCategory;
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            (item.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [foodItems, selectedCategory, searchQuery]);
+
+  // Statistics calculations
+  const stats = useMemo(() => ({
+    total: foodItems.length,
+    available: foodItems.filter(item => item.isAvailable).length,
+    categories: new Set(foodItems.map(item =>
+      typeof item.category === 'object' ? item.category?.name : item.category
+    ).filter(Boolean)).size,
+    popular: foodItems.filter(item => item.isPopular).length,
+    vegetarian: foodItems.filter(item => item.isVeg).length,
+    spicy: foodItems.filter(item => item.isSpicy).length
+  }), [foodItems]);
+
+  // AI Menu processing functions
+  const onDrop = useCallback((acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setAiFormData(prev => ({
+        ...prev,
+        image: file,
+        preview: URL.createObjectURL(file)
+      }));
+      setUploadError('');
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] },
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024
+  });
+
+  const processImageWithOCR = async () => {
+    if (!aiFormData.image) {
+      setUploadError('Please upload an image first');
+      return;
+    }
+
+    setIsProcessing(true);
+    setUploadError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('image', aiFormData.image);
+
+      const response = await api.post('/menu-extraction/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setOcrResult(response.data);
+      toast.success('Menu items extracted successfully!');
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setUploadError(error.response?.data?.message || 'Failed to process image');
+      toast.error('Failed to process menu image');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSaveExtractedItems = async () => {
+    if (!ocrResult?.items?.length) {
+      toast.error('No items to save');
+      return;
+    }
+
+    try {
+      // Save each item individually to the menu items collection
+      const savedItems = [];
+      for (const item of ocrResult.items) {
+        try {
+          // Transform the extracted item to match the menu item schema
+          const menuItemData = {
+            name: item.name,
+            category: getCategoryId(item.category) || getCategoryId('Main Course'), // Use category ID
+            description: item.description || '',
+            price: parseFloat(item.price) || 200,
+            image: item.image || '',
+            isAvailable: true,
+            isVeg: item.isVeg || false,
+            isSpicy: item.isSpicy || false,
+            isPopular: item.popularity === 'high',
+            isBreakfast: item.category?.toLowerCase().includes('breakfast') || false,
+            isLunch: !item.category?.toLowerCase().includes('breakfast') || false,
+            isDinner: !item.category?.toLowerCase().includes('breakfast') || false,
+            isSnacks: item.category?.toLowerCase().includes('snack') || false,
+            ingredients: Array.isArray(item.ingredients) ? item.ingredients.filter(i => i && i.trim()) : [],
+            dietaryTags: item.dietaryTags || [],
+            nutritionalInfo: item.nutritionalInfo || {},
+            cookingTime: item.cookingTime || 15,
+            spiceLevel: item.spiceLevel || 'medium',
+            cuisine: item.cuisine || 'Sri Lankan Tamil'
+          };
+
+          const response = await foodService.createMenuItem(menuItemData);
+          savedItems.push(response.data);
+        } catch (itemError) {
+          console.error('Error saving individual item:', itemError);
+          // Continue with other items
+        }
+      }
+
+      if (savedItems.length > 0) {
+        setFoodItems(prev => [...prev, ...savedItems]);
+        toast.success(`Successfully added ${savedItems.length} menu items`);
+        setIsAIDialogOpen(false);
+        setOcrResult(null);
+        setUploadError('');
+        // Removed fetchMenuData() call to prevent filtering issues
+      } else {
+        toast.error('Failed to save any menu items');
+      }
+    } catch (error) {
+      console.error('Error saving menu items:', error);
+      toast.error('Failed to save menu items');
+    }
+  };
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode
+        ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
+        : 'bg-gray-50'
+    }`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className={`text-3xl font-bold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Menu Management</h1>
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Manage your restaurant's menu items and categories</p>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {isDarkMode ? 'Light' : 'Dark'}
+          </button>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-blue-600 to-blue-700' : 'bg-gradient-to-r from-blue-500 to-blue-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <ChefHat className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Total Items</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-green-600 to-green-700' : 'bg-gradient-to-r from-green-500 to-green-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <CheckCircle2 className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Available</p>
+                <p className="text-2xl font-bold text-white">{stats.available}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-purple-600 to-purple-700' : 'bg-gradient-to-r from-purple-500 to-purple-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <RefreshCw className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Categories</p>
+                <p className="text-2xl font-bold text-white">{stats.categories}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-yellow-600 to-yellow-700' : 'bg-gradient-to-r from-yellow-500 to-yellow-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <Star className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Popular</p>
+                <p className="text-2xl font-bold text-white">{stats.popular}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-emerald-600 to-emerald-700' : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <ChefHat className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Vegetarian</p>
+                <p className="text-2xl font-bold text-white">{stats.vegetarian}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={`rounded-lg shadow-lg p-6 text-white ${
+            isDarkMode ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-red-500 to-red-600'
+          }`}>
+            <div className="flex items-center">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <AlertCircle className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-white/80">Spicy</p>
+                <p className="text-2xl font-bold text-white">{stats.spicy}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={fetchMenuData} variant="outline" className={`flex items-center gap-2 ${
+              isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''
+            }`}>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+
+            <Dialog open={isAIDialogOpen} onOpenChange={setIsAIDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="button-gradient text-white flex items-center gap-2 shadow-lg">
+                  <Sparkles className="h-4 w-4" />
+                  AI Add Items
+                </Button>
+              </DialogTrigger>
+              <DialogContent className={`sm:max-w-2xl transition-colors duration-300 ${
+                isDarkMode ? 'bg-slate-800' : 'bg-white'
+              }`}>
+                <DialogHeader>
+                  <DialogTitle className={isDarkMode ? 'text-white' : 'text-gray-900'}>Add Menu Items with AI</DialogTitle>
+                  <p className={`text-sm ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>Upload a menu image to extract items automatically</p>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {!ocrResult ? (
+                    <>
+                      <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        isDragActive
+                          ? 'border-purple-500 bg-purple-50'
+                          : isDarkMode
+                            ? 'border-gray-600 hover:border-purple-400 bg-slate-700/50'
+                            : 'border-gray-300 hover:border-purple-400'
+                      }`}>
+                        <input {...getInputProps()} />
+                        <div className="space-y-3">
+                          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
+                          }`}>
+                            <Upload className={`h-6 w-6 ${
+                              isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <p className={`font-medium ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>{isDragActive ? 'Drop the menu image here' : 'Drag & drop a menu image here'}</p>
+                            <p className={`text-sm mt-1 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>or click to browse files (JPG, PNG, WEBP up to 5MB)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {uploadError && (
+                        <div className={`p-3 rounded-md border ${
+                          isDarkMode
+                            ? 'bg-red-900/20 border-red-800'
+                            : 'bg-red-50 border-red-200'
+                        }`}>
+                          <p className={`text-sm flex items-center ${
+                            isDarkMode ? 'text-red-400' : 'text-red-700'
+                          }`}>
+                            <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                            {uploadError}
+                          </p>
+                        </div>
+                      )}
+
+                      <Button onClick={processImageWithOCR} disabled={!aiFormData.image || isProcessing} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Extract Menu Items
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className={`rounded-lg border p-4 ${
+                        isDarkMode
+                          ? 'bg-green-900/20 border-green-800'
+                          : 'bg-green-50 border-green-200'
+                      }`}>
+                        <div className="flex">
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          <div className="ml-3">
+                            <h3 className={`text-sm font-medium ${
+                              isDarkMode ? 'text-green-400' : 'text-green-800'
+                            }`}>Successfully extracted {ocrResult.items.length} menu items</h3>
+                            <p className={`mt-2 text-sm ${
+                              isDarkMode ? 'text-green-300' : 'text-green-700'
+                            }`}>Review the extracted items below before saving to your menu.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`border rounded-lg overflow-hidden ${
+                        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                      }`}>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
+                              <tr>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Item</th>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Price</th>
+                                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                                }`}>Category</th>
+                              </tr>
+                            </thead>
+                            <tbody className={`divide-y ${
+                              isDarkMode ? 'divide-gray-600 bg-slate-800' : 'divide-gray-200 bg-white'
+                            }`}>
+                              {ocrResult.items.map((item, index) => (
+                                <tr key={index} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className={`text-sm font-medium ${
+                                      isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}>{item.name}</div>
+                                    {item.description && <div className={`text-sm mt-1 ${
+                                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>{item.description}</div>}
+                                  </td>
+                                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                                    isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                                  }`}>LKR {parseFloat(item.price).toFixed(2)}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      isDarkMode
+                                        ? 'bg-purple-900/50 text-purple-300'
+                                        : 'bg-purple-100 text-purple-800'
+                                    }`}>
+                                      {item.category || 'Uncategorized'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between pt-2">
+                        <Button variant="outline" onClick={() => setOcrResult(null)} disabled={isProcessing} className={
+                          isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''
+                        }>
+                          <ArrowLeft className="h-4 w-4 mr-2" />
+                          Back to Upload
+                        </Button>
+                        <Button onClick={handleSaveExtractedItems} disabled={isProcessing || !ocrResult?.items?.length} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+                          {isProcessing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              Save {ocrResult?.items?.length} Items to Menu
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Plus className="h-4 w-4" />
+                  Add Menu Item
+                </Button>
+              </DialogTrigger>
+                <DialogContent className={`sm:max-w-4xl max-h-[90vh] overflow-y-auto transition-colors duration-300 ${
+                  isDarkMode ? 'bg-slate-800' : 'bg-white'
+                }`}>
+                  <DialogHeader className={`bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg p-6 -m-6 mb-6 ${
+                    isDarkMode ? 'from-indigo-700 to-purple-700' : ''
+                  }`}>
+                    <DialogTitle className="text-2xl font-bold flex items-center">
+                      <ChefHat className="h-6 w-6 mr-3" />
+                      {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
+                    </DialogTitle>
+                    <p className="text-indigo-100 mt-2">
+                      {editingItem ? 'Update the details of this menu item' : 'Create a delicious new item for your menu'}
+                    </p>
+                  </DialogHeader>
+
+                  <div className="space-y-6 p-6">
+                    {/* Basic Information Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-800'
+                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <ChefHat className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                        }`} />
+                        Basic Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Item Name *</Label>
+                          <Input
+                            id="name"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="e.g., Spaghetti Carbonara"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                          />
+                          {formErrors.name && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.name}</p>}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="category" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Category *</Label>
+                          <div className="space-y-2">
+                            <Select
+                              value={formData.category}
+                              onValueChange={(value) => {
+                                if (value === 'add-new') {
+                                  setShowAddCategory(true);
+                                } else {
+                                  setFormData({ ...formData, category: value });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categoriesList.map((category) => (
+                                  <SelectItem key={category._id} value={category._id}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="add-new" className="text-indigo-600 font-medium">
+                                  ➕ Add New Category
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {/* Add New Category Dialog */}
+                            {showAddCategory && (
+                              <div className="flex gap-2 mt-2">
+                                <Input
+                                  placeholder="Enter category name"
+                                  value={newCategoryName}
+                                  onChange={(e) => setNewCategoryName(e.target.value)}
+                                  className="flex-1"
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleAddNewCategory();
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleAddNewCategory}
+                                  disabled={!newCategoryName.trim()}
+                                  className="px-3"
+                                >
+                                  Add
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setShowAddCategory(false);
+                                    setNewCategoryName('');
+                                  }}
+                                  className="px-3"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          {formErrors.category && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.category}</p>}
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="description" className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Description *</Label>
+                        <Textarea
+                          id="description"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          placeholder="A brief description of the menu item"
+                          rows={3}
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } ${formErrors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                        />
+                        {formErrors.description && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.description}</p>}
+                      </div>
+                    </div>
+
+                    {/* Image Upload Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-800'
+                        : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Upload className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                        }`} />
+                        Image Upload *
+                      </h3>
+
+                      {/* Drag & Drop Area */}
+                      <div
+                        {...getFormImageRootProps()}
+                        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${
+                          isFormImageDragActive
+                            ? 'border-purple-500 bg-purple-50 scale-105'
+                            : isDarkMode
+                              ? 'border-gray-600 hover:border-purple-400 bg-slate-700/50'
+                              : 'border-gray-300 hover:border-purple-400'
+                        } ${formErrors.image ? 'border-red-500 bg-red-50' : ''}`}
+                      >
+                        <input {...getFormImageInputProps()} />
+                        <div className="space-y-4">
+                          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-gradient-to-r from-purple-900/50 to-pink-900/50' : 'bg-gradient-to-r from-purple-100 to-pink-100'
+                          }`}>
+                            <Upload className={`h-8 w-8 ${
+                              isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <p className={`font-semibold text-lg ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {isFormImageDragActive ? 'Drop the image here' : 'Drag & drop an image here'}
+                            </p>
+                            <p className={`text-sm mt-2 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              or click to browse files (JPG, PNG, WEBP up to 5MB)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Image Preview */}
+                      {formData.imagePreview && (
+                        <div className="mt-6">
+                          <h4 className={`text-sm font-medium mb-3 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Image Preview</h4>
+                          <div className={`relative rounded-xl overflow-hidden border-2 shadow-lg ${
+                            isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                          }`}>
+                            <img
+                              src={formData.imagePreview}
+                              alt="Preview"
+                              className="w-full h-48 object-cover"
+                            />
+                            <button
+                              onClick={() => setFormData(prev => ({ ...prev, imageFile: null, imagePreview: null, image: '' }))}
+                              className="absolute top-3 right-3 p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Alternative: URL Input */}
+                      <div className={`mt-4 pt-4 border-t ${
+                        isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                      }`}>
+                        <p className={`text-sm mb-3 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Or enter an image URL:</p>
+                        <Input
+                          type="url"
+                          value={formData.image}
+                          onChange={(e) => setFormData({ ...formData, image: e.target.value, imageFile: null, imagePreview: null })}
+                          placeholder="https://example.com/image.jpg"
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } focus:ring-indigo-500`}
+                        />
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          Valid formats: JPG, PNG, WEBP, GIF
+                        </p>
+                      </div>
+                      {formErrors.image && <p className="text-sm text-red-600 flex items-center mt-2"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.image}</p>}
+                    </div>
+
+                    {/* Pricing & Timing Section */}
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+                        <span className="text-sm font-bold mr-2 px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded">LKR</span>
+                        Pricing & Timing
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="price" className="text-sm font-medium text-gray-700 dark:text-gray-300">Price *</Label>
+                        <div className="relative">
+                          <Input
+                            id="price"
+                            type="text"
+                            value={formData.price ? `${parseFloat(formData.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LKR` : ''}
+                            onChange={(e) => {
+                              // Remove commas and LKR suffix for storage, allow only English numbers and decimal point
+                              const rawValue = e.target.value.replace(/,/g, '').replace(/\s*LKR\s*$/, '');
+                              // Allow only English digits (0-9) and decimal point
+                              const numericValue = rawValue.replace(/[^0-9.]/g, '');
+                              // Ensure only one decimal point
+                              const parts = numericValue.split('.');
+                              const cleanValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+                              setFormData({ ...formData, price: cleanValue });
+                            }}
+                            placeholder="0.00 LKR"
+                            className={`transition-all duration-200 ${formErrors.price ? 'border-red-500 focus:ring-red-500' : 'focus:ring-green-500'}`}
+                          />
+                        </div>
+                        {formErrors.price && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.price}</p>}
+                      </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cookingTime" className="text-sm font-medium text-gray-700 dark:text-gray-300">Cooking Time (minutes)</Label>
+                          <Input
+                            id="cookingTime"
+                            type="number"
+                            value={formData.cookingTime}
+                            onChange={(e) => setFormData({ ...formData, cookingTime: e.target.value })}
+                            placeholder="e.g., 15"
+                            min="0"
+                            className="transition-all duration-200 focus:ring-green-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ingredients Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border-orange-800'
+                        : 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <ChefHat className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                        }`} />
+                        Ingredients *
+                      </h3>
+                      <div className="space-y-2">
+                        <Label className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Ingredients (comma-separated)</Label>
+                        <Input
+                          value={(formData.ingredients || []).join(', ')}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Split by comma and clean up whitespace, filter out empty strings
+                            const ingredients = value.split(',')
+                              .map(i => i.trim())
+                              .filter(i => i.length > 0 && i !== '' && !/^\s*$/.test(i));
+                            setFormData({
+                              ...formData,
+                              ingredients: ingredients
+                            });
+                          }}
+                          onBlur={(e) => {
+                            // Clean up on blur to ensure proper formatting and remove empty entries
+                            const value = e.target.value;
+                            const ingredients = value.split(',')
+                              .map(i => i.trim())
+                              .filter(i => i.length > 0 && i !== '' && !/^\s*$/.test(i));
+                            setFormData({
+                              ...formData,
+                              ingredients: ingredients
+                            });
+                          }}
+                          placeholder="e.g., tomatoes, onions, garlic, olive oil"
+                          className={`transition-all duration-200 ${
+                            isDarkMode
+                              ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          } ${formErrors.ingredients ? 'border-red-500 focus:ring-red-500' : 'focus:ring-orange-500'}`}
+                        />
+                        {formErrors.ingredients && <p className="text-sm text-red-600 flex items-center"><AlertCircle className="h-4 w-4 mr-1" />{formErrors.ingredients}</p>}
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>Type ingredients separated by commas. Spaces around commas are automatically handled.</p>
+                      </div>
+                    </div>
+
+                    {/* Nutritional Information Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-cyan-900/20 to-blue-900/20 border-cyan-800'
+                        : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Star className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-cyan-400' : 'text-cyan-600'
+                        }`} />
+                        Nutritional Information (Optional)
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="calories" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Calories</Label>
+                          <Input
+                            id="calories"
+                            type="number"
+                            value={formData.nutritionalInfo.calories}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              nutritionalInfo: { ...formData.nutritionalInfo, calories: e.target.value }
+                            })}
+                            placeholder="250"
+                            min="0"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="protein" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Protein (g)</Label>
+                          <Input
+                            id="protein"
+                            type="number"
+                            value={formData.nutritionalInfo.protein}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              nutritionalInfo: { ...formData.nutritionalInfo, protein: e.target.value }
+                            })}
+                            placeholder="15"
+                            min="0"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="carbs" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Carbs (g)</Label>
+                          <Input
+                            id="carbs"
+                            type="number"
+                            value={formData.nutritionalInfo.carbs}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              nutritionalInfo: { ...formData.nutritionalInfo, carbs: e.target.value }
+                            })}
+                            placeholder="30"
+                            min="0"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="fat" className={`text-sm font-medium ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Fat (g)</Label>
+                          <Input
+                            id="fat"
+                            type="number"
+                            value={formData.nutritionalInfo.fat}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              nutritionalInfo: { ...formData.nutritionalInfo, fat: e.target.value }
+                            })}
+                            placeholder="10"
+                            min="0"
+                            className={`transition-all duration-200 ${
+                              isDarkMode
+                                ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                            } focus:ring-cyan-500`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Time Slot Availability Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-800'
+                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Clock className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                        }`} />
+                        Time Slot Availability
+                      </h3>
+                      <p className={`text-sm mb-4 ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Select which meal times this item should be available for</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isBreakfast"
+                            checked={formData.isBreakfast}
+                            onChange={(e) => setFormData({ ...formData, isBreakfast: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <div>
+                            <Label htmlFor="isBreakfast" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Breakfast</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">6:00 - 11:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isLunch"
+                            checked={formData.isLunch}
+                            onChange={(e) => setFormData({ ...formData, isLunch: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
+                          />
+                          <div>
+                            <Label htmlFor="isLunch" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Lunch</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">12:00 - 15:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isDinner"
+                            checked={formData.isDinner}
+                            onChange={(e) => setFormData({ ...formData, isDinner: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <div>
+                            <Label htmlFor="isDinner" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Dinner</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">18:00 - 22:00</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                          <input
+                            type="checkbox"
+                            id="isSnacks"
+                            checked={formData.isSnacks}
+                            onChange={(e) => setFormData({ ...formData, isSnacks: e.target.checked })}
+                            className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          />
+                          <div>
+                            <Label htmlFor="isSnacks" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">Snacks</Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">All day</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dietary & Properties Section */}
+                    <div className={`rounded-xl p-6 border transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-gradient-to-r from-pink-900/20 to-rose-900/20 border-pink-800'
+                        : 'bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200'
+                    }`}>
+                      <h3 className={`text-lg font-semibold mb-4 flex items-center ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-800'
+                      }`}>
+                        <Users className={`h-5 w-5 mr-2 ${
+                          isDarkMode ? 'text-pink-400' : 'text-pink-600'
+                        }`} />
+                        Dietary Information & Properties
+                      </h3>
+
+                      {/* Dietary Tags */}
+                      <div className="mb-6">
+                        <Label className={`text-sm font-medium mb-3 block ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Dietary Tags</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {dietaryOptions.map((option) => (
+                            <div key={option} className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors ${
+                              isDarkMode
+                                ? 'border-gray-600 hover:border-pink-400'
+                                : 'border-gray-200 hover:border-pink-300'
+                            }`}>
+                              <input
+                                type="checkbox"
+                                id={`dietary-${option}`}
+                                checked={formData.dietaryTags.includes(option)}
+                                onChange={(e) => {
+                                  const newTags = e.target.checked
+                                    ? [...formData.dietaryTags, option]
+                                    : formData.dietaryTags.filter((tag) => tag !== option);
+                                  setFormData({ ...formData, dietaryTags: newTags });
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                              />
+                              <label htmlFor={`dietary-${option}`} className={`text-sm cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
+                                {option}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Item Properties */}
+                      <div>
+                        <Label className={`text-sm font-medium mb-3 block ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Item Properties</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              id="isVeg"
+                              checked={formData.isVeg}
+                              onChange={(e) => setFormData({ ...formData, isVeg: e.target.checked })}
+                              className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                            <div>
+                              <Label htmlFor="isVeg" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Vegetarian</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Contains no meat</p>
+                            </div>
+                          </div>
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              id="isSpicy"
+                              checked={formData.isSpicy}
+                              onChange={(e) => setFormData({ ...formData, isSpicy: e.target.checked })}
+                              className="h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                            />
+                            <div>
+                              <Label htmlFor="isSpicy" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Spicy</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Contains spicy ingredients</p>
+                            </div>
+                          </div>
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              id="isPopular"
+                              checked={formData.isPopular}
+                              onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+                              className="h-5 w-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <div>
+                              <Label htmlFor="isPopular" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Popular</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Featured item</p>
+                            </div>
+                          </div>
+                          <div className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'border-gray-600 hover:border-pink-400'
+                              : 'border-gray-200 hover:border-pink-300'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              id="isAvailable"
+                              checked={formData.isAvailable}
+                              onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
+                              className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <Label htmlFor="isAvailable" className={`text-sm font-medium cursor-pointer ${
+                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>Available</Label>
+                              <p className={`text-xs ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>Currently in stock</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className={`flex justify-end space-x-3 pt-6 border-t ${
+                      isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                    }`}>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsCreateDialogOpen(false);
+                          setEditingItem(null);
+                          // Reset form data when cancelling
+                          setFormData({
+                            name: '',
+                            category: '',
+                            description: '',
+                            price: '',
+                            image: '',
+                            imageFile: null,
+                            imagePreview: null,
+                            isAvailable: true,
+                            isVeg: false,
+                            isSpicy: false,
+                            isPopular: false,
+                            isBreakfast: true,
+                            isLunch: true,
+                            isDinner: true,
+                            isSnacks: true,
+                            ingredients: [],
+                            dietaryTags: [],
+                            nutritionalInfo: {
+                              calories: '',
+                              protein: '',
+                              carbs: '',
+                              fat: ''
+                            },
+                            cookingTime: 15,
+                            customizations: []
+                          });
+                        }}
+                        className={`px-6 py-2 rounded-lg transition-all duration-200 ${
+                          isDarkMode
+                            ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (validateForm()) {
+                            if (editingItem) {
+                              handleUpdateItem(formData);
+                            } else {
+                              handleCreateItem(formData);
+                            }
+                          }
+                        }}
+                        disabled={isSubmitting}
+                        className="px-8 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            {editingItem ? 'Updating...' : 'Creating...'}
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            {editingItem ? 'Update Menu Item' : 'Create Menu Item'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+  
+          {/* Search and Filter */}
+          <div className={`mb-8 transition-colors duration-300 ${
+            isDarkMode ? 'bg-slate-800/50 border-purple-500/20' : 'bg-white border-gray-200'
+          } rounded-xl border shadow-lg`}>
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                  }`} />
+                  <Input
+                    type="search"
+                    placeholder="Search menu items..."
+                    className={`pl-10 transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'bg-slate-700 border-gray-600 text-white placeholder-gray-400'
+                        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                    }`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className={`w-[200px] transition-colors duration-300 ${
+                    isDarkMode
+                      ? 'bg-slate-700 border-gray-600 text-white'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                  }`}>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categoriesList.slice(1).map((category) => (
+                      <SelectItem key={category._id} value={category.name}>
+                        {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+        {/* Main Content */}
+        <div className={`rounded-lg shadow-sm border transition-colors duration-300 ${
+          isDarkMode ? 'bg-slate-800/50 border-purple-500/20' : 'bg-white border-gray-200'
+        }`}>
+          <div className="p-6">
+            <Tabs defaultValue="manage" className="w-full">
+              <TabsList className={`grid w-full grid-cols-2 mb-6 p-1 rounded-lg transition-colors duration-300 ${
+                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
+                <TabsTrigger value="manage" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
+                  isDarkMode
+                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
+                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
+                }`}>
+                  <ChefHat className="h-4 w-4" />
+                  Manage Menu Items
+                </TabsTrigger>
+                <TabsTrigger value="ai-generate" className={`flex items-center gap-2 rounded-md transition-all duration-200 ${
+                  isDarkMode
+                    ? 'data-[state=active]:bg-slate-600 data-[state=active]:text-white'
+                    : 'data-[state=active]:bg-white data-[state=active]:shadow-sm'
+                }`}>
+                  <Sparkles className="h-4 w-4" />
+                  AI Generate Menu
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="manage" className="mt-0">
+                {loading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className={`animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 ${
+                      isDarkMode ? 'border-white' : 'border-gray-900'
+                    }`}></div>
+                  </div>
+                ) : filteredItems.length > 0 ? (
+                  <div>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className={`text-lg font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Menu Items</h3>
+                      <span className={`text-sm ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {filteredItems.map((item) => (
+                        <div key={item._id} className={`menu-card rounded-xl overflow-hidden border transition-colors duration-300 ${
+                          isDarkMode
+                            ? 'bg-slate-800 border-purple-500/20'
+                            : 'bg-white border-gray-200'
+                        }`}>
+                          {/* Image */}
+                          <div className={`aspect-square relative overflow-hidden ${
+                            isDarkMode
+                              ? 'bg-gradient-to-br from-gray-700 to-gray-800'
+                              : 'bg-gradient-to-br from-gray-100 to-gray-200'
+                          }`}>
+                            {(() => {
+                              let imageSrc = null;
+
+                              // Priority order for image sources:
+                              // 1. imageUrl (base64 or external URL)
+                              // 2. image field (GridFS URL or external URL)
+                              if (item.imageUrl) {
+                                imageSrc = item.imageUrl;
+                              } else if (item.image) {
+                                // Handle GridFS URLs from AI extraction
+                                if (item.image.startsWith('/api/menu/image/')) {
+                                  imageSrc = `${API_BASE_URL}${item.image}`;
+                                } else if (item.image.startsWith('http')) {
+                                  imageSrc = item.image;
+                                } else {
+                                  // Fallback for relative paths
+                                  imageSrc = `${API_BASE_URL}/api/menu/image/${item.image}`;
+                                }
+                              }
+
+                              return imageSrc ? (
+                                <img
+                                  src={imageSrc}
+                                  alt={item.name}
+                                  className="menu-image w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null;
+                            })()}
+                            <div className={`w-full h-full flex items-center justify-center ${(item.imageUrl || item.image) ? 'hidden' : ''} ${
+                              isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                              <ChefHat className="h-10 w-10" />
+                            </div>
+
+                            {/* Status Badge */}
+                            <div className="absolute top-3 right-3">
+                              <span className={`px-3 py-1 text-xs font-semibold rounded-full shadow-sm ${
+                                item.isAvailable
+                                  ? 'status-badge-available'
+                                  : 'status-badge-unavailable'
+                              }`}>
+                                {item.isAvailable ? 'Available' : 'Unavailable'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="p-5">
+                            <div className="flex justify-between items-start mb-3">
+                              <h4 className={`menu-item-name text-base line-clamp-1 flex-1 mr-2 ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                {item.name || 'Unnamed Item'}
+                              </h4>
+                              <span className={`menu-item-price text-lg whitespace-nowrap ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                LKR {item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
+                              </span>
+                            </div>
+
+                            <p className={`menu-item-description text-sm mb-4 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                              {item.description || 'No description available'}
+                            </p>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {item.isVeg && <span className="text-lg" title="Vegetarian">🌱</span>}
+                                {item.isSpicy && <span className="text-lg" title="Spicy">🌶️</span>}
+                                {item.isPopular && <span className="text-lg" title="Popular">⭐</span>}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditDialog(item)}
+                                  className="action-button h-9 w-9 p-0 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                                  title="Edit Item"
+                                >
+                                  <span className="text-sm">✏️</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteItem(item._id)}
+                                  className="action-button h-9 w-9 p-0 border-gray-300 hover:border-red-500 hover:bg-red-50 text-red-600 hover:text-red-700"
+                                  title="Delete Item"
+                                >
+                                  <span className="text-sm">🗑️</span>
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add New Item Button */}
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSelectedCategory('all');
+                          setIsCreateDialogOpen(true);
+                        }}
+                        className="button-gradient text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Menu Item
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                 <div className="text-center py-12">
+                   <ChefHat className={`mx-auto h-12 w-12 mb-4 ${
+                     isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                   }`} />
+                   <h3 className={`text-lg font-medium mb-2 ${
+                     isDarkMode ? 'text-gray-400' : 'text-gray-900'
+                   }`}>No menu items found</h3>
+                   <p className={`mb-6 ${
+                     isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                   }`}>
+                     {searchQuery || selectedCategory !== 'all'
+                       ? 'Try adjusting your search or filter criteria.'
+                       : 'Get started by adding your first menu item.'}
+                   </p>
+                   <Button
+                     onClick={() => {
+                       setSearchQuery('');
+                       setSelectedCategory('all');
+                       setIsCreateDialogOpen(true);
+                     }}
+                     className="bg-blue-600 hover:bg-blue-700 text-white"
+                   >
+                     <Plus className="h-4 w-4 mr-2" />
+                     Add Menu Item
+                   </Button>
+                 </div>
+               )}
+              </TabsContent>
+
+              <TabsContent value="ai-generate" className="mt-0">
+                <div className="text-center py-12">
+                  <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                    isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
+                  }`}>
+                    <Sparkles className={`h-8 w-8 ${
+                      isDarkMode ? 'text-purple-400' : 'text-purple-600'
+                    }`} />
+                  </div>
+                  <h3 className={`text-xl font-semibold mb-2 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>AI Menu Extractor</h3>
+                  <p className={`mb-6 max-w-md mx-auto ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
+                  </p>
+                  <div className="flex justify-center gap-6 mb-6">
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                      Upload menu images
+                    </div>
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                      Extract from URLs
+                    </div>
+                    <div className={`flex items-center text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                      Process file paths
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => navigate('/admin/menu-upload')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Go to AI Menu Extractor
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FoodMenuManagementPage;

@@ -39,6 +39,8 @@ import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task m
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
+import foodRoutes from "./routes/food.js"; // Food system routes
+import menuRoutes from "./routes/food/menuRoutes.js"; // Menu management routes
 
 const app = express();
 const server = http.createServer(app);
@@ -244,6 +246,8 @@ const startServer = async () => {
   app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
   app.use("/api/task-management", taskManagementRoutes); // Task management routes
   app.use("/api/reports", reportsRoutes); // Reports routes
+  app.use("/api/food", foodRoutes); // Food system routes
+  app.use("/api/menu", menuRoutes); // Menu management routes
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
