@@ -52,6 +52,7 @@ export default function GuestDashboardPage() {
           {[
             { title: "Check-in/Check-out", to: "/guest/check-in", description: "Self-service check-in/out.", icon: <FiLogIn /> },
             { title: "Browse Rooms", to: "/rooms", description: "View all available rooms.", icon: <FiHome /> },
+            { title: "Order Food", to: "/food", description: "Browse and order from our menu.", icon: <FiStar className="text-orange-500" /> },
             { title: "My Bookings", to: "/guest/my-bookings", description: "View and manage bookings.", icon: <FiCalendar /> },
             { title: "Favorite Rooms", to: "/guest/favorites", description: "Browse your favorites.", icon: <FiHeart /> },
             { title: "My Reviews", to: "/guest/my-reviews", description: "Edit or delete reviews.", icon: <FiEdit /> },
