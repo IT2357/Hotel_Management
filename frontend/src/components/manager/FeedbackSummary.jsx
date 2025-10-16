@@ -14,23 +14,23 @@ export const FeedbackSummary = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}
-      className="glass-card p-6 space-y-4"
+      className="space-y-5 rounded-3xl border border-[#1b335f] bg-gradient-to-b from-[#14284d] via-[#112244] to-[#0b1c36] p-6 shadow-[0_22px_50px_rgba(8,14,29,0.6)]"
     >
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-foreground mb-1">Guest Feedback</h3>
-          <p className="text-sm text-muted-foreground">Latest guest reviews</p>
+          <h3 className="mb-1 text-xl font-semibold text-[#f5f7ff]">Guest Feedback</h3>
+          <p className="text-sm text-[#8ba3d0]">Latest guest reviews</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl gold-gradient">
-          <Star className="w-5 h-5 text-background fill-background" />
-          <span className="text-2xl font-bold text-background">4.8</span>
+        <div className="flex items-center gap-2 rounded-xl bg-[#facc15] px-4 py-2 text-[#0b1b3c] shadow-[0_12px_24px_rgba(250,204,21,0.35)]">
+          <Star className="h-5 w-5 fill-[#0b1b3c] text-[#0b1b3c]" />
+          <span className="text-2xl font-bold">4.8</span>
         </div>
       </div>
 
-      <div className="glass-card p-4 bg-success/5 border border-success/30 rounded-xl">
+      <div className="rounded-2xl border border-[#1b335f] bg-[#10213f] p-4 text-[#d6e2ff] shadow-[0_16px_36px_rgba(8,14,29,0.45)]">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-success" />
-          <p className="text-sm font-medium text-foreground">
+          <TrendingUp className="h-4 w-4 text-[#34d399]" />
+          <p className="text-sm font-medium text-[#f5f7ff]">
             Guest satisfaction up 12% this month
           </p>
         </div>
@@ -43,32 +43,35 @@ export const FeedbackSummary = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="glass-card p-4 space-y-2"
+            className="space-y-2 rounded-2xl border border-[#1b335f] bg-[#0f1f3d] p-4 text-[#d6e2ff] shadow-[0_16px_36px_rgba(8,14,29,0.45)]"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-sm text-foreground">{feedback.guest}</p>
-                <p className="text-xs text-muted-foreground">Room {feedback.room}</p>
+                <p className="text-sm font-medium text-[#f5f7ff]">{feedback.guest}</p>
+                <p className="text-xs text-[#8ba3d0]">Room {feedback.room}</p>
               </div>
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-4 h-4 ${
+                    className={`h-4 w-4 ${
                       i < feedback.rating
-                        ? "text-primary fill-primary"
-                        : "text-muted-foreground"
+                        ? "fill-[#facc15] text-[#facc15]"
+                        : "text-[#25335a]"
                     }`}
                   />
                 ))}
               </div>
             </div>
-            <p className="text-sm text-muted-foreground italic">"{feedback.comment}"</p>
+            <p className="text-sm italic text-[#8ba3d0]">"{feedback.comment}"</p>
           </motion.div>
         ))}
       </div>
 
-      <Button variant="outline" className="w-full border-border/50 hover:bg-secondary/80">
+      <Button
+        variant="outline"
+        className="w-full rounded-2xl border border-[#1b335f] bg-[#0f1f3d] text-[#d6e2ff] transition-colors hover:bg-[#132b52]"
+      >
         View All Feedback
       </Button>
     </motion.div>

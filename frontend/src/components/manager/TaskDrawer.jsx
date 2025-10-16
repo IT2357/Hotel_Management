@@ -6,11 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/manager/Manage
 import { ManagerSeparator } from "@/components/manager/ManagerSeparator";
 import { toast } from "sonner";
 
-const priorityColors = {
-  Low: "bg-info/20 text-info border-info/50",
-  Normal: "bg-secondary/20 text-foreground border-border",
-  High: "bg-warning/20 text-warning border-warning/50",
-  Urgent: "bg-destructive/20 text-destructive border-destructive/50",
+const priorityStyles = {
+  Low: "border-[#38bdf8]/40 bg-[#102a46] text-[#38bdf8]",
+  Normal: "border-[#1b335f] bg-[#132b4f] text-[#f5f7ff]",
+  High: "border-[#facc15]/45 bg-[#2a230d] text-[#facc15]",
+  Urgent: "border-[#f87171]/45 bg-[#35131f] text-[#f87171]",
 };
 
 const suggestedStaff = [
@@ -53,7 +53,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => onOpenChange(false)}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 z-50 bg-[#030711]/80 backdrop-blur-sm"
           />
 
           <motion.div
@@ -61,52 +61,52 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 h-full w-full md:w-[500px] glass-card border-l border-border/50 z-50 overflow-y-auto"
+            className="fixed right-0 top-0 z-50 h-full w-full overflow-y-auto border-l border-[#1b2d54] bg-[#06122b]/95 shadow-[0_-12px_40px_rgba(8,12,24,0.6)] md:w-[500px]"
           >
-            <div className="p-6 space-y-6">
+            <div className="space-y-6 p-6 text-[#d6e2ff]">
               <div className="flex items-start justify-between">
-                <div className="space-y-1 flex-1">
-                  <h2 className="text-2xl font-bold text-foreground">{task.title}</h2>
-                  <p className="text-sm text-muted-foreground">{task.department}</p>
+                <div className="flex-1 space-y-1">
+                  <h2 className="text-2xl font-bold text-[#f5f7ff]">{task.title}</h2>
+                  <p className="text-sm text-[#8ba3d0]">{task.department}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onOpenChange(false)}
-                  className="hover:bg-secondary/80"
+                  className="text-[#a6b8e3] hover:bg-[#132444]"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </Button>
               </div>
 
-              <ManagerBadge className={`${priorityColors[task.priority]} text-sm`}>
+              <ManagerBadge className={`${priorityStyles[task.priority] || priorityStyles.Normal} text-sm`}>
                 {task.priority} Priority
               </ManagerBadge>
 
               <ManagerSeparator />
 
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground">
+                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
+                  <MapPin className="h-4 w-4 text-[#5f7ac0]" />
+                  <span className="text-[#dfe8ff]">
                     {task.room ? `Room ${task.room}` : "General Area"}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground">Today, 2:30 PM</span>
+                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
+                  <Calendar className="h-4 w-4 text-[#5f7ac0]" />
+                  <span className="text-[#dfe8ff]">Today, 2:30 PM</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground">Estimated: 30 minutes</span>
+                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
+                  <Clock className="h-4 w-4 text-[#5f7ac0]" />
+                  <span className="text-[#dfe8ff]">Estimated: 30 minutes</span>
                 </div>
               </div>
 
               <ManagerSeparator />
 
-              <div className="glass-card p-4 space-y-2">
-                <h3 className="text-sm font-semibold text-foreground">Guest Request</h3>
-                <p className="text-sm text-muted-foreground">
+              <div className="space-y-2 rounded-2xl border border-[#1b335f] bg-[#0e1f42] p-4 shadow-[0_12px_30px_rgba(8,14,29,0.55)]">
+                <h3 className="text-sm font-semibold text-[#f5f7ff]">Guest Request</h3>
+                <p className="text-sm text-[#8ba3d0]">
                   Guest has requested immediate room cleaning with special attention to bathroom amenities.
                   Additional towels and fresh linens needed.
                 </p>
@@ -114,8 +114,8 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold text-foreground">AI Staff Recommendations</h3>
+                  <Sparkles className="h-5 w-5 text-[#facc15]" />
+                  <h3 className="font-semibold text-[#f5f7ff]">AI Staff Recommendations</h3>
                 </div>
 
                 <div className="space-y-2">
@@ -125,7 +125,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="glass-card p-3 hover:border-primary/50 transition-all duration-300 cursor-pointer"
+                      className="cursor-pointer rounded-2xl border border-transparent bg-[#0f203f] p-3 transition-all duration-300 hover:border-[#facc15]/60 hover:bg-[#13264a]"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar>
@@ -133,12 +133,12 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
                           <AvatarFallback>{staff.name[0]}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <p className="font-medium text-sm text-foreground">{staff.name}</p>
-                          <p className="text-xs text-muted-foreground">{staff.role}</p>
+                          <p className="text-sm font-medium text-[#f5f7ff]">{staff.name}</p>
+                          <p className="text-xs text-[#8ba3d0]">{staff.role}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-primary">{staff.match}%</p>
-                          <p className="text-xs text-muted-foreground">Match</p>
+                          <p className="text-sm font-bold text-[#facc15]">{staff.match}%</p>
+                          <p className="text-xs text-[#8ba3d0]">Match</p>
                         </div>
                       </div>
                     </motion.div>
@@ -149,15 +149,15 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
               <ManagerSeparator />
 
               <div className="space-y-3">
-                <h3 className="font-semibold text-foreground">Assignment History</h3>
+                <h3 className="font-semibold text-[#f5f7ff]">Assignment History</h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <div className="mt-1 p-1 rounded-full bg-success/20">
-                      <CheckCircle2 className="w-3 h-3 text-success" />
+                    <div className="mt-1 rounded-full bg-[#0f3a32] p-1">
+                      <CheckCircle2 className="h-3 w-3 text-[#34d399]" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-foreground">Task Created</p>
-                      <p className="text-xs text-muted-foreground">Today at 2:15 PM</p>
+                      <p className="text-sm text-[#f5f7ff]">Task Created</p>
+                      <p className="text-xs text-[#8ba3d0]">Today at 2:15 PM</p>
                     </div>
                   </div>
                 </div>
@@ -166,15 +166,15 @@ export const TaskDrawer = ({ task, open, onOpenChange, onApprove }) => {
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={handleApprove}
-                  className="flex-1 gold-gradient text-background hover:opacity-90"
+                  className="flex-1 bg-[#facc15] text-[#0b1b3c] transition-colors hover:bg-[#f9c513]"
                 >
-                  <User className="w-4 h-4 mr-2" />
+                  <User className="mr-2 h-4 w-4" />
                   Approve Suggestion
                 </Button>
                 <Button
                   onClick={handleReassign}
                   variant="outline"
-                  className="flex-1 border-border/50 hover:bg-secondary/80"
+                  className="flex-1 border border-[#1b335f] bg-[#0f2145] text-[#d6e2ff] transition-colors hover:bg-[#142b52]"
                 >
                   Reassign
                 </Button>
