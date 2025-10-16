@@ -32,8 +32,8 @@ const ManagerHomePage = () => {
   return (
     <div className="min-h-screen navy-gradient">
       <ManagerNavbar onToggleSidebar={handleToggleSidebar} />
-      
-      <div className="flex w-full">
+		
+      <div className="mt-[88px] flex w-full">
         <Sidebar 
           isCollapsed={sidebarCollapsed}
           onToggle={handleToggleSidebar}
