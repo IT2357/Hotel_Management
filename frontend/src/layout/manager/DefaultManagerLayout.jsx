@@ -18,27 +18,27 @@ export default function DefaultManagerLayout({
       <div className="dark:bg-gray-900 dark:text-gray-200 min-h-screen bg-gray-50">
         <div className="flex min-h-screen">
           {/* Sidebar */}
-          <ManagerSidebar
+          {/* <ManagerSidebar
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
             toggleRef={toggleRef}
-          />
+          /> */}
 
           {/* Content Area */}
-          <div className="flex flex-col flex-1">
-            <ManagerHeader
+          {/* <div className="flex flex-col flex-1"> */}
+            {/* <ManagerHeader
               sidebarOpen={sidebarOpen}
               setSidebarOpen={setSidebarOpen}
               toggleRef={toggleRef}
-            />
+            /> */}
 
             {/* Breadcrumb Navigation */}
-            {showBreadcrumb && (
+            {/* {showBreadcrumb && (
               <ManagerBreadcrumb 
                 customBreadcrumbs={customBreadcrumbs}
                 backUrl={backUrl}
               />
-            )}
+            )} */}
 
             {/* Main Content Area */}
             <main className="flex-1 overflow-auto">
@@ -46,7 +46,7 @@ export default function DefaultManagerLayout({
             </main>
           </div>
         </div>
-      </div>
+      {/* </div> */}
     </NotificationProvider>
   );
 }

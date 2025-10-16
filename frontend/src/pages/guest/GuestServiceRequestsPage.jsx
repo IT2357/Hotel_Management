@@ -12,7 +12,7 @@ import Spinner from '../../components/ui/Spinner'; // Added Spinner import
 import moment from 'moment';
 
 
-const socket = io('http://localhost:5004');
+const socket = io( import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004');
 
 const statusColors = {
   pending: 'warning',

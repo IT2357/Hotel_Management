@@ -319,11 +319,28 @@ const startServer = async () => {
   });
 
   io.on("connection", (socket) => {
-    console.log("a user connected");
+    console.log("User connected:", socket.id);
+  
+    // Join rooms based on user role/id (e.g., manager room)
+    socket.on("joinRoom", (room) => {
+      socket.join(room);
+    });
+  
+    // Example: Notify staff on task assignment
+    socket.on("assignTask", (data) => {
+      io.to(`staff_${data.staffId}`).emit("newTask", data.task);
+    });
+  
+    // Task status update
+    socket.on("updateTaskStatus", (data) => {
+      io.to("manager_room").emit("taskUpdated", data);
+    });
+  
     socket.on("disconnect", () => {
-      console.log("user disconnected");
+      console.log("User disconnected:", socket.id);
     });
   });
+  
 
   // Start the server regardless of database status
   const PORT = process.env.PORT || 5000;
