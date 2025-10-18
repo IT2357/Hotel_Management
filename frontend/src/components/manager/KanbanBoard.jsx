@@ -1,25 +1,8 @@
 import { motion } from "framer-motion";
 import { TaskCard } from "./TaskCard";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TaskDrawer } from "./TaskDrawer";
 import { Package, Clock, User, CheckCircle } from "lucide-react";
-import { toast } from "sonner";
-
-const initialTasks = {
-  pending: [
-    { id: "1", title: "Room 307 Cleaning", department: "Housekeeping", priority: "High", suggestedStaff: "Maria Rodriguez", aiMatch: 95, room: "307" },
-    { id: "2", title: "Pool Maintenance", department: "Maintenance", priority: "Normal", suggestedStaff: "John Smith", aiMatch: 88 },
-    { id: "3", title: "Guest Request - Extra Towels", department: "Front Desk", priority: "Urgent", suggestedStaff: "Lisa Chen", aiMatch: 92, room: "512" },
-  ],
-  inProgress: [
-    { id: "4", title: "Kitchen Equipment Check", department: "Kitchen", priority: "Normal", suggestedStaff: "Carlos Martinez", aiMatch: 90 },
-    { id: "5", title: "Room 205 AC Repair", department: "Maintenance", priority: "High", suggestedStaff: "Mike Johnson", aiMatch: 87, room: "205" },
-  ],
-  completed: [
-    { id: "6", title: "Lobby Cleaning", department: "Housekeeping", priority: "Normal", suggestedStaff: "Sarah Williams", aiMatch: 94 },
-    { id: "7", title: "Room 410 Setup", department: "Housekeeping", priority: "Low", suggestedStaff: "Emily Davis", aiMatch: 89, room: "410" },
-  ],
-};
 
 const columns = [
   {
@@ -48,32 +31,32 @@ const columns = [
   },
 ];
 
-export const KanbanBoard = () => {
+export const KanbanBoard = ({
+  tasksByStatus,
+  onTaskApprove,
+  onTaskSelect,
+  isLoading = false,
+  emptyMessage = "No tasks yet",
+}) => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [tasks, setTasks] = useState(initialTasks);
+
+  const groupedTasks = useMemo(() => ({
+    pending: tasksByStatus?.pending || [],
+    inProgress: tasksByStatus?.inProgress || [],
+    completed: tasksByStatus?.completed || [],
+  }), [tasksByStatus]);
 
   const handleTaskClick = (task) => {
     setSelectedTask(task);
     setDrawerOpen(true);
+    onTaskSelect?.(task);
   };
 
-  const handleApprove = (taskId, staffName) => {
-    // Move task from pending to inProgress
-    setTasks((prev) => {
-      const newTasks = { ...prev };
-      // Find and remove task from pending
-      const taskIndex = newTasks.pending.findIndex((t) => t.id === taskId);
-      if (taskIndex !== -1) {
-        const [movedTask] = newTasks.pending.splice(taskIndex, 1);
-        // Add to inProgress
-        newTasks.inProgress.push(movedTask);
-        toast.success("Task moved to In Progress", {
-          description: `${movedTask.title} is now being handled by ${staffName}`,
-        });
-      }
-      return newTasks;
-    });
+  const handleApprove = (task, staffName) => {
+    if (onTaskApprove) {
+      onTaskApprove(task, staffName);
+    }
   };
 
   return (
@@ -94,7 +77,7 @@ export const KanbanBoard = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-[#f5f7ff]">{column.title}</h3>
-                  <p className="text-xs text-[#8ba3d0]">{tasks[column.id].length} tasks</p>
+                  <p className="text-xs text-[#8ba3d0]">{groupedTasks[column.id].length} tasks</p>
                 </div>
               </div>
               <span className={`text-xs font-medium ${column.accent}`}>
@@ -103,10 +86,23 @@ export const KanbanBoard = () => {
             </div>
 
             <div className="space-y-3">
-              {tasks[column.id].length > 0 ? (
-                tasks[column.id].map((task, index) => (
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={`${column.id}-skeleton-${index}`}
+                      className="animate-pulse rounded-2xl border border-[#1b335f]/60 bg-[#0e1f42]/60 p-4"
+                    >
+                      <div className="h-4 w-3/4 rounded bg-[#132b4f]/80" />
+                      <div className="mt-3 h-3 w-1/2 rounded bg-[#132b4f]/60" />
+                      <div className="mt-4 h-12 rounded-lg bg-[#132b4f]/40" />
+                    </div>
+                  ))}
+                </div>
+              ) : groupedTasks[column.id].length > 0 ? (
+                groupedTasks[column.id].map((task, index) => (
                   <motion.div
-                    key={task.id}
+                    key={task.id || `${column.id}-${index}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -117,7 +113,7 @@ export const KanbanBoard = () => {
               ) : (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 py-12 text-center">
                   <Package className="mx-auto h-12 w-12 text-[#1f355d]" />
-                  <p className="text-sm text-[#8ba3d0]">No tasks yet</p>
+                  <p className="text-sm text-[#8ba3d0]">{emptyMessage}</p>
                 </motion.div>
               )}
             </div>

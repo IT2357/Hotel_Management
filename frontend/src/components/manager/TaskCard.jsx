@@ -11,6 +11,21 @@ const priorityStyles = {
 };
 
 export const TaskCard = ({ task, onClick }) => {
+	const resolvePriorityKey = (priority) => {
+		if (!priority) return "Normal";
+		const normalized = String(priority).toLowerCase();
+		if (normalized === "low") return "Low";
+		if (normalized === "medium" || normalized === "normal") return "Normal";
+		if (normalized === "high") return "High";
+		if (normalized === "urgent" || normalized === "critical") return "Urgent";
+		return "Normal";
+	};
+
+	const priorityKey = resolvePriorityKey(task?.priority || task?.priorityLabel);
+	const suggestedStaff = task?.suggestedStaff || task?.assignedStaffName || "Awaiting assignment";
+	const aiMatch = Number.isFinite(task?.aiMatch) ? task.aiMatch : task?.matchScore || 0;
+	const locationLabel = task?.room || task?.locationLabel;
+
 	return (
 		<motion.div
 			layout
@@ -23,12 +38,14 @@ export const TaskCard = ({ task, onClick }) => {
 		>
 			<div className="flex items-start justify-between">
 				<div className="flex-1">
-					<h4 className="mb-1 font-semibold text-[#f5f7ff]">{task.title}</h4>
-					<p className="text-xs text-[#8ba3d0]">{task.department}</p>
-					{task.room && <p className="mt-1 text-xs font-medium text-[#facc15]">Room {task.room}</p>}
+					<h4 className="mb-1 font-semibold text-[#f5f7ff]">{task?.title || "Untitled Task"}</h4>
+					<p className="text-xs text-[#8ba3d0]">{task?.department || "General"}</p>
+					{locationLabel && (
+						<p className="mt-1 text-xs font-medium text-[#facc15]">{locationLabel}</p>
+					)}
 				</div>
-				<ManagerBadge className={`${priorityStyles[task.priority] || priorityStyles.Normal} text-xs`}>
-					{task.priority}
+				<ManagerBadge className={`${priorityStyles[priorityKey] || priorityStyles.Normal} text-xs`}>
+					{task?.priorityLabel || task?.priority || "Normal"}
 				</ManagerBadge>
 			</div>
 
@@ -36,9 +53,9 @@ export const TaskCard = ({ task, onClick }) => {
 				<Sparkles className="h-4 w-4 text-[#facc15]" />
 				<div className="flex-1">
 					<p className="text-xs font-medium text-[#f5f7ff]">AI Suggested</p>
-					<p className="text-xs text-[#8ba3d0]">{task.suggestedStaff}</p>
+					<p className="text-xs text-[#8ba3d0]">{suggestedStaff}</p>
 				</div>
-				<span className="text-xs font-bold text-[#facc15]">{task.aiMatch}%</span>
+				<span className="text-xs font-bold text-[#facc15]">{aiMatch ? `${aiMatch}%` : "--"}</span>
 			</div>
 
 			<div className="flex gap-2">

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, Settings, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, User, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 
 const menuItems = [
@@ -8,7 +8,7 @@ const menuItems = [
   { icon: Users, label: "Staff Analytics", id: "staff" },
   { icon: MessageSquare, label: "Guest Feedback", id: "feedback" },
   { icon: FileText, label: "Reports", id: "reports" },
-  { icon: Settings, label: "Settings", id: "settings" },
+  { icon: User, label: "Profile", id: "profile" },
 ];
 
 export const Sidebar = ({ isCollapsed, onToggle, activeItem, onItemClick }) => {

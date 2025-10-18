@@ -3,11 +3,47 @@ import { Search, Bell, Moon, Sun, Hotel, Menu } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 import { ManagerInput } from "@/components/manager/ManagerInput";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/manager/ManagerAvatar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import useAuth from "@/hooks/useAuth";
 
 export const ManagerNavbar = ({ onToggleSidebar }) => {
   const [isDark, setIsDark] = useState(true);
   const [notifications] = useState(3);
+  const { user } = useAuth();
+
+  const managerProfile = useMemo(() => {
+    const fullName =
+      user?.fullName ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      user?.name ||
+      user?.email ||
+      "Manager";
+
+    const roleLabel =
+      user?.profile?.jobTitle ||
+      user?.designation ||
+      (typeof user?.role === "string" ? user.role.replace(/_/g, " ") : null) ||
+      "Hotel Manager";
+
+    const initials = fullName
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase())
+      .join("")
+      .slice(0, 2) || "MG";
+
+    return { name: fullName, role: roleLabel, initials };
+  }, [user]);
+
+  const avatarUrl = useMemo(() => {
+    return (
+      user?.profile?.avatar ||
+      user?.avatarUrl ||
+      user?.photo ||
+      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(managerProfile.name)}`
+    );
+  }, [managerProfile.name, user]);
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -93,16 +129,19 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
             )}
           </Button>
 
-          <div className="flex items-center gap-3 border-l border-[#142347] pl-3">
+          <Link
+            to="/manager/profile"
+            className="flex items-center gap-3 rounded-xl border-l border-[#142347] px-2 pl-3 text-left transition-all duration-300 hover:bg-[#13254a]/60"
+          >
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-[#f5f7ff]">Sarah Johnson</p>
-              <p className="text-xs text-[#8ba3d0]">General Manager</p>
+              <p className="text-sm font-medium text-[#f5f7ff]">{managerProfile.name}</p>
+              <p className="text-xs text-[#8ba3d0]">{managerProfile.role}</p>
             </div>
             <Avatar className="border-2 border-[#facc15] shadow-[0_0_0_3px_rgba(250,204,21,0.25)]">
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" />
-              <AvatarFallback>SJ</AvatarFallback>
+              <AvatarImage src={avatarUrl} />
+              <AvatarFallback>{managerProfile.initials}</AvatarFallback>
             </Avatar>
-          </div>
+          </Link>
         </div>
       </div>
     </motion.nav>

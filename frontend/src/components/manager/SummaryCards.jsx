@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { ClipboardList, Clock, CheckCircle2, Star, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const cards = [
+const defaultCards = [
   { icon: ClipboardList, label: "Total Tasks", value: 48, iconColor: "#38bdf8" },
   { icon: Clock, label: "In Progress", value: 24, iconColor: "#facc15" },
   { icon: CheckCircle2, label: "Completed", value: 18, iconColor: "#22c55e" },
@@ -35,7 +35,7 @@ const AnimatedNumber = ({ value, suffix = "" }) => {
   return <span>{count}{suffix}</span>;
 };
 
-export const SummaryCards = () => {
+export const SummaryCards = ({ cards = defaultCards }) => {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
       {cards.map((card, index) => (
