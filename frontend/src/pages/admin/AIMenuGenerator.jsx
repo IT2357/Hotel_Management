@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
 import {
   Sparkles,
   ChefHat,
@@ -48,7 +47,7 @@ const AIMenuGenerator = () => {
   // Form data state
   const [formData, setFormData] = useState({
     cuisineType: 'Indian',
-    dietaryRestrictions: [],
+    dietaryRestrictions: '', // Changed from array to string for single select
     numberOfItems: 5,
     imageUrl: '',
     imagePath: ''
@@ -148,11 +147,14 @@ const AIMenuGenerator = () => {
           imageFormData.append('image', imageFile);
         }
 
-        imageFormData.append('cuisineType', formData.cuisineType);
+        // Backend expects 'cuisine' not 'cuisineType'
+        imageFormData.append('cuisine', formData.cuisineType);
+        imageFormData.append('mealType', 'Main Course'); // Default meal type
+        
         // Send dietaryRestrictions as array (FormData handles arrays properly)
-        formData.dietaryRestrictions.forEach(restriction => {
-          imageFormData.append('dietaryRestrictions[]', restriction);
-        });
+        if (formData.dietaryRestrictions) {
+          imageFormData.append('dietaryRestrictions[]', formData.dietaryRestrictions);
+        }
 
         if (formData.imageUrl) {
           imageFormData.append('imageUrl', formData.imageUrl);
@@ -162,17 +164,19 @@ const AIMenuGenerator = () => {
           imageFormData.append('imagePath', formData.imagePath);
         }
 
-        response = await api.post('/menu/generate-from-image', imageFormData);
+        response = await api.post('/food/items/ai/generate', imageFormData);
       } else {
         // Text-based generation
-        response = await api.post('/menu/generate', {
-          cuisineType: formData.cuisineType,
-          dietaryRestrictions: formData.dietaryRestrictions,
-          numberOfItems: formData.numberOfItems
+        response = await api.post('/food/items/ai/generate', {
+          cuisine: formData.cuisineType,
+          dietaryRestrictions: formData.dietaryRestrictions ? [formData.dietaryRestrictions] : [],
+          mealType: 'Main Course', // Default meal type
+          budget: null // Optional budget
         });
       }
 
-      setGeneratedItems(response.data.data?.items || response.data.items || []);
+      // Backend returns { success: true, data: [...items...] }
+      setGeneratedItems(response.data.data || []);
       toast.success('Menu generated successfully!');
     } catch (error) {
       console.error('Generation error:', error);
@@ -289,12 +293,7 @@ const AIMenuGenerator = () => {
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
+        <div className="mb-8">
           <div className="flex items-center mb-4">
             <Sparkles className="h-8 w-8 text-purple-600 mr-3" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -304,14 +303,10 @@ const AIMenuGenerator = () => {
           <p className="text-gray-600 dark:text-gray-400">
             Generate creative menu items using artificial intelligence
           </p>
-        </motion.div>
+        </div>
 
         {/* Form Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        >
+        <div>
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -505,15 +500,11 @@ const AIMenuGenerator = () => {
               </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Generated Items */}
         {generatedItems.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
+          <div>
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -597,8 +588,8 @@ const AIMenuGenerator = () => {
                             <div className="space-y-2">
                               <Label>Category</Label>
                               <FoodSelect
-                                value={item.category}
-                                onChange={(e) => handleItemChange(index, 'category', e.target.value)}
+                                value={editForm.category || ''}
+                                onChange={(e) => updateEditForm('category', e.target.value)}
                               >
                                 <option value="">Select category</option>
                                 <option value="Appetizers">Appetizers</option>
@@ -698,7 +689,7 @@ const AIMenuGenerator = () => {
                             </Button>
                             <Checkbox
                               checked={selectedItems.some(i => i.name === item.name)}
-                              onCheckedChange={(checked) => {
+                              onCheckedChange={() => {
                                 toggleItemSelection(item);
                               }}
                             />
@@ -710,7 +701,7 @@ const AIMenuGenerator = () => {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>

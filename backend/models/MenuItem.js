@@ -6,6 +6,16 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Menu item name is required'],
     trim: true,
   },
+  // Bilingual support for Jaffna restaurant (2025 enhancement)
+  name_tamil: {
+    type: String,
+    trim: true,
+    // Tamil Unicode: \u0B80-\u0BFF
+  },
+  name_english: {
+    type: String,
+    trim: true,
+  },
   slug: {
     type: String,
     unique: true,
@@ -18,6 +28,14 @@ const menuItemSchema = new mongoose.Schema({
     sparse: true,
   },
   description: {
+    type: String,
+    trim: true,
+  },
+  description_tamil: {
+    type: String,
+    trim: true,
+  },
+  description_english: {
     type: String,
     trim: true,
   },
@@ -129,6 +147,26 @@ const menuItemSchema = new mongoose.Schema({
     type: String,
     enum: ['colombo', 'jaffna', 'kandy', 'galle', 'default'],
     default: 'colombo',
+  },
+  // Soft delete support (2025 best practice)
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
+  deletedAt: {
+    type: Date,
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
   },
 }, {
   timestamps: true,

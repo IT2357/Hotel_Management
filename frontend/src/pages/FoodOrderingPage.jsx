@@ -17,6 +17,11 @@ import OrderConfirmationPage from './OrderConfirmationPage';
 import { useCart } from '../context/CartContext';
 import foodService from '../services/foodService';
 
+// Get API base URL for images
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
+
 const ModernFoodOrderingPageContent = () => {
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -41,13 +46,34 @@ const ModernFoodOrderingPageContent = () => {
         const response = await foodService.getMenuItems({
           isAvailable: true
         });
-        const items = response.data || [];
-        setMenuItems(items);
+        
+        // Handle response format (could be direct array or paginated)
+        let items = [];
+        if (response.data && response.data.items) {
+          // Paginated response format
+          items = response.data.items;
+        } else if (Array.isArray(response.data)) {
+          // Direct array format
+          items = response.data;
+        }
+
+        // Add proper image URLs
+        const itemsWithImages = items.map(item => ({
+          ...item,
+          imageUrl: item.imageUrl || 
+                    (item.imageId ? `${API_BASE_URL}/api/menu/image/${item.imageId}` : null) ||
+                    (item.image && item.image.startsWith('http') ? item.image : null) ||
+                    (item.image && item.image.startsWith('/api/') ? `${API_BASE_URL}${item.image}` : null) ||
+                    item.image ||
+                    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500'
+        }));
+
+        setMenuItems(itemsWithImages);
         
         // Set featured items (first 6 items or items marked as popular)
-        const featured = items.filter(item => item.isPopular).slice(0, 6);
+        const featured = itemsWithImages.filter(item => item.isPopular).slice(0, 6);
         if (featured.length < 6) {
-          const additional = items.slice(0, 6 - featured.length);
+          const additional = itemsWithImages.slice(0, 6 - featured.length);
           setFeaturedItems([...featured, ...additional]);
         } else {
           setFeaturedItems(featured);
@@ -270,7 +296,7 @@ const ModernFoodOrderingPageContent = () => {
                   {/* Image */}
                   <div className="relative h-64 overflow-hidden">
                     <img
-                      src={item.image || item.imageUrl}
+                      src={item.imageUrl || item.image}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       onError={(e) => {
@@ -407,7 +433,7 @@ const ModernFoodOrderingPageContent = () => {
                     {/* Image */}
                     <div className="relative h-56 overflow-hidden">
                       <img
-                        src={item.image || item.imageUrl}
+                        src={item.imageUrl || item.image}
                         alt={item.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         onError={(e) => {

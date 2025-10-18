@@ -11,7 +11,8 @@ import HomePage from './pages/HomePage.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import FoodPage from './pages/FoodPage.jsx';
-// Removed imports for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage
+import MenuPage from './pages/MenuPage.jsx';
+// Removed imports for missing files: Gallery, Blog, RestaurantMenuPage
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -106,6 +107,7 @@ const AppContent = () => {
           <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
           <Route path="/about" element={wrapWithTransition(<About />)} />
           <Route path="/contact" element={wrapWithTransition(<Contact />)} />
+          <Route path="/menu" element={wrapWithTransition(<MenuPage />)} />
           <Route path="/food" element={wrapWithTransition(<FoodOrderingPage />)} />
           {/* Removed routes for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage */}
           <Route path="/my-orders" element={wrapWithTransition(<MyOrdersPage />)} />
