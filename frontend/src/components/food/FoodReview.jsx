@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Star, Send, MessageSquare, CheckCircle, X } from 'lucide-react';
-import Rating from '../ui/rating';
+import Rating from '../ui/Rating';
 
 const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
   const [rating, setRating] = useState(0);

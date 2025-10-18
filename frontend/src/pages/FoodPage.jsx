@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Card from '../components/ui/card';
+import Card from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Clock, Star, Users, ChefHat, Utensils, Coffee, Wine } from 'lucide-react';
