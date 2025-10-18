@@ -34,22 +34,9 @@ import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx';
 
 // Task Management pages
-import ManagerTaskDashboard from './pages/manager/ManagerTaskDashboard.jsx';
-import TestManagerDashboard from './pages/manager/TestManagerDashboard.jsx';
-import AuthTest from './pages/manager/AuthTest.jsx';
-import TestPage from './pages/manager/TestPage.jsx';
-import ManagerDashboardTest from './pages/manager/ManagerDashboardTest.jsx';
-import TaskListPage from './pages/manager/TaskListPage.jsx';
-import CreateTaskPage from './pages/manager/CreateTaskPage.jsx';
-import TaskAssignmentPage from './pages/manager/TaskAssignmentPage.jsx';
-import FeedbackPage from './pages/manager/FeedbackPage.jsx';
-import StaffWorkloadPage from './pages/manager/StaffWorkloadPage.jsx';
-import ManagerDashboard from './pages/manager/ManagerDashboard.jsx';
 import ManagerHomePage from './pages/manager/ManagerHomePage.jsx';
-import ViewReportPage from './pages/manager/ViewReportPage.jsx';
-import TestViewReportPage from './pages/manager/TestViewReportPage.jsx';
-import SimpleViewReportPage from './pages/manager/SimpleViewReportPage.jsx';
-import TaskManagementDashboard from './pages/manager/TaskManagementDashboard.jsx';
+import ManagerProfilePage from './pages/manager/ManagerProfilePage.jsx';
+import ManagerReportsPage from './pages/manager/ManagerReportsPage.jsx';
 import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -68,7 +55,6 @@ import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManageme
 import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
-import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
 
 // Food ordering pages for guests
 import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
@@ -444,170 +430,28 @@ const AppContent = () => {
 
           {/* 👨‍💼 Manager Routes - Restructured with Layout */}
           <Route 
-            path="/manager/*" 
+            path="/manager" 
             element={
               <ProtectedRoute roles={['manager']}>
-                <Routes>
-                  {/* Manager Home/Dashboard */}
-                  <Route 
-                    index 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerHomePage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Task Management Section */}
-                  <Route 
-                    path="dashboard" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerTaskDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="task-management" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskManagementDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskListPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/create" 
-                    element={
-                      <DefaultManagerLayout>
-                        <CreateTaskPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/assign" 
-                    element={
-                      <DefaultManagerLayout>
-                        <TaskAssignmentPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/feedback" 
-                    element={
-                      <DefaultManagerLayout>
-                        <FeedbackPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="tasks/staff-workload" 
-                    element={
-                      <DefaultManagerLayout>
-                        <StaffWorkloadPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Reports Section */}
-                  <Route 
-                    path="reports/*" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerDashboard />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="reports/view" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ViewReportPage />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Settings and Other Pages */}
-                  <Route 
-                    path="settings" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Settings Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="notifications" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Notifications Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="staff-performance" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Staff Performance Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="feedback" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Feedback Page - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="inbox" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Manager Inbox - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  <Route 
-                    path="staff-messages" 
-                    element={
-                      <DefaultManagerLayout>
-                        <div className="p-8">Staff Messages - Coming Soon</div>
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                  
-                  {/* Test Routes */}
-                  <Route 
-                    path="test" 
-                    element={
-                      <DefaultManagerLayout>
-                        <ManagerDashboardTest />
-                      </DefaultManagerLayout>
-                    } 
-                  />
-                </Routes>
+                <ManagerHomePage />
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route 
+            path="/manager/profile" 
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/manager/reports" 
+            element={
+              <ProtectedRoute roles={['manager']}>
+                <ManagerReportsPage />
+              </ProtectedRoute>
+            }
           />
 
           {/* 👨‍🔧 Staff Task Routes */}

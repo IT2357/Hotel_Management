@@ -66,37 +66,37 @@ api.interceptors.response.use(
 export const taskAPI = {
   // Get all tasks with filtering
   getAllTasks: async (params = {}) => {
-    const response = await api.get('/', { params });
+    const response = await api.get('/tasks', { params });
     return response.data;
   },
 
   // Get single task by ID
   getTaskById: async (taskId) => {
-    const response = await api.get(`/${taskId}`);
+    const response = await api.get(`/tasks/${taskId}`);
     return response.data;
   },
 
   // Create new task
   createTask: async (taskData) => {
-    const response = await api.post('/', taskData);
+    const response = await api.post('/tasks', taskData);
     return response.data;
   },
 
   // Assign task to staff
   assignTask: async (taskId, assignmentData) => {
-    const response = await api.put(`/${taskId}/assign`, assignmentData);
+    const response = await api.put(`/tasks/${taskId}/assign`, assignmentData);
     return response.data;
   },
 
   // Update task status
   updateTaskStatus: async (taskId, statusData) => {
-    const response = await api.put(`/${taskId}/status`, statusData);
+    const response = await api.put(`/tasks/${taskId}/status`, statusData);
     return response.data;
   },
 
   // Get available staff for department
   getAvailableStaff: async (department) => {
-    const response = await api.get(`/staff/${department}`);
+    const response = await api.get(`/tasks/staff/${department}`);
     return response.data;
   },
 
@@ -108,19 +108,19 @@ export const taskAPI = {
 
   // Get my tasks (for staff)
   getMyTasks: async (params = {}) => {
-    const response = await api.get('/my-tasks', { params });
+    const response = await api.get('/tasks/my-tasks', { params });
     return response.data;
   },
 
   // Delete task
   deleteTask: async (taskId) => {
-    const response = await api.delete(`/${taskId}`);
+    const response = await api.delete(`/tasks/${taskId}`);
     return response.data;
   },
 
   // Get task statistics
   getTaskStats: async (params = {}) => {
-    const response = await api.get('/stats', { params });
+    const response = await api.get('/tasks/stats', { params });
     return response.data;
   },
 };

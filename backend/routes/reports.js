@@ -12,6 +12,7 @@ import {
   scheduleReport,
   updateKPIs
 } from '../controllers/dashboard/reportController.js';
+import { getManagerOverviewReport } from '../controllers/manager/managerReportController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import { validateReportRequest } from '../middleware/validation.js';
@@ -31,6 +32,12 @@ router.get(
   '/dashboard-overview',
   authorizeRoles(['manager', 'admin']),
   getDashboardOverview
+);
+
+router.get(
+  '/manager/overview',
+  authorizeRoles(['manager', 'admin']),
+  getManagerOverviewReport
 );
 
 /**

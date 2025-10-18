@@ -9,8 +9,8 @@ import {
   getAllStaff,
   getMyTasks,
   deleteTask,
-  getTaskStats
-} from "../controllers/manager/newTaskController.js";
+  getTaskStats,
+} from "../controllers/manager/taskManagementController.js";
 import {
   createFeedback,
   getFeedbackForTask,
