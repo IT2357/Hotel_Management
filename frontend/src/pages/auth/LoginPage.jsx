@@ -1,6 +1,6 @@
 // In src/pages/auth/LoginPage.js
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
 import Alert from '../../components/common/Alert';
@@ -11,6 +11,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Store redirect path in sessionStorage when component mounts
+  useEffect(() => {
+    // Get the 'from' location state (set by protected routes or manual redirects)
+    const redirectPath = location.state?.from;
+    
+    if (redirectPath) {
+      // Store in sessionStorage so AuthContext can use it after login
+      sessionStorage.setItem('redirectAfterLogin', redirectPath);
+    }
+  }, [location]);
 
   const fields = [
     {

@@ -21,8 +21,11 @@ import {
   Globe,
   FolderOpen
 } from 'lucide-react';
-import Card from "../../components/ui/card";
+import FoodCard from "../../components/food/FoodCard";
 import api from '../../services/api';
+
+// Alias for consistent naming
+const Card = FoodCard;
 
 export default function FoodManagementPage() {
    const { user } = useContext(AuthContext);
@@ -97,7 +100,7 @@ export default function FoodManagementPage() {
       icon: Sparkles,
       color: "from-purple-500 to-pink-500",
       stats: "AI Powered",
-      to: "/admin/menu-upload",
+      to: "/admin/food/ai-menu",
       features: [
         "Upload menu images",
         "Extract from URLs",

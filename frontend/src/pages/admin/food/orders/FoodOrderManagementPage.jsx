@@ -21,12 +21,20 @@ import {
 } from 'lucide-react';
 import FoodButton from '@/components/food/FoodButton';
 import FoodInput from '@/components/food/FoodInput';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/food/FoodCard';
 import FoodBadge from '@/components/food/FoodBadge';
 import FoodSelect from '@/components/food/FoodSelect';
-import FoodDialog from '@/components/food/FoodDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/food/FoodDialog';
 import FoodLabel from '@/components/food/FoodLabel';
 import FoodTextarea from '@/components/food/FoodTextarea';
-import FoodTabs from '@/components/food/FoodTabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/food/FoodTabs';
+
+// Aliases for consistent naming
+const Button = FoodButton;
+const Input = FoodInput;
+const Badge = FoodBadge;
+const Label = FoodLabel;
+const Textarea = FoodTextarea;
 import { toast } from 'sonner';
 import api from '@/services/api';
 
@@ -307,18 +315,18 @@ const FoodOrderManagementPage = () => {
               className="pl-10"
             />
           </div>
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FoodSelect 
+            value={selectedStatus} 
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="w-full md:w-48"
+          >
+            <option value="">All Status</option>
+            {statusOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </FoodSelect>
           <Input
             type="date"
             value={selectedDate}
@@ -660,33 +668,25 @@ const FoodOrderManagementPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <Select
+              <FoodSelect 
                 value={reviewFilters.status}
-                onValueChange={(value) => setReviewFilters(prev => ({ ...prev, status: value }))}
+                onChange={(e) => setReviewFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full md:w-48"
               >
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Reviews</SelectItem>
-                  <SelectItem value="visible">Visible Only</SelectItem>
-                  <SelectItem value="hidden">Hidden Only</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="all">All Reviews</option>
+                <option value="visible">Visible Only</option>
+                <option value="hidden">Hidden Only</option>
+              </FoodSelect>
 
-              <Select
+              <FoodSelect 
                 value={reviewFilters.flagged}
-                onValueChange={(value) => setReviewFilters(prev => ({ ...prev, flagged: value }))}
+                onChange={(e) => setReviewFilters(prev => ({ ...prev, flagged: e.target.value }))}
+                className="w-full md:w-48"
               >
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Reviews</SelectItem>
-                  <SelectItem value="true">Flagged Only</SelectItem>
-                  <SelectItem value="false">Not Flagged</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="all">All Reviews</option>
+                <option value="true">Flagged Only</option>
+                <option value="false">Not Flagged</option>
+              </FoodSelect>
             </motion.div>
 
             {/* Reviews List */}

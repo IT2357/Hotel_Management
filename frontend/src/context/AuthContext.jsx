@@ -5,11 +5,10 @@ import getDashboardPath from "../utils/GetDashboardPath";
 
 export const AuthContext = createContext();
 
-// Hook for consuming auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
@@ -51,8 +50,11 @@ export function AuthProvider({ children }) {
           localStorage.setItem("user", JSON.stringify(user));
           setState(prev => ({ ...prev, user }));
         } catch (err) {
-          // If token invalid, just clear local user silently here
-          setState(prev => ({ ...prev, user: cachedUser || null }));
+          // If token invalid, clear both token and user
+          console.warn("Token validation failed, clearing auth data:", err.message);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setState(prev => ({ ...prev, user: null }));
         } finally {
           setState(prev => ({ ...prev, loading: false }));
         }

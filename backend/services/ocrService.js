@@ -1,300 +1,493 @@
-import vision from '@google-cloud/vision';
-import Tesseract from 'tesseract.js';
-import fs from 'fs';
-import path from 'path';
+import { createWorker } from 'tesseract.js';
+import AIJaffnaTrainer from './aiJaffnaTrainer.js';
 
+/**
+ * OCR Service for Menu Text Extraction
+ * Specialized for Tamil/Jaffna cuisine with enhanced accuracy
+ */
 class OCRService {
   constructor() {
-    this.visionClient = null;
-    this.initializeGoogleVision();
-  }
-
-  async initializeGoogleVision() {
-    try {
-      const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
-
-      console.log('🔍 DEBUG: Initializing Google Vision API...');
-      console.log('🔍 DEBUG: Environment variables check:');
-      console.log('🔍 DEBUG: - GOOGLE_APPLICATION_CREDENTIALS:', credentials ? 'Set' : 'Not set');
-      console.log('🔍 DEBUG: - GOOGLE_CLOUD_PROJECT_ID:', projectId ? 'Set' : 'Not set');
-
-      if (credentials) {
-        // Check if credentials is a placeholder
-        if (credentials === './config/google-credentials.json' && !fs.existsSync(credentials)) {
-          console.warn('⚠️ Google Vision credentials file not found at:', credentials);
-          console.warn('Please ensure the Google Cloud credentials JSON file exists.');
-          return;
-        }
-
-        this.visionClient = new vision.ImageAnnotatorClient();
-        console.log('✅ Google Vision API initialized successfully');
-      } else {
-        console.warn('⚠️ GOOGLE_APPLICATION_CREDENTIALS not set. OCR will fallback to Tesseract.');
-      }
-    } catch (error) {
-      console.warn('⚠️ Google Vision API not available:', error.message);
-      console.warn('⚠️ This could be due to:');
-      console.warn('⚠️ 1. Invalid credentials file');
-      console.warn('⚠️ 2. Missing @google-cloud/vision dependency');
-      console.warn('⚠️ 3. Network connectivity issues');
-    }
+    this.worker = null;
+    this.jaffnaTrainer = new AIJaffnaTrainer();
+    this.isInitialized = false;
   }
 
   /**
-   * Extract text from image using Google Vision API (preferred) or Tesseract (fallback)
-   * @param {Buffer|string} imageInput - Image buffer or file path
-   * @param {Object} options - OCR options
-   * @returns {Promise<Object>} - { text: string, confidence: number, method: string }
+   * Initialize OCR worker with Tamil language support
    */
-  async extractText(imageInput, options = {}) {
+  async initialize() {
+    if (this.isInitialized) return true;
+
     try {
-      // Try Google Vision first if available
-      if (this.visionClient && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        return await this.extractWithGoogleVision(imageInput);
-      }
-
-      // Fallback to Tesseract
-      return await this.extractWithTesseract(imageInput, options);
-    } catch (error) {
-      console.error('OCR extraction failed:', error);
-      throw new Error(`OCR failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Extract text using Google Vision API
-   * @param {Buffer|string} imageInput 
-   * @returns {Promise<Object>}
-   */
-  async extractWithGoogleVision(imageInput) {
-    try {
-      let imageBuffer;
-      
-      if (Buffer.isBuffer(imageInput)) {
-        imageBuffer = imageInput;
-      } else if (typeof imageInput === 'string') {
-        imageBuffer = fs.readFileSync(imageInput);
-      } else {
-        throw new Error('Invalid image input type');
-      }
-
-      const [result] = await this.visionClient.textDetection({
-        image: { content: imageBuffer }
-      });
-
-      const detections = result.textAnnotations;
-      const text = detections.length > 0 ? detections[0].description : '';
-      
-      // Calculate confidence from detection scores
-      let confidence = 0;
-      if (detections.length > 1) {
-        const scores = detections.slice(1).map(d => d.score || 0.8);
-        confidence = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100);
-      }
-
-      return {
-        text: text || '',
-        confidence: confidence || 85,
-        method: 'google-vision',
-        rawData: detections
-      };
-    } catch (error) {
-      console.error('Google Vision OCR error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Extract text using Tesseract.js (fallback)
-   * @param {Buffer|string} imageInput 
-   * @param {Object} options 
-   * @returns {Promise<Object>}
-   */
-  async extractWithTesseract(imageInput, options = {}) {
-    try {
-      const tesseractOptions = {
+      console.log('🤖 Initializing OCR service with Tamil support...');
+      this.worker = await createWorker('tam+eng', 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
-            console.log(`Tesseract progress: ${Math.round(m.progress * 100)}%`);
+            console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
           }
-        },
-        ...options
-      };
-
-      const { data } = await Tesseract.recognize(imageInput, 'eng', tesseractOptions);
-
-      return {
-        text: data.text || '',
-        confidence: Math.round(data.confidence || 70),
-        method: 'tesseract',
-        rawData: data
-      };
+        }
+      });
+      this.isInitialized = true;
+      console.log('✅ OCR service initialized successfully');
+      return true;
     } catch (error) {
-      console.error('Tesseract OCR error:', error);
-      throw error;
+      console.error('❌ Failed to initialize OCR service:', error);
+      return false;
     }
   }
 
   /**
-   * Parse extracted text into menu structure
+   * Extract text from image using OCR
+   * @param {string} imagePath - Path to image file
+   * @param {Object} options - OCR options
+   */
+  async extractText(imagePath, options = {}) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      console.log(`📸 Extracting text from: ${imagePath}`);
+      
+      const { data: { text, confidence } } = await this.worker.recognize(imagePath, {
+        ...options,
+        // Optimize for menu text
+        tessedit_pageseg_mode: '6', // Single uniform block
+        tessedit_ocr_engine_mode: '1' // LSTM only
+      });
+
+      console.log(`📊 OCR confidence: ${Math.round(confidence * 100)}%`);
+      
+      return {
+        text,
+        confidence,
+        method: 'tesseract-tamil',
+        success: true
+      };
+    } catch (error) {
+      console.error('❌ OCR extraction failed:', error);
+      return {
+        text: '',
+        confidence: 0,
+        method: 'failed',
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Parse menu text into structured data
    * @param {string} text - Raw OCR text
-   * @returns {Object} - Structured menu data
    */
   parseMenuText(text) {
-    try {
-      const lines = text.split('\n').filter(line => line.trim());
-      const categories = [];
-      let currentCategory = null;
+    console.log('🔍 Parsing menu text...');
+    
+    const lines = text.split('\n').filter(line => line.trim());
+    const items = [];
+    let currentCategory = 'Main Course';
+    let confidence = 0.8; // Base confidence
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
       
-      // Common category keywords
-      const categoryKeywords = [
-        'appetizer', 'starter', 'soup', 'salad', 'main', 'entree', 'pasta', 'pizza',
-        'dessert', 'beverage', 'drink', 'coffee', 'tea', 'wine', 'beer', 'cocktail',
-        'breakfast', 'lunch', 'dinner', 'special', 'combo', 'platter', 'biriyani',
-        'biryani', 'koththu', 'kottu', 'rice', 'noodles', 'curry', 'grill', 'fried'
-      ];
+      if (!trimmedLine) continue;
 
-      // Price regex patterns (supports multiple currencies)
-      const pricePatterns = [
-        /\$?(\d+\.?\d*)/,     // $15.99 or 15.99
-        /(\d+)\s*rs/i,        // 250 Rs
-        /rs\s*(\d+)/i,        // Rs 250
-        /₹\s*(\d+)/,          // ₹250
-        /(\d+)\s*\/-/,        // 250/-
-        /lkr\s*(\d+)/i,       // LKR 250
-        /(\d+)\s*lkr/i        // 250 LKR
-      ];
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Skip empty lines
-        if (!line) continue;
-
-        // Check if line might be a category
-        const isCategory = categoryKeywords.some(keyword => 
-          line.toLowerCase().includes(keyword.toLowerCase())
-        ) && !pricePatterns.some(pattern => pattern.test(line));
-
-        if (isCategory) {
-          currentCategory = {
-            name: this.cleanCategoryName(line),
-            items: []
-          };
-          categories.push(currentCategory);
-          continue;
-        }
-
-        // Try to extract menu item with price
-        let price = 0;
-        let name = line;
-        let description = '';
-
-        // Extract price
-        for (const pattern of pricePatterns) {
-          const match = line.match(pattern);
-          if (match) {
-            price = parseFloat(match[1]);
-            name = line.replace(pattern, '').trim();
-            break;
-          }
-        }
-
-        // If we found a price, this is likely a menu item
-        if (price > 0) {
-          // Clean up the name
-          name = this.cleanItemName(name);
-          
-          // Check if next line might be description
-          if (i + 1 < lines.length) {
-            const nextLine = lines[i + 1].trim();
-            if (!pricePatterns.some(pattern => pattern.test(nextLine)) && 
-                nextLine.length > 10 && nextLine.length < 100 &&
-                !categoryKeywords.some(keyword => nextLine.toLowerCase().includes(keyword))) {
-              description = nextLine;
-              i++; // Skip the description line in next iteration
-            }
-          }
-
-          const item = {
-            name: name || 'Unknown Item',
-            price: price,
-            description: description,
-            image: '' // Will be populated later if image processing is available
-          };
-
-          if (currentCategory) {
-            currentCategory.items.push(item);
-          } else {
-            // Create default category if none exists
-            if (categories.length === 0) {
-              categories.push({
-                name: 'Menu Items',
-                items: []
-              });
-            }
-            categories[0].items.push(item);
-          }
-        }
+      // Check for category headers
+      if (this.isCategoryHeader(trimmedLine)) {
+        currentCategory = this.extractCategory(trimmedLine);
+        continue;
       }
 
-      // Filter out empty categories
-      return categories.filter(cat => cat.items.length > 0);
-    } catch (error) {
-      console.error('Error parsing menu text:', error);
-      return [];
+      // Extract dish information
+      const dishInfo = this.extractDishInfo(trimmedLine, currentCategory);
+      if (dishInfo) {
+        items.push(dishInfo);
+        confidence = Math.min(confidence, dishInfo.confidence);
+      }
     }
+
+    const categories = this.groupItemsByCategory(items);
+    
+    console.log(`🍽️ Parsed ${items.length} items across ${categories.length} categories`);
+    
+    return {
+      categories,
+      totalItems: items.length,
+      confidence: Math.max(confidence, 0.3), // Minimum confidence
+      rawText: text
+    };
   }
 
   /**
-   * Clean category name
-   * @param {string} name 
-   * @returns {string}
+   * Check if line is a category header
+   * @param {string} line - Text line
    */
-  cleanCategoryName(name) {
-    return name
-      .replace(/[^\w\s&-]/g, '') // Remove special chars except &, -, space
-      .replace(/\s+/g, ' ')      // Normalize spaces
-      .trim()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+  isCategoryHeader(line) {
+    const categoryKeywords = [
+      // English
+      'curry', 'curries', 'rice', 'bread', 'breakfast', 'lunch', 'dinner',
+      'dessert', 'beverage', 'snack', 'appetizer', 'main course', 'soup',
+      // Tamil
+      'கறி', 'கறிகள்', 'ரைஸ்', 'அரிசி', 'ரொட்டி', 'அப்பம்',
+      'காலை', 'முறை', 'மதிய', 'மதியம்', 'இரவு', 'இரவு உணவு',
+      'இனிப்பு', 'இனிப்புகள்', 'பானம்', 'பானங்கள்',
+      'சிற்றுண்டி', 'சிற்றுண்டிகள்', 'முன்னுணவு'
+    ];
+
+    const lowerLine = line.toLowerCase();
+    return categoryKeywords.some(keyword => lowerLine.includes(keyword));
   }
 
   /**
-   * Clean item name
-   * @param {string} name 
-   * @returns {string}
+   * Extract category from header line
+   * @param {string} line - Category header line
    */
-  cleanItemName(name) {
-    return name
-      .replace(/[.]{2,}/g, '')   // Remove multiple dots
-      .replace(/[-]{2,}/g, '-')  // Normalize dashes
-      .replace(/\s+/g, ' ')      // Normalize spaces
-      .trim();
+  extractCategory(line) {
+    const categoryMap = {
+      // English categories
+      'curry': 'Curries',
+      'curries': 'Curries',
+      'rice': 'Rice',
+      'bread': 'Bread',
+      'breakfast': 'Breakfast',
+      'lunch': 'Lunch',
+      'dinner': 'Dinner',
+      'dessert': 'Desserts',
+      'beverage': 'Beverages',
+      'snack': 'Snacks',
+      'appetizer': 'Appetizers',
+      'main course': 'Main Course',
+      'soup': 'Soups',
+      
+      // Tamil categories
+      'கறி': 'Curries',
+      'கறிகள்': 'Curries',
+      'ரைஸ்': 'Rice',
+      'அரிசி': 'Rice',
+      'ரொட்டி': 'Bread',
+      'அப்பம்': 'Bread',
+      'காலை': 'Breakfast',
+      'முறை': 'Breakfast',
+      'மதிய': 'Lunch',
+      'மதியம்': 'Lunch',
+      'இரவு': 'Dinner',
+      'இரவு உணவு': 'Dinner',
+      'இனிப்பு': 'Desserts',
+      'இனிப்புகள்': 'Desserts',
+      'பானம்': 'Beverages',
+      'பானங்கள்': 'Beverages',
+      'சிற்றுண்டி': 'Snacks',
+      'சிற்றுண்டிகள்': 'Snacks',
+      'முன்னுணவு': 'Appetizers'
+    };
+
+    const lowerLine = line.toLowerCase();
+    for (const [keyword, category] of Object.entries(categoryMap)) {
+      if (lowerLine.includes(keyword)) {
+        return category;
+      }
+    }
+
+    return 'Main Course';
   }
 
   /**
-   * Validate and enhance menu structure
-   * @param {Array} categories 
-   * @returns {Array}
+   * Extract dish information from a line
+   * @param {string} line - Text line
+   * @param {string} category - Current category
+   */
+  extractDishInfo(line, category) {
+    // Enhanced price pattern for LKR
+    const pricePatterns = [
+      /(\d+(?:\.\d{2})?)\s*(?:LKR|lkr|රු|Rs|rs)/i,
+      /(\d+(?:\.\d{2})?)\s*(?:රුපියල්|rupiah)/i,
+      /(\d+(?:\.\d{2})?)\s*$/ // Price at end of line
+    ];
+
+    let priceMatch = null;
+    let price = 0;
+    
+    for (const pattern of pricePatterns) {
+      priceMatch = line.match(pattern);
+      if (priceMatch) {
+        price = parseFloat(priceMatch[1]);
+        break;
+      }
+    }
+
+    if (!priceMatch || price <= 0) return null;
+
+    // Extract dish name (remove price and extra characters)
+    let dishName = line.replace(pricePatterns[0], '').trim();
+    dishName = dishName.replace(/\s*[-–—]\s*$/, '').trim(); // Remove trailing dashes
+    
+    if (!dishName || dishName.length < 2) return null;
+
+    // Apply -5% LKR adjustment
+    const adjustedPrice = Math.round(price * 0.95);
+
+    // Detect Tamil script
+    const isTamil = /[\u0B80-\u0BFF]/.test(dishName);
+    
+    // Find matching Jaffna dish for better accuracy
+    const jaffnaDish = this.findJaffnaDish(dishName);
+    
+    return {
+      name: dishName,
+      englishName: jaffnaDish?.english || (isTamil ? null : dishName),
+      tamilName: jaffnaDish?.tamil || (isTamil ? dishName : null),
+      price: adjustedPrice,
+      originalPrice: price,
+      category: category,
+      isTamil: isTamil,
+      isSpicy: this.detectSpiceLevel(dishName),
+      isVegetarian: this.detectVegetarian(dishName),
+      isPopular: this.detectPopular(dishName),
+      ingredients: this.extractIngredients(dishName),
+      confidence: this.calculateDishConfidence(dishName, jaffnaDish),
+      dietaryTags: this.extractDietaryTags(dishName)
+    };
+  }
+
+  /**
+   * Find matching Jaffna dish
+   * @param {string} dishName - Dish name to match
+   */
+  findJaffnaDish(dishName) {
+    const jaffnaDishes = [
+      { tamil: 'நண்டு கறி', english: 'Jaffna Crab Curry', category: 'curry' },
+      { tamil: 'அப்பம்', english: 'Hoppers', category: 'bread' },
+      { tamil: 'கத்தரிக்கை கறி', english: 'Brinjal Curry', category: 'curry' },
+      { tamil: 'ஆட்டுக்கறி', english: 'Mutton Curry', category: 'curry' },
+      { tamil: 'மீன் கறி', english: 'Fish Curry', category: 'curry' },
+      { tamil: 'இடியாப்பம்', english: 'String Hoppers', category: 'bread' },
+      { tamil: 'புட்டு', english: 'Puttu', category: 'rice' },
+      { tamil: 'இட்லி', english: 'Idli', category: 'breakfast' },
+      { tamil: 'தோசை', english: 'Dosa', category: 'breakfast' },
+      { tamil: 'வடை', english: 'Vadai', category: 'snack' },
+      { tamil: 'பொங்கல்', english: 'Pongal', category: 'rice' },
+      { tamil: 'ரசம்', english: 'Rasam', category: 'soup' },
+      { tamil: 'சாம்பார்', english: 'Sambar', category: 'soup' },
+      { tamil: 'தயிர்', english: 'Curd', category: 'dairy' },
+      { tamil: 'பாயசம்', english: 'Payasam', category: 'dessert' }
+    ];
+
+    const lowerName = dishName.toLowerCase();
+    
+    return jaffnaDishes.find(dish => 
+      dish.tamil === dishName ||
+      dish.english.toLowerCase() === lowerName ||
+      lowerName.includes(dish.english.toLowerCase()) ||
+      dishName.includes(dish.tamil) ||
+      this.fuzzyMatch(dishName, dish.english) ||
+      this.fuzzyMatch(dishName, dish.tamil)
+    );
+  }
+
+  /**
+   * Simple fuzzy matching for dish names
+   * @param {string} str1 - First string
+   * @param {string} str2 - Second string
+   */
+  fuzzyMatch(str1, str2) {
+    if (!str1 || !str2) return false;
+    
+    const s1 = str1.toLowerCase().replace(/[^\w\s]/g, '');
+    const s2 = str2.toLowerCase().replace(/[^\w\s]/g, '');
+    
+    // Check if one string contains the other
+    if (s1.includes(s2) || s2.includes(s1)) return true;
+    
+    // Check word overlap
+    const words1 = s1.split(/\s+/);
+    const words2 = s2.split(/\s+/);
+    
+    const overlap = words1.filter(word => 
+      words2.some(w2 => word.includes(w2) || w2.includes(word))
+    ).length;
+    
+    return overlap >= Math.min(words1.length, words2.length) * 0.5;
+  }
+
+  /**
+   * Detect spice level from dish name
+   * @param {string} dishName - Name of the dish
+   */
+  detectSpiceLevel(dishName) {
+    const spicyKeywords = [
+      'spicy', 'hot', 'chili', 'chilli', 'pepper',
+      'காரம்', 'கார', 'மிளகு', 'மிளகாய்', 'கொத்தமல்லி', 'வரகு'
+    ];
+    const lowerName = dishName.toLowerCase();
+    return spicyKeywords.some(keyword => lowerName.includes(keyword));
+  }
+
+  /**
+   * Detect if dish is vegetarian
+   * @param {string} dishName - Name of the dish
+   */
+  detectVegetarian(dishName) {
+    const nonVegKeywords = [
+      'chicken', 'mutton', 'fish', 'crab', 'prawn', 'beef', 'pork', 'meat',
+      'கோழி', 'ஆடு', 'மீன்', 'நண்டு', 'இறால்', 'மாட்டு', 'பன்றி', 'இறைச்சி'
+    ];
+    const vegKeywords = [
+      'vegetable', 'veggie', 'vegan', 'plant',
+      'பச்சை', 'காய்கறி', 'தாவர', 'சைவ'
+    ];
+    
+    const lowerName = dishName.toLowerCase();
+    const hasNonVeg = nonVegKeywords.some(keyword => lowerName.includes(keyword));
+    const hasVeg = vegKeywords.some(keyword => lowerName.includes(keyword));
+    
+    return !hasNonVeg || hasVeg;
+  }
+
+  /**
+   * Detect if dish is popular/featured
+   * @param {string} dishName - Name of the dish
+   */
+  detectPopular(dishName) {
+    const popularKeywords = [
+      'special', 'signature', 'chef', 'recommended', 'popular', 'best',
+      'சிறப்பு', 'முக்கிய', 'பரிந்துரை', 'பிரபல', 'சிறந்த'
+    ];
+    const lowerName = dishName.toLowerCase();
+    return popularKeywords.some(keyword => lowerName.includes(keyword));
+  }
+
+  /**
+   * Extract ingredients from dish name
+   * @param {string} dishName - Name of the dish
+   */
+  extractIngredients(dishName) {
+    const commonIngredients = [
+      'onion', 'tomato', 'garlic', 'ginger', 'coconut', 'curry leaves', 'coriander',
+      'cumin', 'turmeric', 'chili', 'potato', 'carrot', 'beans', 'lentils',
+      'வெங்காயம்', 'தக்காளி', 'பூண்டு', 'இஞ்சி', 'தேங்காய்', 'கருவேப்பிலை',
+      'கொத்தமல்லி', 'சீரகம்', 'மஞ்சள்', 'மிளகாய்', 'உருளைக்கிழங்கு', 'கேரட்'
+    ];
+    
+    const lowerName = dishName.toLowerCase();
+    return commonIngredients.filter(ingredient => 
+      lowerName.includes(ingredient.toLowerCase())
+    );
+  }
+
+  /**
+   * Extract dietary tags
+   * @param {string} dishName - Name of the dish
+   */
+  extractDietaryTags(dishName) {
+    const tags = [];
+    const lowerName = dishName.toLowerCase();
+    
+    if (this.detectVegetarian(dishName)) {
+      tags.push('Vegetarian');
+    }
+    
+    if (this.detectSpiceLevel(dishName)) {
+      tags.push('Spicy');
+    }
+    
+    if (lowerName.includes('halal') || lowerName.includes('ஹலால்')) {
+      tags.push('Halal');
+    }
+    
+    if (lowerName.includes('gluten') || lowerName.includes('gluten-free')) {
+      tags.push('Gluten-Free');
+    }
+    
+    if (lowerName.includes('vegan') || lowerName.includes('சைவ')) {
+      tags.push('Vegan');
+    }
+    
+    return tags;
+  }
+
+  /**
+   * Calculate confidence score for dish extraction
+   * @param {string} dishName - Extracted dish name
+   * @param {Object} jaffnaDish - Matching Jaffna dish data
+   */
+  calculateDishConfidence(dishName, jaffnaDish) {
+    if (!jaffnaDish) return 0.4; // Medium confidence for unknown dishes
+    
+    let confidence = 0.6; // Base confidence
+    
+    // Exact match bonus
+    if (jaffnaDish.tamil === dishName || 
+        jaffnaDish.english.toLowerCase() === dishName.toLowerCase()) {
+      confidence += 0.4;
+    }
+    
+    // Partial match bonus
+    if (dishName.toLowerCase().includes(jaffnaDish.english.toLowerCase()) || 
+        dishName.includes(jaffnaDish.tamil)) {
+      confidence += 0.2;
+    }
+    
+    // Fuzzy match bonus
+    if (this.fuzzyMatch(dishName, jaffnaDish.english) || 
+        this.fuzzyMatch(dishName, jaffnaDish.tamil)) {
+      confidence += 0.1;
+    }
+    
+    return Math.min(confidence, 1.0);
+  }
+
+  /**
+   * Group items by category
+   * @param {Array} items - Array of dish items
+   */
+  groupItemsByCategory(items) {
+    const categories = {};
+    
+    items.forEach(item => {
+      if (!categories[item.category]) {
+        categories[item.category] = {
+          name: item.category,
+          items: []
+        };
+      }
+      categories[item.category].items.push(item);
+    });
+    
+    return Object.values(categories);
+  }
+
+  /**
+   * Validate menu structure
+   * @param {Array} categories - Menu categories
    */
   validateMenuStructure(categories) {
+    if (!Array.isArray(categories)) return [];
+    
     return categories.map(category => ({
-      name: category.name || 'Unnamed Category',
-      items: category.items.filter(item => 
-        item.name && 
-        item.name.length > 0 && 
-        typeof item.price === 'number' && 
-        item.price > 0
-      ).map(item => ({
-        name: item.name,
-        price: Math.round(item.price * 100) / 100, // Round to 2 decimal places
-        description: item.description || '',
-        image: item.image || ''
+      ...category,
+      items: (category.items || []).map(item => ({
+        ...item,
+        // Ensure required fields
+        name: item.name || 'Unnamed Item',
+        price: Math.max(item.price || 0, 0),
+        category: item.category || 'Main Course',
+        isAvailable: item.isAvailable !== false,
+        confidence: Math.max(item.confidence || 0.3, 0.1)
       }))
-    })).filter(category => category.items.length > 0);
+    }));
+  }
+
+  /**
+   * Cleanup resources
+   */
+  async cleanup() {
+    if (this.worker) {
+      await this.worker.terminate();
+      this.worker = null;
+      this.isInitialized = false;
+      console.log('🧹 OCR service cleaned up');
+    }
   }
 }
 

@@ -1,92 +1,111 @@
-// 📁 backend/models/Category.js
 import mongoose from 'mongoose';
 
-const categorySchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [true, 'Category name is required'],
-      trim: true,
-      maxlength: [100, 'Category name cannot exceed 100 characters'],
-    },
-    slug: {
-      type: String,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [500, 'Description cannot exceed 500 characters'],
-    },
-    image: {
-      type: String,
-      default: null,
-    },
-    displayOrder: {
-      type: Number,
-      default: 0,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    parentCategory: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-      default: null,
-    },
-    metadata: {
-      color: {
-        type: String,
-        default: '#6366f1',
-      },
-      icon: {
-        type: String,
-        default: 'utensils',
-      },
-    },
+const categorySchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Category name is required'],
+    trim: true,
+    unique: true,
+    minlength: [2, 'Category name must be at least 2 characters'],
+    maxlength: [50, 'Category name must be less than 50 characters']
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+  description: {
+    type: String,
+    required: [true, 'Category description is required'],
+    trim: true,
+    minlength: [10, 'Description must be at least 10 characters'],
+    maxlength: [200, 'Description must be less than 200 characters']
+  },
+  color: {
+    type: String,
+    default: '#FF9933',
+    validate: {
+      validator: function(v) {
+        return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(v);
+      },
+      message: 'Color must be a valid hex color code'
+    }
+  },
+  icon: {
+    type: String,
+    default: '🍽️',
+    maxlength: [10, 'Icon must be less than 10 characters']
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  sortOrder: {
+    type: Number,
+    default: 0,
+    min: [0, 'Sort order must be 0 or greater']
   }
-);
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
-// Create slug from name before saving
-categorySchema.pre('save', function (next) {
-  if (this.isModified('name') && !this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+// Index for better performance
+categorySchema.index({ name: 1 });
+categorySchema.index({ isActive: 1 });
+categorySchema.index({ sortOrder: 1 });
+
+// Virtual for menu items count
+categorySchema.virtual('menuItemsCount', {
+  ref: 'Menu',
+  localField: '_id',
+  foreignField: 'category',
+  count: true
+});
+
+// Pre-save middleware to ensure unique name (case insensitive)
+categorySchema.pre('save', async function(next) {
+  if (this.isModified('name')) {
+    const existingCategory = await this.constructor.findOne({
+      name: { $regex: new RegExp(`^${this.name}$`, 'i') },
+      _id: { $ne: this._id }
+    });
+    
+    if (existingCategory) {
+      const error = new Error('Category with this name already exists');
+      error.statusCode = 400;
+      return next(error);
+    }
   }
   next();
 });
 
-// Virtual for item count
-categorySchema.virtual('itemCount', {
-  ref: 'MenuItem',
-  localField: '_id',
-  foreignField: 'category',
-  count: true,
-});
+// Static method to get active categories
+categorySchema.statics.getActiveCategories = function() {
+  return this.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });
+};
 
-// Virtual for subcategories
-categorySchema.virtual('subcategories', {
-  ref: 'Category',
-  localField: '_id',
-  foreignField: 'parentCategory',
-});
+// Static method to get categories with menu items count
+categorySchema.statics.getCategoriesWithCount = function() {
+  return this.aggregate([
+    {
+      $lookup: {
+        from: 'menus',
+        localField: '_id',
+        foreignField: 'category',
+        as: 'menuItems'
+      }
+    },
+    {
+      $addFields: {
+        menuItemsCount: { $size: '$menuItems' }
+      }
+    },
+    {
+      $project: {
+        menuItems: 0
+      }
+    },
+    {
+      $sort: { sortOrder: 1, name: 1 }
+    }
+  ]);
+};
 
-// Indexes
-// Note: slug index is automatically created by unique: true constraint
-categorySchema.index({ displayOrder: 1 });
-categorySchema.index({ isActive: 1 });
-categorySchema.index({ parentCategory: 1 });
-
-const Category = mongoose.model('Category', categorySchema);
-
-export default Category;
+export default mongoose.model('Category', categorySchema);

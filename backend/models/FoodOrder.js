@@ -38,6 +38,34 @@ const foodOrderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Dine-in specific fields
+    tableNumber: {
+      type: String,
+      required: function() {
+        return this.orderType === 'dine-in';
+      }
+    },
+    // Takeaway specific fields
+    pickupTime: {
+      type: Number, // minutes from order time
+      required: function() {
+        return this.orderType === 'takeaway';
+      }
+    },
+    pickupCode: {
+      type: String,
+      required: function() {
+        return this.orderType === 'takeaway';
+      }
+    },
+    // Order priority (dine-in gets higher priority)
+    priorityLevel: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: function() {
+        return this.orderType === 'dine-in' ? 'high' : 'medium';
+      }
+    },
     customerDetails: {
       name: { type: String },
       email: { type: String },
@@ -70,9 +98,30 @@ const foodOrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Preparing", "Delivered", "Cancelled"],
-      default: "Pending",
+      enum: ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled", "modified"],
+      default: "pending",
     },
+    kitchenStatus: {
+      type: String,
+      enum: ["pending", "assigned", "preparing", "ready", "delivered", "cancelled"],
+      default: "pending",
+    },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    taskHistory: [
+      {
+        status: String,
+        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        updatedAt: { type: Date, default: Date.now },
+        note: String,
+      },
+    ],
+    modificationHistory: [
+      {
+        timestamp: { type: Date, default: Date.now },
+        changes: { type: Object },
+      }
+    ],
+    notes: { type: String },
     review: {
       rating: { type: Number, min: 1, max: 5 },
       comment: { type: String },

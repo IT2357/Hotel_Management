@@ -1,11 +1,17 @@
 import React from 'react';
 
-const FoodSelect = ({ options = [], ...props }) => (
-  <select className="block w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500" {...props}>
-    {options.map(opt => (
-      <option key={opt.value} value={opt.value}>{opt.label}</option>
-    ))}
-  </select>
-);
+const FoodSelect = React.forwardRef(({ className = '', children, ...props }, ref) => {
+  return (
+    <select
+      ref={ref}
+      className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF9933]/20 focus:border-[#FF9933] transition-colors bg-white ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+});
+
+FoodSelect.displayName = 'FoodSelect';
 
 export default FoodSelect;

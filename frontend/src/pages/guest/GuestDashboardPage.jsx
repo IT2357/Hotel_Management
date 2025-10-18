@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import useAuth from '../../hooks/useAuth';
-import { FiCalendar, FiStar, FiHome, FiHeart, FiEdit, FiUser, FiLogIn } from 'react-icons/fi';
+import { FiCalendar, FiStar, FiHome, FiHeart, FiEdit, FiUser, FiLogIn, FiShoppingBag } from 'react-icons/fi';
 
 export default function GuestDashboardPage() {
   const { user } = useContext(AuthContext);
@@ -53,6 +53,7 @@ export default function GuestDashboardPage() {
             { title: "Check-in/Check-out", to: "/guest/check-in", description: "Self-service check-in/out.", icon: <FiLogIn /> },
             { title: "Browse Rooms", to: "/rooms", description: "View all available rooms.", icon: <FiHome /> },
             { title: "Order Food", to: "/food", description: "Browse and order from our menu.", icon: <FiStar className="text-orange-500" /> },
+            { title: "My Food Orders", to: "/guest/food-orders", description: "View and manage your food orders.", icon: <FiShoppingBag className="text-green-500" /> },
             { title: "My Bookings", to: "/guest/my-bookings", description: "View and manage bookings.", icon: <FiCalendar /> },
             { title: "Favorite Rooms", to: "/guest/favorites", description: "Browse your favorites.", icon: <FiHeart /> },
             { title: "My Reviews", to: "/guest/my-reviews", description: "Edit or delete reviews.", icon: <FiEdit /> },

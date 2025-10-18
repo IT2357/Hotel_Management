@@ -1,10 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
+import { CartProvider } from './context/CartContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import { SnackbarProvider } from 'notistack';
+import PageTransition from './components/shared/PageTransition.jsx';
 import HomePage from './pages/HomePage.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
+import FoodPage from './pages/FoodPage.jsx';
+// Removed imports for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import InviteRegisterPage from './pages/auth/InviteRegisterPage.jsx';
@@ -15,10 +22,6 @@ import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
-import FoodOrderingPage from './pages/FoodOrderingPage.jsx'; // Food ordering page
-import FoodPage from './pages/FoodPage.jsx'; // Food display page
-import MyOrdersPage from './pages/MyOrdersPage.jsx'; // Order management page
-import OrderDetailsPage from './pages/OrderDetailsPage.jsx'; // Order details page
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
@@ -56,12 +59,21 @@ import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminInvoicesPage from './pages/admin/AdminInvoicesPage.jsx';
 import AdminRefundManagementPage from './pages/admin/AdminRefundManagementPage.jsx';
-import FoodManagementPage from './pages/admin/FoodManagementPage.jsx'; // Food management
-import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx'; // Food orders
-import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx'; // Menu management
+import AdminRoomsPage from './pages/admin/AdminRoomsPage.jsx';
+import AdminAddRooms from './pages/admin/AdminAddRooms.jsx';
+import AdminEditRoomsPage from './pages/admin/AdminEditRoomsPage.jsx';
+import FoodManagementPage from './pages/admin/FoodManagementPage.jsx';
+import AIMenuGenerator from './pages/admin/AIMenuGenerator.jsx';
+import FoodOrderManagementPage from './pages/admin/food/orders/FoodOrderManagementPage.jsx';
+import FoodMenuManagementPage from './pages/admin/food/orders/menu/FoodMenuManagementPage.jsx';
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx';
 import DefaultAdminLayout from './layout/admin/DefaultAdminLayout.jsx';
 import DefaultManagerLayout from './layout/manager/DefaultManagerLayout.jsx';
+
+// Food ordering pages for guests
+import FoodOrderingPage from './pages/FoodOrderingPage.jsx';
+import MyOrdersPage from './pages/MyOrdersPage.jsx';
+import FoodOrderHistoryPage from './pages/food/FoodOrderHistoryPage.jsx';
 
 // import ManagerDashboardPage from './pages/ManagerDashboardPage.jsx';
 import CheckInPage from './pages/guest/CheckInPage.jsx';
@@ -78,23 +90,44 @@ import AdminviewPage from './pages/admin/AdminViewRooms.jsx';
 // import CompareModal from './components/rooms/CompareModal.jsx';
 import CompareRooms from './pages/guest/CompareRoomsPage.jsx';
 
-const App = () => {
+// Helper component for transitions
+const wrapWithTransition = (component) => (
+  <PageTransition>{component}</PageTransition>
+);
+
+// Guest Layout wrapper
+const GuestLayout = ({ children }) => (
+  <div className="guest-layout">
+    {children}
+  </div>
+);
+
+const AppContent = () => {
   return (
-    <BrowserRouter>
-      <SnackbarProvider maxSnack={3}>
-        <AuthProvider>
-          <SettingsProvider>
-            <BookingProvider>
+    <SnackbarProvider maxSnack={3}>
+      <AuthProvider>
+        <SettingsProvider>
+          <BookingProvider>
+            <CartProvider>
+              <AnimatePresence mode="wait">
               <Routes>
-          {/* 🔒 Booking Routes */}
-          <Route path="/booking" element={<GuestBookingFlow />} />
-          <Route path="/booking/guest" element={<GuestBookingFlow />} />
-          <Route path="/rooms" element={<RoomsPage />} />
+        {/* 🏠 Home Page */}
+        <Route path="/" element={wrapWithTransition(<HomePage />)} />
+
+        {/* 🔒 Booking Routes */}
+        <Route path="/booking" element={wrapWithTransition(<GuestBookingFlow />)} />
+          <Route path="/booking/guest" element={wrapWithTransition(<GuestBookingFlow />)} />
+          <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
+          <Route path="/about" element={wrapWithTransition(<About />)} />
+          <Route path="/contact" element={wrapWithTransition(<Contact />)} />
+          <Route path="/food" element={wrapWithTransition(<FoodOrderingPage />)} />
+          {/* Removed routes for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage */}
+          <Route path="/my-orders" element={wrapWithTransition(<MyOrdersPage />)} />
           <Route
             path="/login"
             element={
               <RedirectIfAuthenticated>
-                <LoginPage />
+                {wrapWithTransition(<LoginPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -102,21 +135,21 @@ const App = () => {
             path="/register"
             element={
               <RedirectIfAuthenticated>
-                <RegisterPage />
+                {wrapWithTransition(<RegisterPage />)}
               </RedirectIfAuthenticated>
             }
           />
           <Route
             path="/verify-email"
             element={
-                <OTPVerificationPage />
+                wrapWithTransition(<OTPVerificationPage />)
             }
           />
           <Route
             path="/forgot-password"
             element={
               <RedirectIfAuthenticated>
-                <ForgotPasswordPage />
+                {wrapWithTransition(<ForgotPasswordPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -124,7 +157,7 @@ const App = () => {
             path="/reset-password"
             element={
               <RedirectIfAuthenticated>
-                <ResetPasswordPage />
+                {wrapWithTransition(<ResetPasswordPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -132,7 +165,7 @@ const App = () => {
             path="/accept-invitation"
             element={
               <RedirectIfAuthenticated>
-                <InviteRegisterPage />
+                {wrapWithTransition(<InviteRegisterPage />)}
               </RedirectIfAuthenticated>
             }
           />
@@ -140,73 +173,78 @@ const App = () => {
           {/* 🔐 Protected Routes */}
           <Route
             path="/guest/dashboard"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestDashboardPage />
+                <GuestLayout>
+                  <GuestDashboardPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
           <Route
             path="/guest/my-bookings"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <MyBookings />
+                <GuestLayout>
+                  <MyBookings />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
   
 
           <Route
             path="/guest/my-requests"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestServiceRequestsPage />
+                <GuestLayout>
+                  <GuestServiceRequestsPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
           />
 
 
           <Route
             path="/guest/check-in"
-            element={
+            element={wrapWithTransition(
               <ProtectedRoute roles={['guest']}>
-                <GuestCheckInOutPage />
+                <GuestLayout>
+                  <GuestCheckInOutPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
+            )}
+          />
+          <Route
+            path="/guest/favorite-rooms"
+            element={wrapWithTransition(
+              <ProtectedRoute roles={['guest']}>
+                <GuestLayout>
+                  <FavoriteRooms />
+                </GuestLayout>
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/guest/reviews"
+            element={wrapWithTransition(
+              <ProtectedRoute roles={['guest']}>
+                <GuestLayout>
+                  <MyReviews />
+                </GuestLayout>
+              </ProtectedRoute>
+            )}
           />
 
-          {/* Food System Routes */}
           <Route
-            path="/food"
-            element={
-              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
-                <FoodPage />
+            path="/guest/food-orders"
+            element={wrapWithTransition(
+              <ProtectedRoute roles={['guest']}>
+                <GuestLayout>
+                  <FoodOrderHistoryPage />
+                </GuestLayout>
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/food/order"
-            element={
-              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
-                <FoodOrderingPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-orders"
-            element={
-              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
-                <MyOrdersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:orderId"
-            element={
-              <ProtectedRoute roles={['guest', 'staff', 'admin']}>
-                <OrderDetailsPage />
-              </ProtectedRoute>
-            }
+            )}
           />
 
           
@@ -268,6 +306,39 @@ const App = () => {
           />
 
           <Route
+            path="/admin/rooms"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/add-room"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminAddRooms />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/edit-room/:id"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AdminEditRoomsPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/bookings"
             element={
               <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
@@ -307,66 +378,6 @@ const App = () => {
             }
           />
 
-          {/* Admin Food Management Routes */}
-          <Route
-            path="/admin/food"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <FoodManagementPage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/food/orders"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <FoodOrderManagementPage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/food/menu"
-            element={
-              <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <FoodMenuManagementPage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-
-        <Route
-            path="/admin/rooms"
-            element={<ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <Roomspage />
-                </DefaultAdminLayout>
-              </ProtectedRoute>}
-          />
-          <Route
-            path="/admin/add-room"
-            element={
-                <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminAddRoom />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/edit-room/:id"
-            element={
-             <ProtectedRoute roles={['admin']}>
-                <DefaultAdminLayout>
-                  <AdminEditRoom />
-                </DefaultAdminLayout>
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/admin/view-room/:id"
             element={
@@ -382,6 +393,51 @@ const App = () => {
             element={
               <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
                 <AdminRefundManagementPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🍽️ Admin Food Management Routes */}
+          <Route
+            path="/admin/food"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food/menu"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodMenuManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food/orders"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <FoodOrderManagementPage />
+                </DefaultAdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/food/ai-menu"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <DefaultAdminLayout>
+                  <AIMenuGenerator />
+                </DefaultAdminLayout>
               </ProtectedRoute>
             }
           />
@@ -574,13 +630,15 @@ const App = () => {
           />
 
           {/* Guest Service Request Routes */}
-          <Route 
-            path="/guest/services" 
+          <Route
+            path="/guest/services"
             element={
               <ProtectedRoute roles={['guest']}>
-                <GuestServiceRequestForm />
+                <GuestLayout>
+                  <GuestServiceRequestForm />
+                </GuestLayout>
               </ProtectedRoute>
-            } 
+            }
           />
           
           <Route 
@@ -646,10 +704,19 @@ const App = () => {
           />
 
           </Routes>
+          </AnimatePresence>
+            </CartProvider>
         </BookingProvider>
         </SettingsProvider>
       </AuthProvider>
       </SnackbarProvider>
+  );
+};
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 };

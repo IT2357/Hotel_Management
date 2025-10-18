@@ -15,9 +15,10 @@ import {
   Star,
   MessageSquare
 } from 'lucide-react';
-import { FoodButton } from '../components/ui/food/FoodButton';
-import { FoodCard, FoodCardContent, FoodCardHeader, FoodCardTitle } from '../components/ui/food/FoodCard';
-import { FoodBadge } from '../components/ui/food/FoodBadge';
+import FoodButton, { FoodButton as FoodButtonNamed } from '../components/food/FoodButton';
+import FoodCard, { Card, CardContent, CardHeader, CardTitle } from '../components/food/FoodCard';
+import FoodBadge, { FoodBadge as FoodBadgeNamed } from '../components/food/FoodBadge';
+import SharedNavbar from '../components/shared/SharedNavbar';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../services/api';
@@ -99,21 +100,13 @@ const MyOrdersPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      {/* Navigation */}
+      <SharedNavbar showBackButton={true} backPath="/" />
+
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-600 via-red-600 to-pink-700 text-white py-8 px-6">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-8 px-6 pt-24">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <FoodButton
-              onClick={() => navigate('/')}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
-            </FoodButton>
-          </div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -129,7 +122,7 @@ const MyOrdersPage = () => {
       <div className="max-w-6xl mx-auto px-6 py-8">
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
           </div>
         ) : orders.length === 0 ? (
           <motion.div
@@ -142,7 +135,7 @@ const MyOrdersPage = () => {
             <p className="text-gray-500 mb-6">Start by ordering some delicious food from our menu!</p>
             <FoodButton
               onClick={() => navigate('/menu')}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
             >
               Browse Menu
             </FoodButton>
@@ -157,12 +150,12 @@ const MyOrdersPage = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
               >
                 <FoodCard variant="elevated" className="overflow-hidden hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                  <FoodCardHeader className="bg-gradient-to-r from-orange-100 to-red-100 pb-4">
+                  <CardHeader className="bg-gradient-to-r from-indigo-100 to-purple-100 pb-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <FoodCardTitle className="text-xl font-bold text-gray-800 mb-2">
+                        <CardTitle className="text-xl font-bold text-gray-800 mb-2">
                           Order #{order._id.slice(-8).toUpperCase()}
-                        </FoodCardTitle>
+                        </CardTitle>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
@@ -185,9 +178,9 @@ const MyOrdersPage = () => {
                         </div>
                       </FoodBadge>
                     </div>
-                  </FoodCardHeader>
+                  </CardHeader>
 
-                  <FoodCardContent className="p-6">
+                  <CardContent className="p-6">
                     {/* Order Items */}
                     <div className="mb-6">
                       <h4 className="font-semibold text-gray-800 mb-3">Order Items</h4>
@@ -195,7 +188,7 @@ const MyOrdersPage = () => {
                         {order.items.map((item, itemIndex) => (
                           <div key={itemIndex} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-red-100 rounded-lg flex items-center justify-center overflow-hidden">
+                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center overflow-hidden">
                                 {item.foodId?.imageUrl ? (
                                   <img
                                     src={item.foodId.imageUrl}
@@ -207,7 +200,7 @@ const MyOrdersPage = () => {
                                     }}
                                   />
                                 ) : null}
-                                <ChefHat className="h-6 w-6 text-orange-600" style={{ display: item.foodId?.imageUrl ? 'none' : 'block' }} />
+                                <ChefHat className="h-6 w-6 text-indigo-600" style={{ display: item.foodId?.imageUrl ? 'none' : 'block' }} />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-800">{item.name}</p>
@@ -304,7 +297,7 @@ const MyOrdersPage = () => {
                           ) : (
                             <FoodButton
                               onClick={() => setReviewOrderId(order._id)}
-                              className="flex items-center gap-2 mx-auto px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                              className="flex items-center gap-2 mx-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                             >
                               <Star className="w-4 h-4" />
                               Rate Your Order
@@ -318,7 +311,7 @@ const MyOrdersPage = () => {
                         </div>
                       )}
                     </div>
-                  </FoodCardContent>
+                  </CardContent>
                 </FoodCard>
               </motion.div>
             ))}

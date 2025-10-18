@@ -8,6 +8,7 @@ export default function AdminDashboardPage() {
   const [bookingStats, setBookingStats] = useState({});
   const [invoiceStats, setInvoiceStats] = useState({});
   const [userStats, setUserStats] = useState({});
+  const [foodStats, setFoodStats] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function AdminDashboardPage() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const [bookingResponse, invoiceResponse, userResponse] = await Promise.all([
+      const [bookingResponse, invoiceResponse, userResponse, foodOrderResponse] = await Promise.all([
         fetch('/api/bookings/admin/stats?period=all', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
@@ -26,12 +27,16 @@ export default function AdminDashboardPage() {
         }),
         fetch('/api/admin/users/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }),
+        fetch('/api/food/orders/stats', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);
 
       const bookingData = await bookingResponse.json();
       const invoiceData = await invoiceResponse.json();
       const userData = await userResponse.json();
+      const foodData = await foodOrderResponse.json();
 
       if (bookingData.success) {
         setBookingStats(bookingData.data);
@@ -41,6 +46,9 @@ export default function AdminDashboardPage() {
       }
       if (userData.success) {
         setUserStats(userData.data);
+      }
+      if (foodData.success) {
+        setFoodStats(foodData.data || {});
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -114,6 +122,19 @@ export default function AdminDashboardPage() {
         subtitle: "Total invoices",
         badge: invoiceStats.paid || 0,
         badgeLabel: "Paid"
+      }
+    },
+    {
+      title: "Food Management",
+      to: "/admin/food",
+      description: "Manage menu items, orders, and food services.",
+      icon: "🍽️",
+      color: "from-orange-400 to-red-500",
+      stats: {
+        count: foodStats.totalOrders || 0,
+        subtitle: "Total orders",
+        badge: foodStats.pendingOrders || 0,
+        badgeLabel: "Pending"
       }
     },
   ];
@@ -251,6 +272,13 @@ export default function AdminDashboardPage() {
                 <div className="text-sm mt-1">Manage Invoices</div>
               </NavLink>
               <NavLink
+                to="/admin/food"
+                className="p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center"
+              >
+                <div className="text-orange-600 font-medium">🍽️</div>
+                <div className="text-sm mt-1">Food Management</div>
+              </NavLink>
+              <NavLink
                 to="/admin/users"
                 className="p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-center"
               >
@@ -259,10 +287,17 @@ export default function AdminDashboardPage() {
               </NavLink>
               <NavLink
                 to="/admin/reports"
-                className="p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center"
+                className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-center"
               >
-                <div className="text-orange-600 font-medium">📊</div>
+                <div className="text-blue-600 font-medium">📊</div>
                 <div className="text-sm mt-1">View Reports</div>
+              </NavLink>
+              <NavLink
+                to="/admin/rooms"
+                className="p-3 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors text-center"
+              >
+                <div className="text-teal-600 font-medium">🏨</div>
+                <div className="text-sm mt-1">Room Management</div>
               </NavLink>
             </div>
           </div>

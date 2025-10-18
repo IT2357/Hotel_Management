@@ -1,7 +1,27 @@
+// Notify kitchen staff (Socket.io/email stub)
+export const notifyStaff = async (req, res) => {
+  // TODO: Emit to Socket.io 'kitchen-room', send email, etc.
+  res.json({ success: true, message: "Staff notified" });
+};
+
+// Assign order to staff
+export const assignOrder = async (req, res) => {
+  // TODO: Assign order to kitchen staff, update kitchenStatus, assignedTo
+  res.json({ success: true, message: "Order assigned" });
+};
+
+// Update kitchen status (preparing, ready, etc.)
+export const updateKitchenStatus = async (req, res) => {
+  // TODO: Update kitchenStatus, log to taskHistory, notify guest if needed
+  res.json({ success: true, message: "Order status updated" });
+};
 import FoodOrder from '../../models/FoodOrder.js';
 import Food from '../../models/Food.js';
+import MenuItem from '../../models/MenuItem.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
+import paymentService from '../../services/payment/paymentService.js';
+import logger from '../../utils/logger.js';
 
 // Get all food orders (Admin/Staff view)
 export const getAllFoodOrders = catchAsync(async (req, res) => {
@@ -34,6 +54,74 @@ export const getAllFoodOrders = catchAsync(async (req, res) => {
     data: orders,
     count: orders.length
   });
+});
+
+// Modify food order (guest)
+export const modifyFoodOrder = catchAsync(async (req, res) => {
+  const { quantity, type, notes } = req.body;
+  const orderId = req.params.id;
+  const userId = req.user.id;
+
+  const order = await FoodOrder.findById(orderId);
+  if (!order) throw new AppError('Order not found', 404);
+  if (String(order.userId) !== String(userId)) throw new AppError('Unauthorized', 403);
+  if (["Delivered", "Cancelled"].includes(order.status)) throw new AppError('Cannot modify delivered or cancelled orders', 400);
+
+  // Only allow modification of quantity/type for all items (for simplicity)
+  let changes = {};
+  if (typeof quantity === 'number' && quantity > 0) {
+    order.items.forEach(item => item.quantity = quantity);
+    changes.quantity = quantity;
+  }
+  if (type && ["dine-in", "takeaway"].includes(type)) {
+    order.orderType = type;
+    changes.type = type;
+    // Jaffna pricing: -5% for Jaffna
+    if (order.customerDetails && order.customerDetails.deliveryAddress && /jaffna/i.test(order.customerDetails.deliveryAddress)) {
+      order.totalPrice = Math.round(order.totalPrice * 0.95);
+    }
+  }
+  if (notes) {
+    order.notes = notes;
+    changes.notes = notes;
+  }
+  order.status = 'Modified';
+  order.modificationHistory.push({ timestamp: new Date(), changes });
+  await order.save();
+
+  // TODO: Regenerate invoice (stub)
+  // TODO: Notify admin (stub)
+
+  res.status(200).json({ success: true, data: order, message: 'Order modified successfully' });
+});
+
+// Cancel food order (guest)
+export const cancelFoodOrder = catchAsync(async (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.id;
+  const order = await FoodOrder.findById(orderId);
+  if (!order) throw new AppError('Order not found', 404);
+  if (String(order.userId) !== String(userId)) throw new AppError('Unauthorized', 403);
+  if (["Delivered", "Cancelled"].includes(order.status)) throw new AppError('Cannot cancel delivered or already cancelled orders', 400);
+
+  let refundResult = null;
+  if (order.paymentStatus === 'Paid') {
+    // Call PayHere refund API (sandbox)
+    try {
+      // TODO: Replace with real PayHere refund integration
+      refundResult = { success: true, refundId: `REFUND_${Date.now()}` };
+      order.paymentStatus = 'Refunded';
+    } catch (err) {
+      throw new AppError('Refund failed', 500);
+    }
+  }
+  order.status = 'Cancelled';
+  order.modificationHistory.push({ timestamp: new Date(), changes: { cancelled: true, refund: refundResult } });
+  await order.save();
+
+  // TODO: Notify admin (stub)
+
+  res.status(200).json({ success: true, data: order, refund: refundResult, message: 'Order cancelled successfully' });
 });
 
 // Get single food order
@@ -131,161 +219,222 @@ export const getCustomerOrders = catchAsync(async (req, res) => {
 
 // Create new food order (Customer endpoint)
 export const createFoodOrder = catchAsync(async (req, res) => {
-  const {
-    items,
-    subtotal,
-    tax,
-    deliveryFee,
-    totalPrice,
-    currency,
-    orderType,
-    isTakeaway,
-    customerDetails,
-    paymentMethod,
-    specialInstructions,
-    scheduledTime
-  } = req.body;
+const {
+  items,
+  subtotal,
+  tax,
+  deliveryFee,
+  totalPrice,
+  currency,
+  orderType,
+  isTakeaway,
+  customerDetails,
+  paymentMethod,
+  specialInstructions,
+  scheduledTime
+} = req.body;
 
-  // Validate required fields
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    throw new AppError('Order items are required', 400);
-  }
+ // Validate required fields
+ if (!items || !Array.isArray(items) || items.length === 0) {
+   throw new AppError('Order items are required', 400);
+ }
 
-  if (!subtotal || subtotal < 0) {
-    throw new AppError('Subtotal is required and must be non-negative', 400);
-  }
+ if (!subtotal || subtotal < 0) {
+   throw new AppError('Subtotal is required and must be non-negative', 400);
+ }
 
-  if (!totalPrice || totalPrice <= 0) {
-    throw new AppError('Total price is required and must be greater than 0', 400);
-  }
+ if (!totalPrice || totalPrice <= 0) {
+   throw new AppError('Total price is required and must be greater than 0', 400);
+ }
 
-  if (!currency || currency !== 'LKR') {
-    throw new AppError('Currency must be LKR', 400);
-  }
+ if (!currency || currency !== 'LKR') {
+   throw new AppError('Currency must be LKR', 400);
+ }
 
-  if (!customerDetails || !customerDetails.customerName || !customerDetails.customerEmail || !customerDetails.customerPhone) {
-    throw new AppError('Customer details (name, email, phone) are required', 400);
-  }
+ if (!customerDetails || !customerDetails.customerName || !customerDetails.customerEmail || !customerDetails.customerPhone) {
+   throw new AppError('Customer details (name, email, phone) are required', 400);
+ }
 
-  if (!paymentMethod) {
-    throw new AppError('Payment method is required', 400);
-  }
+ if (!paymentMethod) {
+   throw new AppError('Payment method is required', 400);
+ }
 
-  // Validate payment method
-  const validPaymentMethods = ['card', 'cash', 'wallet'];
-  if (!validPaymentMethods.includes(paymentMethod)) {
-    throw new AppError('Invalid payment method', 400);
-  }
+ // Validate payment method
+ const validPaymentMethods = ['card', 'cash', 'wallet'];
+ if (!validPaymentMethods.includes(paymentMethod)) {
+   throw new AppError('Invalid payment method', 400);
+ }
 
-  // Validate and populate food items
-  const validatedItems = [];
-  let calculatedSubtotal = 0;
+ // Validate and populate food items
+ const validatedItems = [];
+ let calculatedSubtotal = 0;
 
-  for (const item of items) {
-    const foodId = item.foodId || item.id;
-    let foodItem = null;
+ for (const item of items) {
+   const foodId = item.foodId || item.id;
+   let menuItem = null;
 
-    // Try to find the food item
-    if (foodId) {
-      try {
-        foodItem = await Food.findById(foodId);
-      } catch {
-        // Try finding by other fields if ObjectId fails
-        if (typeof foodId === 'string') {
-          foodItem = await Food.findOne({ 
-            $or: [
-              { name: { $regex: new RegExp(`^${foodId}$`, 'i') } },
-              { slug: foodId }
-            ]
-          });
-        }
-      }
-    }
+   // Try multiple lookup strategies
+   if (foodId) {
+     // Strategy 1: Try to find by _id (MongoDB ObjectId)
+     try {
+       if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
+         menuItem = await MenuItem.findById(foodId);
+       }
+     } catch (error) {
+       // Ignore cast errors
+     }
 
-    if (!foodItem) {
-      throw new AppError(`Food item with ID ${foodId} not found`, 404);
-    }
+     // Strategy 2: Try to find by id field (numeric ID)
+     if (!menuItem) {
+       const numericId = typeof foodId === 'string' ? parseInt(foodId, 10) : foodId;
+       if (!isNaN(numericId)) {
+         menuItem = await MenuItem.findOne({ id: numericId });
+       }
+     }
 
-    if (!foodItem.isAvailable) {
-      throw new AppError(`Food item "${foodItem.name}" is not available`, 400);
-    }
+     // Strategy 3: Try to find by slug
+     if (!menuItem && typeof foodId === 'string') {
+       menuItem = await MenuItem.findOne({ slug: foodId });
+     }
 
-    const quantity = item.quantity || 1;
-    const itemTotal = foodItem.price * quantity;
-    calculatedSubtotal += itemTotal;
+     // Strategy 4: Try to find by name (fallback)
+     if (!menuItem && typeof foodId === 'string') {
+       menuItem = await MenuItem.findOne({ name: { $regex: new RegExp(`^${foodId}$`, 'i') } });
+     }
+   }
 
-    validatedItems.push({
-      foodId: foodItem._id,
-      quantity: quantity,
-      price: foodItem.price,
-      name: foodItem.name
-    });
-  }
+   if (!menuItem) {
+     throw new AppError(`Menu item with ID ${foodId} not found`, 404);
+   }
 
-  // Validate subtotal matches calculated subtotal
-  if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
-    throw new AppError('Subtotal does not match calculated subtotal', 400);
-  }
+   if (!menuItem.isAvailable) {
+     throw new AppError(`Menu item "${menuItem.name}" is not available`, 400);
+   }
 
-  // Validate tax calculation (10% of subtotal)
-  const expectedTax = calculatedSubtotal * 0.10;
-  if (Math.abs(expectedTax - tax) > 0.01) {
-    throw new AppError('Tax calculation is incorrect', 400);
-  }
+   const quantity = item.quantity || 1;
+   const itemTotal = menuItem.price * quantity;
+   calculatedSubtotal += itemTotal;
 
-  // Validate delivery fee (LKR 200 for delivery, 0 otherwise)
-  const expectedDeliveryFee = orderType === 'delivery' ? 200 : 0;
-  if (deliveryFee !== expectedDeliveryFee) {
-    throw new AppError('Delivery fee is incorrect', 400);
-  }
+   validatedItems.push({
+     foodId: menuItem._id,
+     quantity: quantity,
+     price: menuItem.price,
+     name: menuItem.name
+   });
+ }
 
-  // Validate total price
-  const expectedTotal = calculatedSubtotal + tax + deliveryFee;
-  if (Math.abs(expectedTotal - totalPrice) > 0.01) {
-    throw new AppError('Total price does not match calculated price', 400);
-  }
+ // Validate subtotal matches calculated subtotal
+ if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
+   throw new AppError('Subtotal does not match calculated subtotal', 400);
+ }
 
-  // Create order object
-  const orderData = {
-    items: validatedItems,
-    totalPrice: totalPrice,
-    currency: currency,
-    subtotal: subtotal,
-    tax: tax,
-    deliveryFee: deliveryFee,
-    orderType: orderType,
-    isTakeaway: Boolean(isTakeaway),
-    customerDetails: {
-      name: customerDetails.customerName,
-      email: customerDetails.customerEmail,
-      phone: customerDetails.customerPhone,
-      deliveryAddress: customerDetails.deliveryAddress || '',
-      specialInstructions: specialInstructions || ''
-    },
-    paymentMethod: paymentMethod.toUpperCase(),
-    paymentStatus: paymentMethod === 'cash' ? 'Pending' : 'Paid',
-    status: 'Pending',
-    scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
-    deliveryLocation: isTakeaway ? customerDetails.deliveryAddress : `Table/Room: ${customerDetails.deliveryAddress || 'N/A'}`
-  };
+ // Validate tax calculation (10% of subtotal)
+ const expectedTax = calculatedSubtotal * 0.10;
+ if (Math.abs(expectedTax - tax) > 0.01) {
+   throw new AppError('Tax calculation is incorrect', 400);
+ }
 
-  // Only add userId if user is authenticated
-  if (req.user && req.user.id) {
-    orderData.userId = req.user.id;
-  }
+ // Validate delivery fee (LKR 200 for delivery, 0 otherwise)
+ const expectedDeliveryFee = orderType === 'delivery' ? 200 : 0;
+ if (deliveryFee !== expectedDeliveryFee) {
+   throw new AppError('Delivery fee is incorrect', 400);
+ }
 
-  // Create the order
-  const order = await FoodOrder.create(orderData);
+ // Validate total price
+ const expectedTotal = calculatedSubtotal + tax + deliveryFee;
+ if (Math.abs(expectedTotal - totalPrice) > 0.01) {
+   throw new AppError('Total price does not match calculated price', 400);
+ }
 
-  // Populate the order with food details
-  await order.populate('items.foodId', 'name price imageUrl');
-  if (order.userId) {
-    await order.populate('userId', 'name email');
-  }
+ // Process payment
+ const orderId = `FOOD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-  res.status(201).json({
-    success: true,
-    data: order,
-    message: 'Food order created successfully'
-  });
+ let paymentResult;
+ if (paymentMethod === 'cash') {
+   // For cash on delivery, just register the order
+   paymentResult = {
+     success: true,
+     paymentId: `CASH_${Date.now()}`,
+     status: "PENDING",
+     paymentMethod: "CASH",
+     message: "Cash on delivery payment registered"
+   };
+ } else {
+   // Process online payment
+   paymentResult = await paymentService.processOrderPayment({
+     orderId,
+     amount: totalPrice,
+     currency: "LKR",
+     paymentMethod,
+     customerDetails,
+     returnUrl: `${process.env.FRONTEND_URL}/food/order/success`,
+     cancelUrl: `${process.env.FRONTEND_URL}/food/order/cancel`,
+     notifyUrl: `${process.env.BACKEND_URL}/api/webhooks/payhere`
+   });
+ }
+
+ if (!paymentResult.success && paymentMethod !== 'cash') {
+   throw new AppError(`Payment processing failed: ${paymentResult.error}`, 400);
+ }
+
+ // Create order object
+ const orderData = {
+   items: validatedItems,
+   totalPrice: totalPrice,
+   currency: currency,
+   subtotal: subtotal,
+   tax: tax,
+   deliveryFee: deliveryFee,
+   orderType: orderType,
+   isTakeaway: Boolean(isTakeaway),
+   customerDetails: {
+     name: customerDetails.customerName,
+     email: customerDetails.customerEmail,
+     phone: customerDetails.customerPhone,
+     deliveryAddress: customerDetails.deliveryAddress || '',
+     specialInstructions: specialInstructions || ''
+   },
+   paymentMethod: paymentMethod.toUpperCase(),
+   paymentStatus: paymentMethod === 'cash' ? 'Pending' : 'Paid',
+   paymentId: paymentResult.paymentId,
+   status: 'Pending',
+   scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
+   deliveryLocation: isTakeaway ? customerDetails.deliveryAddress : `Table/Room: ${customerDetails.deliveryAddress || 'N/A'}`
+ };
+
+ // Only add userId if user is authenticated
+ if (req.user && req.user.id) {
+   orderData.userId = req.user.id;
+ }
+
+ // Create the order
+ const order = await FoodOrder.create(orderData);
+
+ // Populate the order with food details
+ await order.populate('items.foodId', 'name price imageUrl');
+ await order.populate('userId', 'name email');
+
+ logger.info('Food order created successfully', {
+   orderId: order._id,
+   userId: req.user ? req.user.id : null,
+   totalPrice: totalPrice,
+   subtotal: subtotal,
+   tax: tax,
+   deliveryFee: deliveryFee,
+   paymentMethod,
+   paymentId: paymentResult.paymentId
+ });
+
+ res.status(201).json({
+   success: true,
+   data: order,
+   paymentResult: {
+     success: paymentResult.success,
+     paymentId: paymentResult.paymentId,
+     status: paymentResult.status,
+     redirectUrl: paymentResult.redirectUrl,
+     message: paymentResult.message
+   },
+   message: 'Food order created successfully'
+ });
 });

@@ -20,6 +20,10 @@ class FoodService {
         queryParams.append('isAvailable', filters.isAvailable);
       }
 
+      if (filters.mealTime) {
+        queryParams.append('mealTime', filters.mealTime);
+      }
+
       const queryString = queryParams.toString();
       const url = `${FOOD_API_BASE}/items${queryString ? `?${queryString}` : ''}`;
 
@@ -38,6 +42,17 @@ class FoodService {
     } catch (error) {
       console.error('Error fetching menu items:', error);
       throw new Error(error.response?.data?.message || 'Failed to fetch menu items');
+    }
+  }
+
+  // Get categories
+  async getCategories() {
+    try {
+      const response = await api.get('/menu/categories');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch categories');
     }
   }
 
@@ -254,7 +269,9 @@ class FoodService {
   // Create food order
   async createOrder(orderData) {
     try {
+      console.log('Creating food order with data:', orderData);
       const response = await api.post('/food/orders/create', orderData);
+      console.log('Order creation response:', response);
       return response;
     } catch (error) {
       console.error('Error creating food order:', error);
@@ -281,6 +298,108 @@ class FoodService {
     } catch (error) {
       console.error('Error fetching order:', error);
       throw new Error(error.response?.data?.message || 'Failed to fetch order');
+    }
+  }
+
+  // Review methods
+  async getMenuItemReviews(menuItemId, options = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(options).forEach(key => {
+        if (options[key] !== undefined) {
+          queryParams.append(key, options[key]);
+        }
+      });
+      
+      const queryString = queryParams.toString();
+      const url = `/food/reviews/menu/${menuItemId}${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch reviews');
+    }
+  }
+
+  async submitReview(menuItemId, reviewData) {
+    try {
+      const response = await api.post(`/food/reviews/menu/${menuItemId}`, reviewData);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      throw new Error(error.response?.data?.message || 'Failed to submit review');
+    }
+  }
+
+  async voteReview(reviewId, isHelpful) {
+    try {
+      const response = await api.post(`/food/reviews/${reviewId}/vote`, { isHelpful });
+      return response.data;
+    } catch (error) {
+      console.error('Error voting on review:', error);
+      throw new Error(error.response?.data?.message || 'Failed to vote on review');
+    }
+  }
+
+  async reportReview(reviewId, reason, description) {
+    try {
+      const response = await api.post(`/food/reviews/${reviewId}/report`, { reason, description });
+      return response.data;
+    } catch (error) {
+      console.error('Error reporting review:', error);
+      throw new Error(error.response?.data?.message || 'Failed to report review');
+    }
+  }
+
+  // Kitchen methods
+  async getKitchenStats() {
+    try {
+      const response = await api.get('/kitchen/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching kitchen stats:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch kitchen stats');
+    }
+  }
+
+  async getKitchenOrders(options = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+      Object.keys(options).forEach(key => {
+        if (options[key] !== undefined) {
+          queryParams.append(key, options[key]);
+        }
+      });
+      
+      const queryString = queryParams.toString();
+      const url = `/kitchen/orders${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching kitchen orders:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch kitchen orders');
+    }
+  }
+
+  async updateOrderStatus(orderId, status, notes) {
+    try {
+      const response = await api.patch(`/kitchen/orders/${orderId}/status`, { status, notes });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update order status');
+    }
+  }
+
+  async assignOrderToStaff(orderId, staffId) {
+    try {
+      const response = await api.patch(`/kitchen/orders/${orderId}/assign`, { staffId });
+      return response.data;
+    } catch (error) {
+      console.error('Error assigning order:', error);
+      throw new Error(error.response?.data?.message || 'Failed to assign order');
     }
   }
 }

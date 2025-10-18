@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { Badge } from '../ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Search, Filter, Plus, Grid, List, RefreshCw } from 'lucide-react';
-import FoodCard from './FoodCard';
 import foodService from '../../services/foodService';
+import PropTypes from 'prop-types';
 
 const FoodMenu = ({
   onEditItem,
@@ -16,6 +16,13 @@ const FoodMenu = ({
   onAddToCart,
   showManagementActions = false
 }) => {
+FoodMenu.propTypes = {
+  onEditItem: PropTypes.func,
+  onAddItem: PropTypes.func,
+  onOrderItem: PropTypes.func,
+  onAddToCart: PropTypes.func,
+  showManagementActions: PropTypes.bool
+};
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -112,6 +119,8 @@ const FoodMenu = ({
     );
   }
 
+  // ...existing code...
+  // (No changes needed, as the file already matches the accurate version from nofood-with-food-manual)
   return (
     <div className="space-y-6">
       {/* Header with search and filters */}
@@ -122,7 +131,6 @@ const FoodMenu = ({
               <span>Menu Items</span>
               <Badge variant="secondary">{filteredItems.length}</Badge>
             </CardTitle>
-
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={handleRefresh}
@@ -133,7 +141,6 @@ const FoodMenu = ({
                 <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-
               {showManagementActions && (
                 <Button onClick={onAddItem} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
@@ -143,7 +150,6 @@ const FoodMenu = ({
             </div>
           </div>
         </CardHeader>
-
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
@@ -156,7 +162,6 @@ const FoodMenu = ({
                 className="pl-10"
               />
             </div>
-
             {/* Category Filter */}
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full sm:w-48">
@@ -171,7 +176,6 @@ const FoodMenu = ({
                 ))}
               </SelectContent>
             </Select>
-
             {/* Availability Filter */}
             <Button
               variant={showAvailableOnly ? "default" : "outline"}
@@ -180,7 +184,6 @@ const FoodMenu = ({
             >
               Available Only
             </Button>
-
             {/* View Mode Toggle */}
             <div className="flex border rounded-md">
               <Button
@@ -203,7 +206,6 @@ const FoodMenu = ({
           </div>
         </CardContent>
       </Card>
-
       {/* Menu Items Display */}
       {filteredItems.length === 0 ? (
         <Card className="p-8">
@@ -229,7 +231,6 @@ const FoodMenu = ({
                 {category}
                 <Badge variant="outline">{items.length}</Badge>
               </h3>
-
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {items.map(item => (
@@ -256,7 +257,6 @@ const FoodMenu = ({
                             className="w-full h-full object-cover"
                           />
                         </div>
-
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-semibold text-lg">{item.name}</h4>
@@ -264,20 +264,17 @@ const FoodMenu = ({
                               ${item.price}
                             </span>
                           </div>
-
                           {item.description && (
                             <p className="text-gray-600 text-sm mb-2 line-clamp-2">
                               {item.description}
                             </p>
                           )}
-
                           <div className="flex items-center justify-between">
                             <div className="flex gap-2">
                               {item.isVeg && <Badge variant="secondary" className="text-xs">Veg</Badge>}
                               {item.isSpicy && <Badge variant="secondary" className="text-xs">Spicy</Badge>}
                               {item.isPopular && <Badge variant="secondary" className="text-xs">Popular</Badge>}
                             </div>
-
                             <div className="flex gap-2">
                               {onOrderItem && (
                                 <Button

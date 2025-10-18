@@ -221,7 +221,7 @@ export const getUsers = async (req, res) => {
 // Get user statistics
 export const getUserStats = async (req, res) => {
   try {
-    const User = (await import("../../models/User.js")).default;
+    const { User } = await import("../../models/User.js");
 
     const totalUsers = await User.countDocuments();
     const activeUsers = await User.countDocuments({ isActive: true });
@@ -889,7 +889,7 @@ export const getAllBookings = async (req, res) => {
 
     // Import Booking model dynamically
     const Booking = (await import("../../models/Booking.js")).default;
-    const User = (await import("../../models/User.js")).default;
+    const { User } = await import("../../models/User.js");
 
     let query = {};
 

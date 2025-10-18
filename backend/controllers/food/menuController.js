@@ -1,3 +1,56 @@
+// AI-powered menu extraction from image (Tesseract.js)
+import Tesseract from "tesseract.js";
+import validator from "validator";
+
+export const processMenuImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image uploaded" });
+    }
+    // OCR with Tesseract.js
+    const { data: { text, confidence } } = await Tesseract.recognize(req.file.buffer, "eng+tam+sinh");
+    // Parse text for menu info (simple regex, can be improved)
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let name = "", priceLKR = 0, ingredients = [], dietaryTags = [], desc = "";
+    for (const line of lines) {
+      if (/LKR|Rs|₨/i.test(line) && /\d/.test(line)) {
+        // Price line
+        const priceMatch = line.match(/(LKR|Rs|₨)?\s*(\d+[.,]?\d*)/i);
+        if (priceMatch) priceLKR = Math.round(parseFloat(priceMatch[2]) * 0.95); // -5% Jaffna
+      } else if (/veg|vegetarian|non-veg|vegan|eggless/i.test(line)) {
+        dietaryTags.push(line);
+      } else if (/ingredient|contains|with/i.test(line)) {
+        ingredients = line.replace(/ingredient[s]?:?/i, "").split(/,|and/).map(s => s.trim()).filter(Boolean);
+      } else if (!name && line.length > 2 && !/\d/.test(line)) {
+        name = line;
+      } else {
+        desc += line + " ";
+      }
+    }
+    // Fallbacks
+    if (!name) name = "Menu Item";
+    if (!priceLKR) priceLKR = 1000;
+    if (!desc) desc = "No description available.";
+    // Confidence check
+    let ocrConfidence = confidence || 100;
+    if (ocrConfidence < 70) {
+      return res.status(200).json({
+        success: false,
+        message: "Low OCR confidence. Please edit fields manually.",
+        data: { name, priceLKR, ingredients, dietaryTags, desc, ocrConfidence }
+      });
+    }
+    // Return extracted data for admin confirmation
+    return res.status(200).json({
+      success: true,
+      message: "Menu data extracted successfully",
+      data: { name, priceLKR, ingredients, dietaryTags, desc, ocrConfidence }
+    });
+  } catch (error) {
+    console.error("processMenuImage error:", error);
+    return res.status(500).json({ success: false, message: "Failed to process image", error: error.message });
+  }
+};
 import imageStorageService from "../../services/imageStorageService.js";
 // 📁 backend/controllers/food/menuController.js
 import MenuItem from "../../models/MenuItem.js";

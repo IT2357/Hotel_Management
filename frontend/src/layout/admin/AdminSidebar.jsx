@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import useAuth from '../../hooks/useAuth';
 import Logo from '../../assets/images/adminLogo.jpg';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const location = useLocation();
@@ -10,6 +11,9 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const sidebarRef = useRef();
   const { logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); // New state for modal
+  const [openSubmenus, setOpenSubmenus] = useState({
+    'Food Management': true // Default open for food management
+  });
 
   const links = [
     { label: 'Dashboard', to: '/admin/dashboard', icon: '🏠' },
@@ -20,8 +24,19 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     { label: 'Invoices', to: '/admin/invoices', icon: '🧾' },
     { label: 'Refunds', to: '/admin/refunds', icon: '💸' },
     { label: 'Reports', to: '/admin/reports', icon: '📊' },
-    { label: 'Settings', to: '/admin/settings', icon: '⚙️' },
-    { label: 'Rooms', to: '/admin/rooms', icon: '🛏️ ' }
+    { label: 'Rooms', to: '/admin/rooms', icon: '🛏️' },
+    { 
+      label: 'Food Management', 
+      to: '/admin/food', 
+      icon: '🍽️',
+      submenu: [
+        { label: 'Overview', to: '/admin/food', icon: '📊' },
+        { label: 'Menu Items', to: '/admin/food/menu', icon: '📋' },
+        { label: 'Food Orders', to: '/admin/food/orders', icon: '🛒' },
+        { label: 'AI Menu Generator', to: '/admin/food/ai-menu', icon: '🤖' }
+      ]
+    },
+    { label: 'Settings', to: '/admin/settings', icon: '⚙️' }
   ];
 
   useEffect(() => {
@@ -50,6 +65,19 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const handleConfirmLogout = () => {
     logout();
     setIsLogoutModalOpen(false);
+  };
+
+  // Toggle submenu
+  const toggleSubmenu = (label) => {
+    setOpenSubmenus(prev => ({
+      ...prev,
+      [label]: !prev[label]
+    }));
+  };
+
+  // Check if current path matches submenu item
+  const isSubmenuActive = (submenu) => {
+    return submenu.some(item => location.pathname === item.to || location.pathname.startsWith(item.to + '/'));
   };
 
   return (
@@ -116,23 +144,79 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
         </div>
         {/* Navigation */}
         <nav className="flex-1 mt-6 px-6 space-y-2">
-          {links.map(({ label, to, icon }) => (
-            <NavLink
-              key={label}
-              to={to}
-              onClick={() => sidebarOpen && window.innerWidth < 1024 && setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-300
-                ${isActive
-                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg transform scale-105'
-                  : 'text-white/90 hover:bg-indigo-800 hover:scale-102'
-                }`
-              }
-            >
-              <span>{icon}</span>
-              {label}
-            </NavLink>
-          ))}
+          {links.map(({ label, to, icon, submenu }) => {
+            // If link has submenu
+            if (submenu) {
+              const isOpen = openSubmenus[label];
+              const isActive = isSubmenuActive(submenu);
+              
+              return (
+                <div key={label} className="space-y-1">
+                  {/* Parent Link */}
+                  <button
+                    onClick={() => toggleSubmenu(label)}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-300
+                      ${isActive
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg'
+                        : 'text-white/90 hover:bg-indigo-800'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span>{icon}</span>
+                      {label}
+                    </div>
+                    {isOpen ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  
+                  {/* Submenu Items */}
+                  {isOpen && (
+                    <div className="ml-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                      {submenu.map((subItem) => (
+                        <NavLink
+                          key={subItem.to}
+                          to={subItem.to}
+                          onClick={() => sidebarOpen && window.innerWidth < 1024 && setSidebarOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300
+                            ${isActive
+                              ? 'bg-indigo-500/50 text-white shadow-md transform scale-102'
+                              : 'text-white/80 hover:bg-indigo-700/50 hover:text-white'
+                            }`
+                          }
+                        >
+                          <span className="text-xs">{subItem.icon}</span>
+                          {subItem.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            
+            // Regular link without submenu
+            return (
+              <NavLink
+                key={label}
+                to={to}
+                onClick={() => sidebarOpen && window.innerWidth < 1024 && setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all duration-300
+                  ${isActive
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg transform scale-105'
+                    : 'text-white/90 hover:bg-indigo-800 hover:scale-102'
+                  }`
+                }
+              >
+                <span>{icon}</span>
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
         {/* Logout Button */}
         <div className="p-6">

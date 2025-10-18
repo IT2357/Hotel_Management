@@ -1,4 +1,5 @@
-import Food from '../../models/Food.js';
+import MenuItem from '../../models/MenuItem.js';
+import Category from '../../models/Category.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 import mongoose from 'mongoose';
@@ -24,29 +25,42 @@ export const getAllFoodItems = catchAsync(async (req, res) => {
     ];
   }
 
-  const foodItems = await Food.find(filter)
+  const menuItems = await MenuItem.find(filter)
     .sort({ createdAt: -1 });
 
-  // Convert to plain objects for response
-  const foodItemsWithImages = foodItems.map(item => item.toObject());
+  // Add imageUrl to each menu item for frontend display
+  const menuItemsWithImages = menuItems.map(item => {
+    const itemObj = item.toObject();
+    if (itemObj.imageId) {
+      itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
+    } else if (itemObj.image) {
+      itemObj.imageUrl = itemObj.image;
+    }
+    return itemObj;
+  });
 
   res.status(200).json({
     success: true,
-    data: foodItemsWithImages,
-    count: foodItems.length
+    data: menuItemsWithImages,
+    count: menuItems.length
   });
 });
 
 // Get single food item
 export const getFoodItem = catchAsync(async (req, res) => {
-  const foodItem = await Food.findById(req.params.id);
+  const menuItem = await MenuItem.findById(req.params.id);
 
-  if (!foodItem) {
-    throw new AppError('Food item not found', 404);
+  if (!menuItem) {
+    throw new AppError('Menu item not found', 404);
   }
 
-  // Convert to plain object for response
-  const responseItem = foodItem.toObject();
+  // Add imageUrl for frontend display
+  const responseItem = menuItem.toObject();
+  if (responseItem.imageId) {
+    responseItem.imageUrl = `/api/menu/image/${responseItem.imageId}`;
+  } else if (responseItem.image) {
+    responseItem.imageUrl = responseItem.image;
+  }
 
   res.status(200).json({
     success: true,
@@ -54,64 +68,66 @@ export const getFoodItem = catchAsync(async (req, res) => {
   });
 });
 
-// Create new food item (Admin/Manager only)
+// Create new menu item (Admin/Manager only)
 export const createFoodItem = catchAsync(async (req, res) => {
-  const foodItem = await Food.create(req.body);
+  const menuItem = await MenuItem.create(req.body);
 
   res.status(201).json({
     success: true,
-    data: foodItem,
-    message: 'Food item created successfully'
+    data: menuItem,
+    message: 'Menu item created successfully'
   });
 });
 
-// Update food item (Admin/Manager only)
+// Update menu item (Admin/Manager only)
 export const updateFoodItem = catchAsync(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid food item ID', 400);
+    throw new AppError('Invalid menu item ID', 400);
   }
 
-  const foodItem = await Food.findByIdAndUpdate(id, req.body, {
+  const menuItem = await MenuItem.findByIdAndUpdate(id, req.body, {
     new: true,
     runValidators: true
-  });
+  }).populate('category', 'name slug');
 
-  if (!foodItem) {
-    throw new AppError('Food item not found', 404);
+  if (!menuItem) {
+    throw new AppError('Menu item not found', 404);
   }
 
   res.status(200).json({
     success: true,
-    data: foodItem,
-    message: 'Food item updated successfully'
+    data: menuItem,
+    message: 'Menu item updated successfully'
   });
 });
 
-// Delete food item (Admin/Manager only)
+// Delete menu item (Admin/Manager only)
 export const deleteFoodItem = catchAsync(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid food item ID', 400);
+    throw new AppError('Invalid menu item ID', 400);
   }
 
-  const foodItem = await Food.findByIdAndDelete(id);
+  const menuItem = await MenuItem.findByIdAndDelete(id);
 
-  if (!foodItem) {
-    throw new AppError('Food item not found', 404);
+  if (!menuItem) {
+    throw new AppError('Menu item not found', 404);
   }
 
   res.status(200).json({
     success: true,
-    message: 'Food item deleted successfully'
+    message: 'Menu item deleted successfully'
   });
 });
 
-// Get food categories
-export const getFoodCategories = catchAsync(async (req, res) => {
-  const categories = await Food.distinct('category');
+// Get all categories (public)
+export const getAllCategories = catchAsync(async (req, res) => {
+  const categories = await Category.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .lean();
 
   res.status(200).json({
     success: true,
@@ -119,72 +135,124 @@ export const getFoodCategories = catchAsync(async (req, res) => {
   });
 });
 
-// AI Menu Generator using AI service
-export const generateAIMenu = catchAsync(async (req, res) => {
-  const { cuisine, dietaryRestrictions, mealType, budget, count } = req.body;
-
-  // Import AI service dynamically
-  const { default: AIMenuExtractor } = await import('../../services/aiMenuExtractor.js');
-  const aiService = new AIMenuExtractor();
-
-  const suggestions = await aiService.generateMenuSuggestions({
-    cuisine,
-    dietaryRestrictions,
-    mealType,
-    budget,
-    count
-  });
-
-  res.status(200).json({
-    success: true,
-    data: suggestions.items,
-    metadata: suggestions.metadata,
-    message: 'AI menu suggestions generated successfully'
-  });
-});
-
-// Get food items by category (Guest view)
-export const getFoodItemsByCategory = catchAsync(async (req, res) => {
-  const { category } = req.params;
-  
-  const filter = {
-    isAvailable: true
-  };
-
-  if (category && category !== 'all') {
-    filter.category = category;
-  }
-
-  const foodItems = await Food.find(filter)
-    .sort({ name: 1 });
-
-  res.status(200).json({
-    success: true,
-    data: foodItems,
-    count: foodItems.length
-  });
-});
-
-// Toggle food item availability
-export const toggleFoodAvailability = catchAsync(async (req, res) => {
+// Get single category (public)
+export const getCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid food item ID', 400);
+    throw new AppError('Invalid category ID', 400);
   }
 
-  const foodItem = await Food.findById(id);
+  const category = await Category.findById(id).lean();
 
-  if (!foodItem) {
-    throw new AppError('Food item not found', 404);
+  if (!category) {
+    throw new AppError('Category not found', 404);
   }
 
-  foodItem.isAvailable = !foodItem.isAvailable;
-  await foodItem.save();
+  // Get item count for this category
+  const itemCount = await MenuItem.countDocuments({
+    category: id,
+    isAvailable: true
+  });
 
   res.status(200).json({
     success: true,
-    data: foodItem,
-    message: `Food item ${foodItem.isAvailable ? 'enabled' : 'disabled'} successfully`
+    data: { ...category, itemCount }
+  });
+});
+
+// Create category (Admin/Manager only)
+export const createCategory = catchAsync(async (req, res) => {
+  const category = await Category.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: category,
+    message: 'Category created successfully'
+  });
+});
+
+// Update category (Admin/Manager only)
+export const updateCategory = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid category ID', 400);
+  }
+
+  const category = await Category.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  if (!category) {
+    throw new AppError('Category not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: category,
+    message: 'Category updated successfully'
+  });
+});
+
+// Delete category (Admin/Manager only)
+export const deleteCategory = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid category ID', 400);
+  }
+
+  // Check if there are menu items using this category
+  const itemsWithCategory = await MenuItem.countDocuments({ category: id });
+  if (itemsWithCategory > 0) {
+    throw new AppError(`Cannot delete category. ${itemsWithCategory} menu items are using this category.`, 400);
+  }
+
+  const category = await Category.findByIdAndDelete(id);
+
+  if (!category) {
+    throw new AppError('Category not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Category deleted successfully'
+  });
+});
+
+// AI Menu Generator (Mock implementation)
+export const generateAIMenu = catchAsync(async (req, res) => {
+  const { cuisine, dietaryRestrictions, mealType, budget } = req.body;
+
+  // Mock AI-generated menu items
+  const aiGeneratedItems = [
+    {
+      name: `${cuisine} ${mealType} Special`,
+      description: `AI-generated ${cuisine} dish perfect for ${mealType}`,
+      category: mealType,
+      price: budget ? Math.floor(budget * 0.8) : 25,
+      ingredients: ['AI-generated ingredients'],
+      allergens: [],
+      dietaryTags: dietaryRestrictions || [],
+      isAvailable: true
+    },
+    {
+      name: `${cuisine} Signature Dish`,
+      description: `Chef's special ${cuisine} creation`,
+      category: mealType,
+      price: budget ? Math.floor(budget * 1.2) : 35,
+      ingredients: ['Premium ingredients'],
+      allergens: [],
+      dietaryTags: dietaryRestrictions || [],
+      isAvailable: true
+    }
+  ];
+
+  res.status(200).json({
+    success: true,
+    data: aiGeneratedItems,
+    message: 'AI menu suggestions generated successfully'
   });
 });

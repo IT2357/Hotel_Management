@@ -39,8 +39,12 @@ import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task m
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
-import foodRoutes from "./routes/food.js"; // Food system routes
-import menuRoutes from "./routes/food/menuRoutes.js"; // Menu management routes
+import menuExtractionRoutes from "./routes/menuExtractionRoutes.js"; // Menu extraction routes (AI)
+import menuRoutes from "./routes/food/menuRoutes.js"; // Food menu routes
+import foodRoutes from "./routes/food.js"; // Food routes (items, orders, reviews)
+import foodCategoryRoutes from "./routes/foodCategories.js"; // Food category routes
+import foodReviewRoutes from "./routes/foodReviews.js"; // Food review routes
+import kitchenRoutes from "./routes/kitchen.js"; // Kitchen dashboard routes
 
 const app = express();
 const server = http.createServer(app);
@@ -53,16 +57,13 @@ app.use(passport.initialize()); // Added
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
-
-const isProd = process.env.NODE_ENV === "production";
 const corsOptions = {
-  origin: isProd ? process.env.FRONTEND_URL : true, // Allow any origin in dev to prevent CORS issues
+  origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -83,7 +84,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-if (isProd) {
+if (process.env.NODE_ENV === "production") {
   app.use("/api/", limiter);
   app.use("/api/auth/", authLimiter);
   app.use(express.json({ limit: "10mb" }));
@@ -246,8 +247,12 @@ const startServer = async () => {
   app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
   app.use("/api/task-management", taskManagementRoutes); // Task management routes
   app.use("/api/reports", reportsRoutes); // Reports routes
-  app.use("/api/food", foodRoutes); // Food system routes
-  app.use("/api/menu", menuRoutes); // Menu management routes
+  app.use("/api/menu/extraction", menuExtractionRoutes); // Menu extraction routes (AI-powered) - MUST be before /api/menu
+  app.use("/api/menu", menuRoutes); // Food menu management routes
+  app.use("/api/food", foodRoutes); // Food routes (items, orders, reviews)
+  app.use("/api/menu/categories", foodCategoryRoutes); // Food category management routes
+  app.use("/api/food/reviews", foodReviewRoutes); // Food review routes
+  app.use("/api/kitchen", kitchenRoutes); // Kitchen dashboard routes
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);
@@ -331,11 +336,12 @@ const startServer = async () => {
 
   // Start the server regardless of database status
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
+  const HOST = process.env.HOST || '0.0.0.0';
+  server.listen(PORT, HOST, () => {
     console.log(`
 🚀 Server running in ${
       process.env.NODE_ENV || "development"
-    } mode on port ${PORT}
+    } mode on ${HOST}:${PORT}
 📊 Health check: http://localhost:${PORT}/health
 🔐 Auth API: http://localhost:${PORT}/api/auth
 📚 Admin API: http://localhost:${PORT}/api/admin

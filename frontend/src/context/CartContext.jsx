@@ -1,97 +1,72 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 
-// Cart item structure
-// {
-//   id: string,
-//   name: string,
-//   price: number,
-//   quantity: number,
-//   imageUrl: string,
-//   description: string,
-//   isTakeaway: boolean
-// }
+const CartContext = createContext();
 
 // Cart actions
-const ADD_TO_CART = 'ADD_TO_CART';
-const REMOVE_FROM_CART = 'REMOVE_FROM_CART';
-const UPDATE_QUANTITY = 'UPDATE_QUANTITY';
-const CLEAR_CART = 'CLEAR_CART';
-const TOGGLE_TAKEAWAY = 'TOGGLE_TAKEAWAY';
+const CART_ACTIONS = {
+  ADD_ITEM: 'ADD_ITEM',
+  REMOVE_ITEM: 'REMOVE_ITEM',
+  UPDATE_QUANTITY: 'UPDATE_QUANTITY',
+  CLEAR_CART: 'CLEAR_CART',
+  LOAD_CART: 'LOAD_CART'
+};
 
 // Cart reducer
 const cartReducer = (state, action) => {
   switch (action.type) {
-    case ADD_TO_CART: {
-      const existingItem = state.items.find(item => item.id === action.payload.id);
+    case CART_ACTIONS.ADD_ITEM:
+      const existingItem = state.items.find(item => item._id === action.payload._id);
 
       if (existingItem) {
         return {
           ...state,
           items: state.items.map(item =>
-            item.id === action.payload.id
+            item._id === action.payload._id
               ? { ...item, quantity: item.quantity + 1 }
               : item
-          ),
-          total: state.total + action.payload.price
+          )
         };
       } else {
         return {
           ...state,
-          items: [...state.items, { ...action.payload, quantity: 1 }],
-          total: state.total + action.payload.price
+          items: [...state.items, { ...action.payload, quantity: 1 }]
         };
       }
-    }
 
-    case REMOVE_FROM_CART: {
-      const item = state.items.find(item => item.id === action.payload);
-      if (item) {
+    case CART_ACTIONS.REMOVE_ITEM:
+      return {
+        ...state,
+        items: state.items.filter(item => item._id !== action.payload)
+      };
+
+    case CART_ACTIONS.UPDATE_QUANTITY:
+      if (action.payload.quantity <= 0) {
         return {
           ...state,
-          items: state.items.filter(item => item.id !== action.payload),
-          total: state.total - (item.price * item.quantity)
+          items: state.items.filter(item => item._id !== action.payload.id)
         };
       }
-      return state;
-    }
-
-    case UPDATE_QUANTITY: {
-      const { id, quantity } = action.payload;
-      const item = state.items.find(item => item.id === id);
-
-      if (item && quantity > 0) {
-        const quantityDiff = quantity - item.quantity;
+      
         return {
           ...state,
           items: state.items.map(item =>
-            item.id === id ? { ...item, quantity } : item
-          ),
-          total: state.total + (item.price * quantityDiff)
-        };
-      } else if (item && quantity <= 0) {
-        return {
-          ...state,
-          items: state.items.filter(item => item.id !== id),
-          total: state.total - (item.price * item.quantity)
-        };
-      }
-      return state;
-    }
+          item._id === action.payload.id
+            ? { ...item, quantity: action.payload.quantity }
+            : item
+        )
+      };
 
-    case TOGGLE_TAKEAWAY: {
+    case CART_ACTIONS.CLEAR_CART:
       return {
         ...state,
-        isTakeaway: !state.isTakeaway
+        items: []
       };
-    }
 
-    case CLEAR_CART: {
+    case CART_ACTIONS.LOAD_CART:
       return {
-        items: [],
-        total: 0,
-        isTakeaway: false
+        ...state,
+        items: action.payload || []
       };
-    }
 
     default:
       return state;
@@ -100,117 +75,111 @@ const cartReducer = (state, action) => {
 
 // Initial state
 const initialState = {
-  items: [],
-  total: 0,
-  isTakeaway: false
+  items: []
 };
 
-// Create context
-const CartContext = createContext();
-
 // Cart provider component
-export const CartProvider = ({ children, userRole = 'guest' }) => {
+export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('foodCart');
+    const savedCart = localStorage.getItem('jaffna_cart');
     if (savedCart) {
       try {
         const cartData = JSON.parse(savedCart);
-        // Validate and restore cart items (prefer MongoDB ObjectIds)
-        const validItems = cartData.items.filter(item => {
-          // Check if item has a valid id
-          if (!item.id) return false;
-
-          // If it has a _id field, use that for validation
-          const itemId = item._id || item.id;
-
-          // Check if it's a valid MongoDB ObjectId (24 hex characters)
-          const isValidObjectId = /^[a-f\d]{24}$/i.test(itemId);
-
-          // Allow valid ObjectIds or reasonable string IDs
-          return isValidObjectId || (typeof itemId === 'string' && itemId.length > 0);
-        });
-
-        if (validItems.length !== cartData.items.length) {
-          console.warn('Some cart items had invalid IDs and were removed');
-        }
-
-        // Restore valid cart items
-        validItems.forEach(item => {
-          dispatch({ type: ADD_TO_CART, payload: item });
-        });
-
-        // Restore takeaway setting
-        if (cartData.isTakeaway) {
-          dispatch({ type: TOGGLE_TAKEAWAY });
-        }
+        dispatch({ type: CART_ACTIONS.LOAD_CART, payload: cartData });
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
-        // Clear invalid cart data
-        localStorage.removeItem('foodCart');
       }
     }
   }, []);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('foodCart', JSON.stringify(state));
-  }, [state]);
+    localStorage.setItem('jaffna_cart', JSON.stringify(state.items));
+  }, [state.items]);
 
   // Cart actions
   const addToCart = (item) => {
-    console.log('Adding item to cart:', item); // Debug log
-    console.log('Item _id:', item._id, 'Item id:', item.id, 'Item name:', item.name); // Debug log
-    dispatch({
-      type: ADD_TO_CART,
-      payload: {
-        id: item._id || item.id || item.name, // Use _id, or id, or name as fallback for uniqueness
-        _id: item._id, // Store the MongoDB _id separately
-        name: item.name,
-        price: item.price,
-        imageUrl: item.image, // Fix: use item.image instead of item.imageUrl
-        description: item.description
-      }
-    });
+    dispatch({ type: CART_ACTIONS.ADD_ITEM, payload: item });
   };
 
   const removeFromCart = (itemId) => {
-    dispatch({ type: REMOVE_FROM_CART, payload: itemId });
+    dispatch({ type: CART_ACTIONS.REMOVE_ITEM, payload: itemId });
   };
 
   const updateQuantity = (itemId, quantity) => {
-    dispatch({ type: UPDATE_QUANTITY, payload: { id: itemId, quantity } });
+    dispatch({ 
+      type: CART_ACTIONS.UPDATE_QUANTITY, 
+      payload: { id: itemId, quantity } 
+    });
   };
 
   const clearCart = () => {
-    dispatch({ type: CLEAR_CART });
+    dispatch({ type: CART_ACTIONS.CLEAR_CART });
+    localStorage.removeItem('jaffna_cart');
   };
 
-  const toggleTakeaway = () => {
-    dispatch({ type: TOGGLE_TAKEAWAY });
-  };
-
+  // Cart calculations
   const getItemCount = () => {
     return state.items.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getTotalItems = () => {
-    return state.items.length;
+  const getSubtotal = () => {
+    return state.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const getTotal = () => {
+    const subtotal = getSubtotal();
+    const lkrAdjustment = subtotal * 0.05; // -5% LKR adjustment
+    const finalTotal = subtotal - lkrAdjustment;
+    const tax = finalTotal * 0.1; // 10% tax
+    const serviceFee = finalTotal * 0.05; // 5% service fee
+    return finalTotal + tax + serviceFee;
+  };
+
+  const getLkrAdjustment = () => {
+    return getSubtotal() * 0.05;
+  };
+
+  const getTax = () => {
+    const subtotal = getSubtotal();
+    const lkrAdjustment = subtotal * 0.05;
+    const finalTotal = subtotal - lkrAdjustment;
+    return finalTotal * 0.1;
+  };
+
+  const getServiceFee = () => {
+    const subtotal = getSubtotal();
+    const lkrAdjustment = subtotal * 0.05;
+    const finalTotal = subtotal - lkrAdjustment;
+    return finalTotal * 0.05;
+  };
+
+  const isInCart = (itemId) => {
+    return state.items.some(item => item._id === itemId);
+  };
+
+  const getItemQuantity = (itemId) => {
+    const item = state.items.find(item => item._id === itemId);
+    return item ? item.quantity : 0;
   };
 
   const value = {
-    ...state,
+    items: state.items,
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
-    toggleTakeaway,
     getItemCount,
-    getTotalItems,
-    userRole,
-    canUseTakeaway: userRole !== 'room-guest' // Only non-room guests can use takeaway
+    getSubtotal,
+    getTotal,
+    getLkrAdjustment,
+    getTax,
+    getServiceFee,
+    isInCart,
+    getItemQuantity
   };
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { FoodCard } from '../components/ui/food/FoodCard';
-import { FoodButton } from '../components/ui/food/FoodButton';
-import { FoodBadge } from '../components/ui/food/FoodBadge';
+import Card from '../components/ui/card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
 import { Clock, Star, Users, ChefHat, Utensils, Coffee, Wine } from 'lucide-react';
 
 export default function FoodPage() {
@@ -86,14 +86,12 @@ export default function FoodPage() {
     ? menuItems
     : menuItems.filter(item => item.category === selectedCategory);
 
-
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-white py-12">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
       <div className="max-w-7xl mx-auto px-4">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text mb-4">
+          <h1 className="text-4xl font-bold text-indigo-800 mb-4">
             Dining & Cuisine
           </h1>
           <p className="text-gray-600 text-lg max-w-3xl mx-auto">
@@ -105,41 +103,41 @@ export default function FoodPage() {
 
         {/* Restaurant Info */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          <FoodCard variant="gradient" className="p-6 text-center">
-            <ChefHat className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+          <Card className="p-6 text-center">
+            <ChefHat className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               Award-Winning Chefs
             </h3>
             <p className="text-gray-600">
               Our culinary team brings decades of experience and creativity to every dish.
             </p>
-          </FoodCard>
+          </Card>
 
-          <FoodCard variant="gradient" className="p-6 text-center">
-            <Users className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+          <Card className="p-6 text-center">
+            <Users className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               Intimate Dining
             </h3>
             <p className="text-gray-600">
               Enjoy personalized service in our elegant dining rooms accommodating up to 120 guests.
             </p>
-          </FoodCard>
+          </Card>
 
-          <FoodCard variant="gradient" className="p-6 text-center">
-            <Clock className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+          <Card className="p-6 text-center">
+            <Clock className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               24/7 Service
             </h3>
             <p className="text-gray-600">
               Room service available around the clock with our extensive menu selection.
             </p>
-          </FoodCard>
+          </Card>
         </div>
 
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           {categories.map((category) => (
-            <FoodButton
+            <Button
               key={category.id}
               variant={selectedCategory === category.id ? "default" : "outline"}
               onClick={() => setSelectedCategory(category.id)}
@@ -147,14 +145,14 @@ export default function FoodPage() {
             >
               <category.icon className="h-4 w-4" />
               <span>{category.name}</span>
-            </FoodButton>
+            </Button>
           ))}
         </div>
 
         {/* Menu Items */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredItems.map((item) => (
-            <FoodCard key={item.id} variant="elevated" hover={true} className="overflow-hidden">
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition duration-300">
               <div className="relative">
                 <img
                   src={item.image}
@@ -163,14 +161,14 @@ export default function FoodPage() {
                 />
                 <div className="absolute top-4 left-4 flex gap-2">
                   {item.popular && (
-                    <FoodBadge variant="featured">
+                    <Badge className="bg-orange-500">
                       Popular
-                    </FoodBadge>
+                    </Badge>
                   )}
                   {item.vegetarian && (
-                    <FoodBadge variant="success">
+                    <Badge className="bg-green-500">
                       Vegetarian
-                    </FoodBadge>
+                    </Badge>
                   )}
                 </div>
                 <div className="absolute top-4 right-4">
@@ -200,24 +198,24 @@ export default function FoodPage() {
                   <span>Available: {item.available}</span>
                 </div>
 
-                <FoodButton className="w-full">
+                <Button className="w-full">
                   Order Now
-                </FoodButton>
+                </Button>
               </div>
-            </FoodCard>
+            </Card>
           ))}
         </div>
 
         {/* Special Dining Section */}
         <div className="mt-16">
-          <h2 className="text-3xl font-bold text-transparent bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-800 text-center mb-12">
             Special Dining Experiences
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <FoodCard variant="outlined" className="p-8">
+            <Card className="p-8">
               <div className="flex items-center mb-6">
-                <Wine className="h-12 w-12 text-orange-600 mr-4" />
+                <Wine className="h-12 w-12 text-indigo-600 mr-4" />
                 <div>
                   <h3 className="text-xl font-semibold text-gray-800">
                     Wine Tasting
@@ -229,14 +227,14 @@ export default function FoodPage() {
                 Join our sommelier for an exclusive wine tasting experience featuring
                 premium selections from around the world.
               </p>
-              <FoodButton variant="outline">
+              <Button variant="outline">
                 Reserve Your Spot
-              </FoodButton>
-            </FoodCard>
+              </Button>
+            </Card>
 
-            <FoodCard variant="outlined" className="p-8">
+            <Card className="p-8">
               <div className="flex items-center mb-6">
-                <ChefHat className="h-12 w-12 text-orange-600 mr-4" />
+                <ChefHat className="h-12 w-12 text-indigo-600 mr-4" />
                 <div>
                   <h3 className="text-xl font-semibold text-gray-800">
                     Chef&apos;s Table
@@ -248,31 +246,31 @@ export default function FoodPage() {
                 An intimate dining experience where our executive chef creates
                 a personalized menu just for you.
               </p>
-              <FoodButton variant="outline">
+              <Button variant="outline">
                 Book Chef&apos;s Table
-              </FoodButton>
-            </FoodCard>
+              </Button>
+            </Card>
           </div>
         </div>
 
         {/* Room Service CTA */}
         <div className="mt-16 text-center">
-          <FoodCard variant="gradient" className="p-8 bg-gradient-to-r from-orange-600 to-red-600 text-white">
+          <Card className="p-8 bg-indigo-600 text-white">
             <h2 className="text-3xl font-bold mb-4">
               Room Service Available 24/7
             </h2>
-            <p className="text-orange-100 mb-6 text-lg">
+            <p className="text-indigo-100 mb-6 text-lg">
               Enjoy our full menu in the comfort of your room, any time of day or night.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <FoodButton variant="secondary" className="bg-white text-orange-600 hover:bg-orange-50">
+              <Button className="bg-white text-indigo-600 hover:bg-indigo-50">
                 View Room Service Menu
-              </FoodButton>
-              <FoodButton variant="outline" className="border-white text-white hover:bg-white hover:text-orange-600">
+              </Button>
+              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-indigo-600">
                 Call Room Service
-              </FoodButton>
+              </Button>
             </div>
-          </FoodCard>
+          </Card>
         </div>
       </div>
     </div>

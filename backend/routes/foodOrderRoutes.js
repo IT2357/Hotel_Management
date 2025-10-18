@@ -5,10 +5,11 @@ import {
   updateOrderStatus,
   getOrderStats,
   getCustomerOrders,
-  createFoodOrder
+  createFoodOrder,
+  modifyFoodOrder,
+  cancelFoodOrder
 } from "../controllers/food/foodOrderController.js";
 import { authenticateToken as protect, requireRole as authorize } from "../middleware/auth.js";
-import { validateFoodOrder } from "../middleware/validation.js";
 
 const router = express.Router();
 
@@ -17,9 +18,12 @@ router.get('/stats', protect, authorize('admin', 'staff'), getOrderStats);
 router.get('/', protect, authorize('admin', 'staff'), getAllFoodOrders);
 router.patch('/:id/status', protect, authorize('admin', 'staff'), updateOrderStatus);
 
+
 // Customer routes (authenticated users)
-router.post('/create', protect, validateFoodOrder, createFoodOrder);
+router.post('/create', protect, createFoodOrder);
 router.get('/my-orders', protect, getCustomerOrders);
 router.get('/:id', protect, getFoodOrder);
+router.put('/:id/modify', protect, modifyFoodOrder); // Modify order
+router.delete('/:id/cancel', protect, cancelFoodOrder); // Cancel order
 
 export default router;

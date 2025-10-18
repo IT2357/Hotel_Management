@@ -29,14 +29,14 @@ import {
   getCustomerOrders,
   createFoodOrder
 } from "../../controllers/food/foodOrderController.js";
-import {
-  submitOrderReview,
-  getOrderReview,
-  getAllReviews,
-  moderateReview,
-  deleteReview,
-  getReviewStats
-} from "../../controllers/food/foodReviewController.js";
+// Review functions are now handled by separate food review routes
+// import {
+//   submitOrderReview,
+//   getOrderReview,
+//   getAllReviews,
+//   moderateReview,
+//   getReviewStats
+// } from "../../controllers/food/foodReviewController.js";
 import { authenticateToken } from "../../middleware/auth.js";
 import { authorizeRoles } from "../../middleware/roleAuth.js";
 import { validateMenuItem, validateMenuCategory } from "../../middleware/validation.js";
@@ -50,6 +50,14 @@ router.get("/categories", getCategories);
 router.get("/categories/:category/items", getFoodItemsByCategory);
 router.get("/featured", getFeaturedItems);
 router.get("/popular", getPopularItems);
+router.options("/image/:imageId", (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  });
+  res.status(200).end();
+});
 router.get("/image/:imageId", getMenuImage);
 
 // Protected routes (admin/manager only)
@@ -70,14 +78,14 @@ router.post("/orders", createFoodOrder); // Public for customers
 router.get("/orders/customer/:customerEmail", getCustomerOrders);
 router.get("/orders/customer/status/:orderNumber", getCustomerOrders);
 
-// Review routes
-router.post("/orders/:orderId/reviews", authenticateToken, submitOrderReview);
-router.get("/orders/:orderId/reviews", authenticateToken, getOrderReview);
-router.delete("/orders/:orderId/reviews", authenticateToken, deleteReview);
+// Review routes - moved to separate food review routes
+// router.post("/orders/:orderId/reviews", authenticateToken, submitOrderReview);
+// router.get("/orders/:orderId/reviews", authenticateToken, getOrderReview);
+// router.delete("/orders/:orderId/reviews", authenticateToken, deleteReview);
 
-// Admin review management routes
-router.get("/reviews", authenticateToken, authorizeRoles(["admin", "manager"]), getAllReviews);
-router.get("/reviews/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getReviewStats);
-router.put("/orders/:orderId/reviews/moderate", authenticateToken, authorizeRoles(["admin", "manager"]), moderateReview);
+// Admin review management routes - moved to separate food review routes
+// router.get("/reviews", authenticateToken, authorizeRoles(["admin", "manager"]), getAllReviews);
+// router.get("/reviews/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getReviewStats);
+// router.put("/orders/:orderId/reviews/moderate", authenticateToken, authorizeRoles(["admin", "manager"]), moderateReview);
 
 export default router;

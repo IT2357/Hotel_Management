@@ -1,7 +1,7 @@
 // src/components/ui/Card.jsx
 import React from "react";
 
-export default function Card({
+export function Card({
   title,
   children,
   className = "",
@@ -28,6 +28,8 @@ export default function Card({
     </div>
   );
 }
+
+export default Card;
 
 // Card Header Component
 export function CardHeader({

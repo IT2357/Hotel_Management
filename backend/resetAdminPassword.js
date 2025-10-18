@@ -10,8 +10,8 @@ async function resetAdminPassword() {
     const newPassword = 'admin123'; // Change this to your desired password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    const result = await users.findOneAndUpdate(
-      { email: 'admin@valdora.com' },
+    const result = await User.findOneAndUpdate(
+      { email: 'admin@test.com' },
       {
         password: hashedPassword,
         tokenVersion: 0 // Reset token version to invalidate old tokens
@@ -21,7 +21,7 @@ async function resetAdminPassword() {
 
     if (result) {
       console.log('✅ Admin password reset successful!');
-      console.log(`📧 Email: admin@valdora.com`);
+      console.log(`📧 Email: admin@test.com`);
       console.log(`🔑 New Password: ${newPassword}`);
       console.log('🔒 Please change this password after logging in!');
     } else {

@@ -3,6 +3,7 @@ import ocrService from '../services/ocrService.js';
 import htmlParser from '../services/htmlParser.js';
 import imageStorageService from '../services/imageStorageService.js';
 import aiImageAnalysisService from '../services/aiImageAnalysisService.js';
+import AIJaffnaTrainer from '../services/aiJaffnaTrainer.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -133,45 +134,76 @@ export const extractMenu = async (req, res) => {
         // Since multer-gridfs-storage doesn't provide buffer, we'll use the file path or create a simple OCR result
         let ocrResult;
         
-        // Enhanced AI Food Analysis like Google Lens
-        console.log('🤖 AI: Analyzing food image with advanced computer vision...');
+        // Enhanced Jaffna-Trained OCR Analysis
+        console.log('🤖 AI: Analyzing food image with Jaffna-trained OCR...');
         try {
-          // Use the image buffer directly from the uploaded file (no need to read from GridFS)
+          // Use the image buffer directly from the uploaded file
           const fileBuffer = req.file.buffer;
 
           if (!fileBuffer || fileBuffer.length === 0) {
             throw new Error('Empty or null file buffer from upload');
           }
 
-          // Use AI Image Analysis Service (like Google Lens)
-          console.log('🤖 Analyzing food image with AI...');
-          const detailLevel = req.body.detailLevel || 'standard';
-          console.log('📚 Detail level:', detailLevel);
+          // Initialize Jaffna trainer
+          const jaffnaTrainer = new AIJaffnaTrainer();
+          await jaffnaTrainer.initializeWorker();
 
-          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname, { detailLevel });
+          // Create temporary file for OCR processing
+          const tempFilePath = `/tmp/menu_${Date.now()}.jpg`;
+          fs.writeFileSync(tempFilePath, fileBuffer);
+
+          // Use Jaffna-trained OCR for better Tamil/English extraction
+          console.log('🤖 Processing with Jaffna-trained OCR...');
+          const ocrResult = await jaffnaTrainer.trainOnImage(tempFilePath, null);
           
-          if (aiAnalysis.success) {
-            console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+          if (ocrResult.success && ocrResult.extractedData) {
+            console.log(`✅ Jaffna OCR successful (confidence: ${Math.round(ocrResult.confidence * 100)}%)`);
             
-            // Convert AI analysis to menu format
-            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+            // Use the parsed menu data from Jaffna trainer
+            const menuData = ocrResult.extractedData;
             
             extractionData.categories = menuData.categories;
-            extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
-            extractionData.extractionMethod = aiAnalysis.method; // Use the method directly from AI analysis
-            extractionData.confidence = aiAnalysis.confidence;
-            extractionData.aiAnalysis = aiAnalysis.data;
+            extractionData.rawText = `Jaffna OCR: ${menuData.totalItems} food items detected with Tamil/English support`;
+            extractionData.extractionMethod = 'jaffna-trained-ocr';
+            extractionData.confidence = Math.round(ocrResult.confidence * 100);
+            extractionData.aiAnalysis = {
+              method: 'jaffna-trained-ocr',
+              confidence: ocrResult.confidence,
+              tamilSupport: true,
+              jaffnaDishes: menuData.totalItems
+            };
             
             console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
           } else {
-            throw new Error('AI analysis failed');
+            // Fallback to generic AI analysis
+            console.log('📝 FALLBACK: Using generic AI analysis...');
+            const detailLevel = req.body.detailLevel || 'standard';
+            const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname, { detailLevel });
+            
+            if (aiAnalysis.success) {
+              const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+              extractionData.categories = menuData.categories;
+              extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected`;
+              extractionData.extractionMethod = 'generic-ai-fallback';
+              extractionData.confidence = aiAnalysis.confidence;
+            } else {
+              throw new Error('Both Jaffna OCR and generic AI failed');
+            }
           }
 
+          // Cleanup temporary file
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+
+          // Cleanup trainer
+          await jaffnaTrainer.cleanup();
+
         } catch (analysisError) {
-          console.error('❌ AI Analysis error:', analysisError);
+          console.error('❌ Jaffna OCR Analysis error:', analysisError);
           console.error('❌ Error stack:', analysisError.stack);
-          // Fallback to basic structure if AI analysis fails
-          console.log('📝 FALLBACK: Using basic menu structure due to AI analysis failure');
+          // Final fallback to basic structure
+          console.log('📝 FINAL FALLBACK: Using basic menu structure');
           extractionData.categories = [{
             name: "Detected Items",
             items: [{
@@ -181,13 +213,13 @@ export const extractMenu = async (req, res) => {
               image: null,
               isVeg: false,
               isSpicy: false,
-              confidence: 50
+              confidence: 30
             }],
             description: "Items detected from uploaded image"
           }];
-          extractionData.rawText = "AI analysis failed - using fallback detection";
-          extractionData.extractionMethod = "ai-vision-fallback";
-          extractionData.confidence = 50;
+          extractionData.rawText = "OCR analysis failed - using fallback detection";
+          extractionData.extractionMethod = "ocr-fallback";
+          extractionData.confidence = 30;
         }
 
         // Add image reference to items using GridFS ID
@@ -334,27 +366,89 @@ export const extractMenu = async (req, res) => {
             extractionData.imageId = null;
           }
 
-          // Use AI Image Analysis Service (same as file upload)
-          console.log('🤖 Analyzing food image from URL with AI...');
-          const detailLevel = req.body.detailLevel || 'standard';
-          console.log('📚 Detail level:', detailLevel);
-          const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url, { detailLevel });
+          // Use Jaffna-trained OCR for URL images
+          console.log('🤖 Analyzing food image from URL with Jaffna-trained OCR...');
+          try {
+            // Initialize Jaffna trainer
+            const jaffnaTrainer = new AIJaffnaTrainer();
+            await jaffnaTrainer.initializeWorker();
 
-          if (aiAnalysis.success) {
-            console.log(`✅ AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+            // Create temporary file for OCR processing
+            const tempFilePath = `/tmp/url_menu_${Date.now()}.jpg`;
+            fs.writeFileSync(tempFilePath, imageBuffer);
 
-            // Convert AI analysis to menu format
-            const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+            // Use Jaffna-trained OCR
+            const ocrResult = await jaffnaTrainer.trainOnImage(tempFilePath, null);
+            
+            if (ocrResult.success && ocrResult.extractedData) {
+              console.log(`✅ Jaffna OCR successful (confidence: ${Math.round(ocrResult.confidence * 100)}%)`);
+              
+              // Use the parsed menu data from Jaffna trainer
+              const menuData = ocrResult.extractedData;
+              
+              extractionData.categories = menuData.categories;
+              extractionData.rawText = `Jaffna OCR: ${menuData.totalItems} food items detected with Tamil/English support`;
+              extractionData.extractionMethod = 'jaffna-trained-ocr-url';
+              extractionData.confidence = Math.round(ocrResult.confidence * 100);
+              extractionData.aiAnalysis = {
+                method: 'jaffna-trained-ocr-url',
+                confidence: ocrResult.confidence,
+                tamilSupport: true,
+                jaffnaDishes: menuData.totalItems
+              };
+              
+              console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
+            } else {
+              // Fallback to generic AI analysis
+              console.log('📝 FALLBACK: Using generic AI analysis for URL...');
+              const detailLevel = req.body.detailLevel || 'standard';
+              const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url, { detailLevel });
 
-            extractionData.categories = menuData.categories;
-            extractionData.rawText = `AI Analysis: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
-            extractionData.extractionMethod = aiAnalysis.method;
-            extractionData.confidence = aiAnalysis.confidence;
-            extractionData.aiAnalysis = aiAnalysis.data;
+              if (aiAnalysis.success) {
+                console.log(`✅ Generic AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
 
-            console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
-          } else {
-            throw new Error('AI analysis failed for image URL');
+                // Convert AI analysis to menu format
+                const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+
+                extractionData.categories = menuData.categories;
+                extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
+                extractionData.extractionMethod = 'generic-ai-url-fallback';
+                extractionData.confidence = aiAnalysis.confidence;
+                extractionData.aiAnalysis = aiAnalysis.data;
+
+                console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
+              } else {
+                throw new Error('Both Jaffna OCR and generic AI failed for URL');
+              }
+            }
+
+            // Cleanup temporary file
+            if (fs.existsSync(tempFilePath)) {
+              fs.unlinkSync(tempFilePath);
+            }
+
+            // Cleanup trainer
+            await jaffnaTrainer.cleanup();
+
+          } catch (urlAnalysisError) {
+            console.error('❌ URL Jaffna OCR Analysis error:', urlAnalysisError);
+            // Final fallback for URL
+            extractionData.categories = [{
+              name: "Detected Items",
+              items: [{
+                name: "Food Item from URL",
+                price: 200,
+                description: "Food item detected from URL image - please review and edit",
+                image: null,
+                isVeg: false,
+                isSpicy: false,
+                confidence: 25
+              }],
+              description: "Items detected from URL image"
+            }];
+            extractionData.rawText = "URL OCR analysis failed - using fallback detection";
+            extractionData.extractionMethod = "url-ocr-fallback";
+            extractionData.confidence = 25;
           }
 
           // Add image reference to items using stored image ID
@@ -576,6 +670,18 @@ export const getMenuImage = async (req, res) => {
   try {
     const { imageId } = req.params;
 
+    // Set CORS headers to allow cross-origin image requests
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
     // Check if image exists
     const exists = await imageStorageService.imageExists(imageId);
     if (!exists) {
@@ -595,12 +701,14 @@ export const getMenuImage = async (req, res) => {
       // GridFS stream - pipe to response
       const { stream, metadata } = imageData;
 
-      // Set response headers
+      // Set response headers with CORS
       res.set({
         'Content-Type': metadata.contentType,
         'Content-Length': metadata.length,
         'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-        'ETag': imageId
+        'ETag': imageId,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, ETag'
       });
 
       // Stream image to response

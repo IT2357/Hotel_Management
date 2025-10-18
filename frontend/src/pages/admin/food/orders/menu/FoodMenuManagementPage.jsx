@@ -18,16 +18,25 @@ import {
   Star,
   Users,
   Save,
-  Clock
+  Clock,
+  Tag
 } from 'lucide-react';
 import FoodButton from '@/components/food/FoodButton';
 import FoodInput from '@/components/food/FoodInput';
 import FoodLabel from '@/components/food/FoodLabel';
 import FoodTextarea from '@/components/food/FoodTextarea';
+import { Card, CardContent } from '@/components/food/FoodCard';
 import FoodBadge from '@/components/food/FoodBadge';
-import FoodTabs from '@/components/food/FoodTabs';
-import FoodDialog from '@/components/food/FoodDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/food/FoodTabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/food/FoodDialog';
 import FoodSelect from '@/components/food/FoodSelect';
+
+// Aliases for consistent naming
+const Button = FoodButton;
+const Input = FoodInput;
+const Label = FoodLabel;
+const Textarea = FoodTextarea;
+const Badge = FoodBadge;
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
@@ -48,6 +57,7 @@ const FoodMenuManagementPage = () => {
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -57,6 +67,8 @@ const FoodMenuManagementPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
   const [uploadError, setUploadError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const navigate = useNavigate();
 
   const toggleTheme = () => {
@@ -93,7 +105,6 @@ const FoodMenuManagementPage = () => {
     customizations: []
   });
 
-  const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // AI form state
@@ -170,6 +181,59 @@ const FoodMenuManagementPage = () => {
   const handleCreateItem = useCallback(async (formData) => {
     try {
       setIsSubmitting(true);
+      setError(null);
+      
+      // Enhanced validation
+      const validationErrors = {};
+      
+      if (!formData.name?.trim()) {
+        validationErrors.name = 'Item name is required';
+      } else if (formData.name.length < 3) {
+        validationErrors.name = 'Item name must be at least 3 characters';
+      } else if (formData.name.length > 100) {
+        validationErrors.name = 'Item name must be less than 100 characters';
+      }
+      
+      if (!formData.category) {
+        validationErrors.category = 'Category is required';
+      }
+      
+      if (!formData.price || formData.price <= 0) {
+        validationErrors.price = 'Price must be greater than 0';
+      } else if (formData.price > 100000) {
+        validationErrors.price = 'Price must be less than LKR 100,000';
+      }
+      
+      if (!formData.description?.trim()) {
+        validationErrors.description = 'Description is required';
+      } else if (formData.description.length < 10) {
+        validationErrors.description = 'Description must be at least 10 characters';
+      } else if (formData.description.length > 500) {
+        validationErrors.description = 'Description must be less than 500 characters';
+      }
+      
+      if (!formData.image && !formData.imageFile) {
+        validationErrors.image = 'Image is required';
+      }
+      
+      // Validate ingredients
+      if (!formData.ingredients || formData.ingredients.length < 2) {
+        validationErrors.ingredients = 'At least 2 ingredients are required';
+      }
+      
+      // Validate cooking time
+      if (!formData.cookingTime || formData.cookingTime < 5) {
+        validationErrors.cookingTime = 'Cooking time must be at least 5 minutes';
+      } else if (formData.cookingTime > 180) {
+        validationErrors.cookingTime = 'Cooking time must be less than 180 minutes';
+      }
+      
+      if (Object.keys(validationErrors).length > 0) {
+        setError('Please fix the validation errors below');
+        setFormErrors(validationErrors);
+        return;
+      }
+      
       // Prepare data for service - map imageFile to image field and ensure category is ID
       const serviceData = {
         ...formData,
@@ -184,6 +248,21 @@ const FoodMenuManagementPage = () => {
       setFoodItems(prev => [...prev, response.data]);
       setIsCreateDialogOpen(false);
       setEditingItem(null);
+      setFormErrors({});
+      setError(null);
+      
+      // Show success message
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      notification.innerHTML = `
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        <span>Menu item created successfully!</span>
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => document.body.removeChild(notification), 3000);
+      
       // Reset form data
       setFormData({
         name: '',
@@ -227,6 +306,37 @@ const FoodMenuManagementPage = () => {
 
     try {
       setIsSubmitting(true);
+      setError(null);
+      
+      // Enhanced validation
+      const validationErrors = {};
+      
+      if (!formData.name?.trim()) {
+        validationErrors.name = 'Item name is required';
+      } else if (formData.name.length < 3) {
+        validationErrors.name = 'Item name must be at least 3 characters';
+      }
+      
+      if (!formData.category) {
+        validationErrors.category = 'Category is required';
+      }
+      
+      if (!formData.price || formData.price <= 0) {
+        validationErrors.price = 'Price must be greater than 0';
+      }
+      
+      if (!formData.description?.trim()) {
+        validationErrors.description = 'Description is required';
+      } else if (formData.description.length < 10) {
+        validationErrors.description = 'Description must be at least 10 characters';
+      }
+      
+      if (Object.keys(validationErrors).length > 0) {
+        setError('Please fix the validation errors below');
+        setFormErrors(validationErrors);
+        return;
+      }
+      
       // Prepare data for service - map imageFile to image field and ensure category is ID
       const serviceData = {
         ...formData,
@@ -243,11 +353,24 @@ const FoodMenuManagementPage = () => {
       ));
       setIsCreateDialogOpen(false);
       setEditingItem(null);
-      toast.success('Menu item updated successfully');
-      // Removed fetchMenuData() call to prevent items disappearing due to filtering
+      setFormErrors({});
+      setError(null);
+      
+      // Show success message
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      notification.innerHTML = `
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        <span>Menu item updated successfully!</span>
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => document.body.removeChild(notification), 3000);
+      
     } catch (error) {
       console.error('Error updating menu item:', error);
-      toast.error(error.response?.data?.message || 'Failed to update menu item');
+      setError(error.response?.data?.message || 'Failed to update menu item');
     } finally {
       setIsSubmitting(false);
     }
@@ -435,6 +558,17 @@ const FoodMenuManagementPage = () => {
     });
   }, [foodItems, selectedCategory, searchQuery]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery]);
+
   // Statistics calculations
   const stats = useMemo(() => ({
     total: foodItems.length,
@@ -480,12 +614,16 @@ const FoodMenuManagementPage = () => {
       const formData = new FormData();
       formData.append('image', aiFormData.image);
 
-      const response = await api.post('/menu-extraction/upload', formData, {
+      // Use new backend endpoint for AI menu extraction
+      const response = await api.post('/food/menu/process-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
       setOcrResult(response.data);
-      toast.success('Menu items extracted successfully!');
+      if (response.data.success) {
+        toast.success('Menu data extracted successfully!');
+      } else {
+        toast.warning(response.data.message || 'Low OCR confidence, please edit fields manually.');
+      }
     } catch (error) {
       console.error('Error processing image:', error);
       setUploadError(error.response?.data?.message || 'Failed to process image');
@@ -496,60 +634,35 @@ const FoodMenuManagementPage = () => {
   };
 
   const handleSaveExtractedItems = async () => {
-    if (!ocrResult?.items?.length) {
-      toast.error('No items to save');
+    // New: Save extracted single item (not batch)
+    if (!ocrResult?.data?.name) {
+      toast.error('No extracted menu data to save');
       return;
     }
-
     try {
-      // Save each item individually to the menu items collection
-      const savedItems = [];
-      for (const item of ocrResult.items) {
-        try {
-          // Transform the extracted item to match the menu item schema
-          const menuItemData = {
-            name: item.name,
-            category: getCategoryId(item.category) || getCategoryId('Main Course'), // Use category ID
-            description: item.description || '',
-            price: parseFloat(item.price) || 200,
-            image: item.image || '',
-            isAvailable: true,
-            isVeg: item.isVeg || false,
-            isSpicy: item.isSpicy || false,
-            isPopular: item.popularity === 'high',
-            isBreakfast: item.category?.toLowerCase().includes('breakfast') || false,
-            isLunch: !item.category?.toLowerCase().includes('breakfast') || false,
-            isDinner: !item.category?.toLowerCase().includes('breakfast') || false,
-            isSnacks: item.category?.toLowerCase().includes('snack') || false,
-            ingredients: Array.isArray(item.ingredients) ? item.ingredients.filter(i => i && i.trim()) : [],
-            dietaryTags: item.dietaryTags || [],
-            nutritionalInfo: item.nutritionalInfo || {},
-            cookingTime: item.cookingTime || 15,
-            spiceLevel: item.spiceLevel || 'medium',
-            cuisine: item.cuisine || 'Sri Lankan Tamil'
-          };
-
-          const response = await foodService.createMenuItem(menuItemData);
-          savedItems.push(response.data);
-        } catch (itemError) {
-          console.error('Error saving individual item:', itemError);
-          // Continue with other items
-        }
-      }
-
-      if (savedItems.length > 0) {
-        setFoodItems(prev => [...prev, ...savedItems]);
-        toast.success(`Successfully added ${savedItems.length} menu items`);
-        setIsAIDialogOpen(false);
-        setOcrResult(null);
-        setUploadError('');
-        // Removed fetchMenuData() call to prevent filtering issues
-      } else {
-        toast.error('Failed to save any menu items');
-      }
+      const menuItemData = {
+        name: ocrResult.data.name,
+        category: getCategoryId('Main Course'),
+        description: ocrResult.data.desc || '',
+        price: ocrResult.data.priceLKR || 200,
+        image: '',
+        isAvailable: true,
+        ingredients: ocrResult.data.ingredients || [],
+        dietaryTags: ocrResult.data.dietaryTags || [],
+        nutritionalInfo: {},
+        cookingTime: 15,
+        spiceLevel: 'medium',
+        cuisine: 'Sri Lankan Tamil'
+      };
+      const response = await foodService.createMenuItem(menuItemData);
+      setFoodItems(prev => [...prev, response.data]);
+      toast.success('Menu item added successfully');
+      setIsAIDialogOpen(false);
+      setOcrResult(null);
+      setUploadError('');
     } catch (error) {
-      console.error('Error saving menu items:', error);
-      toast.error('Failed to save menu items');
+      console.error('Error saving menu item:', error);
+      toast.error('Failed to save menu item');
     }
   };
 
@@ -568,14 +681,24 @@ const FoodMenuManagementPage = () => {
             }`}>Menu Management</h1>
             <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Manage your restaurant's menu items and categories</p>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all"
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            {isDarkMode ? 'Light' : 'Dark'}
-          </button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/admin/food/categories')}
+              className="text-[#FF9933] border-[#FF9933] hover:bg-[#FF9933]/10"
+            >
+              <Tag className="w-4 h-4 mr-2" />
+              Manage Categories
+            </Button>
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDarkMode ? 'Light' : 'Dark'}
+            </button>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -906,30 +1029,29 @@ const FoodMenuManagementPage = () => {
                             isDarkMode ? 'text-gray-300' : 'text-gray-700'
                           }`}>Category *</Label>
                           <div className="space-y-2">
-                            <Select
+                            <FoodSelect
                               value={formData.category}
-                              onValueChange={(value) => {
+                              onChange={(e) => {
+                                const value = e.target.value;
                                 if (value === 'add-new') {
                                   setShowAddCategory(true);
                                 } else {
                                   setFormData({ ...formData, category: value });
+                                  setFormErrors({ ...formErrors, category: '' });
                                 }
                               }}
+                              className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}
                             >
-                              <SelectTrigger className={`transition-all duration-200 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'focus:ring-indigo-500'}`}>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categoriesList.map((category) => (
-                                  <SelectItem key={category._id} value={category._id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="add-new" className="text-indigo-600 font-medium">
-                                  ➕ Add New Category
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                              <option value="">Select a category</option>
+                              {categoriesList.map((category) => (
+                                <option key={category._id} value={category._id}>
+                                  {category.name}
+                                </option>
+                              ))}
+                              <option value="add-new" className="text-indigo-600 font-medium">
+                                ➕ Add New Category
+                              </option>
+                            </FoodSelect>
 
                             {/* Add New Category Dialog */}
                             {showAddCategory && (
@@ -1612,23 +1734,22 @@ const FoodMenuManagementPage = () => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className={`w-[200px] transition-colors duration-300 ${
+                <FoodSelect 
+                  value={selectedCategory} 
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className={`w-[200px] transition-colors duration-300 ${
                     isDarkMode
                       ? 'bg-slate-700 border-gray-600 text-white'
                       : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-                  }`}>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categoriesList.slice(1).map((category) => (
-                      <SelectItem key={category._id} value={category.name}>
-                        {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  }`}
+                >
+                  <option value="all">All Categories</option>
+                  {categoriesList.slice(1).map((category) => (
+                    <option key={category._id} value={category.name}>
+                      {category.name.charAt(0).toUpperCase() + category.name.slice(1)}
+                    </option>
+                  ))}
+                </FoodSelect>
               </div>
             </div>
           </div>
@@ -1676,12 +1797,12 @@ const FoodMenuManagementPage = () => {
                       <span className={`text-sm ${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}>
-                        {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+                        Showing {startIndex + 1}-{Math.min(endIndex, filteredItems.length)} of {filteredItems.length} items
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {filteredItems.map((item) => (
+                      {paginatedItems.map((item) => (
                         <div key={item._id} className={`menu-card rounded-xl overflow-hidden border transition-colors duration-300 ${
                           isDarkMode
                             ? 'bg-slate-800 border-purple-500/20'
@@ -1810,6 +1931,62 @@ const FoodMenuManagementPage = () => {
                         Add New Menu Item
                       </Button>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center mt-8 space-x-2">
+                        <Button
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          variant="outline"
+                          size="sm"
+                          className="px-3 py-2"
+                        >
+                          Previous
+                        </Button>
+                        
+                        <div className="flex space-x-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            
+                            return (
+                              <Button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                className={`px-3 py-2 ${
+                                  currentPage === pageNum
+                                    ? 'bg-[#FF9933] hover:bg-[#CC7A29] text-white'
+                                    : ''
+                                }`}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        
+                        <Button
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                          variant="outline"
+                          size="sm"
+                          className="px-3 py-2"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                  <div className="text-center py-12">

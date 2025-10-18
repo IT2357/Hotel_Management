@@ -16,8 +16,12 @@ console.log("API Base URL:", api.defaults.baseURL);
 api.interceptors.request.use((config) => {
   console.log("Making request to:", config.url, "with baseURL:", config.baseURL);
   const token = localStorage.getItem("token");
+  console.log("Token from localStorage:", token);
   if (token && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log("Authorization header set with token");
+  } else {
+    console.log("No valid token found");
   }
   return config;
 });

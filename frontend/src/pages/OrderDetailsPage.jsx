@@ -17,9 +17,10 @@ import {
   DollarSign,
   Receipt
 } from 'lucide-react';
-import { FoodButton } from '../components/ui/food/FoodButton';
-import { FoodCard, FoodCardContent, FoodCardHeader, FoodCardTitle } from '../components/ui/food/FoodCard';
-import { FoodBadge } from '../components/ui/food/FoodBadge';
+import FoodButton, { FoodButton as FoodButtonNamed } from '../components/food/FoodButton';
+import FoodCard, { FoodCard as FoodCardNamed, FoodCardContent, FoodCardHeader, FoodCardTitle } from '../components/food/FoodCard';
+import FoodBadge, { FoodBadge as FoodBadgeNamed } from '../components/food/FoodBadge';
+import FoodStatusTracker from '../components/food/FoodStatusTracker';
 import { toast } from 'sonner';
 import api from '../services/api';
 import Rating from '../components/ui/Rating';
@@ -235,7 +236,7 @@ const OrderDetailsPage = () => {
               </FoodCard>
             </motion.div>
 
-            {/* Order Timeline */}
+            {/* Order Timeline - Enhanced with Real-time Tracker */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -244,77 +245,12 @@ const OrderDetailsPage = () => {
               <FoodCard variant="elevated" className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
                 <FoodCardHeader>
                   <FoodCardTitle className="text-xl font-bold text-gray-800">
-                    Order Timeline
+                    Order Status & Timeline
                   </FoodCardTitle>
                 </FoodCardHeader>
                 <FoodCardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">Order Placed</p>
-                        <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
-                      </div>
-                    </div>
-                    
-                    {order.status !== 'Cancelled' && (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            ['Preparing', 'Delivered'].includes(order.status) 
-                              ? 'bg-green-100' 
-                              : 'bg-gray-100'
-                          }`}>
-                            <ChefHat className={`w-5 h-5 ${
-                              ['Preparing', 'Delivered'].includes(order.status) 
-                                ? 'text-green-600' 
-                                : 'text-gray-400'
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-800">Order Being Prepared</p>
-                            {['Preparing', 'Delivered'].includes(order.status) && (
-                              <p className="text-sm text-gray-600">Your food is being prepared with care</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            order.status === 'Delivered' 
-                              ? 'bg-green-100' 
-                              : 'bg-gray-100'
-                          }`}>
-                            <Package className={`w-5 h-5 ${
-                              order.status === 'Delivered' 
-                                ? 'text-green-600' 
-                                : 'text-gray-400'
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-800">Order Delivered</p>
-                            {order.status === 'Delivered' && (
-                              <p className="text-sm text-gray-600">Enjoy your meal!</p>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {order.status === 'Cancelled' && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                          <XCircle className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-800">Order Cancelled</p>
-                          <p className="text-sm text-gray-600">This order has been cancelled</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {/* Real-time Status Tracker */}
+                  <FoodStatusTracker orderId={order._id} initialOrder={order} />
                 </FoodCardContent>
               </FoodCard>
             </motion.div>

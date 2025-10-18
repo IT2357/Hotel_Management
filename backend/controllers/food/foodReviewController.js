@@ -1,222 +1,334 @@
-import FoodOrder from '../../models/FoodOrder.js';
-import catchAsync from '../../utils/catchAsync.js';
-import AppError from '../../utils/appError.js';
+import Review from '../../models/Review.js';
+import Menu from '../../models/Menu.js';
+import { validationResult } from 'express-validator';
 
-// Submit or update a review for a food order
-export const submitOrderReview = catchAsync(async (req, res) => {
-  const { orderId } = req.params;
-  const { rating, comment } = req.body;
-  const userId = req.user.id;
+// Get reviews for a menu item
+export const getMenuItemReviews = async (req, res) => {
+  try {
+    const { menuItemId } = req.params;
+    const { 
+      page = 1, 
+      limit = 10, 
+      sort = 'recent', 
+      rating, 
+      helpful 
+    } = req.query;
 
-  // Validate input
-  if (!rating || rating < 1 || rating > 5) {
-    throw new AppError('Rating must be between 1 and 5', 400);
-  }
-
-  // Find the order
-  const order = await FoodOrder.findById(orderId);
-  if (!order) {
-    throw new AppError('Food order not found', 404);
-  }
-
-  // Check if user owns this order
-  if (order.userId?.toString() !== userId) {
-    throw new AppError('You can only review your own orders', 403);
-  }
-
-  // Check if order is delivered
-  if (order.status !== 'Delivered') {
-    throw new AppError('You can only review delivered orders', 400);
-  }
-
-  // Update or create review
-  order.review = {
-    rating,
-    comment: comment || '',
-    submittedAt: new Date(),
-    isVisible: true,
-    flagged: false,
-  };
-
-  await order.save();
-
-  res.status(200).json({
-    success: true,
-    data: order.review,
-    message: 'Review submitted successfully'
-  });
-});
-
-// Get review for a specific order
-export const getOrderReview = catchAsync(async (req, res) => {
-  const { orderId } = req.params;
-
-  const order = await FoodOrder.findById(orderId)
-    .select('review status userId')
-    .populate('userId', 'name email');
-
-  if (!order) {
-    throw new AppError('Food order not found', 404);
-  }
-
-  // Check if user can view this review
-  if (req.user.role !== 'admin' && req.user.role !== 'manager' &&
-      order.userId?.toString() !== req.user.id) {
-    throw new AppError('You can only view your own order reviews', 403);
-  }
-
-  res.status(200).json({
-    success: true,
-    data: order.review || null
-  });
-});
-
-// Get all reviews (Admin/Manager only)
-export const getAllReviews = catchAsync(async (req, res) => {
-  const { status, flagged, page = 1, limit = 10 } = req.query;
-
-  let filter = { 'review.rating': { $exists: true } };
-
-  if (status === 'visible') {
-    filter['review.isVisible'] = true;
-  } else if (status === 'hidden') {
-    filter['review.isVisible'] = false;
-  }
-
-  if (flagged === 'true') {
-    filter['review.flagged'] = true;
-  } else if (flagged === 'false') {
-    filter['review.flagged'] = false;
-  }
-
-  const skip = (page - 1) * limit;
-
-  const orders = await FoodOrder.find(filter)
-    .select('review status customerDetails items totalPrice createdAt')
-    .populate('userId', 'name email')
-    .sort({ 'review.submittedAt': -1 })
-    .skip(skip)
-    .limit(parseInt(limit));
-
-  const total = await FoodOrder.countDocuments(filter);
-
-  res.status(200).json({
-    success: true,
-    data: orders,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / limit)
+    // Check if menu item exists
+    const menuItem = await Menu.findById(menuItemId);
+    if (!menuItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Menu item not found'
+      });
     }
-  });
-});
 
-// Update review moderation status (Admin/Manager only)
-export const moderateReview = catchAsync(async (req, res) => {
-  const { orderId } = req.params;
-  const { isVisible, flagged } = req.body;
-
-  const order = await FoodOrder.findById(orderId);
-  if (!order || !order.review) {
-    throw new AppError('Review not found', 404);
-  }
-
-  if (isVisible !== undefined) {
-    order.review.isVisible = isVisible;
-  }
-
-  if (flagged !== undefined) {
-    order.review.flagged = flagged;
-  }
-
-  await order.save();
-
-  res.status(200).json({
-    success: true,
-    data: order.review,
-    message: 'Review moderation updated successfully'
-  });
-});
-
-// Delete a review
-export const deleteReview = catchAsync(async (req, res) => {
-  const { orderId } = req.params;
-  const userId = req.user.id;
-
-  const order = await FoodOrder.findById(orderId);
-  if (!order || !order.review) {
-    throw new AppError('Review not found', 404);
-  }
-
-  // Check permissions
-  const isOwner = order.userId?.toString() === userId;
-  const isAdmin = ['admin', 'manager'].includes(req.user.role);
-
-  if (!isOwner && !isAdmin) {
-    throw new AppError('You can only delete your own reviews', 403);
-  }
-
-  // Remove review
-  order.review = undefined;
-  await order.save();
-
-  res.status(200).json({
-    success: true,
-    message: 'Review deleted successfully'
-  });
-});
-
-// Get review statistics (Admin/Manager only)
-export const getReviewStats = catchAsync(async (req, res) => {
-  const stats = await FoodOrder.aggregate([
-    {
-      $match: {
-        'review.rating': { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        totalReviews: { $sum: 1 },
-        averageRating: { $avg: '$review.rating' },
-        ratingDistribution: {
-          $push: '$review.rating'
-        },
-        visibleReviews: {
-          $sum: { $cond: ['$review.isVisible', 1, 0] }
-        },
-        flaggedReviews: {
-          $sum: { $cond: ['$review.flagged', 1, 0] }
-        }
-      }
+    // Build query
+    let query = { menuItem: menuItemId };
+    
+    if (rating) {
+      query.rating = parseInt(rating);
     }
-  ]);
 
-  // Calculate rating distribution
-  const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  if (stats.length > 0) {
-    stats[0].ratingDistribution.forEach(rating => {
-      ratingCounts[rating] = (ratingCounts[rating] || 0) + 1;
+    // Build sort options
+    let sortOptions = {};
+    switch (sort) {
+      case 'recent':
+        sortOptions = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'highest':
+        sortOptions = { rating: -1, createdAt: -1 };
+        break;
+      case 'lowest':
+        sortOptions = { rating: 1, createdAt: -1 };
+        break;
+      case 'most_helpful':
+        sortOptions = { helpfulVotes: -1, createdAt: -1 };
+        break;
+      default:
+        sortOptions = { createdAt: -1 };
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const reviews = await Review.find(query)
+      .populate('customer', 'firstName lastName email')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select('-__v');
+
+    const totalReviews = await Review.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: reviews,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalReviews / parseInt(limit)),
+        totalReviews,
+        hasNext: skip + reviews.length < totalReviews,
+        hasPrev: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reviews',
+      error: error.message
     });
   }
+};
 
-  const result = stats.length > 0 ? {
-    totalReviews: stats[0].totalReviews,
-    averageRating: Math.round(stats[0].averageRating * 10) / 10,
-    visibleReviews: stats[0].visibleReviews,
-    flaggedReviews: stats[0].flaggedReviews,
-    ratingDistribution: ratingCounts
-  } : {
-    totalReviews: 0,
-    averageRating: 0,
-    visibleReviews: 0,
-    flaggedReviews: 0,
-    ratingDistribution: ratingCounts
-  };
+// Submit a review
+export const submitReview = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
 
-  res.status(200).json({
-    success: true,
-    data: result
-  });
-});
+    const { menuItemId } = req.params;
+    const { rating, title, comment, isAnonymous, helpful } = req.body;
+    const customerId = req.user.id;
+
+    // Check if menu item exists
+    const menuItem = await Menu.findById(menuItemId);
+    if (!menuItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Menu item not found'
+      });
+    }
+
+    // Check if user has already reviewed this item
+    const existingReview = await Review.findOne({
+      menuItem: menuItemId,
+      customer: customerId
+    });
+
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this item'
+      });
+    }
+
+    const review = new Review({
+      menuItem: menuItemId,
+      customer: customerId,
+      rating: parseInt(rating),
+      title: title.trim(),
+      comment: comment.trim(),
+      isAnonymous: isAnonymous || false,
+      helpful: helpful !== false,
+      helpfulVotes: 0,
+      notHelpfulVotes: 0
+    });
+
+    await review.save();
+
+    // Populate customer info for response
+    await review.populate('customer', 'firstName lastName email');
+
+    res.status(201).json({
+      success: true,
+      message: 'Review submitted successfully',
+      data: review
+    });
+  } catch (error) {
+    console.error('Error submitting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit review',
+      error: error.message
+    });
+  }
+};
+
+// Vote on a review (helpful/not helpful)
+export const voteReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { isHelpful } = req.body;
+    const customerId = req.user.id;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    // Check if user has already voted
+    const existingVote = await Review.findOne({
+      _id: reviewId,
+      voters: customerId
+    });
+
+    if (existingVote) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already voted on this review'
+      });
+    }
+
+    // Update vote counts
+    if (isHelpful) {
+      review.helpfulVotes += 1;
+    } else {
+      review.notHelpfulVotes += 1;
+    }
+
+    review.voters.push(customerId);
+    await review.save();
+
+    res.json({
+      success: true,
+      message: 'Vote recorded successfully',
+      data: {
+        helpfulVotes: review.helpfulVotes,
+        notHelpfulVotes: review.notHelpfulVotes
+      }
+    });
+  } catch (error) {
+    console.error('Error voting on review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to record vote',
+      error: error.message
+    });
+  }
+};
+
+// Report a review
+export const reportReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { reason, description } = req.body;
+    const reporterId = req.user.id;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    // Check if user has already reported this review
+    if (review.reports.some(report => report.reporter.toString() === reporterId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reported this review'
+      });
+    }
+
+    review.reports.push({
+      reporter: reporterId,
+      reason: reason || 'Inappropriate content',
+      description: description || '',
+      reportedAt: new Date()
+    });
+
+    await review.save();
+
+    res.json({
+      success: true,
+      message: 'Review reported successfully'
+    });
+  } catch (error) {
+    console.error('Error reporting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to report review',
+      error: error.message
+    });
+  }
+};
+
+// Get review statistics for a menu item
+export const getReviewStats = async (req, res) => {
+  try {
+    const { menuItemId } = req.params;
+
+    const stats = await Review.aggregate([
+      { $match: { menuItem: menuItemId } },
+      {
+        $group: {
+          _id: null,
+          totalReviews: { $sum: 1 },
+          averageRating: { $avg: '$rating' },
+          ratingDistribution: {
+            $push: '$rating'
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalReviews: 1,
+          averageRating: { $round: ['$averageRating', 1] },
+          ratingDistribution: {
+            $reduce: {
+              input: '$ratingDistribution',
+              initialValue: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+              in: {
+                $cond: {
+                  if: { $eq: ['$$this', 5] },
+                  then: { $mergeObjects: ['$$value', { 5: { $add: [{ $ifNull: ['$$value.5', 0] }, 1] } }] },
+                  else: {
+                    $cond: {
+                      if: { $eq: ['$$this', 4] },
+                      then: { $mergeObjects: ['$$value', { 4: { $add: [{ $ifNull: ['$$value.4', 0] }, 1] } }] },
+                      else: {
+                        $cond: {
+                          if: { $eq: ['$$this', 3] },
+                          then: { $mergeObjects: ['$$value', { 3: { $add: [{ $ifNull: ['$$value.3', 0] }, 1] } }] },
+                          else: {
+                            $cond: {
+                              if: { $eq: ['$$this', 2] },
+                              then: { $mergeObjects: ['$$value', { 2: { $add: [{ $ifNull: ['$$value.2', 0] }, 1] } }] },
+                              else: { $mergeObjects: ['$$value', { 1: { $add: [{ $ifNull: ['$$value.1', 0] }, 1] } }] }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = stats[0] || {
+      totalReviews: 0,
+      averageRating: 0,
+      ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+    };
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error fetching review stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch review statistics',
+      error: error.message
+    });
+  }
+};
