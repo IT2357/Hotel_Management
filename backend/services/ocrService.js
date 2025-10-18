@@ -110,8 +110,8 @@ class OCRService {
     const categories = this.groupItemsByCategory(items);
     
     console.log(`🍽️ Parsed ${items.length} items across ${categories.length} categories`);
-    
-    return {
+
+      return {
       categories,
       totalItems: items.length,
       confidence: Math.max(confidence, 0.3), // Minimum confidence
@@ -232,8 +232,8 @@ class OCRService {
     
     // Find matching Jaffna dish for better accuracy
     const jaffnaDish = this.findJaffnaDish(dishName);
-    
-    return {
+
+      return {
       name: dishName,
       englishName: jaffnaDish?.english || (isTamil ? null : dishName),
       tamilName: jaffnaDish?.tamil || (isTamil ? dishName : null),

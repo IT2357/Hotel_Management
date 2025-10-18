@@ -1,90 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Clock, Star, Users, ChefHat, Utensils, Coffee, Wine } from 'lucide-react';
+import foodService from '../services/foodService';
 
 export default function FoodPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
-
-  const categories = [
+  const [categories, setCategories] = useState([
     { id: 'all', name: 'All', icon: Utensils },
-    { id: 'breakfast', name: 'Breakfast', icon: Coffee },
-    { id: 'lunch', name: 'Lunch', icon: Utensils },
-    { id: 'dinner', name: 'Dinner', icon: Utensils },
-    { id: 'drinks', name: 'Drinks', icon: Wine }
-  ];
+  ]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const menuItems = [
-    {
-      id: 1,
-      name: "Continental Breakfast",
-      description: "Fresh croissants, seasonal fruits, yogurt, coffee and juice",
-      price: "LKR 2,500",
-      category: "breakfast",
-      rating: 4.8,
-      image: "/api/placeholder/300/200",
-      available: "6:00 AM - 11:00 AM",
-      popular: true
-    },
-    {
-      id: 2,
-      name: "Sri Lankan Rice & Curry",
-      description: "Traditional rice and curry with multiple vegetable curries, sambol and papadam",
-      price: "LKR 3,200",
-      category: "lunch",
-      rating: 4.9,
-      image: "/api/placeholder/300/200",
-      available: "12:00 PM - 3:00 PM",
-      popular: true
-    },
-    {
-      id: 3,
-      name: "Grilled Salmon",
-      description: "Atlantic salmon with roasted vegetables and lemon herb sauce",
-      price: "LKR 4,800",
-      category: "dinner",
-      rating: 4.7,
-      image: "/api/placeholder/300/200",
-      available: "6:00 PM - 10:00 PM"
-    },
-    {
-      id: 4,
-      name: "Caesar Salad",
-      description: "Crisp romaine lettuce with parmesan, croutons and classic caesar dressing",
-      price: "LKR 2,200",
-      category: "lunch",
-      rating: 4.5,
-      image: "/api/placeholder/300/200",
-      available: "12:00 PM - 3:00 PM",
-      vegetarian: true
-    },
-    {
-      id: 5,
-      name: "Fresh Juice Selection",
-      description: "Orange, pineapple, watermelon, and mixed fruit juices",
-      price: "LKR 800",
-      category: "drinks",
-      rating: 4.6,
-      image: "/api/placeholder/300/200",
-      available: "24 hours"
-    },
-    {
-      id: 6,
-      name: "Chef's Special Pasta",
-      description: "House-made pasta with seasonal ingredients and signature sauce",
-      price: "LKR 3,600",
-      category: "dinner",
-      rating: 4.8,
-      image: "/api/placeholder/300/200",
-      available: "6:00 PM - 10:00 PM",
-      popular: true
-    }
-  ];
+  // Map common category names to icons, fallback to utensils
+  const categoryIcon = useMemo(() => ({
+    breakfast: Coffee,
+    lunch: Utensils,
+    dinner: Utensils,
+    drinks: Wine,
+  }), []);
 
-  const filteredItems = selectedCategory === 'all'
-    ? menuItems
-    : menuItems.filter(item => item.category === selectedCategory);
+  // Fetch categories (public)
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await foodService.getCategories(); // { success, data: [...] }
+        const dynamicCats = (res?.data || []).map((c) => ({
+          id: c._id,
+          name: c.name,
+          icon: categoryIcon[c.slug || c.name?.toLowerCase()] || Utensils,
+        }));
+        setCategories([{ id: 'all', name: 'All', icon: Utensils }, ...dynamicCats]);
+      } catch (e) {
+        // Non-fatal; keep default 'All'
+        console.warn('Failed to load categories:', e.message || e);
+      }
+    };
+    loadCategories();
+  }, [categoryIcon]);
+
+  // Fetch menu items whenever the category changes
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const filters = { isAvailable: true };
+        if (selectedCategory && selectedCategory !== 'all') {
+          filters.category = selectedCategory; // expects category id
+        }
+        const res = await foodService.getMenuItems(filters);
+        const items = res?.data || [];
+        setMenuItems(items);
+      } catch (e) {
+        console.error('Failed to load menu items:', e);
+        setError(typeof e === 'string' ? e : (e.message || 'Failed to load menu items'));
+        setMenuItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadItems();
+  }, [selectedCategory]);
+
+  const filteredItems = menuItems; // already filtered by API
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
@@ -150,61 +131,60 @@ export default function FoodPage() {
         </div>
 
         {/* Menu Items */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition duration-300">
-              <div className="relative">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute top-4 left-4 flex gap-2">
-                  {item.popular && (
-                    <Badge className="bg-orange-500">
-                      Popular
-                    </Badge>
-                  )}
-                  {item.vegetarian && (
-                    <Badge className="bg-green-500">
-                      Vegetarian
-                    </Badge>
-                  )}
-                </div>
-                <div className="absolute top-4 right-4">
-                  <div className="bg-white px-2 py-1 rounded-full text-sm font-medium">
-                    {item.price}
+        {loading ? (
+          <div className="text-center py-10 text-gray-600">Loading menu…</div>
+        ) : error ? (
+          <div className="text-center py-10 text-red-500">{error}</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredItems.map((item) => (
+              <Card key={item._id || item.id} className="overflow-hidden hover:shadow-lg transition duration-300">
+                <div className="relative">
+                  <img
+                    src={item.image || item.imageUrl}
+                    alt={item.name}
+                    className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item';
+                    }}
+                  />
+                  <div className="absolute top-4 left-4 flex gap-2">
+                    {item.isPopular && (
+                      <Badge className="bg-orange-500">Popular</Badge>
+                    )}
+                    {(item.dietaryTags || []).includes('vegetarian') && (
+                      <Badge className="bg-green-500">Vegetarian</Badge>
+                    )}
                   </div>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    {item.name}
-                  </h3>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    <span className="text-sm text-gray-600">{item.rating}</span>
+                  <div className="absolute top-4 right-4">
+                    <div className="bg-white px-2 py-1 rounded-full text-sm font-medium">
+                      LKR {Number(item.price).toFixed(2)}
+                    </div>
                   </div>
                 </div>
 
-                <p className="text-gray-600 mb-4">
-                  {item.description}
-                </p>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                      <span className="text-sm text-gray-600">{(item.rating || 4.6).toFixed(1)}</span>
+                    </div>
+                  </div>
 
-                <div className="flex items-center text-sm text-gray-500 mb-4">
-                  <Clock className="h-4 w-4 mr-2" />
-                  <span>Available: {item.available}</span>
+                  <p className="text-gray-600 mb-4">{item.description}</p>
+
+                  <div className="flex items-center text-sm text-gray-500 mb-4">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span>{item.isAvailable ? 'Available now' : 'Currently unavailable'}</span>
+                  </div>
+
+                  <Button className="w-full">Order Now</Button>
                 </div>
-
-                <Button className="w-full">
-                  Order Now
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Special Dining Section */}
         <div className="mt-16">
