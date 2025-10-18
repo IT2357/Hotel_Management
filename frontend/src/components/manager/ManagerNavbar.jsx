@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Search, Bell, Moon, Sun, Hotel, Menu } from "lucide-react";
+import { Search, Bell, Moon, Sun, Hotel, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 import { ManagerInput } from "@/components/manager/ManagerInput";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/manager/ManagerAvatar";
@@ -10,7 +10,7 @@ import useAuth from "@/hooks/useAuth";
 export const ManagerNavbar = ({ onToggleSidebar }) => {
   const [isDark, setIsDark] = useState(true);
   const [notifications] = useState(3);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const managerProfile = useMemo(() => {
     const fullName =
@@ -48,6 +48,10 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
   const toggleTheme = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle("dark");
+  };
+
+  const handleLogout = () => {
+    logout();
   };
 
   return (
@@ -127,6 +131,24 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
                 {notifications}
               </motion.span>
             )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="hidden items-center gap-2 rounded-xl border border-transparent px-4 py-2 text-[#f5f7ff] transition-all duration-300 hover:border-[#e11d48] hover:bg-[#2b2337] sm:flex"
+          >
+            <LogOut className="h-5 w-5 text-[#f87171]" />
+            <span className="text-sm font-medium">Logout</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="flex rounded-xl border border-transparent text-[#f5f7ff] transition-all duration-300 hover:border-[#e11d48] hover:bg-[#2b2337] sm:hidden"
+          >
+            <LogOut className="h-5 w-5 text-[#f87171]" />
           </Button>
 
           <Link

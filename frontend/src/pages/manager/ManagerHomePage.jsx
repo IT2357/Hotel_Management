@@ -255,15 +255,21 @@ const ManagerHomePage = () => {
   const handleMenuItemClick = useCallback((item) => {
     setActiveMenuItem(item.id);
 
-    if (item.id === "profile") {
-      navigate("/manager/profile");
-      return;
+    switch (item.id) {
+      case "dashboard":
+        break;
+      case "profile":
+        navigate("/manager/profile");
+        return;
+      case "reports":
+        navigate("/manager/reports");
+        return;
+      default:
+        toast.success(`Navigating to ${item.label}`, {
+          description: "Feature coming soon!",
+          duration: 2000,
+        });
     }
-
-    toast.success(`Navigating to ${item.label}`, {
-      description: "Feature coming soon!",
-      duration: 2000,
-    });
   }, [navigate]);
 
   const loadTaskStats = useCallback(async () => {
