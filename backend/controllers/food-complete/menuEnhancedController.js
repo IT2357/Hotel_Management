@@ -11,7 +11,7 @@ import {
   updateMenuItemSchema, 
   menuQuerySchema 
 } from '../../validations/food-complete/menuValidation.js';
-import { imageStorageService } from '../../services/imageStorageService.js';
+import imageStorageService from '../../services/imageStorageService.js';
 
 /**
  * @route   POST /api/food-complete/menu
