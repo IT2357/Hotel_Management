@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import { CSSTransition } from 'react-transition-group';
 
+// Track how many modals are currently open to manage body scroll without flicker
+let __openModalCount = 0;
+
 export default function Modal({
   isOpen,
   onClose,
@@ -8,20 +11,41 @@ export default function Modal({
   children,
   size = "md",
   className = "",
+  closeOnBackdrop = true,
+  closeOnEsc = true,
+  zIndex = 1000,
 }) {
   const modalRef = useRef(null);
   const nodeRef = useRef(null);
+  const openedAtRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
+      openedAtRef.current = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+      __openModalCount += 1;
+      document.body.style.overflow = 'hidden';
     }
     return () => {
-      document.body.style.overflow = "auto";
+      if (isOpen) {
+        __openModalCount = Math.max(0, __openModalCount - 1);
+        if (__openModalCount === 0) {
+          document.body.style.overflow = 'auto';
+        }
+      }
     };
   }, [isOpen]);
+
+  // Allow closing with Escape key if enabled
+  useEffect(() => {
+    if (!isOpen || !closeOnEsc) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isOpen, closeOnEsc, onClose]);
 
   const sizes = {
     sm: "max-w-sm",
@@ -30,6 +54,18 @@ export default function Modal({
     xl: "max-w-xl",
     "2xl": "max-w-2xl",
     full: "max-w-full",
+  };
+
+  const handleBackdropClick = (e) => {
+    // Only trigger when clicking directly on the backdrop (not bubbled from content)
+    if (e.target !== e.currentTarget) return;
+    if (!closeOnBackdrop) return;
+    // Ignore clicks that occur immediately after open to avoid closing a newly opened modal
+    const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+    if (now - openedAtRef.current < 200) {
+      return;
+    }
+    onClose?.();
   };
 
   return (
@@ -47,8 +83,9 @@ export default function Modal({
     >
       <div
         ref={nodeRef}
-        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity duration-300"
-        onClick={onClose}
+        className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 transition-opacity duration-300"
+        style={{ zIndex }}
+        onClick={handleBackdropClick}
       >
         <div
           ref={modalRef}

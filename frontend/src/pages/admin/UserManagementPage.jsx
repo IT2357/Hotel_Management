@@ -654,18 +654,18 @@ function UsersList({
           {users.map((user) => (
             <div
               key={user._id}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 min-w-0 flex flex-col"
             >
               {/* User Header with Role Color */}
               <div className={`${getRoleColor(user.role)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg">{user.name}</h3>
-                    <p className="text-white/90 text-sm">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-lg truncate" title={user.name}>{user.name}</h3>
+                    <p className="text-white/90 text-sm truncate">
                       {user.role === 'admin' ? '🔑' : user.role === 'manager' ? '👨‍💻' : user.role === 'staff' ? '👨‍💼' : '👤'} {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                     </p>
                   </div>
-                  <Badge className={`${getStatusColor(user)} bg-white/20 text-white border-white/30`}>
+                  <Badge className={`${getStatusColor(user)} bg-white/20 text-white border-white/30 shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold`}>
                     {getStatusText(user).toUpperCase()}
                   </Badge>
                 </div>
@@ -676,7 +676,7 @@ function UsersList({
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  <span>{user.email}</span>
+                  <span className="truncate" title={user.email}>{user.email}</span>
                 </div>
                 {user.profile && (
                   <>
@@ -684,13 +684,13 @@ function UsersList({
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
-                      <span>{user.profile.department || 'No Department'}</span>
+                      <span className="truncate" title={user.profile.department || 'No Department'}>{user.profile.department || 'No Department'}</span>
                     </div>
                     <div className="flex items-center text-sm text-gray-600">
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v6a2 2 0 01-2 2H10a2 2 0 01-2-2V6m8 0H8" />
                       </svg>
-                      <span>{user.profile.position || 'No Position'}</span>
+                      <span className="truncate" title={user.profile.position || 'No Position'}>{user.profile.position || 'No Position'}</span>
                     </div>
                   </>
                 )}

@@ -22,6 +22,7 @@ export default function AdminBookingsPage() {
   const [actionType, setActionType] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [selectedActionBooking, setSelectedActionBooking] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '', // Empty string means no status filter
@@ -314,7 +315,7 @@ export default function AdminBookingsPage() {
   const openActionModal = (booking, type) => {
     // Set all states in a single batch update
     setShowActionModal(true);
-    setSelectedBooking(booking);
+    setSelectedActionBooking(booking);
     setActionType(type);
   };
 
@@ -323,7 +324,7 @@ export default function AdminBookingsPage() {
     setShowActionModal(false);
     // Then clear the state after the animation completes
     setTimeout(() => {
-      setSelectedBooking(null);
+      setSelectedActionBooking(null);
       setActionType('');
       setApprovalNotes('');
       setRejectionReason('');
@@ -930,6 +931,7 @@ export default function AdminBookingsPage() {
         onClose={closeDetailsModal}
         title={`Booking Details - ${selectedBooking?.bookingNumber || 'Unknown'}`}
         size="2xl"
+        zIndex={1000}
       >
         {selectedBooking && (
           <>
@@ -970,7 +972,6 @@ export default function AdminBookingsPage() {
                   <>
                     <Button
                       onClick={() => {
-                        closeDetailsModal();
                         openActionModal(selectedBooking, 'approve');
                       }}
                       className="w-full bg-green-600 hover:bg-green-700"
@@ -979,7 +980,6 @@ export default function AdminBookingsPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        closeDetailsModal();
                         openActionModal(selectedBooking, 'reject');
                       }}
                       variant="danger"
@@ -989,7 +989,6 @@ export default function AdminBookingsPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        closeDetailsModal();
                         openActionModal(selectedBooking, 'hold');
                       }}
                       variant="outline"
@@ -1004,7 +1003,6 @@ export default function AdminBookingsPage() {
                   selectedBooking?.status === 'Confirmed') && (
                   <Button
                     onClick={() => {
-                      closeDetailsModal();
                       openActionModal(selectedBooking, 'cancel');
                     }}
                     variant="outline"
@@ -1226,24 +1224,25 @@ export default function AdminBookingsPage() {
 
       {/* Action Modal */}
       <Modal
-        isOpen={showActionModal && selectedBooking}
+        isOpen={showActionModal && selectedActionBooking}
         onClose={closeActionModal}
         title={actionType === 'approve' ? 'Approve Booking' :
                actionType === 'reject' ? 'Reject Booking' :
                actionType === 'hold' ? 'Put Booking on Hold' :
                actionType === 'cancel' ? 'Cancel Booking' : 'Booking Action'}
         size="md"
+        zIndex={1100}
       >
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium">{selectedBooking?.bookingNumber}</h4>
+          <h4 className="font-medium">{selectedActionBooking?.bookingNumber}</h4>
           <p className="text-sm text-gray-600">
-            Guest: {selectedBooking?.userId?.name}
+            Guest: {selectedActionBooking?.userId?.name}
           </p>
           <p className="text-sm text-gray-600">
-            Room: {selectedBooking?.roomId?.title}
+            Room: {selectedActionBooking?.roomId?.title}
           </p>
           <p className="text-sm text-gray-600">
-            Amount: {formatCurrency(selectedBooking?.costBreakdown?.total || selectedBooking?.totalPrice || 0)}
+            Amount: {formatCurrency(selectedActionBooking?.costBreakdown?.total || selectedActionBooking?.totalPrice || 0)}
           </p>
         </div>
 
@@ -1326,7 +1325,7 @@ export default function AdminBookingsPage() {
                                actionType === 'hold' ? 'On Hold' : 'Cancelled';
               const notes = actionType === 'approve' ? approvalNotes :
                            actionType === 'reject' ? rejectionReason : approvalNotes;
-              handleStatusChange(selectedBooking?._id, newStatus, notes);
+              handleStatusChange(selectedActionBooking?._id, newStatus, notes);
             }}
             disabled={actionLoading ||
               (actionType === 'reject' && !rejectionReason.trim()) ||

@@ -27,6 +27,7 @@ export default function AdminInvoicesPage() {
   const [actionType, setActionType] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [selectedActionInvoice, setSelectedActionInvoice] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -454,7 +455,7 @@ export default function AdminInvoicesPage() {
   };
 
   const openActionModal = (invoice, type) => {
-    setSelectedInvoice(invoice);
+    setSelectedActionInvoice(invoice);
     setActionType(type);
     setShowActionModal(true);
   };
@@ -465,7 +466,7 @@ export default function AdminInvoicesPage() {
     setTimeout(() => {
       setActionType('');
       setActionNotes('');
-      setSelectedInvoice(null);
+      setSelectedActionInvoice(null);
       setActionLoading(false);
     }, 300);
   };
@@ -1169,6 +1170,7 @@ export default function AdminInvoicesPage() {
         onClose={closeDetailsModal}
         title={`Invoice Details - ${selectedInvoice?.invoiceNumber || 'Unknown'}`}
         size="2xl"
+        zIndex={1000}
       >
         {selectedInvoice && (
           <div>
@@ -1207,7 +1209,6 @@ export default function AdminInvoicesPage() {
                 {selectedInvoice?.status === 'Draft' && (
                   <Button
                     onClick={() => {
-                      closeDetailsModal();
                       openActionModal(selectedInvoice, 'send');
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700"
@@ -1219,7 +1220,6 @@ export default function AdminInvoicesPage() {
                   <>
                     <Button
                       onClick={() => {
-                        closeDetailsModal();
                         openActionModal(selectedInvoice, 'mark_paid');
                       }}
                       className="w-full bg-green-600 hover:bg-green-700"
@@ -1228,7 +1228,6 @@ export default function AdminInvoicesPage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        closeDetailsModal();
                         openActionModal(selectedInvoice, 'overdue');
                       }}
                       variant="outline"
@@ -1241,7 +1240,6 @@ export default function AdminInvoicesPage() {
                 {selectedInvoice?.status === 'Overdue' && (
                   <Button
                     onClick={() => {
-                      closeDetailsModal();
                       openActionModal(selectedInvoice, 'mark_paid');
                     }}
                     className="w-full bg-green-600 hover:bg-green-700"
@@ -1253,7 +1251,6 @@ export default function AdminInvoicesPage() {
                  selectedInvoice?.status !== 'Refunded' && selectedInvoice?.status !== 'Failed' && (
                   <Button
                     onClick={() => {
-                      closeDetailsModal();
                       openActionModal(selectedInvoice, 'cancel');
                     }}
                     variant="danger"
@@ -1470,21 +1467,22 @@ export default function AdminInvoicesPage() {
 
       {/* Action Modal */}
       <Modal
-        isOpen={showActionModal && selectedInvoice}
+        isOpen={showActionModal && selectedActionInvoice}
         onClose={closeActionModal}
         title={actionType === 'send' ? 'Send Invoice' :
                actionType === 'mark_paid' ? 'Mark Invoice as Paid' :
                actionType === 'overdue' ? 'Mark Invoice as Overdue' :
                actionType === 'cancel' ? 'Cancel Invoice' : 'Invoice Action'}
         size="md"
+        zIndex={1100}
       >
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium">{selectedInvoice?.invoiceNumber}</h4>
+          <h4 className="font-medium">{selectedActionInvoice?.invoiceNumber}</h4>
           <p className="text-sm text-gray-600">
-            Customer: {selectedInvoice?.userId?.name}
+            Customer: {selectedActionInvoice?.userId?.name}
           </p>
           <p className="text-sm text-gray-600">
-            Amount: {formatCurrency(selectedInvoice?.amount || selectedInvoice?.totalAmount || 0, selectedInvoice?.currency)}
+            Amount: {formatCurrency(selectedActionInvoice?.amount || selectedActionInvoice?.totalAmount || 0, selectedActionInvoice?.currency)}
           </p>
         </div>
 
@@ -1518,7 +1516,7 @@ export default function AdminInvoicesPage() {
               const newStatus = actionType === 'send' ? 'Sent' :
                                actionType === 'mark_paid' ? 'Paid' :
                                actionType === 'overdue' ? 'Overdue' : 'Cancelled';
-              handleStatusChange(selectedInvoice?._id, newStatus, actionNotes);
+              handleStatusChange(selectedActionInvoice?._id, newStatus, actionNotes);
             }}
             disabled={actionLoading ||
               ((actionType === 'cancel' || actionType === 'overdue') && !actionNotes.trim())

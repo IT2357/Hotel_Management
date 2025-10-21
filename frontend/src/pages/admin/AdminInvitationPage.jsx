@@ -505,17 +505,17 @@ function InvitationsList({ invitations, onEdit, onDelete, getStatusColor }) {
           {invitations.map((inv) => (
             <div
               key={inv._id}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 min-h-[350px] flex flex-col"
+              className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 min-h-[350px] flex flex-col min-w-0"
             >
               <div className={`${getStatusColor(inv.status)} rounded-xl p-4 text-white mb-4 shadow-lg`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg">{inv.email}</h3>
-                    <p className="text-white/90 text-sm">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-lg truncate" title={inv.email}>{inv.email}</h3>
+                    <p className="text-white/90 text-sm truncate">
                       {inv.role === "admin" ? "🔑" : inv.role === "manager" ? "👨‍💻" : "👨‍💼"} {inv.role.charAt(0).toUpperCase() + inv.role.slice(1)}
                     </p>
                   </div>
-                  <Badge className={`${getStatusColor(inv.status)} bg-white/20 text-white border-white/30`}>
+                  <Badge className={`${getStatusColor(inv.status)} bg-white/20 text-white border-white/30 shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold`}>
                     {inv.status.toUpperCase()}
                   </Badge>
                 </div>
