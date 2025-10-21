@@ -29,10 +29,38 @@ export const createRoom = async (req, res) => {
  */
 export const getAllRooms = async (req, res) => {
   try {
-    const rooms = await Room.find().sort({ createdAt: -1 });
+    const { type, status, search, page = 1, limit = 20 } = req.query;
+    
+    // Build the query object
+    const query = {};
+    
+    // Add filters if provided
+    if (type) query.type = type;
+    if (status) query.status = status;
+    
+    // Add search functionality (case-insensitive search on roomNumber and title)
+    if (search) {
+      query.$or = [
+        { roomNumber: { $regex: search, $options: 'i' } },
+        { title: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Execute query with pagination
+    const rooms = await Room.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    // Get total count for pagination
+    const total = await Room.countDocuments(query);
+    
     res.status(200).json({
       success: true,
       count: rooms.length,
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
       data: rooms,
     });
   } catch (error) {

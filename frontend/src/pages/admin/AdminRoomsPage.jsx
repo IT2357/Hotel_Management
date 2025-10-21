@@ -1,5 +1,5 @@
  // 📁 frontend/pages/admin/AdminRoomsPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -22,6 +22,8 @@ export default function AdminRoomsPage() {
     status: "",
     search: "",
   });
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const [searchTerm, setSearchTerm] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -29,37 +31,71 @@ export default function AdminRoomsPage() {
     pages: 1,
   });
 
+  // Debounce the search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedFilters(prev => ({
+        ...prev,
+        search: searchTerm,
+        page: 1 // Reset to first page on search
+      }));
+    }, 500); // 500ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  // Update debounced filters when other filter values change
+  useEffect(() => {
+    setDebouncedFilters(prev => ({
+      ...prev,
+      type: filters.type,
+      status: filters.status,
+      page: filters.page,
+      limit: filters.limit
+    }));
+  }, [filters.type, filters.status, filters.page, filters.limit]);
+
+  // Fetch rooms when debounced filters change
   useEffect(() => {
     fetchRooms();
-  }, [filters]);
+  }, [debouncedFilters]);
 
-const fetchRooms = async () => {
-  setLoading(true);
-  try {
-    const response = await roomService.getAllRooms({ params: filters });
-    const data = response?.data;
+  const fetchRooms = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Create a clean filters object without empty values
+      const cleanFilters = Object.entries(debouncedFilters).reduce((acc, [key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
 
-    // Correctly extract rooms array
-    const roomsData = data?.data ?? [];
+      // Remove the 'params' wrapper if it exists
+      const response = await roomService.getAllRooms(cleanFilters);
+      const data = response?.data;
+      const roomsData = data?.data ?? [];
 
-    setRooms(roomsData);
+      setRooms(roomsData);
 
-    setPagination({
-      page: data?.page || 1,
-      limit: data?.limit || 20,
-      total: data?.count || roomsData.length,
-      pages: data?.pages || 1,
-    });
+      setPagination({
+        page: data?.page || 1,
+        limit: data?.limit || 20,
+        total: data?.count || roomsData.length,
+        pages: data?.pages || 1,
+      });
 
-    console.log("Fetched rooms:", roomsData);
-  } catch (err) {
-    console.error("Error fetching rooms:", err);
-    setRooms([]);
-    setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
-  } finally {
-    setLoading(false);
-  }
-};
+      console.log("Fetched rooms:", roomsData);
+    } catch (err) {
+      console.error("Error fetching rooms:", err);
+      setRooms([]);
+      setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedFilters]);
 
 
 
@@ -100,12 +136,11 @@ const fetchRooms = async () => {
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        
             <Input
               placeholder="Search by room number..."
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value, page: 1 })
-              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
             <Select
               value={filters.type}
@@ -132,8 +167,7 @@ const fetchRooms = async () => {
               <option value="Cleaning">Cleaning</option>
               <option value="OutOfService">Out of Service</option>
             </Select>
-            <Button onClick={fetchRooms}>Apply Filters</Button>
-            <Link to="/admin/add-room">
+            <Link to="/admin/add-room" className="col-span-2">
               <Button variant="primary">+ Add Room</Button>
             </Link>
           </div>
@@ -197,7 +231,7 @@ const fetchRooms = async () => {
                         {(room.occupancy?.adults ?? 0)} Adults, {(room.occupancy?.children ?? 0)} Children
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${room.basePrice ?? 0}
+                        LKR{room.basePrice ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge className={getStatusColor(room.status)}>{room.status || "Unknown"}</Badge>
