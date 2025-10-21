@@ -16,8 +16,12 @@ const Input = React.forwardRef(function Input({
   return (
     <input
       type={type}
+      id={id}
       className={`${baseClasses} ${className}`}
       ref={ref}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
       {...props}
     />
   );

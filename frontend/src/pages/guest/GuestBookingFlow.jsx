@@ -235,6 +235,37 @@ const GuestBookingFlow = () => {
   };
 
   const handleInputChange = (field, value) => {
+    console.log(`Field changed - ${field}:`, value);
+    
+    // Special handling for date fields to ensure proper formatting
+    if (field === 'checkIn' || field === 'checkOut') {
+      if (!value) {
+        // If value is empty, set it as is
+        setBookingData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+        return;
+      }
+      
+      // Ensure the date is in YYYY-MM-DD format
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date:', value);
+        return;
+      }
+      
+      const formattedDate = date.toISOString().split('T')[0];
+      console.log(`Formatted ${field}:`, formattedDate);
+      
+      setBookingData(prev => ({
+        ...prev,
+        [field]: formattedDate
+      }));
+      return;
+    }
+    
+    // For non-date fields
     setBookingData(prev => ({
       ...prev,
       [field]: value
@@ -340,13 +371,40 @@ const GuestBookingFlow = () => {
           </p>
         </div>
       )}
-      <Button
-        onClick={() => setStep(2)}
-        disabled={!bookingData.checkIn || !bookingData.checkOut || loading}
-        className="w-full"
-      >
-        Search Available Rooms
-      </Button>
+      <div className="space-y-2">
+        <Button
+          onClick={() => {
+            console.log('Current booking data:', bookingData);
+            const isDisabled = !bookingData.checkIn || !bookingData.checkOut || loading;
+            console.log('Button disabled:', isDisabled, {
+              hasCheckIn: !!bookingData.checkIn,
+              hasCheckOut: !!bookingData.checkOut,
+              loading: loading
+            });
+            if (!isDisabled) {
+              setStep(2);
+            }
+          }}
+          disabled={!bookingData.checkIn || !bookingData.checkOut || loading}
+          className="w-full"
+        >
+          {loading ? 'Searching...' : 'Search Available Rooms'}
+        </Button>
+        {(!bookingData.checkIn || !bookingData.checkOut) && (
+          <div className="text-sm text-red-500 p-2 bg-red-50 rounded">
+            <p className="font-medium">Please select:</p>
+            <ul className="list-disc pl-5 mt-1 space-y-1">
+              {!bookingData.checkIn && <li>Check-in date</li>}
+              {!bookingData.checkOut && <li>Check-out date</li>}
+            </ul>
+            <div className="mt-2 p-2 bg-white rounded border border-red-100 text-xs">
+              <p className="font-medium">Debug Info:</p>
+              <p>Check-in: {bookingData.checkIn || 'Not selected'}</p>
+              <p>Check-out: {bookingData.checkOut || 'Not selected'}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 

@@ -44,6 +44,7 @@ const GuestCheckInOutPage = () => {
   const [receipt, setReceipt] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [eligibleBookings, setEligibleBookings] = useState([]);
+  const [recentlyCheckedOut, setRecentlyCheckedOut] = useState(null);
 
   // Check-in form state
   const [checkInData, setCheckInData] = useState({
@@ -84,6 +85,24 @@ const GuestCheckInOutPage = () => {
       console.log('🔍 Fetching guest check-in status...');
       const response = await checkInOutApi.get('/check-in-out/guest/status');
       console.log('✅ Raw check-in status response:', response);
+      
+      // Handle checked out status
+      if (response.data && (response.data.status === 'checked_out' || response.data.status === 'recently_checked_out')) {
+        console.log('ℹ️ Guest has checked out:', response.data);
+        setRecentlyCheckedOut({
+          message: response.data.message || 'Your stay has ended. Thank you for staying with us!',
+          checkOutTime: response.data.checkOutTime,
+          roomNumber: response.data.roomNumber || response.data.room?.roomNumber
+        });
+        setCheckInStatus(response.data); // Set the checked_out status
+        return;
+      }
+      
+      // Reset recentlyCheckedOut state if we got a different response
+      if (recentlyCheckedOut) {
+        setRecentlyCheckedOut(null);
+      }
+      
       console.log('✅ Guest check-in status data:', response.data);
       
       // Debug: Log the status and type of status
@@ -98,8 +117,15 @@ const GuestCheckInOutPage = () => {
     } catch (error) {
       console.error('❌ Failed to fetch check-in status:', error);
       console.error('❌ Error response:', error.response?.data);
-      // If no current check-in, status will be null - this is expected
-      if (error.response?.status !== 404) {
+      
+      // Reset states on error
+      setCheckInStatus(null);
+      setRecentlyCheckedOut(null);
+      
+      if (error.response?.status === 404) {
+        // No active check-in found, which is fine
+        console.log('ℹ️ No active check-in record found');
+      } else {
         enqueueSnackbar('Failed to load check-in status', { variant: 'error' });
       }
     } finally {
@@ -213,7 +239,9 @@ const GuestCheckInOutPage = () => {
         backImage: null
       });
 
-      fetchCheckInStatus();
+      // Refresh status and eligible bookings after check-in
+      await fetchCheckInStatus();
+      await fetchEligibleBookings();
 
     } catch (error) {
       console.error('❌ Check-in failed:', error);
@@ -240,7 +268,10 @@ const GuestCheckInOutPage = () => {
       console.log('✅ Check-out response:', response.data);
       enqueueSnackbar('Check-out successful!', { variant: 'success' });
       setShowCheckOutModal(false);
-      fetchCheckInStatus();
+      
+      // Refresh status and eligible bookings after checkout
+      await fetchCheckInStatus();
+      await fetchEligibleBookings();
 
       // Reset form
       setCheckOutData({ damageReport: '' });
@@ -344,10 +375,41 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
           <p className="text-gray-600">Manage your hotel stay conveniently</p>
         </div>
 
-        {safeCheckInStatus && safeCheckInStatus.status ? (
-          // Handle different check-in statuses
-          safeCheckInStatus.status === 'pre_checkin' ? (
-            // Pre-check-in: Show check-in completion form
+        {recentlyCheckedOut ? (
+          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+            <div className="bg-green-100 p-4 rounded-full inline-flex items-center justify-center mb-4">
+              <svg className="h-12 w-12 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Check-out Complete</h2>
+            <p className="text-gray-600 mb-4">{recentlyCheckedOut.message}</p>
+            {recentlyCheckedOut.roomNumber && (
+              <p className="text-gray-700 mb-4">
+                Room: {recentlyCheckedOut.roomNumber}
+              </p>
+            )}
+            {recentlyCheckedOut.checkOutTime && (
+              <p className="text-gray-700 mb-6">
+                Check-out Time: {new Date(recentlyCheckedOut.checkOutTime).toLocaleString()}
+              </p>
+            )}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-blue-800">
+                Thank you for staying with us! We hope you enjoyed your stay and look forward to welcoming you back soon.
+              </p>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={handleGetReceipt}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Download Receipt
+              </button>
+            </div>
+          </div>
+        ) : safeCheckInStatus && safeCheckInStatus.status === 'pre_checkin' && safeCheckInStatus.booking?.status === 'Confirmed' && safeCheckInStatus.room ? (
+          // Pre-check-in: Show check-in completion form
             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
               <div className="text-center mb-6">
                 <div className="mx-auto h-16 w-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">✓</div>
@@ -367,7 +429,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                     <strong>Status:</strong> {checkInStatus.booking?.status || 'Not available'}
                   </p>
                   <p className="text-blue-800">
-                    <strong>Room:</strong> {checkInStatus.room?.number} ({checkInStatus.room?.type})
+                    <strong>Room:</strong> {checkInStatus.room?.roomNumber} ({checkInStatus.room?.type})
                   </p>
                   <p className="text-blue-800">
                     <strong>Check-in Date:</strong> {checkInStatus.booking?.checkIn ? new Date(checkInStatus.booking.checkIn).toLocaleDateString() : 'Not available'}
@@ -562,7 +624,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                   <div className="flex justify-center">
                     <button
                       onClick={handleCheckIn}
-                      disabled={processing || checkInStatus.booking?.status !== 'Confirmed'}
+                      disabled={processing || checkInStatus.booking?.status !== 'Confirmed' || eligibleBookings.length === 0}
                       className="px-8 py-3 text-lg font-semibold bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                     >
                       {processing ? 'Processing...' : (checkInStatus.booking?.status === 'Confirmed' ? 'Complete Check-in' : 'Awaiting Confirmation')}
@@ -579,7 +641,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                   <div className="mb-4 md:mb-0">
                     <h2 className="text-xl font-semibold text-green-600 mb-1">Currently Checked In</h2>
                     <p className="text-gray-600">
-                      Room {safeCheckInStatus.room.id || 'N/A'} ({safeCheckInStatus.room.type || 'N/A'}) • Checked in {new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}
+                      Room {safeCheckInStatus.room?.roomNumber || 'N/A'} ({safeCheckInStatus.room?.type || 'N/A'}) • Checked in {new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
                       Key Card: {safeCheckInStatus.keyCardNumber || 'Not assigned'}
@@ -638,15 +700,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
               </div>
             </div>
           ) : (
-            // Fallback for other statuses
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="text-center">
-                <p className="text-gray-600">Status: {checkInStatus?.status || 'Unknown'}</p>
-              </div>
-            </div>
-          )
-        ) : (
-          // No check-in record found - show booking lookup
+            // No check-in record found - show booking lookup
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div className="text-center">
               <div className="mx-auto h-16 w-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">→</div>
@@ -691,7 +745,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                 />
                 <button 
                   onClick={() => setShowCheckInModal(true)} 
-                  disabled={!checkInData.bookingId.trim()}
+                  disabled={!checkInData.bookingId.trim() || eligibleBookings.length === 0}
                   className="w-full px-6 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                 >
                   Start Check-in Process
@@ -877,7 +931,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
             </button>
             <button 
               onClick={handleCheckIn} 
-              disabled={processing}
+              disabled={processing || eligibleBookings.length === 0}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
             >
               {processing ? 'Processing...' : 'Complete Check-in'}
