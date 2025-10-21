@@ -1,5 +1,6 @@
 // Manager Layout Components
 export { default as ManagerBreadcrumb } from './ManagerBreadcrumb';
+export { default as ManagerLayout } from './ManagerLayout';
 export { default as ManagerPageHeader } from './ManagerPageHeader';
 export { default as ManagerPageLoader } from './ManagerPageLoader';
 export { default as ManagerErrorState } from './ManagerErrorState';

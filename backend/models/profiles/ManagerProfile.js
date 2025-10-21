@@ -97,6 +97,18 @@ const managerProfileSchema = new mongoose.Schema(
       },
     },
     notes: { type: String, trim: true },
+    metrics: {
+      tasksCompleted: { type: Number, default: 0, min: 0 },
+      onTimeRate: { type: Number, default: 0, min: 0, max: 100 },
+      satisfaction: { type: Number, default: 0, min: 0, max: 5 },
+    },
+    activityLog: [
+      {
+        title: { type: String, trim: true },
+        timestamp: { type: Date, default: Date.now },
+        meta: { type: String, trim: true },
+      },
+    ],
   },
   {
     timestamps: true,

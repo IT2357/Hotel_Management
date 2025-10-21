@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import io from 'socket.io-client';
+import useAuth from '../../hooks/useAuth';
 import { taskAPI, feedbackAPI, formatters } from '../../services/taskManagementAPI';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const StaffTaskPage = () => {
   const [tasks, setTasks] = useState([]);
@@ -21,12 +25,10 @@ const StaffTaskPage = () => {
     message: '',
     priority: 'medium'
   });
+  const [notification, setNotification] = useState(null);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    fetchMyTasks();
-  }, [filter]);
-
-  const fetchMyTasks = async () => {
+  const fetchMyTasks = useCallback(async () => {
     try {
       setLoading(true);
       const response = await taskAPI.getMyTasks({
@@ -39,7 +41,69 @@ const StaffTaskPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  const fetchMyTasksRef = useRef(fetchMyTasks);
+
+  useEffect(() => {
+    fetchMyTasksRef.current = fetchMyTasks;
+  }, [fetchMyTasks]);
+
+  useEffect(() => {
+    fetchMyTasks();
+  }, [fetchMyTasks]);
+
+  useEffect(() => {
+    if (!user?._id) {
+      return undefined;
+    }
+
+    const staffIdString = String(user._id);
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+      withCredentials: true
+    });
+
+    const handleManagerTaskAssigned = (payload = {}) => {
+      if (payload.staffId && payload.staffId !== staffIdString) {
+        return;
+      }
+
+      setNotification({
+        id: payload.task?._id || Date.now().toString(),
+        message: payload.task?.title
+          ? `You have been assigned a new task: ${payload.task.title}`
+          : 'You have been assigned a new task.',
+        timestamp: payload.assignedAt || new Date().toISOString()
+      });
+
+      fetchMyTasksRef.current()
+        .catch((err) => console.error('Error refreshing tasks after assignment:', err));
+    };
+
+    socket.on('connect', () => {
+      socket.emit('join-role-room', {
+        role: user.role || 'staff',
+        userId: staffIdString
+      });
+    });
+
+    socket.on('managerTaskAssigned', handleManagerTaskAssigned);
+
+    return () => {
+      socket.off('managerTaskAssigned', handleManagerTaskAssigned);
+      socket.disconnect();
+    };
+  }, [user?._id, user?.role]);
+
+  useEffect(() => {
+    if (!notification) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => setNotification(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [notification]);
 
   const handleTaskClick = (task) => {
     setSelectedTask(task);
@@ -169,6 +233,29 @@ const StaffTaskPage = () => {
             ))}
           </div>
         </div>
+
+        {notification && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">New Task Assigned</p>
+                <p className="mt-1 text-sm">{notification.message}</p>
+                {notification.timestamp && (
+                  <p className="mt-2 text-xs text-blue-600">
+                    {new Date(notification.timestamp).toLocaleString()}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotification(null)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Tasks Display */}
         {filter === 'all' ? (

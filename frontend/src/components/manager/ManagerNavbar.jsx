@@ -58,7 +58,7 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed inset-x-0 top-0 z-50 w-full border-b border-[#142347] bg-gradient-to-r from-[#09122a] via-[#0f2349] to-[#07152d] text-[#f5f7ff] shadow-[0_10px_38px_rgba(7,17,40,0.55)]"
+      className="fixed inset-x-0 top-0 z-50 w-full bg-gradient-to-r from-[#09122a] via-[#0f2349] to-[#07152d] text-[#f5f7ff] shadow-[0_10px_38px_rgba(7,17,40,0.55)]"
     >
       <div className="relative flex items-center justify-between px-6 py-4">
         <div className="pointer-events-none absolute inset-x-12 inset-y-0 rounded-full bg-[#0f2a52]/60 blur-3xl" />

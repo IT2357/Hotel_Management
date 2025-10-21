@@ -5,12 +5,13 @@ import * as managerController from '../controllers/manager/managerController.js'
 
 const router = express.Router();
 
-router.use(authenticateToken, authorizeRoles(['Manager']));
+router.use(authenticateToken, authorizeRoles(['manager']));
 
 router.get('/taskboard', managerController.getTaskBoard);
 router.get('/staff-availability', managerController.getStaffAvailability);
 router.post('/manage-assignment', managerController.manageTaskAssignment);
 router.post('/set-priority', managerController.setTaskPriority);
 router.get('/analytics', managerController.getAnalytics);
+router.get('/profile/overview', managerController.getManagerProfileOverview);
 
 export default router;

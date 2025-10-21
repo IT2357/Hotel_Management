@@ -42,7 +42,7 @@ const router = express.Router();
 router.get(
   "/tasks",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getAllTasks
 );
 
@@ -52,7 +52,7 @@ router.get(
 router.get(
   "/tasks/stats",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getTaskStats
 );
 
@@ -72,7 +72,7 @@ router.get(
 router.get(
   "/staff",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getAllStaff
 );
 
@@ -84,7 +84,7 @@ router.get(
 router.get(
   "/tasks/staff/:department",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getAvailableStaff
 );
 
@@ -94,7 +94,7 @@ router.get(
 router.get(
   "/tasks/:id",
   authenticateToken,
-  authorizeRoles(["manager", "staff", "admin"]),
+  authorizeRoles(["manager", "staff"]),
   getTaskById
 );
 
@@ -104,7 +104,7 @@ router.get(
 router.post(
   "/tasks",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   createTask
 );
 
@@ -114,7 +114,7 @@ router.post(
 router.put(
   "/tasks/:id/assign",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   assignTask
 );
 
@@ -124,7 +124,7 @@ router.put(
 router.put(
   "/tasks/:id/status",
   authenticateToken,
-  authorizeRoles(["staff", "manager", "admin"]),
+  authorizeRoles(["staff", "manager"]),
   updateTaskStatus
 );
 
@@ -134,7 +134,7 @@ router.put(
 router.delete(
   "/tasks/:id",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   deleteTask
 );
 
@@ -166,7 +166,7 @@ router.get(
 router.get(
   "/feedback/stats",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getFeedbackStats
 );
 
@@ -225,7 +225,7 @@ router.delete(
 router.get(
   "/reports/tasks",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getTaskReports
 );
 
@@ -235,7 +235,7 @@ router.get(
 router.get(
   "/reports/workload",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getWorkloadReport
 );
 
@@ -245,7 +245,7 @@ router.get(
 router.get(
   "/reports/delayed",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   getDelayedTasksReport
 );
 
@@ -255,7 +255,7 @@ router.get(
 router.get(
   "/reports/export",
   authenticateToken,
-  authorizeRoles(["manager", "admin"]),
+  authorizeRoles(["manager"]),
   exportReport
 );
 

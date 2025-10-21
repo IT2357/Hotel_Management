@@ -30,6 +30,54 @@ import FoodCard, { FoodCardContent, FoodCardHeader, FoodCardTitle } from '../../
 import FoodOrderAlert from '../../components/food/FoodOrderAlert';
 import io from 'socket.io-client';
 
+const ROOM_LIKE_PATTERNS = /(room|suite|villa|bungalow|penthouse)\s*[-#:]*\s*(\d+[A-Z]?)/i;
+
+const normalizeSpaces = (value = '') => value.replace(/\s+/g, ' ').trim();
+
+const toTitleCase = (value = '') => normalizeSpaces(value).replace(/\b([a-z])/gi, (match) => match.toUpperCase());
+
+const stripCommonPrefixes = (value = '') => normalizeSpaces(value)
+  .replace(/^table\/?room[:\-]?\s*/i, '')
+  .replace(/^table[:\-]?\s*/i, 'Table ')
+  .replace(/^room[:\-]?\s*/i, 'Room ');
+
+const formatDeliveryLocation = (order) => {
+  if (!order) return 'N/A';
+
+  const { deliveryLocation, customerDetails, orderType } = order;
+
+  const candidateValues = [
+    customerDetails?.roomNumber,
+    customerDetails?.seatNumber,
+    customerDetails?.deliveryAddress,
+    deliveryLocation,
+    customerDetails?.location
+  ].filter(Boolean).map(value => stripCommonPrefixes(value));
+
+  let chosen = candidateValues.find(value => ROOM_LIKE_PATTERNS.test(value));
+  if (!chosen) {
+    chosen = candidateValues.find(value => /table|lobby|pool|garden|restaurant|bar/i.test(value));
+  }
+  if (!chosen) {
+    chosen = candidateValues[0];
+  }
+
+  if (!chosen) {
+    if (orderType === 'room-service') return 'Room Service (Awaiting Location)';
+    if (orderType === 'delivery') return 'Delivery';
+    if (orderType === 'takeaway') return 'Takeaway Pickup';
+    return 'Restaurant Floor';
+  }
+
+  const normalized = stripCommonPrefixes(chosen);
+  const roomMatch = normalized.match(ROOM_LIKE_PATTERNS);
+  if (roomMatch) {
+    return `Room ${roomMatch[2]}`;
+  }
+
+  return toTitleCase(normalized);
+};
+
 const FoodOrderManagementPage = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -133,10 +181,16 @@ const FoodOrderManagementPage = () => {
 
   // Filter orders
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = !searchTerm ||
-      order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerDetails?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerDetails?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const formattedLocation = formatDeliveryLocation(order);
+    const formattedLocationLower = formattedLocation.toLowerCase();
+    const matchesSearch = !normalizedSearch ||
+      order._id.toLowerCase().includes(normalizedSearch) ||
+      order.customerDetails?.name?.toLowerCase().includes(normalizedSearch) ||
+      order.customerDetails?.email?.toLowerCase().includes(normalizedSearch) ||
+      order.customerDetails?.deliveryAddress?.toLowerCase().includes(normalizedSearch) ||
+      order.deliveryLocation?.toLowerCase().includes(normalizedSearch) ||
+      formattedLocationLower.includes(normalizedSearch);
 
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
 
@@ -443,6 +497,9 @@ const FoodOrderManagementPage = () => {
                     Total
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -460,6 +517,7 @@ const FoodOrderManagementPage = () => {
                 {filteredOrders.map((order, index) => {
                   const isRoomService = order.orderType === 'room-service' ||
                                        (order.deliveryLocation && /room/i.test(order.deliveryLocation));
+                  const locationLabel = formatDeliveryLocation(order);
 
                   return (
                     <motion.tr
@@ -503,6 +561,18 @@ const FoodOrderManagementPage = () => {
                         <span className="text-sm font-bold text-orange-600">
                           LKR {order.totalPrice?.toFixed(2) || '0.00'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col text-sm text-gray-700">
+                          <span className="font-medium">
+                            {locationLabel || 'N/A'}
+                          </span>
+                          {order.customerDetails?.phone && (
+                            <span className="text-xs text-gray-500">
+                              {order.customerDetails.phone}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-700 capitalize">

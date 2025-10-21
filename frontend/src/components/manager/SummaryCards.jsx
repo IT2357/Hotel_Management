@@ -44,12 +44,12 @@ export const SummaryCards = ({ cards = defaultCards }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          whileHover={{ y: -5, transition: { duration: 0.2 } }}
-          className="group cursor-pointer rounded-2xl border border-[#162a52] bg-[#0e1f42] p-6 shadow-[0_18px_40px_rgba(8,14,29,0.55)] transition-all duration-300 hover:shadow-[0_25px_50px_rgba(10,20,48,0.65)]"
+          whileHover={{ y: -6, transition: { duration: 0.2 } }}
+          className="group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_24px_55px_rgba(8,14,29,0.45)] backdrop-blur-lg transition-all duration-300 hover:border-white/20 hover:bg-white/[0.08] hover:shadow-[0_32px_65px_rgba(8,14,29,0.5)]"
         >
           <div className="mb-4 flex items-start justify-between">
             <div
-              className="rounded-xl bg-[#10234f] p-3 transition-transform duration-300 group-hover:scale-110"
+              className="rounded-xl bg-white/10 p-3 transition-transform duration-300 group-hover:scale-110"
               style={{ color: card.iconColor }}
             >
               <card.icon className="h-6 w-6" />
@@ -57,14 +57,14 @@ export const SummaryCards = ({ cards = defaultCards }) => {
           </div>
           
           <div className="space-y-1">
-            <p className="text-3xl font-bold text-[#f5f7ff]">
+            <p className="text-3xl font-bold text-white">
               <AnimatedNumber value={card.value} suffix={card.suffix} />
             </p>
-            <p className="text-sm font-medium text-[#8ba3d0]">{card.label}</p>
+            <p className="text-sm font-medium text-white/70">{card.label}</p>
           </div>
 
           <motion.div
-            className="mt-4 h-1 rounded-full bg-gradient-to-r from-[#facc1533] via-[#facc15] to-[#facc1533]"
+            className="mt-4 h-1 rounded-full bg-gradient-to-r from-transparent via-white/40 to-transparent"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ delay: index * 0.1 + 0.3, duration: 0.5 }}

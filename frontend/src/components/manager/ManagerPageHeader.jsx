@@ -1,74 +1,72 @@
-import React from 'react';
-import { RefreshCw } from 'lucide-react';
+import { motion } from "framer-motion";
+import PropTypes from "prop-types";
+import { MANAGER_SECTION_CLASS } from "@/pages/manager/managerStyles";
 
-const ManagerPageHeader = ({ 
-  title, 
-  subtitle, 
-  icon: Icon,
-  actions = [],
-  loading = false,
-  onRefresh = null,
-  className = ""
-}) => {
-  return (
-    <div className={`bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-6 ${className}`}>
-      <div className="flex items-center justify-between">
-        {/* Title Section */}
-        <div className="flex items-center space-x-4">
-          {Icon && (
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Icon className="h-6 w-6 text-blue-600" />
+const chipClass = "rounded-full border border-white/15 bg-white/[0.08] px-3 py-1 text-xs font-semibold tracking-wide text-white/70";
+const footerClass = "flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-white/60";
+
+const ManagerPageHeader = ({
+  title,
+  subtitle,
+  accentChips = [],
+  actions,
+  footerChips = [],
+  className = "",
+}) => (
+  <motion.section
+    initial={{ opacity: 0, y: -16 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4 }}
+    className={`${MANAGER_SECTION_CLASS} relative overflow-hidden ${className}`.trim()}
+  >
+    <div className="pointer-events-none absolute inset-0">
+      <div className="absolute -left-24 top-0 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.2),transparent_60%)] blur-3xl" />
+      <div className="absolute bottom-[-10%] right-[-6%] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.18),transparent_55%)] blur-3xl" />
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.08)_0%,rgba(15,23,42,0)_35%,rgba(255,255,255,0.05)_70%)] opacity-70" />
+      <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:100%_32px] opacity-20" />
+    </div>
+
+    <div className="relative z-10 space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4">
+          {accentChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.28em] text-white/70">
+              {accentChips.map((chip, index) => (
+                <span key={index} className={chipClass}>
+                  {chip}
+                </span>
+              ))}
             </div>
           )}
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-            {subtitle && (
-              <p className="text-gray-600 mt-1">{subtitle}</p>
-            )}
+          <div className="space-y-3">
+            <h1 className="text-3xl font-bold text-white md:text-4xl">{title}</h1>
+            {subtitle && <p className="text-sm text-white/70 md:text-base">{subtitle}</p>}
           </div>
         </div>
 
-        {/* Actions Section */}
-        <div className="flex items-center space-x-3">
-          {/* Refresh Button */}
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          )}
-
-          {/* Custom Actions */}
-          {actions.map((action, index) => {
-            const ActionIcon = action.icon;
-            return (
-              <button
-                key={index}
-                onClick={action.onClick}
-                disabled={action.disabled || loading}
-                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  action.variant === 'primary' 
-                    ? 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                    : action.variant === 'secondary'
-                    ? 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:ring-blue-500'
-                    : action.variant === 'danger'
-                    ? 'text-white bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:ring-blue-500'
-                }`}
-              >
-                {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
-                {action.label}
-              </button>
-            );
-          })}
-        </div>
+        {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
       </div>
+
+      {footerChips.length > 0 && (
+        <div className="flex flex-wrap gap-3 text-xs text-white/65">
+          {footerChips.map((item, index) => (
+            <span key={index} className={footerClass}>
+              {item}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
-  );
+  </motion.section>
+);
+
+ManagerPageHeader.propTypes = {
+  title: PropTypes.string.isRequired,
+  subtitle: PropTypes.string,
+  accentChips: PropTypes.arrayOf(PropTypes.node),
+  actions: PropTypes.node,
+  footerChips: PropTypes.arrayOf(PropTypes.node),
+  className: PropTypes.string,
 };
 
 export default ManagerPageHeader;

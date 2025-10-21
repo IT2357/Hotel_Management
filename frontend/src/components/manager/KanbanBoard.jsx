@@ -33,7 +33,7 @@ const columns = [
 
 export const KanbanBoard = ({
   tasksByStatus,
-  onTaskApprove,
+  onTaskAssign,
   onTaskSelect,
   isLoading = false,
   emptyMessage = "No tasks yet",
@@ -53,9 +53,9 @@ export const KanbanBoard = ({
     onTaskSelect?.(task);
   };
 
-  const handleApprove = (task, staffName) => {
-    if (onTaskApprove) {
-      onTaskApprove(task, staffName);
+  const handleAssign = async (task, staff) => {
+    if (onTaskAssign) {
+      await onTaskAssign(task, staff);
     }
   };
 
@@ -125,7 +125,7 @@ export const KanbanBoard = ({
         task={selectedTask}
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        onApprove={handleApprove}
+        onAssign={handleAssign}
       />
     </>
   );

@@ -17,10 +17,11 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:5000", // 👈 Your backend server
+        target: process.env.VITE_API_BASE_URL, // 👈 Your backend server
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, "/api"),
+        // Strip the leading /api so target already containing /api does not duplicate it
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

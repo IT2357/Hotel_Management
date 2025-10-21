@@ -26,57 +26,97 @@ const resolveEnumValue = (value, allowed, fallback) => {
 
 const SAMPLE_TASKS = [
   {
-    title: "Deep clean presidential suite",
+    title: "Prepare presidential suite for VIP arrival",
     description:
-      "Full housekeeping service for presidential suite including linen change, amenities restock, and floor polishing.",
-    department: "Housekeeping",
+      "Full-service refresh of the presidential suite including linen change, minibar restock, and amenity placement.",
+    department: "cleaning",
     type: "cleaning",
-    priority: "High",
-    status: "Pending",
+    priority: "Urgent",
+      status: "Pending",
     location: "Presidential Suite",
     roomNumber: "PH-01",
-    dueDate: () => new Date(Date.now() + 3 * 60 * 60 * 1000),
+    dueDate: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
     estimatedDuration: 180,
-    tags: ["VIP", "Housekeeping"],
+    tags: ["VIP", "Arrival"],
+    recommendedStaff: [
+      { name: "Angela Ortiz", role: "Senior Housekeeper", match: 94 },
+      { name: "Priya Patel", role: "Housekeeping Lead", match: 89 },
+    ],
   },
   {
-    title: "Kitchen equipment inspection",
+    title: "Walk-in freezer temperature audit",
     description:
-      "Perform scheduled maintenance on primary kitchen line and verify refrigeration temperatures.",
-    department: "Kitchen",
-    type: "maintenance",
-    priority: "Urgent",
-    status: "In-Progress",
+      "Verify temperature logs, calibrate sensors, and document variance report for the main kitchen freezer.",
+  department: "Kitchen",
+  type: "Kitchen",
+    priority: "High",
+      status: "Pending",
     location: "Main Kitchen",
     dueDate: () => new Date(Date.now() + 90 * 60 * 1000),
     estimatedDuration: 120,
-    tags: ["Maintenance", "Safety"],
+    tags: ["Compliance", "Safety"],
+    recommendedStaff: [
+      { name: "Marcus Reid", role: "Sous Chef", match: 88 },
+      { name: "Kim Lee", role: "Inventory Specialist", match: 83 },
+    ],
   },
   {
-    title: "Executive lounge welcome setup",
+    title: "Corporate delegation welcome briefing",
     description:
-      "Arrange welcome amenities and staff briefing for corporate delegation arriving this evening.",
-    department: "Guest Services",
-    type: "service",
+      "Coordinate welcome drinks, briefing cards, and concierge coverage for the arriving corporate delegation.",
+  department: "service",
+  type: "service",
     priority: "Medium",
-    status: "Assigned",
+      status: "Pending",
     location: "Executive Lounge",
-    dueDate: () => new Date(Date.now() + 6 * 60 * 60 * 1000),
+    dueDate: () => new Date(Date.now() + 5 * 60 * 60 * 1000),
     estimatedDuration: 150,
     tags: ["Corporate", "Event"],
+    recommendedStaff: [
+      { name: "Daniel Kaban", role: "Guest Relations", match: 86 },
+    ],
   },
   {
-    title: "Front desk night audit briefing",
+    title: "Front desk night audit checklist",
     description:
-      "Prepare nightly audit checklist and assign staff for overnight guest assistance coverage.",
-    department: "Front Desk",
-    type: "general",
+      "Compile financial reconciliation checklist, confirm shift coverage, and prepare turnover briefing notes.",
+  department: "service",
+  type: "service",
     priority: "Low",
     status: "Pending",
     location: "Front Desk",
     dueDate: () => new Date(Date.now() + 12 * 60 * 60 * 1000),
-    estimatedDuration: 45,
+    estimatedDuration: 60,
     tags: ["Operations"],
+  },
+  {
+    title: "Pool pump maintenance and safety check",
+    description:
+      "Inspect circulation pump, clean filters, verify chemical balance logs, and update maintenance dashboard.",
+  department: "Maintenance",
+  type: "Maintenance",
+    priority: "High",
+    status: "Pending",
+    location: "Pool Deck",
+    dueDate: () => new Date(Date.now() + 3 * 60 * 60 * 1000),
+    estimatedDuration: 90,
+    tags: ["Facilities", "Safety"],
+  },
+  {
+    title: "Evening security briefing",
+    description:
+      "Review incident log, assign patrol zones, and confirm CCTV system status for the evening shift.",
+  department: "service",
+  type: "service",
+    priority: "Medium",
+      status: "Pending",
+    location: "Security Office",
+    dueDate: () => new Date(Date.now() - 1 * 60 * 60 * 1000),
+    estimatedDuration: 45,
+    tags: ["Security", "Briefing"],
+    recommendedStaff: [
+      { name: "Joseph Nilan", role: "Security Supervisor", match: 90 },
+    ],
   },
 ];
 
@@ -121,7 +161,7 @@ const formatTaskPayload = (task, managerId) => {
   return {
     title: task.title,
     description: task.description,
-    department: resolveEnumValue(task.department, TASK_DEPARTMENTS, "Other"),
+  department: resolveEnumValue(task.department, TASK_DEPARTMENTS, "service"),
     type: resolveEnumValue(task.type, TASK_TYPES, "general"),
     priority: resolveEnumValue(task.priority, TASK_PRIORITIES, "Medium"),
     status: resolveEnumValue(task.status, TASK_STATUSES, "Pending"),
@@ -130,6 +170,8 @@ const formatTaskPayload = (task, managerId) => {
     dueDate,
     estimatedDuration: task.estimatedDuration,
     tags: task.tags,
+    recommendedStaff: task.recommendedStaff,
+    aiRecommendationScore: task.aiRecommendationScore,
     createdBy: managerId,
     updatedBy: managerId,
     notes: {
@@ -138,22 +180,100 @@ const formatTaskPayload = (task, managerId) => {
   };
 };
 
+const normalizeDepartmentForSeed = (value) => {
+  const map = {
+    housekeeping: "cleaning",
+    cleaning: "cleaning",
+    kitchen: "Kitchen",
+    food: "Kitchen",
+    maintenance: "Maintenance",
+    engineering: "Maintenance",
+    services: "service",
+    service: "service",
+    "guest services": "service",
+    concierge: "service",
+    "front desk": "service",
+    reception: "service",
+  };
+
+  const key = String(value || "").trim().toLowerCase();
+  return map[key] || "service";
+};
+
+const normalizeTypeForSeed = (value, department) => {
+  const map = {
+    cleaning: "cleaning",
+    housekeeping: "cleaning",
+    kitchen: "Kitchen",
+    food: "Kitchen",
+    maintenance: "Maintenance",
+    engineering: "Maintenance",
+    services: "service",
+    service: "service",
+    concierge: "service",
+    reception: "service",
+  };
+
+  const key = String(value || "").trim().toLowerCase();
+  if (map[key]) return map[key];
+
+  const deptKey = String(department || "").trim().toLowerCase();
+  if (map[deptKey]) return map[deptKey];
+
+  return "general";
+};
+
 const seedManagerTasks = async () => {
   await connectDatabase();
 
   try {
     const managerId = await ensureManagerAccount();
-    const existingCount = await ManagerTask.countDocuments();
+    const payload = SAMPLE_TASKS.map((task) => ({
+      filter: { title: task.title },
+      update: formatTaskPayload(task, managerId),
+    }));
 
-    if (existingCount > 0) {
-      console.log(`ℹ️ Manager tasks already exist (${existingCount}). Seeding skipped.`);
-      return;
+    const results = [];
+    for (const entry of payload) {
+      const updated = await ManagerTask.findOneAndUpdate(
+        entry.filter,
+        {
+          ...entry.update,
+          isArchived: false,
+          updatedBy: managerId,
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+      results.push(updated);
     }
 
-    const payload = SAMPLE_TASKS.map((task) => formatTaskPayload(task, managerId));
-    const created = await ManagerTask.insertMany(payload);
+    let normalizedCount = 0;
+    const existingTasks = await ManagerTask.find();
+    for (const task of existingTasks) {
+      const nextDepartment = normalizeDepartmentForSeed(task.department);
+      const nextType = normalizeTypeForSeed(task.type, nextDepartment);
+      const needsPending = task.status !== "Pending";
+      const needsDepartment = task.department !== nextDepartment;
+      const needsType = task.type !== nextType;
+      const needsAssignmentReset = Boolean(task.assignedTo) || (Array.isArray(task.assignmentHistory) && task.assignmentHistory.length > 0);
 
-    console.log(`✅ Inserted ${created.length} manager tasks into manager_tasks collection.`);
+      if (needsPending || needsDepartment || needsType || needsAssignmentReset || task.isArchived) {
+        task.status = "Pending";
+        task.department = nextDepartment;
+        task.type = nextType;
+        task.assignedTo = null;
+        task.assignmentHistory = [];
+        task.isArchived = false;
+        await task.save();
+        normalizedCount += 1;
+      }
+    }
+
+    console.log(`✅ Ensured ${results.length} manager tasks are seeded. Normalized ${normalizedCount} tasks to pending state.`);
   } catch (error) {
     console.error("❌ Failed to seed manager tasks:", error);
   } finally {

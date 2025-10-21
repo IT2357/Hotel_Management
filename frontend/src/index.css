@@ -4,6 +4,15 @@ html {
     font-size: 16px;
 }
 
+body {
+  min-height: 100vh;
+  background-color: #040b1e;
+}
+
+#root {
+  min-height: 100vh;
+}
+
 /* Alert transition classes for react-transition-group */
 .alert-enter {
   opacity: 0;

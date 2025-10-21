@@ -7,6 +7,7 @@ import ManagerTask, {
 } from "../../models/ManagerTask.js";
 import { User } from "../../models/User.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
+import { getIO } from "../../utils/socket.js";
 
 const STATUS_MAP = {
   pending: "Pending",
@@ -34,30 +35,33 @@ const PRIORITY_MAP = {
 };
 
 const DEPARTMENT_MAP = {
-  housekeeping: "Housekeeping",
-  cleaning: "Housekeeping",
-  "cleaning staff": "Housekeeping",
+  housekeeping: "cleaning",
+  cleaning: "cleaning",
+  "cleaning staff": "cleaning",
   kitchen: "Kitchen",
+  food: "Kitchen",
   "kitchen staff": "Kitchen",
   maintenance: "Maintenance",
   engineering: "Maintenance",
-  service: "Guest Services",
-  services: "Guest Services",
-  "guest services": "Guest Services",
-  concierge: "Guest Services",
-  "front desk": "Front Desk",
-  reception: "Front Desk",
-  security: "Security",
+  service: "service",
+  services: "service",
+  "guest services": "service",
+  concierge: "service",
+  "room service": "service",
+  "front desk": "service",
+  reception: "service",
 };
 
 const TYPE_MAP = {
   cleaning: "cleaning",
-  food: "food",
-  kitchen: "food",
-  maintenance: "maintenance",
-  engineering: "maintenance",
+  housekeeping: "cleaning",
+  kitchen: "Kitchen",
+  food: "Kitchen",
+  maintenance: "Maintenance",
+  engineering: "Maintenance",
   service: "service",
   services: "service",
+  "guest services": "service",
   concierge: "service",
   general: "general",
 };
@@ -66,21 +70,39 @@ const ALLOWED_SORT_FIELDS = new Set(["createdAt", "dueDate", "priority", "status
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(String(value));
 
+const toTitleCase = (value = "") =>
+  String(value)
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
 const normalizeDepartment = (value) => {
-  if (!value) return "Other";
+  if (!value) return "service";
   const normalized = String(value).trim().toLowerCase();
-  return DEPARTMENT_MAP[normalized] || (TASK_DEPARTMENTS.includes(value) ? value : "Other");
+  const mapped = DEPARTMENT_MAP[normalized];
+  if (mapped) return mapped;
+  if (TASK_DEPARTMENTS.includes(value)) return value;
+  const title = toTitleCase(value);
+  return TASK_DEPARTMENTS.includes(title) ? title : "service";
 };
 
 const inferTypeFromDepartment = (department) => {
   const normalized = String(department).trim().toLowerCase();
-  return TYPE_MAP[normalized] || "general";
+  if (normalized === "maintenance") return "Maintenance";
+  if (normalized === "service") return "service";
+  if (normalized === "kitchen") return "Kitchen";
+  if (normalized === "cleaning") return "cleaning";
+  return "general";
 };
 
 const normalizeType = (value, department) => {
   if (!value) return inferTypeFromDepartment(department || "");
   const normalized = String(value).trim().toLowerCase();
-  return TYPE_MAP[normalized] || (TASK_TYPES.includes(value) ? value : inferTypeFromDepartment(department || ""));
+  const mapped = TYPE_MAP[normalized];
+  if (mapped && TASK_TYPES.includes(mapped)) return mapped;
+  if (TASK_TYPES.includes(value)) return value;
+  const title = toTitleCase(value);
+  if (TASK_TYPES.includes(title)) return title;
+  return inferTypeFromDepartment(department || "");
 };
 
 const normalizePriority = (value) => {
@@ -354,24 +376,45 @@ export const assignTask = async (req, res) => {
       return res.status(404).json({ success: false, message: "Staff member not found" });
     }
 
+    const managerId = extractUserId(req.user);
+
     task.assignedTo = staff._id;
     task.status = task.status === "Completed" ? task.status : "Assigned";
-    task.updatedBy = extractUserId(req.user) || staff._id;
+    task.updatedBy = managerId || staff._id;
     task.assignmentHistory.push({
       assignedTo: staff._id,
       assignedName: staff.name,
       assignedAt: new Date(),
-      assignedBy: extractUserId(req.user),
+      assignedBy: managerId,
       notes: notes ? String(notes).trim() : undefined,
     });
 
     await task.save();
     const populatedTask = await task.populate("assignedTo", "name email role");
+    const responsePayload = buildTaskResponse(populatedTask);
+
+    try {
+      const io = getIO();
+      const staffIdString = String(staff._id);
+      const assignmentPayload = {
+        task: responsePayload,
+        staffId: staffIdString,
+        staffName: staff.name,
+        managerId: managerId ? String(managerId) : undefined,
+        assignedAt: new Date().toISOString(),
+        notes: notes ? String(notes).trim() : undefined,
+      };
+
+      io.to(`staff-${staffIdString}`).emit("managerTaskAssigned", assignmentPayload);
+      io.to(`user-${staffIdString}`).emit("managerTaskAssigned", assignmentPayload);
+    } catch (socketError) {
+      console.error("manager:assignTask socket emit failed", socketError);
+    }
 
     res.status(200).json({
       success: true,
       message: "Task assigned successfully",
-      data: buildTaskResponse(populatedTask),
+      data: responsePayload,
     });
   } catch (error) {
     console.error("manager:assignTask", error);
@@ -489,23 +532,48 @@ export const getAllStaff = async (req, res) => {
   }
 };
 
+const STAFF_PROFILE_DEPARTMENT_MAP = {
+  cleaning: ["Housekeeping", "Cleaning"],
+  maintenance: ["Maintenance"],
+  service: ["Service", "Guest Services", "Concierge"],
+  kitchen: ["Kitchen", "Food"],
+};
+
 export const getAvailableStaff = async (req, res) => {
   try {
     const department = normalizeDepartment(req.params.department);
+    const lookupKey = String(department).toLowerCase();
+    const profileDepartments = STAFF_PROFILE_DEPARTMENT_MAP[lookupKey] || [department];
 
-    const staffProfiles = await StaffProfile.find({ department, isActive: true })
-      .populate("userId", "name email role")
+    const staffProfiles = await StaffProfile.find({ department: { $in: profileDepartments }, isActive: true })
+      .populate("userId", "name email role phone isActive")
       .lean();
 
-    const staff = staffProfiles
-      .filter((profile) => profile.userId?.isActive !== false)
+    let staff = staffProfiles
+      .filter((profile) => profile.userId && profile.userId.role === "staff" && profile.userId.isActive !== false)
       .map((profile) => ({
         staffId: String(profile.userId._id),
         name: profile.userId.name,
         email: profile.userId.email,
+        phone: profile.userId.phone || undefined,
         role: profile.position,
         department: profile.department,
       }));
+
+    if (staff.length === 0) {
+      const fallbackUsers = await User.find({ role: "staff", isActive: true })
+        .select("name email phone")
+        .lean();
+
+      staff = fallbackUsers.map((user) => ({
+        staffId: String(user._id),
+        name: user.name,
+        email: user.email,
+        phone: user.phone || undefined,
+        role: toTitleCase(profileDepartments[0] || department || "Staff Member"),
+        department: profileDepartments[0] || toTitleCase(department),
+      }));
+    }
 
     res.status(200).json({ success: true, data: staff });
   } catch (error) {

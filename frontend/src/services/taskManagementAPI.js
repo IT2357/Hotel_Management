@@ -96,7 +96,7 @@ export const taskAPI = {
 
   // Get available staff for department
   getAvailableStaff: async (department) => {
-    const response = await api.get(`/tasks/staff/${department}`);
+    const response = await api.get(`/tasks/staff/${encodeURIComponent(department)}`);
     return response.data;
   },
 

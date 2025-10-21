@@ -13,16 +13,19 @@ export const TASK_STATUSES = [
 export const TASK_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 
 export const TASK_DEPARTMENTS = [
-  "Housekeeping",
-  "Kitchen",
+  "cleaning",
   "Maintenance",
-  "Guest Services",
-  "Front Desk",
-  "Security",
-  "Other",
+  "service",
+  "Kitchen",
 ];
 
-export const TASK_TYPES = ["cleaning", "food", "maintenance", "service", "general"];
+export const TASK_TYPES = [
+  "cleaning",
+  "Maintenance",
+  "service",
+  "Kitchen",
+  "general",
+];
 
 const recommendedStaffSchema = new Schema(
   {

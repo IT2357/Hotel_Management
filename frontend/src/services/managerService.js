@@ -24,6 +24,11 @@ export const fetchStaff = async (params = {}) => {
   return data;
 };
 
+export const fetchManagerProfile = async () => {
+  const { data } = await api.get('/manager/profile/overview');
+  return data;
+};
+
 // Demo seed
 export const seedDemo = async () => {
   const { data } = await api.post('/manager/demo-seed');

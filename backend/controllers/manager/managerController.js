@@ -1,7 +1,279 @@
-import Task from '../../models/Task.js';
+import Task from '../../models/StaffTask.js';
 import { User } from '../../models/User.js';
 import Feedback from '../../models/Feedback.js';
+import ManagerProfile from '../../models/profiles/ManagerProfile.js';
 import { suggestStaff, updateStaffWorkload } from '../../services/manager/autoAssignService.js';
+
+const startCase = (value = '') =>
+  value
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .trim();
+
+const ensureManagerProfile = async (manager) => {
+  const managerId = manager._id;
+
+  let profile = await ManagerProfile.findOne({ userId: managerId });
+  if (profile) {
+    const needsUpdate = !profile.metrics || !profile.activityLog?.length;
+    if (needsUpdate) {
+      profile.metrics = profile.metrics || {
+        tasksCompleted: 148,
+        onTimeRate: 93,
+        satisfaction: 4.7,
+      };
+      profile.activityLog =
+        profile.activityLog && profile.activityLog.length
+          ? profile.activityLog
+          : [
+              {
+                title: 'Approved VIP room upgrade',
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+                meta: 'Reservation #RM-482',
+              },
+              {
+                title: 'Reviewed task backlog',
+                timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+                meta: '12 tasks delegated',
+              },
+              {
+                title: 'Checked revenue performance',
+                timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+                meta: 'Occupancy at 92%',
+              },
+            ];
+      await profile.save();
+    }
+    return profile;
+  }
+
+  const staffMembers = await User.find({ role: 'staff' })
+    .select('_id name email phone profile')
+    .limit(5)
+    .lean();
+
+  const sampleDepartments = ['FrontDesk', 'Housekeeping', 'FoodBeverage'];
+  const sampleReports = [
+    {
+      title: 'Daily Operations Snapshot',
+      type: 'Daily',
+      generatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      summary: 'Auto generated sample metrics for the latest shift.',
+      isApproved: true,
+    },
+    {
+      title: 'Weekly Task Performance',
+      type: 'Weekly',
+      generatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      summary: 'Workload distribution and completion velocity overview.',
+      isApproved: true,
+    },
+  ];
+
+  profile = await ManagerProfile.create({
+    userId: managerId,
+    departments: sampleDepartments,
+    employees: staffMembers.map((staff) => staff._id),
+    reports: sampleReports,
+    permissions: {
+      canApproveLeave: true,
+      canAuthorizePayments: true,
+      canManageInventory: true,
+      canOverridePricing: false,
+      canViewFinancials: true,
+    },
+    shift: {
+      startTime: '08:00',
+      endTime: '17:00',
+    },
+    emergencyContact: {
+      name: 'Tharindu Perera',
+      relationship: 'General Manager',
+      phone: '+94 77 456 1122',
+    },
+    notes: 'Seeded sample manager profile for dashboard demos.',
+    metrics: {
+      tasksCompleted: 152,
+      onTimeRate: 94,
+      satisfaction: 4.8,
+    },
+    activityLog: [
+      {
+        title: 'Approved VIP room upgrade',
+        timestamp: new Date(Date.now() - 90 * 60 * 1000),
+        meta: 'Reservation #RM-482',
+      },
+      {
+        title: 'Reviewed task backlog',
+        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        meta: '12 tasks delegated',
+      },
+      {
+        title: 'Checked revenue performance',
+        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
+        meta: 'Occupancy at 92%',
+      },
+    ],
+  });
+
+  const updatePayload = {
+    managerProfile: profile._id,
+  };
+
+  if (!manager.phone) {
+    updatePayload.phone = '+94 11 234 5678';
+  }
+
+  await User.updateOne({ _id: managerId }, { $set: updatePayload });
+
+  return profile;
+};
+
+const buildStatsFromMetrics = (metrics) => {
+  if (!metrics) {
+    return {
+      tasksCompleted: 0,
+      onTimeRate: '-%',
+      satisfaction: '- / 5',
+    };
+  }
+
+  const tasksCompleted = Number.isFinite(metrics.tasksCompleted) ? metrics.tasksCompleted : 0;
+  const onTimeRate = Number.isFinite(metrics.onTimeRate)
+    ? `${Math.max(0, Math.min(100, metrics.onTimeRate)).toFixed(0)}%`
+    : '-%';
+  const satisfaction = Number.isFinite(metrics.satisfaction)
+    ? `${metrics.satisfaction.toFixed(1)} / 5`
+    : '- / 5';
+
+  return {
+    tasksCompleted,
+    onTimeRate,
+    satisfaction,
+  };
+};
+
+const buildSampleActivity = () => [
+  {
+    id: 'act-1',
+    title: 'Approved VIP room upgrade',
+    timestamp: 'Today, 2:30 PM',
+    meta: 'Reservation #RM-482',
+  },
+  {
+    id: 'act-2',
+    title: 'Reviewed task backlog',
+    timestamp: 'Today, 11:10 AM',
+    meta: '12 tasks delegated',
+  },
+  {
+    id: 'act-3',
+    title: 'Checked revenue performance',
+    timestamp: 'Today, 9:00 AM',
+    meta: 'Occupancy at 92%',
+  },
+];
+
+const getManagerProfileOverview = async (req, res) => {
+  try {
+    const managerId = req.user?._id;
+    if (!managerId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const manager = await User.findById(managerId).lean();
+    if (!manager) {
+      return res.status(404).json({ success: false, message: 'Manager not found' });
+    }
+
+    const profileDoc = await ensureManagerProfile(manager);
+    const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
+
+    const staffLookup = profile.employees?.length
+      ? await User.find({ _id: { $in: profile.employees } })
+          .select('name email phone role profile')
+          .lean()
+      : [];
+
+    const stats = buildStatsFromMetrics(profile.metrics);
+
+    const timeline = profile.reports?.length
+      ? profile.reports.map((report, index) => ({
+          id: `report-${report._id || index}`,
+          title: report.title,
+          timestamp: new Date(report.generatedAt ?? Date.now()).toLocaleString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            day: 'numeric',
+            month: 'short',
+          }),
+          meta: report.summary || startCase(report.type || 'Report'),
+        }))
+      : profile.activityLog?.length
+        ? profile.activityLog.map((item, index) => ({
+            id: `activity-${item._id || index}`,
+            title: item.title,
+            timestamp: new Date(item.timestamp ?? Date.now()).toLocaleString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+              day: 'numeric',
+              month: 'short',
+            }),
+            meta: item.meta,
+          }))
+        : buildSampleActivity();
+
+    const primaryDepartment = profile.departments?.[0]
+      ? startCase(profile.departments[0])
+      : 'Operations';
+
+    const responsePayload = {
+      profile: {
+        name: manager.name,
+        email: manager.email,
+        phone: manager.phone || '+94 11 234 5678',
+        department: primaryDepartment,
+        role: manager.role ? startCase(manager.role) : 'Manager',
+        hotel: profile.hotel ?? 'Royal Palm Hotel',
+        avatarUrl:
+          manager.profilePicture ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(manager.name || 'Manager')}`,
+        initials: (manager.name || 'Manager')
+          .split(' ')
+          .filter(Boolean)
+          .map((part) => part[0]?.toUpperCase())
+          .join('')
+          .slice(0, 2) || 'MG',
+        departments: profile.departments?.map(startCase) ?? [],
+        shift: profile.shift,
+        emergencyContact: profile.emergencyContact,
+      },
+      stats,
+      activity: timeline,
+      staff: staffLookup.map((staff) => ({
+        id: staff._id,
+        name: staff.name,
+        email: staff.email,
+        phone: staff.phone,
+        role: startCase(staff.role),
+      })),
+      permissions: profile.permissions,
+      notes: profile.notes,
+    };
+
+    res.json({ success: true, data: responsePayload });
+  } catch (error) {
+    console.error('Failed to load manager profile overview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Unable to load manager profile overview',
+      error: error.message,
+    });
+  }
+};
 
 // Get live task board (Pending, In-Progress, Completed)
 const getTaskBoard = async (req, res) => {
@@ -26,7 +298,7 @@ const getStaffAvailability = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-};
+}; 
 
 // Approve/Reject/Reassign task
 const manageTaskAssignment = async (req, res) => {
@@ -108,5 +380,6 @@ export {
   manageTaskAssignment,
   setTaskPriority,
   getAnalytics,
-  generateStaffSuggestions
+  generateStaffSuggestions,
+  getManagerProfileOverview
 };
