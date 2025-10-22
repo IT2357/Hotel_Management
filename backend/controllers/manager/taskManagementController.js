@@ -7,6 +7,8 @@ import ManagerTask, {
 } from "../../models/ManagerTask.js";
 import { User } from "../../models/User.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
+import StaffNotification from "../../models/StaffNotification.js";
+import StaffTask from "../../models/StaffTask.js";
 import { getIO } from "../../utils/socket.js";
 
 const STATUS_MAP = {
@@ -409,6 +411,104 @@ export const assignTask = async (req, res) => {
       io.to(`user-${staffIdString}`).emit("managerTaskAssigned", assignmentPayload);
     } catch (socketError) {
       console.error("manager:assignTask socket emit failed", socketError);
+    }
+
+    // Create StaffTask so it appears on staff page
+    try {
+      // Map ManagerTask departments to StaffTask departments
+      const staffTaskDepartmentMap = {
+        "cleaning": "Housekeeping",
+        "Maintenance": "Maintenance",
+        "service": "Service",
+        "Kitchen": "Kitchen"
+      };
+
+      // Map ManagerTask priorities to StaffTask priorities
+      const staffTaskPriorityMap = {
+        "Low": "low",
+        "Medium": "medium",
+        "High": "high",
+        "Urgent": "urgent"
+      };
+
+      // Map ManagerTask status to StaffTask status
+      const staffTaskStatusMap = {
+        "Pending": "pending",
+        "Assigned": "assigned",
+        "In-Progress": "in_progress",
+        "Completed": "completed",
+        "Cancelled": "cancelled"
+      };
+
+      // Map location
+      const locationMap = {
+        "room": "room",
+        "kitchen": "kitchen",
+        "lobby": "lobby",
+        "gym": "gym",
+        "pool": "pool",
+        "parking": "parking"
+      };
+
+      const staffTaskData = {
+        title: task.title,
+        description: task.description || "",
+        department: staffTaskDepartmentMap[task.department] || "Service",
+        priority: staffTaskPriorityMap[task.priority] || "medium",
+        status: staffTaskStatusMap[task.status] || "assigned",
+        assignedTo: staff._id,
+        assignedBy: managerId,
+        assignmentSource: "user",
+        location: locationMap[task.location?.toLowerCase()] || "other",
+        roomNumber: task.roomNumber || "",
+        category: task.type === "cleaning" ? "cleaning" : task.type === "Kitchen" ? "food_preparation" : "general",
+        dueDate: task.dueDate,
+        estimatedDuration: task.estimatedDuration,
+        notes: notes ? [{ content: notes, createdBy: managerId, createdAt: new Date() }] : [],
+        assignmentHistory: [{
+          assignedTo: staff._id,
+          assignedBy: managerId,
+          source: "user",
+          assignedAt: new Date(),
+          status: "assigned",
+          notes: notes || ""
+        }],
+        managerTaskId: task._id // Reference to the ManagerTask
+      };
+
+      await StaffTask.create(staffTaskData);
+      console.log(`StaffTask created for task ${task.title} assigned to ${staff.name}`);
+    } catch (staffTaskError) {
+      console.error("manager:assignTask StaffTask creation failed", staffTaskError);
+      // Don't fail the request if StaffTask creation fails
+    }
+
+    // Create notification for staff member
+    try {
+      const notificationData = {
+        type: "task_assigned",
+        title: `New Task Assigned: ${task.title}`,
+        message: `You have been assigned a new ${task.priority} priority task: "${task.title}" in ${task.location || task.roomNumber || "general area"}.`,
+        priority: task.priority === "Urgent" ? "high" : task.priority === "High" ? "medium" : "low",
+        department: task.department,
+        recipients: [{ userId: staff._id }],
+        relatedTask: task._id,
+        sender: managerId,
+        actionRequired: true,
+        actionUrl: `/staff/tasks/${task._id}`,
+        metadata: {
+          taskId: String(task._id),
+          roomNumber: task.roomNumber || "",
+          location: task.location || "",
+          estimatedTime: task.estimatedDuration ? `${task.estimatedDuration} minutes` : "Not specified"
+        }
+      };
+
+      await StaffNotification.create(notificationData);
+      console.log(`Notification created for staff ${staff.name} (${staff._id})`);
+    } catch (notificationError) {
+      console.error("manager:assignTask notification creation failed", notificationError);
+      // Don't fail the request if notification creation fails
     }
 
     res.status(200).json({

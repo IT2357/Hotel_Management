@@ -453,6 +453,57 @@ export const updateTaskStatus = async (req, res) => {
   }
 };
 
+// Complete a task
+export const completeTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user._id;
+
+    const task = await StaffTask.findById(taskId);
+    if (!task) {
+      return res.status(404).json(formatResponse(false, "Task not found"));
+    }
+
+    // Only the assigned staff or manager can complete the task
+    if (!task.assignedTo || task.assignedTo.toString() !== userId.toString()) {
+      const userRole = req.user.role;
+      if (userRole !== 'manager' && userRole !== 'admin') {
+        return res.status(403).json(formatResponse(false, "You are not assigned to this task"));
+      }
+    }
+
+    // Update task to completed
+    const now = new Date();
+    task.status = "completed";
+    task.completedAt = now;
+    task.completedBy = userId;
+    
+    // Calculate actual duration
+    const duration = Math.round((now - new Date(task.createdAt)) / (1000 * 60));
+    task.actualDuration = task.actualDuration || (isNaN(duration) ? 0 : duration);
+
+    await task.save();
+
+    // Create notification for task completion
+    await createTaskNotification(task, "task_completed");
+
+    const updatedTask = await StaffTask.findById(taskId)
+      .populate("assignedTo", "name email")
+      .populate("assignedBy", "name email")
+      .populate("acceptedBy", "name email")
+      .populate("completedBy", "name email");
+
+    res.json(formatResponse(true, "Task completed successfully", {
+      ...updatedTask.toObject(),
+      timeRemaining: getGracePeriodRemaining(updatedTask.completedAt),
+      canEdit: canUpdateTask(updatedTask)
+    }));
+  } catch (error) {
+    logger.error("Error completing task:", error);
+    res.status(500).json(formatResponse(false, "Failed to complete task", null, error.message));
+  }
+};
+
 // Add note to task
 export const addTaskNote = async (req, res) => {
   try {
@@ -544,6 +595,49 @@ export const getPublicStaffUpdates = async (req, res) => {
   } catch (error) {
     logger.error("Error getting public staff updates:", error);
     res.status(500).json(formatResponse(false, "Failed to get public staff updates", null, error.message));
+  }
+};
+
+// Accept a task (staff accepting an assigned pending task)
+export const acceptTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user._id;
+
+    const task = await StaffTask.findById(taskId);
+    if (!task) {
+      return res.status(404).json(formatResponse(false, "Task not found"));
+    }
+
+    // Only allow accepting tasks that are pending (assigned by manager)
+    if (task.status !== "pending") {
+      return res.status(400).json(formatResponse(false, "Task cannot be accepted. It must be in pending status."));
+    }
+
+    // Check if task is assigned to someone
+    if (!task.assignedTo) {
+      return res.status(400).json(formatResponse(false, "Task must be assigned to a staff member first."));
+    }
+
+    // Update task status to in_progress when staff accepts
+    task.status = "in_progress";
+    task.acceptedBy = userId;
+    task.acceptedAt = new Date();
+
+    await task.save();
+
+    // Create notification for task acceptance
+    await createTaskNotification(task, "task_accepted");
+
+    const updatedTask = await StaffTask.findById(taskId)
+      .populate("assignedTo", "name email")
+      .populate("assignedBy", "name email")
+      .populate("acceptedBy", "name email");
+
+    res.json(formatResponse(true, "Task accepted successfully", updatedTask));
+  } catch (error) {
+    logger.error("Error accepting task:", error);
+    res.status(500).json(formatResponse(false, "Failed to accept task", null, error.message));
   }
 };
 
@@ -688,6 +782,8 @@ const getNotificationTitle = (type, task) => {
   switch (type) {
     case "task_assigned":
       return `New Task Assigned: ${task.title}`;
+    case "task_accepted":
+      return `Task Accepted: ${task.title}`;
     case "task_updated":
       return `Task Updated: ${task.title}`;
     case "task_completed":
@@ -701,6 +797,8 @@ const getNotificationMessage = (type, task) => {
   switch (type) {
     case "task_assigned":
       return `You have been assigned a new ${task.priority} priority task: "${task.title}" in ${task.location}.`;
+    case "task_accepted":
+      return `Task "${task.title}" has been accepted and is now in progress.`;
     case "task_updated":
       return `Task "${task.title}" has been updated. Current status: ${task.status}.`;
     case "task_completed":

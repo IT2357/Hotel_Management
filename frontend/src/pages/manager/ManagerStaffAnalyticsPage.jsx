@@ -115,9 +115,9 @@ const mapApiToAnalytics = (payload) => {
 };
 
 const severityStyles = {
-  high: "border border-rose-400/40 bg-rose-500/10 text-rose-100",
-  medium: "border border-amber-300/40 bg-amber-400/10 text-amber-100",
-  low: "border border-sky-300/40 bg-sky-400/10 text-sky-100",
+  high: "border border-rose-400/40 bg-rose-500/10 text-rose-200",
+  medium: "border border-amber-400/40 bg-amber-500/10 text-amber-200",
+  low: "border border-blue-400/40 bg-blue-500/10 text-blue-200",
 };
 
 const ManagerStaffAnalyticsPage = () => {
@@ -279,8 +279,8 @@ const ManagerStaffAnalyticsPage = () => {
           <div className={`${MANAGER_SECTION_CLASS} xl:col-span-2`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-white">Performance Trends</h2>
-                <p className="text-sm text-white/70">Task throughput, response times, and guest sentiment correlation.</p>
+                <h2 className="text-xl font-semibold bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent">Performance Trends</h2>
+                <p className="text-sm text-slate-300">Task throughput, response times, and guest sentiment correlation.</p>
               </div>
             </div>
             <div className="mt-4">

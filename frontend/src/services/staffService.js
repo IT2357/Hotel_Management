@@ -27,6 +27,18 @@ export const staffService = {
     return response.data;
   },
 
+  // Accept a task (staff accepting a pending/in-progress task)
+  acceptTask: async (taskId) => {
+    const response = await api.post(`/staff/tasks/${taskId}/accept`);
+    return response.data;
+  },
+
+  // Complete a task (staff completing their assigned task)
+  completeTask: async (taskId) => {
+    const response = await api.post(`/staff/tasks/${taskId}/complete`);
+    return response.data;
+  },
+
   // Delete task
   deleteTask: async (taskId) => {
     const response = await api.delete(`/staff/tasks/${taskId}`);

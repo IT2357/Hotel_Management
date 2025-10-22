@@ -28,6 +28,8 @@ const staffTaskSchema = new mongoose.Schema(
     // Who accepted (took) the task and when
     acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     acceptedAt: { type: Date },
+    // Who completed the task and when
+    completedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     dueDate: { type: Date },
     completedAt: { type: Date },
     complexity: {

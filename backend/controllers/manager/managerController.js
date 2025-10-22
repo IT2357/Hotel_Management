@@ -1,4 +1,4 @@
-import Task from '../../models/StaffTask.js';
+import Task from '../../models/Task.js';
 import { User } from '../../models/User.js';
 import Feedback from '../../models/Feedback.js';
 import ManagerProfile from '../../models/profiles/ManagerProfile.js';

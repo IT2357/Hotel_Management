@@ -8,6 +8,7 @@ import BarChartComponent from "@/components/manager/reports/BarChartComponent";
 import PieChartComponent from "@/components/manager/reports/PieChartComponent";
 import { managerReportsAPI } from "@/services/managerReportsAPI";
 import { Activity, DollarSign, PieChart as PieChartIcon, Timer, TrendingUp, Users } from "lucide-react";
+import ManagerPageHeader from "@/components/manager/ManagerPageHeader";
 import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS, MANAGER_SECTION_CLASS, MANAGER_RING_CLASS } from "./managerStyles";
 
 const DAY_FORMAT_OPTIONS = { year: "numeric", month: "short", day: "numeric" };
@@ -138,16 +139,16 @@ const ManagerReportsPage = () => {
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,2.9fr)]">
           <div className={`${MANAGER_SECTION_CLASS} flex flex-col gap-6`}>
             <div>
-              <h2 className="text-lg font-semibold text-white">Filter Insights</h2>
-              <p className="text-sm text-white/60">Tune the reporting window, departments, and views to focus on what matters today.</p>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent">Filter Insights</h2>
+              <p className="text-sm text-slate-300">Tune the reporting window, departments, and views to focus on what matters today.</p>
             </div>
             <ReportFilters onFiltersChange={handleFiltersChange} initialFilters={filters} showChannels={false} variant="manager" />
           </div>
           <div className={`${MANAGER_SECTION_CLASS} overflow-hidden`}>
             <div className="flex items-center justify-between pb-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Financial Pulse</h2>
-                <p className="text-sm text-white/60">Live revenue and cost signals from the selected period.</p>
+                <h2 className="text-lg font-semibold bg-gradient-to-r from-emerald-300 to-green-200 bg-clip-text text-transparent">Financial Pulse</h2>
+                <p className="text-sm text-slate-300">Live revenue and cost signals from the selected period.</p>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -160,8 +161,8 @@ const ManagerReportsPage = () => {
 
   <section className={`${MANAGER_SECTION_CLASS} space-y-6`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Financial Trajectory</h2>
-            <span className="text-xs uppercase tracking-[0.2em] text-white/60">Updated daily</span>
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-purple-300 to-indigo-200 bg-clip-text text-transparent">Financial Trajectory</h2>
+            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Updated daily</span>
           </div>
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <LineChartComponent
@@ -187,8 +188,8 @@ const ManagerReportsPage = () => {
 
         <section className={`${MANAGER_SECTION_CLASS} space-y-6`}>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Resource Allocation</h2>
-            <span className="text-xs uppercase tracking-[0.2em] text-white/60">Spend & payment mix</span>
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">Resource Allocation</h2>
+            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Spend & payment mix</span>
           </div>
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <PieChartComponent

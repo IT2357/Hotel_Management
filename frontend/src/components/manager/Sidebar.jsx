@@ -15,77 +15,196 @@ export const Sidebar = ({ isCollapsed, onToggle, activeItem, onItemClick }) => {
 
   return (
     <motion.aside
-      initial={{ x: -300 }}
-      animate={{ x: 0, width: isCollapsed ? "80px" : "280px" }}
-      transition={{ duration: 0.3 }}
-      className="relative flex h-[calc(100vh-88px)] flex-col border-r border-[#142347] bg-[#09152f] text-[#f5f7ff] shadow-[inset_-12px_0_32px_rgba(8,14,29,0.65)]"
+      initial={{ x: -300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1, width: isCollapsed ? "80px" : "280px" }}
+      transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
+      className="relative flex h-[calc(100vh-88px)] flex-col overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+        borderRight: "1px solid rgba(148, 163, 184, 0.1)"
+      }}
     >
+      {/* Animated background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            y: [0, -100, 0],
+            opacity: [0.1, 0.2, 0.1]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute -top-20 -right-20 h-60 w-60 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 blur-3xl"
+        />
+        <motion.div
+          animate={{
+            y: [0, 100, 0],
+            opacity: [0.15, 0.25, 0.15]
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 1
+          }}
+          className="absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 blur-3xl"
+        />
+      </div>
+
       {/* Toggle Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggle}
-        className="absolute -right-4 top-6 z-10 rounded-full border border-[#142347] bg-[#10234f] text-[#facc15] shadow-[0_12px_30px_rgba(9,17,40,0.55)] transition-colors hover:bg-[#132b5f]"
+      <motion.div
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
       >
-        <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }}>
-          <ChevronLeft className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggle}
+          className="absolute -right-4 top-6 z-20 rounded-full border-2 border-slate-200/20 bg-gradient-to-br from-white to-slate-50 text-slate-700 shadow-xl shadow-slate-900/20 transition-all hover:shadow-2xl hover:from-slate-50 hover:to-white hover:border-slate-300/30 backdrop-blur-sm"
+        >
+          <motion.div 
+            animate={{ rotate: isCollapsed ? 180 : 0 }}
+            transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </motion.div>
+        </Button>
+      </motion.div>
+
+      {/* Logo/Brand Area */}
+      {!isCollapsed && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="relative z-10 px-6 pt-6 pb-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 p-2.5 shadow-lg shadow-emerald-500/30">
+              <LayoutDashboard className="h-5 w-5 text-white" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white">Manager Hub</h2>
+              <p className="text-xs text-slate-400">Control Center</p>
+            </div>
+          </div>
         </motion.div>
-      </Button>
+      )}
 
       {/* Menu Items */}
-      <nav className="flex-1 space-y-2 p-4">
+      <nav className="relative z-10 flex-1 space-y-1.5 px-3 py-4">
         {menuItems.map((item, index) => (
           <motion.button
             key={item.label}
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ 
+              delay: index * 0.08,
+              type: "spring",
+              stiffness: 100
+            }}
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => onItemClick(item)}
             className={`
-              flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-300
+              group relative flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-semibold transition-all duration-300
               ${activeItem === item.id
-                ? "bg-[#facc15] text-[#0b1b3c] shadow-[0_14px_28px_rgba(250,204,21,0.45)]"
-                : "text-[#e2e8ff] hover:bg-[#13254a] hover:text-[#f5f7ff]"
+                ? "bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-900 shadow-lg shadow-emerald-500/30"
+                : "text-slate-300 hover:bg-white/5 hover:text-white backdrop-blur-sm"
               }
-              ${isCollapsed ? "justify-center" : ""}
+              ${isCollapsed ? "justify-center px-3" : ""}
             `}
           >
-            <item.icon
-              className={`h-5 w-5 flex-shrink-0 ${
-                activeItem === item.id ? "text-[#0b1b3c]" : "text-[#facc15]"
-              }`}
-            />
-            {!isCollapsed && (
-              <span className="font-medium text-sm">{item.label}</span>
-            )}
+            {/* Active indicator */}
             {activeItem === item.id && !isCollapsed && (
               <motion.div
-                layoutId="activeIndicator"
-                className="ml-auto h-2 w-2 rounded-full bg-[#0b1b3c]"
-                transition={{ type: "spring", bounce: 0.2 }}
+                layoutId="activeTab"
+                className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400"
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
+            )}
+            
+            {/* Icon */}
+            <div className="relative z-10">
+              <item.icon
+                className={`h-5 w-5 flex-shrink-0 transition-all duration-300 ${
+                  activeItem === item.id 
+                    ? "text-slate-900 drop-shadow-sm" 
+                    : "text-slate-400 group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                }`}
+                strokeWidth={activeItem === item.id ? 2.5 : 2}
+              />
+            </div>
+            
+            {/* Label */}
+            {!isCollapsed && (
+              <span className="relative z-10 font-medium transition-all duration-300">
+                {item.label}
+              </span>
+            )}
+
+            {/* Hover glow effect */}
+            {activeItem !== item.id && (
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-cyan-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             )}
           </motion.button>
         ))}
       </nav>
 
-      {/* Bottom Section */}
+      {/* Bottom Section - Enhanced Stats */}
       {!isCollapsed && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="border-t border-[#142347] p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="relative z-10 border-t border-white/5 p-4"
         >
-          <div className="space-y-2 rounded-2xl border border-[#162a52] bg-[#0e1f42] p-4 shadow-[0_10px_24px_rgba(9,17,40,0.45)]">
-            <p className="text-xs font-semibold text-[#facc15]">Quick Stats</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-[#8ba3d0]">Active Tasks</span>
-                <span className="font-semibold text-[#f5f7ff]">24</span>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 to-white/5 p-4 shadow-xl backdrop-blur-md ring-1 ring-white/10">
+            {/* Glow effect */}
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 blur-2xl" />
+            
+            <div className="relative space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Quick Stats</p>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                />
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-[#8ba3d0]">Staff Online</span>
-                <span className="font-semibold text-[#2dd06c]">18</span>
+              
+              <div className="space-y-2.5">
+                <motion.div 
+                  whileHover={{ x: 2 }}
+                  className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 backdrop-blur-sm transition-colors hover:bg-white/10"
+                >
+                  <span className="text-xs font-medium text-slate-300">Active Tasks</span>
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+                    />
+                    <span className="text-sm font-bold text-white">24</span>
+                  </div>
+                </motion.div>
+                
+                <motion.div 
+                  whileHover={{ x: 2 }}
+                  className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 backdrop-blur-sm transition-colors hover:bg-white/10"
+                >
+                  <span className="text-xs font-medium text-slate-300">Staff Online</span>
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                      className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                    />
+                    <span className="text-sm font-bold text-emerald-400">18</span>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </div>

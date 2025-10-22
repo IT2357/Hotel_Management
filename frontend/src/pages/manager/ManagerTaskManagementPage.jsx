@@ -402,9 +402,19 @@ const ManagerTaskManagementPage = () => {
     }
 
     try {
+      // Assign the task to the staff member
       await taskAPI.assignTask(task.rawTask._id, { staffId: staff.staffId });
-      await taskAPI.updateTaskStatus(task.rawTask._id, { status: "In-Progress" });
+      
+      // Keep status as "pending" - staff needs to accept it first
+      // Task stays in "Pending" column until staff accepts
+      // When staff accepts, it will move to "In Progress" column
+      
+      // Reload the tasks to show the updated state
       await Promise.all([loadTasks(filters), loadTaskStats()]);
+      
+      toast.success("Task assigned", {
+        description: `${task.title} has been assigned to ${staff.name}. Awaiting acceptance.`,
+      });
     } catch (error) {
       console.error("Unable to assign task", error);
       const message = error?.response?.data?.message || error.message || "Failed to assign task";
@@ -469,12 +479,12 @@ const ManagerTaskManagementPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Status</p>
+            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">Status</p>
             <ManagerSelect value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
-              <ManagerSelectTrigger className="border-white/15 bg-white/[0.08] text-white placeholder:text-white/60">
+              <ManagerSelectTrigger className="border-cyan-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-cyan-400/60">
                 <ManagerSelectValue placeholder="Select status" />
               </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-white/10 bg-[#0f1f3d]/95 text-white">
+              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
                 {STATUS_OPTIONS.map((option) => (
                   <ManagerSelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -484,12 +494,12 @@ const ManagerTaskManagementPage = () => {
             </ManagerSelect>
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Department</p>
+            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-purple-300 to-indigo-300 bg-clip-text text-transparent">Department</p>
             <ManagerSelect value={filters.department} onValueChange={(value) => handleFilterChange("department", value)}>
-              <ManagerSelectTrigger className="border-white/15 bg-white/[0.08] text-white">
+              <ManagerSelectTrigger className="border-purple-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-purple-400/60">
                 <ManagerSelectValue placeholder="Select department" />
               </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-white/10 bg-[#0f1f3d]/95 text-white">
+              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
                 {DEPARTMENT_OPTIONS.map((option) => (
                   <ManagerSelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -499,12 +509,12 @@ const ManagerTaskManagementPage = () => {
             </ManagerSelect>
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Priority</p>
+            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">Priority</p>
             <ManagerSelect value={filters.priority} onValueChange={(value) => handleFilterChange("priority", value)}>
-              <ManagerSelectTrigger className="border-white/15 bg-white/[0.08] text-white">
+              <ManagerSelectTrigger className="border-amber-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-amber-400/60">
                 <ManagerSelectValue placeholder="Select priority" />
               </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-white/10 bg-[#0f1f3d]/95 text-white">
+              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
                 {PRIORITY_OPTIONS.map((option) => (
                   <ManagerSelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -514,12 +524,12 @@ const ManagerTaskManagementPage = () => {
             </ManagerSelect>
           </div>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Search</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Search</p>
             <ManagerInput
               value={filters.search}
               onChange={handleSearchChange}
               placeholder="Search tasks or staff"
-              className="border-white/15 bg-white/[0.08] text-white placeholder:text-white/50"
+              className="border-slate-600/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 focus:border-cyan-400/60"
             />
           </div>
         </div>
@@ -528,7 +538,7 @@ const ManagerTaskManagementPage = () => {
           <Button
             variant="outline"
             onClick={() => setFilters({ ...FILTER_INITIAL_STATE })}
-            className="border-white/15 bg-white/[0.08] text-white shadow-[0_18px_40px_rgba(8,14,29,0.35)] backdrop-blur-lg transition-transform duration-300 hover:border-white/25 hover:bg-white/[0.12] hover:-translate-y-0.5"
+            className="border-slate-600/30 bg-slate-700/40 text-slate-100 shadow-lg transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-600/50 hover:-translate-y-0.5"
           >
             <Filter className="mr-2 h-4 w-4" />
             Reset filters
@@ -536,7 +546,7 @@ const ManagerTaskManagementPage = () => {
           <Button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 text-slate-900 shadow-[0_24px_50px_rgba(251,191,36,0.32)] transition-transform duration-300 hover:from-amber-200 hover:via-amber-300 hover:to-amber-200 hover:shadow-[0_28px_60px_rgba(251,191,36,0.4)] hover:-translate-y-0.5"
+            className="bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-400 text-slate-900 shadow-xl transition-all duration-300 hover:from-emerald-300 hover:via-green-300 hover:to-emerald-300 hover:shadow-2xl hover:-translate-y-0.5"
           >
             <RotateCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh board
@@ -544,7 +554,7 @@ const ManagerTaskManagementPage = () => {
         </div>
       </div>
       {errorMessage && (
-        <p className="mt-4 text-sm text-rose-300">{errorMessage}</p>
+        <p className="mt-4 text-sm text-rose-400">{errorMessage}</p>
       )}
     </div>
   );
@@ -566,7 +576,7 @@ const ManagerTaskManagementPage = () => {
               <Button
                 type="button"
                 onClick={() => setIsCreateOpen(true)}
-                className="bg-[#facc15] text-[#0b1b3c] shadow-[0_18px_40px_rgba(18,14,5,0.45)] transition-transform duration-300 hover:bg-[#f9c513] hover:-translate-y-0.5 disabled:opacity-70"
+                className="bg-gradient-to-r from-cyan-400 to-blue-400 text-slate-900 shadow-xl transition-all duration-300 hover:from-cyan-300 hover:to-blue-300 hover:-translate-y-0.5 disabled:opacity-70"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 New task
@@ -575,7 +585,7 @@ const ManagerTaskManagementPage = () => {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="border-white/15 bg-white/[0.08] text-white shadow-[0_18px_40px_rgba(8,14,29,0.35)] backdrop-blur-lg transition-transform duration-300 hover:border-white/25 hover:bg-white/[0.12] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                className="border-slate-600/30 bg-slate-700/40 text-slate-100 shadow-lg transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-600/50 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <RotateCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 Refresh board
@@ -599,8 +609,8 @@ const ManagerTaskManagementPage = () => {
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl font-semibold text-white">Live Kanban</h2>
-              <p className="text-sm text-white/70">Drag, assign, and prioritize tasks across every department.</p>
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent">Live Kanban</h2>
+              <p className="text-sm text-slate-300">Drag, assign, and prioritize tasks across every department.</p>
             </div>
           </div>
 

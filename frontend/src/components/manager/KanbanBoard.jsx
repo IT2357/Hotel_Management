@@ -8,26 +8,32 @@ const columns = [
   {
     id: "pending",
     title: "Pending",
-    accent: "text-[#facc15]",
-    chipBg: "bg-[#2a2f45]",
-    shellClass: "border-[#1b335f] bg-gradient-to-b from-[#14284d] via-[#112244] to-[#0b1c36]",
-    icon: <Clock className="h-4 w-4 text-[#facc15]" />,
+    accent: "text-rose-200",
+    chipBg: "bg-gradient-to-br from-rose-500/40 via-pink-500/35 to-fuchsia-500/30 border border-rose-300/60 shadow-lg shadow-rose-400/30",
+    shellClass: "border border-rose-400/50 bg-gradient-to-br from-rose-950/70 via-pink-950/60 to-slate-900/80 hover:border-rose-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
+    icon: <Clock className="h-5 w-5 text-rose-200" />,
+    badge: "Queued",
+    badgeClass: "bg-gradient-to-r from-rose-500/60 to-pink-500/50 text-rose-50 border border-rose-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
   },
   {
     id: "inProgress",
     title: "In Progress",
-    accent: "text-[#f97316]",
-    chipBg: "bg-[#2a230f]",
-    shellClass: "border-[#5f4a1b] bg-gradient-to-b from-[#251f14] via-[#1b160f] to-[#0f0d09]",
-    icon: <User className="h-4 w-4 text-[#f97316]" />,
+    accent: "text-sky-200",
+    chipBg: "bg-gradient-to-br from-sky-500/40 via-blue-500/35 to-indigo-500/30 border border-sky-300/60 shadow-lg shadow-sky-400/30",
+    shellClass: "border border-sky-400/50 bg-gradient-to-br from-sky-950/70 via-blue-950/60 to-slate-900/80 hover:border-sky-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
+    icon: <User className="h-5 w-5 text-sky-200" />,
+    badge: "Active",
+    badgeClass: "bg-gradient-to-r from-sky-500/60 to-blue-500/50 text-sky-50 border border-sky-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
   },
   {
     id: "completed",
     title: "Completed",
-    accent: "text-[#34d399]",
-    chipBg: "bg-[#123338]",
-    shellClass: "border-[#2f6f64] bg-gradient-to-b from-[#163f44] via-[#12353d] to-[#0d2933]",
-    icon: <CheckCircle className="h-4 w-4 text-[#34d399]" />,
+    accent: "text-lime-200",
+    chipBg: "bg-gradient-to-br from-lime-500/40 via-green-500/35 to-emerald-500/30 border border-lime-300/60 shadow-lg shadow-lime-400/30",
+    shellClass: "border border-lime-400/50 bg-gradient-to-br from-lime-950/70 via-green-950/60 to-slate-900/80 hover:border-lime-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
+    icon: <CheckCircle className="h-5 w-5 text-lime-200" />,
+    badge: "Done",
+    badgeClass: "bg-gradient-to-r from-lime-500/60 to-green-500/50 text-lime-50 border border-lime-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
   },
 ];
 
@@ -68,20 +74,20 @@ export const KanbanBoard = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: columnIndex * 0.1 }}
-            className={`space-y-4 rounded-3xl border-2 p-4 text-[#d6e2ff] shadow-[0_18px_46px_rgba(8,14,29,0.6)] ${column.shellClass}`}
+            className={`space-y-4 rounded-2xl p-5 shadow-xl transition-all duration-300 ${column.shellClass}`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className={`rounded-xl p-2 ${column.chipBg}`}>
+                <div className={`rounded-xl p-2.5 ${column.chipBg}`}>
                   {column.icon}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-[#f5f7ff]">{column.title}</h3>
-                  <p className="text-xs text-[#8ba3d0]">{groupedTasks[column.id].length} tasks</p>
+                  <h3 className={`text-base font-bold ${column.accent}`}>{column.title}</h3>
+                  <p className="text-xs text-slate-300 mt-0.5 font-medium">{groupedTasks[column.id].length} tasks</p>
                 </div>
               </div>
-              <span className={`text-xs font-medium ${column.accent}`}>
-                {column.title === "Pending" ? "Queued" : column.title === "In Progress" ? "Active" : "Completed"}
+              <span className={`rounded-lg ${column.badgeClass}`}>
+                {column.badge}
               </span>
             </div>
 
@@ -91,11 +97,11 @@ export const KanbanBoard = ({
                   {[0, 1, 2].map((index) => (
                     <div
                       key={`${column.id}-skeleton-${index}`}
-                      className="animate-pulse rounded-2xl border border-[#1b335f]/60 bg-[#0e1f42]/60 p-4"
+                      className="animate-pulse rounded-xl border border-slate-700/60 bg-slate-800/50 p-4"
                     >
-                      <div className="h-4 w-3/4 rounded bg-[#132b4f]/80" />
-                      <div className="mt-3 h-3 w-1/2 rounded bg-[#132b4f]/60" />
-                      <div className="mt-4 h-12 rounded-lg bg-[#132b4f]/40" />
+                      <div className="h-4 w-3/4 rounded bg-slate-700/70" />
+                      <div className="mt-3 h-3 w-1/2 rounded bg-slate-700/50" />
+                      <div className="mt-4 h-12 rounded-lg bg-slate-700/30" />
                     </div>
                   ))}
                 </div>
@@ -103,7 +109,7 @@ export const KanbanBoard = ({
                 groupedTasks[column.id].map((task, index) => (
                   <motion.div
                     key={task.id || `${column.id}-${index}`}
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
@@ -111,9 +117,11 @@ export const KanbanBoard = ({
                   </motion.div>
                 ))
               ) : (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 py-12 text-center">
-                  <Package className="mx-auto h-12 w-12 text-[#1f355d]" />
-                  <p className="text-sm text-[#8ba3d0]">{emptyMessage}</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 py-14 text-center">
+                  <div className="mx-auto w-16 h-16 rounded-xl bg-slate-800/40 flex items-center justify-center border border-slate-700/40">
+                    <Package className="h-8 w-8 text-slate-600" />
+                  </div>
+                  <p className="text-sm text-slate-500 font-medium">{emptyMessage}</p>
                 </motion.div>
               )}
             </div>

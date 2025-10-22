@@ -1486,14 +1486,30 @@ function TaskCard({ task, onStatusChange, index = 0 }) {
         return true;
       }
 
-      // Send to backend for real tasks
+      // Send to backend for real tasks using proper workflow
       console.log('Sending status update to backend', {
         taskId: task._id,
         newStatus,
         previousStatus: task.status
       });
 
-      const response = await staffService.updateTaskStatus(task._id, { status: newStatus });
+      let response;
+      
+      // Use specific endpoints based on status transition
+      if (newStatus === 'in_progress' && task.status === 'pending') {
+        // Staff is accepting a pending task assigned by manager
+        console.log('Accepting pending task via /accept endpoint');
+        response = await staffService.acceptTask(task._id);
+      } else if (newStatus === 'completed') {
+        // Staff is completing a task
+        console.log('Completing task via /complete endpoint');
+        response = await staffService.completeTask(task._id);
+      } else {
+        // General status update
+        console.log('Updating status via general endpoint');
+        response = await staffService.updateTaskStatus(task._id, { status: newStatus });
+      }
+      
       console.log('Backend response:', response);
 
       if (!response?.success) {

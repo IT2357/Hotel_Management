@@ -26,6 +26,8 @@ router.put("/tasks/:taskId", taskController.updateTaskStatus);
 router.put("/tasks/:taskId/status", taskController.updateTaskStatus);
 router.delete("/tasks/:taskId", taskController.deleteTask);
 router.post("/tasks/:taskId/notes", taskController.addTaskNote);
+router.post("/tasks/:taskId/accept", taskController.acceptTask);
+router.post("/tasks/:taskId/complete", taskController.completeTask);
 router.post("/tasks/:taskId/accept-handoff", taskController.acceptHandoff);
 router.get("/tasks/stats", taskController.getTaskStats);
 // Bulk-assign existing tasks from DB to staff (manager/admin only)

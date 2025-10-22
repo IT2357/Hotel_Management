@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Task from "../../models/Task.js";
+import StaffTask from "../../models/StaffTask.js";
 import GuestServiceRequest from "../../models/GuestServiceRequest.js";
 import { User } from "../../models/User.js";
 import cron from "node-cron";
@@ -10,7 +11,7 @@ const autoAssignTasks = async () => {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
     // Find unassigned tasks older than 5 minutes
-    const unassignedTasks = await Task.find({
+    const unassignedTasks = await StaffTask.find({
       status: "pending",
       assignedTo: { $exists: false },
       requestedAt: { $lte: fiveMinutesAgo },
@@ -69,7 +70,7 @@ class ManagerTaskController {
         filter.priority = priority;
       }
 
-      const tasks = await Task.find(filter)
+      const tasks = await StaffTask.find(filter)
         .populate("guestId", "name email profile.phone")
         .populate("assignedBy", "name email")
         .sort({ requestedAt: -1 })
@@ -112,9 +113,9 @@ class ManagerTaskController {
       // Count current assigned tasks for workload info
       const staffWithWorkload = await Promise.all(
         staff.map(async (member) => {
-          const activeTasks = await Task.countDocuments({
+          const activeTasks = await StaffTask.countDocuments({
             assignedTo: member._id,
-            status: { $in: ["assigned", "in-progress"] },
+            status: { $in: ["assigned", "in_progress"] },
             isActive: true
           });
           
@@ -318,7 +319,7 @@ class ManagerTaskController {
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
-      const tasks = await Task.find(filter)
+      const tasks = await StaffTask.find(filter)
         .populate("assignedTo", "name email profile")
         .populate("guestId", "name email profile.phone")
         .populate("assignedBy", "name email")
@@ -326,7 +327,7 @@ class ManagerTaskController {
         .skip(skip)
         .limit(parseInt(limit));
 
-      const totalTasks = await Task.countDocuments(filter);
+      const totalTasks = await StaffTask.countDocuments(filter);
       const totalPages = Math.ceil(totalTasks / parseInt(limit));
 
       res.json({

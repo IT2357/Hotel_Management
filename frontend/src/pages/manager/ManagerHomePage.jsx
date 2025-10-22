@@ -27,40 +27,40 @@ import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS, MANAGER_SECTION_CL
 
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 
-const SECTION_BASE_CLASS = `${MANAGER_SECTION_CLASS} border-white/5 bg-slate-950/70 shadow-[0_24px_44px_rgba(2,6,23,0.55)]`;
+const SECTION_BASE_CLASS = `${MANAGER_SECTION_CLASS}`;
 const SECTION_VARIANTS = {
-  insights: "border-slate-800/70 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900",
-  actions: "border-emerald-900/60 bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900",
-  workforce: "border-sky-900/60 bg-gradient-to-br from-sky-950 via-slate-950 to-slate-900",
-  trends: "border-amber-900/60 bg-gradient-to-br from-amber-950 via-slate-950 to-slate-900",
-  team: "border-indigo-900/60 bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900",
-  sentiment: "border-rose-900/60 bg-gradient-to-br from-rose-950 via-slate-950 to-slate-900",
+  insights: "bg-gradient-to-br from-white to-amber-50 border-amber-200",
+  actions: "bg-gradient-to-br from-white to-emerald-50 border-emerald-200",
+  workforce: "bg-gradient-to-br from-white to-teal-50 border-teal-200",
+  trends: "bg-gradient-to-br from-white to-blue-50 border-blue-200",
+  team: "bg-gradient-to-br from-white to-purple-50 border-purple-200",
+  sentiment: "bg-gradient-to-br from-white to-cyan-50 border-cyan-200",
 };
 
 const SECTION_GLOW = {
-  insights: "bg-amber-500/30",
-  actions: "bg-emerald-500/25",
-  workforce: "bg-sky-500/25",
-  trends: "bg-amber-400/25",
-  team: "bg-indigo-500/25",
-  sentiment: "bg-rose-500/25",
+  insights: "bg-amber-100/50",
+  actions: "bg-emerald-100/50",
+  workforce: "bg-teal-100/50",
+  trends: "bg-blue-100/50",
+  team: "bg-purple-100/50",
+  sentiment: "bg-cyan-100/50",
 };
 
 const SectionCard = ({ variant, className = "", children }) => (
   <div className={cx(SECTION_BASE_CLASS, SECTION_VARIANTS[variant], "relative overflow-hidden", className)}>
-    <div className={cx("pointer-events-none absolute inset-0 opacity-30 blur-3xl", SECTION_GLOW[variant])} />
+    <div className={cx("pointer-events-none absolute inset-0 opacity-20 blur-2xl", SECTION_GLOW[variant])} />
     <div className="relative z-10">{children}</div>
   </div>
 );
 
-const STAT_CARD_CLASS = "rounded-2xl border p-4 transition-colors duration-300 shadow-[0_20px_35px_rgba(2,6,23,0.4)]";
+const STAT_CARD_CLASS = "rounded-xl border p-5 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 backdrop-blur-sm";
 const STAT_CARD_VARIANTS = {
-  neutral: "border-slate-800/70 bg-slate-950/60 hover:border-slate-700/60 hover:bg-slate-900/70",
-  actions: "border-emerald-900/60 bg-emerald-950/50 hover:border-emerald-800/60 hover:bg-emerald-950/60",
-  workforce: "border-sky-900/60 bg-sky-950/50 hover:border-sky-800/60 hover:bg-sky-950/60",
-  trends: "border-amber-900/60 bg-amber-950/40 hover:border-amber-800/60 hover:bg-amber-950/50",
-  team: "border-indigo-900/60 bg-indigo-950/50 hover:border-indigo-800/60 hover:bg-indigo-950/60",
-  sentiment: "border-rose-900/60 bg-rose-950/50 hover:border-rose-800/60 hover:bg-rose-950/60",
+  neutral: "border-gray-200 bg-gradient-to-br from-white to-gray-50 hover:border-gray-300",
+  actions: "border-emerald-200 bg-gradient-to-br from-white to-emerald-50 hover:border-emerald-300",
+  workforce: "border-teal-200 bg-gradient-to-br from-white to-teal-50 hover:border-teal-300",
+  trends: "border-blue-200 bg-gradient-to-br from-white to-blue-50 hover:border-blue-300",
+  team: "border-purple-200 bg-gradient-to-br from-white to-purple-50 hover:border-purple-300",
+  sentiment: "border-cyan-200 bg-gradient-to-br from-white to-cyan-50 hover:border-cyan-300",
 };
 
 const ManagerHomePage = () => {
@@ -393,24 +393,24 @@ const ManagerHomePage = () => {
         label: "Completion",
         value: isDataLoading ? "—" : `${computedMetrics.completionRate}%`,
         tone: isDataLoading
-          ? "text-white/60"
+          ? "text-gray-400"
           : computedMetrics.completionRate >= 70
-            ? "text-emerald-300"
-            : "text-amber-300",
+            ? "text-emerald-600"
+            : "text-amber-600",
       },
       {
         label: "Backlog",
         value: isDataLoading ? "—" : computedMetrics.backlog,
         tone: isDataLoading
-          ? "text-white/60"
+          ? "text-gray-400"
           : computedMetrics.backlog <= 5
-            ? "text-emerald-300"
-            : "text-amber-300",
+            ? "text-emerald-600"
+            : "text-amber-600",
       },
       {
         label: "Active tasks",
         value: isDataLoading ? "—" : snapshot.inProgress,
-        tone: isDataLoading ? "text-white/60" : "text-sky-300",
+        tone: isDataLoading ? "text-gray-400" : "text-sky-600",
       },
     ],
     [computedMetrics.backlog, computedMetrics.completionRate, isDataLoading, snapshot.inProgress]
@@ -452,14 +452,14 @@ const ManagerHomePage = () => {
             <>
               <Button
                 asChild
-                className="bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 text-slate-900 shadow-[0_24px_50px_rgba(251,191,36,0.32)] transition-transform duration-300 hover:from-amber-200 hover:via-amber-300 hover:to-amber-200 hover:shadow-[0_28px_60px_rgba(251,191,36,0.4)] hover:-translate-y-0.5"
+                className="bg-gradient-to-r from-teal-600 to-teal-700 text-white font-bold shadow-md transition-all duration-300 hover:shadow-lg hover:from-teal-700 hover:to-teal-800"
               >
                 <Link to="/manager/tasks">Go to Task Manager</Link>
               </Button>
               <Button
                 asChild
                 variant="outline"
-                className="border-white/15 bg-white/[0.08] text-white shadow-[0_18px_40px_rgba(8,14,29,0.35)] backdrop-blur-lg transition-transform duration-300 hover:border-white/25 hover:bg-white/[0.12] hover:-translate-y-0.5"
+                className="border-2 border-teal-200 bg-white text-teal-700 font-semibold shadow-sm transition-all duration-300 hover:bg-teal-50 hover:border-teal-300"
               >
                 <Link to="/manager/staff">View Staff Analytics</Link>
               </Button>
@@ -467,7 +467,7 @@ const ManagerHomePage = () => {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={isRefreshing || isLoading}
-                className="border-white/15 bg-white/[0.08] text-white shadow-[0_18px_40px_rgba(8,14,29,0.35)] backdrop-blur-lg transition-transform duration-300 hover:border-white/25 hover:bg-white/[0.12] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                className="border-2 border-gray-200 bg-white text-gray-700 font-semibold shadow-sm transition-all duration-300 hover:bg-gray-50 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RotateCw className={`mr-2 h-4 w-4 ${isRefreshing || isLoading ? "animate-spin" : ""}`} />
                 Refresh stats
@@ -507,32 +507,34 @@ const ManagerHomePage = () => {
           <SectionCard variant="insights" className="xl:col-span-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">Operational insights</h3>
-                <p className="text-sm text-slate-300">Key signals refreshed automatically.</p>
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Operational insights</h3>
+                <p className="text-sm text-gray-600 font-medium">Key signals refreshed automatically.</p>
               </div>
-              <Gauge className="h-5 w-5 text-amber-300" />
+              <div className="p-3 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 shadow-sm">
+                <Gauge className="h-6 w-6 text-amber-700" />
+              </div>
             </div>
             <ul className="mt-5 space-y-4">
               {insights.map((insight) => (
                 <li
                   key={insight.label}
-                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.neutral, "text-white")}
+                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.neutral)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-200">{insight.label}</span>
+                    <span className="text-sm font-medium text-gray-700">{insight.label}</span>
                     <span
                       className={`text-sm font-semibold ${
                         insight.intent === "positive"
-                          ? "text-emerald-300"
+                          ? "text-emerald-600"
                           : insight.intent === "warning"
-                            ? "text-amber-300"
-                            : "text-sky-300"
+                            ? "text-amber-600"
+                            : "text-teal-600"
                       }`}
                     >
                       {insight.value}
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-300">{insight.message}</p>
+                  <p className="mt-2 text-xs text-gray-500">{insight.message}</p>
                 </li>
               ))}
             </ul>
@@ -541,24 +543,26 @@ const ManagerHomePage = () => {
           <SectionCard variant="actions" className="xl:col-span-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">Next best actions</h3>
-                <p className="text-sm text-slate-300">Focus the team on the highest impact tasks.</p>
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">Next best actions</h3>
+                <p className="text-sm text-gray-600 font-medium">Focus the team on the highest impact tasks.</p>
               </div>
-              <Activity className="h-5 w-5 text-emerald-300" />
+              <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 shadow-sm">
+                <Activity className="h-6 w-6 text-emerald-700" />
+              </div>
             </div>
             <ul className="mt-5 space-y-4">
               {nextActions.map((action) => (
                 <li
                   key={action.title}
-                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.actions, "text-white")}
+                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.actions)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">{action.title}</span>
-                    <span className="text-xs font-medium uppercase tracking-wide text-slate-300">
+                    <span className="text-sm font-semibold text-gray-900">{action.title}</span>
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-600">
                       {action.priority} priority
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-300">{action.description}</p>
+                  <p className="mt-2 text-xs text-gray-500">{action.description}</p>
                 </li>
               ))}
             </ul>
@@ -567,28 +571,30 @@ const ManagerHomePage = () => {
           <SectionCard variant="workforce" className="xl:col-span-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">Workforce load</h3>
-                <p className="text-sm text-slate-300">Live coverage versus active work items.</p>
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">Workforce load</h3>
+                <p className="text-sm text-gray-600 font-medium">Live coverage versus active work items.</p>
               </div>
-              <TrendingUp className="h-5 w-5 text-sky-300" />
+              <div className="p-3 rounded-xl bg-gradient-to-br from-teal-100 to-cyan-100 shadow-sm">
+                <TrendingUp className="h-6 w-6 text-teal-700" />
+              </div>
             </div>
 
-            <dl className="mt-5 space-y-4 text-sm text-white">
+            <dl className="mt-5 space-y-4 text-sm text-gray-900">
               <div className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.workforce, "flex items-center justify-between")}>
-                <dt className="text-slate-300">Team online</dt>
+                <dt className="text-gray-600">Team online</dt>
                 <dd className="font-semibold">{isDataLoading ? "—" : workforceSnapshot.online}</dd>
               </div>
               <div className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.workforce, "flex items-center justify-between")}>
-                <dt className="text-slate-300">Active load</dt>
+                <dt className="text-gray-600">Active load</dt>
                 <dd className="font-semibold">{isDataLoading ? "—" : workforceSnapshot.workload}</dd>
               </div>
               <div className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.workforce, "flex items-center justify-between")}>
-                <dt className="text-slate-300">Tasks per team member</dt>
+                <dt className="text-gray-600">Tasks per team member</dt>
                 <dd className="font-semibold">{isDataLoading ? "—" : workforceSnapshot.online ? workforceSnapshot.coverage : "-"}</dd>
               </div>
             </dl>
-            <p className="mt-4 text-xs text-slate-300">{isDataLoading ? "Syncing the latest metrics..." : workforceSnapshot.status}</p>
-            <p className="mt-2 text-xs text-slate-500">Last sync: {formatLastUpdated()}</p>
+            <p className="mt-4 text-xs text-gray-500">{isDataLoading ? "Syncing the latest metrics..." : workforceSnapshot.status}</p>
+            <p className="mt-2 text-xs text-gray-400">Last sync: {formatLastUpdated()}</p>
           </SectionCard>
         </motion.section>
 
@@ -601,13 +607,13 @@ const ManagerHomePage = () => {
           <SectionCard variant="trends" className="xl:col-span-7">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">Performance Trends</h3>
-                <p className="text-sm text-slate-300">Track staff efficiency, response times, and service quality.</p>
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Performance Trends</h3>
+                <p className="text-sm text-gray-600 font-medium">Track staff efficiency, response times, and service quality.</p>
               </div>
               <Button
                 asChild
                 variant="ghost"
-                className="text-sm font-medium text-amber-300 hover:bg-slate-800/60 hover:text-amber-200"
+                className="text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl px-4 py-2"
               >
                 <Link to="/manager/reports">Open detailed reports</Link>
               </Button>
@@ -616,10 +622,10 @@ const ManagerHomePage = () => {
               {trendQuickStats.map((item) => (
                 <div
                   key={item.label}
-                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.trends, "text-white")}
+                  className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.trends)}
                 >
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{item.label}</p>
-                  <p className={`mt-2 text-lg font-semibold text-white ${item.tone}`}>{item.value}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-600">{item.label}</p>
+                  <p className={`mt-2 text-lg font-semibold ${item.tone}`}>{item.value}</p>
                 </div>
               ))}
             </div>
@@ -631,22 +637,22 @@ const ManagerHomePage = () => {
           <div className="space-y-6 xl:col-span-5">
             <SectionCard variant="team">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-white">Team Pulse</h3>
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Team Pulse</h3>
                 <Button
                   asChild
                   variant="ghost"
-                  className="text-sm font-medium text-amber-300 hover:bg-slate-800/60 hover:text-amber-200"
+                  className="text-sm font-bold text-purple-600 hover:bg-purple-50 rounded-xl px-4 py-2"
                 >
                   <Link to="/manager/profile">View roster</Link>
                 </Button>
               </div>
-              <p className="text-sm text-slate-300">Top performers and availability based on real-time updates.</p>
+              <p className="text-sm text-gray-600 font-medium">Top performers and availability based on real-time updates.</p>
               <dl className="mt-5 grid gap-4 sm:grid-cols-3">
                 {teamPulseStats.map((stat) => (
-                  <div key={stat.label} className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.team, "text-white")}
+                  <div key={stat.label} className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.team)}
                   >
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-200">{stat.label}</dt>
-                    <dd className="mt-2 text-lg font-semibold">{stat.value}</dd>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-gray-600">{stat.label}</dt>
+                    <dd className="mt-2 text-lg font-semibold text-gray-900">{stat.value}</dd>
                   </div>
                 ))}
               </dl>
@@ -656,13 +662,13 @@ const ManagerHomePage = () => {
             </SectionCard>
 
             <SectionCard variant="sentiment">
-              <h3 className="text-xl font-semibold text-white">Guest Sentiment</h3>
-              <p className="text-sm text-slate-300">Highlights from the latest service reviews and feedback.</p>
-              <div className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.sentiment, "mt-5 text-white")}
+              <h3 className="text-2xl font-extrabold bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">Guest Sentiment</h3>
+              <p className="text-sm text-gray-600 font-medium">Highlights from the latest service reviews and feedback.</p>
+              <div className={cx(STAT_CARD_CLASS, STAT_CARD_VARIANTS.sentiment, "mt-5")}
               >
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Current rating</p>
-                <p className="mt-2 text-3xl font-semibold">{sentimentSummary.rating}</p>
-                <p className="mt-3 text-sm text-slate-300">{sentimentSummary.status}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-600">Current rating</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-900">{sentimentSummary.rating}</p>
+                <p className="mt-3 text-sm text-gray-500">{sentimentSummary.status}</p>
               </div>
               <div className={cx("mt-6 rounded-2xl border p-4", STAT_CARD_VARIANTS.sentiment)}>
                 <FeedbackSummary />
@@ -671,8 +677,8 @@ const ManagerHomePage = () => {
           </div>
         </motion.section>
 
-        <footer className="mt-12 border-t border-white/10 py-6 text-center">
-          <p className="text-sm text-white/60">
+        <footer className="mt-12 border-t border-gray-200 py-6 text-center">
+          <p className="text-sm text-gray-500">
             © 2025 Royal Palm Hotel Task Management System — All Rights Reserved
           </p>
         </footer>

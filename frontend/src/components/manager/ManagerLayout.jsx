@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ManagerNavbar } from "./ManagerNavbar";
 import { Sidebar } from "./Sidebar";
 
-const DEFAULT_BACKGROUND = "bg-gradient-to-br from-slate-950 via-[#0a1530] to-slate-900";
+const DEFAULT_BACKGROUND = "bg-gradient-to-br from-blue-50/30 via-indigo-50/20 to-purple-50/30";
 
 const menuRoutes = {
   dashboard: "/manager",
