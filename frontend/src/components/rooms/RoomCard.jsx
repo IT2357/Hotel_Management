@@ -2,6 +2,7 @@ import { Button } from "@/components/rooms/ui/button";
 import { Heart, Star, Users, Wifi, Car, Coffee, Bath, Ruler, Bed, MapPin, Eye } from "lucide-react";
 import { useState } from "react";
 import RoomModal from "./ViewDetails";
+import IntegratedBookingFlow from "../booking/IntegratedBookingFlow";
 
 const amenityIcons = {
   WiFi: Wifi,
@@ -110,6 +111,7 @@ const RoomCard = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
   const gradientClass = getRoomGradient(name);
   const backgroundGradient = getRoomBackgroundGradient(name);
   const borderColor = getRoomBorderColor(name);
@@ -143,6 +145,14 @@ const RoomCard = ({
   const handleBookFromModal = (roomId, checkInDate, checkOutDate, guests) => {
     onBookNow?.(roomId, checkInDate, checkOutDate, guests);
     setIsModalOpen(false);
+  };
+
+  const handleDirectBooking = () => {
+    setIsBookingFlowOpen(true);
+  };
+
+  const handleBookingFlowClose = () => {
+    setIsBookingFlowOpen(false);
   };
 
   return (
@@ -231,18 +241,18 @@ const RoomCard = ({
         )}
         
                 {/* Action Buttons */}
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex gap-2">
   <Button 
-    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
+    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2 px-2 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center text-xs"
     onClick={handleViewDetails}
   >
-    <Eye className="w-4 h-4 mr-2" />
+    <Eye className="w-3 h-3 mr-1" />
     View Details 
   </Button>
 
   <Button 
-    className={`flex-1 bg-gradient-to-r ${gradientClass} text-white hover:opacity-90 transition-opacity`}
-    onClick={() => onBookNow?.(id)}
+    className={`flex-1 bg-gradient-to-r ${gradientClass} text-white hover:opacity-90 transition-opacity py-2 px-2 rounded-lg font-semibold text-xs`}
+    onClick={handleDirectBooking}
   >
     Book Now
   </Button>
@@ -256,6 +266,15 @@ const RoomCard = ({
         onClose={handleCloseModal}
         room={roomData}
         onBook={handleBookFromModal}
+      />
+
+      {/* Integrated Booking Flow */}
+      <IntegratedBookingFlow
+        isOpen={isBookingFlowOpen}
+        onClose={handleBookingFlowClose}
+        room={roomData}
+        initialStep={3}
+        initialBookingData={{}}
       />
     </div>
   );

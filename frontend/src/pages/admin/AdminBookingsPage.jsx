@@ -147,6 +147,7 @@ export default function AdminBookingsPage() {
         
         console.log(`Found ${bookings.length} bookings`);
         console.log('Pagination:', pagination);
+        console.log('Bookings Data:', bookings);
         
         setBookings(bookings);
         setPagination({

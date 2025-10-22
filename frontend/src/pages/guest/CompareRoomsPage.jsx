@@ -83,7 +83,7 @@ const CompareRoomsPage = () => {
             <div className="flex items-center gap-4">
               <Button
                 className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center max-w-xs"
-                onClick={() => navigate('/guest/dashboard')}
+                onClick={() => navigate('/rooms')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -129,12 +129,7 @@ const CompareRoomsPage = () => {
                     <div className="text-2xl font-bold text-indigo-600 mb-3">
                       ${room.basePrice || room.price}<span className="text-sm text-gray-500">/night</span>
                     </div>
-                    <Button
-                      onClick={() => handleBookNow(room._id)}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
-                    >
-                      Book Now
-                    </Button>
+                   
                   </div>
                 </motion.div>
               ))}

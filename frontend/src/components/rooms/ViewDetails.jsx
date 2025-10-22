@@ -6,6 +6,7 @@ import { Calendar } from "@/components/rooms/ui/calendar";
 import Label from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/rooms/ui/popover";
+import IntegratedBookingFlow from '../booking/IntegratedBookingFlow';
 import { 
   X, 
   Users, 
@@ -62,6 +63,8 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
     foodPlan: 'None',
     selectedMeals: []
   });
+  
+  const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
 
   const handleInputChange = (field, value) => {
     console.log(`Field changed - ${field}:`, value);
@@ -134,9 +137,29 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
   const amenities = room.amenities || [];
 
   const handleBookNow = () => {
-    if (bookingData.checkIn && bookingData.checkOut && onBook) {
-      onBook(room.id, bookingData.checkIn, bookingData.checkOut, bookingData.guests);
-    }
+    // Always open booking flow and pass the current booking data
+    // This ensures dates are pre-filled if they were entered in ViewDetails
+    const currentBookingData = {
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      guests: bookingData.guests,
+      roomId: room?.id || '',
+      specialRequests: bookingData.specialRequests,
+      foodPlan: bookingData.foodPlan,
+      selectedMeals: bookingData.selectedMeals
+    };
+    
+    console.log('ViewDetails - Current booking data:', bookingData);
+    console.log('ViewDetails - Passing to booking flow:', currentBookingData);
+    
+    // Update the bookingData state to be passed to the flow
+    setBookingData(currentBookingData);
+    setIsBookingFlowOpen(true);
+    onClose(); // Close the details modal
+  };
+
+  const handleBookingFlowClose = () => {
+    setIsBookingFlowOpen(false);
   };
 
   const nextImage = () => {
@@ -495,6 +518,15 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
           </div>
         </div>
       </DialogContent>
+      
+      {/* Integrated Booking Flow */}
+      <IntegratedBookingFlow
+        isOpen={isBookingFlowOpen}
+        onClose={handleBookingFlowClose}
+        room={room}
+        initialStep={3}
+        initialBookingData={bookingData}
+      />
     </Dialog>
   );
 };

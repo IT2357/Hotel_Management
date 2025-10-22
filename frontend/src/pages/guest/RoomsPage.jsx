@@ -293,7 +293,7 @@ const GuestDashboardPage = () => {
       <HotelHero />
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Search and Filter Bar */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 sticky top-4 z-30">
           <div className="relative w-full md:w-96">
@@ -408,7 +408,7 @@ const GuestDashboardPage = () => {
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
               </div>
             ) : filteredRooms.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
+              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-4'}>
                 {filteredRooms.map((room) => (
                   <RoomCard
                     key={room._id}
