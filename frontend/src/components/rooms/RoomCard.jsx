@@ -186,7 +186,7 @@ const RoomCard = ({
         {/* Price Tag */}
         <div className={`absolute bottom-3 left-3 px-3 py-1 rounded-full font-bold text-white shadow-sm`}>
           <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${gradientClass} opacity-95`}></div>
-          <span className="relative z-10 text-sm">${price} <span className="text-xs font-normal">/ night</span></span>
+          <span className="relative z-10 text-sm">LKR. {price} <span className="text-xs font-normal">/ night</span></span>
         </div>
       </div>
       

@@ -456,6 +456,7 @@ const GuestBookingFlow = () => {
                 calculateNights={calculateNights}
               />
             ))}
+         
           </div>
         )}
         {selectedRoom && (

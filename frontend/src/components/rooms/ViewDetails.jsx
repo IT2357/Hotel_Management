@@ -3,6 +3,8 @@ import { Button } from "@/components/rooms/ui/button";
 import { Badge } from "@/components/rooms/ui/badge";
 import { Card, CardContent } from "@/components/rooms/ui/card";
 import { Calendar } from "@/components/rooms/ui/calendar";
+import Label from '../../components/ui/Label';
+import { Input } from '../../components/ui/Input';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/rooms/ui/popover";
 import { 
   X, 
@@ -28,11 +30,101 @@ const amenityIcons = {
   'Bathtub': Bath,
 };
 
+
+const getRoomGradient = (roomType) => {
+  switch (roomType?.toLowerCase()) {
+    case 'luxury suite':
+    case 'deluxe':
+    case 'deluxe room':
+      return 'from-red-500 to-pink-500';
+    case 'standard':
+    case 'standard room':
+      return 'from-blue-500 to-indigo-500';
+    case 'economy':
+    case 'economy room':
+      return 'from-green-500 to-emerald-500';
+    case 'guest':
+    case 'suite':
+    case 'guest suite':
+      return 'from-gray-500 to-slate-500';
+    default:
+      return 'from-indigo-500 to-purple-500';
+  }
+};
+
 const RoomModal = ({ isOpen, onClose, room, onBook }) => {
+  const [bookingData, setBookingData] = useState({
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+    roomId: room?.id || '',
+    specialRequests: '',
+    foodPlan: 'None',
+    selectedMeals: []
+  });
+
+  const handleInputChange = (field, value) => {
+    console.log(`Field changed - ${field}:`, value);
+    
+    // Special handling for date fields to ensure proper formatting
+    if (field === 'checkIn' || field === 'checkOut') {
+      if (!value) {
+        // If value is empty, set it as is
+        setBookingData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+        return;
+      }
+      
+      // Ensure the date is in YYYY-MM-DD format
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date:', value);
+        return;
+      }
+      
+      const formattedDate = date.toISOString().split('T')[0];
+      console.log(`Formatted ${field}:`, formattedDate);
+      
+      setBookingData(prev => ({
+        ...prev,
+        [field]: formattedDate
+      }));
+      return;
+    }
+    
+    // For non-date fields
+    setBookingData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+   const calculateNights = () => {
+    if (!bookingData.checkIn || !bookingData.checkOut) return 0;
+    const checkIn = new Date(bookingData.checkIn);
+    const checkOut = new Date(bookingData.checkOut);
+    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    return nights > 0 ? nights : 0;
+  };
+
+  const calculateTotalCost = () => {
+    const nights = calculateNights();
+    const roomCost = nights * (room.price || 0);
+    // You can add additional charges here if needed
+    const taxes = roomCost * 0.12; // 12% tax as example
+    const serviceCharge = roomCost * 0.10; // 10% service charge as example
+    return {
+      nights,
+      roomCost,
+      taxes,
+      serviceCharge,
+      total: roomCost + taxes + serviceCharge
+    };
+  };
+
+   const gradientClass = getRoomGradient(room?.name);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [checkInDate, setCheckInDate] = useState();
-  const [checkOutDate, setCheckOutDate] = useState();
-  const [guests, setGuests] = useState(2);
 
   if (!room) return null;
 
@@ -42,8 +134,8 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
   const amenities = room.amenities || [];
 
   const handleBookNow = () => {
-    if (checkInDate && checkOutDate && onBook) {
-      onBook(room.id, checkInDate, checkOutDate, guests);
+    if (bookingData.checkIn && bookingData.checkOut && onBook) {
+      onBook(room.id, bookingData.checkIn, bookingData.checkOut, bookingData.guests);
     }
   };
 
@@ -58,7 +150,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-100/80 backdrop-blur-xl glassmorphic-modal custom-scrollbar"
+        className="max-w-4xl max-h-[85vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-100/80 backdrop-blur-xl glassmorphic-modal custom-scrollbar"
         style={{
           boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
           border: '1.5px solid rgba(255, 255, 255, 0.18)',
@@ -87,100 +179,105 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
             scrollbar-color: rgba(180,180,200,0.45) transparent;
           }
         `}</style>
+        
         {/* Accessible description for screen readers */}
         <DialogDescription id="room-modal-desc" className="sr-only">
           Detailed information and booking options for the selected room.
         </DialogDescription>
-        {/* Header */}
-        <DialogHeader className="p-6 pb-0">
-          <div className="flex items-start justify-between">
-            <div>
+        
+        {/* Enhanced Header with better spacing */}
+        <DialogHeader className="px-6 py-4 border-b border-white/20">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex-1">
               <DialogTitle className="text-2xl font-display font-bold text-foreground mb-2">
                 {room.name || "Unnamed Room"}
               </DialogTitle>
-              <div className="flex items-center gap-4 text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                 {reviews && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 fill-primary text-primary" />
-                    <span className="font-medium">{reviews.rating}</span>
-                    <span>({reviews.count} reviews)</span>
+                    <span className="font-semibold text-base">{reviews.rating}</span>
+                    <span className="text-sm">({reviews.count} reviews)</span>
                   </div>
                 )}
                 {room.floor && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{room.floor}</span>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{room.floor}</span>
                   </div>
                 )}
               </div>
             </div>
-            <Badge variant="secondary" className="bg-primary text-primary-foreground">
-              ${room.price || 0}/night
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge variant="secondary" className="bg-primary text-primary-foreground text-base px-3 py-1">
+                LKR {room.price || 0}/night
+              </Badge>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="px-6">
-          {/* Image Gallery */}
-          <div className="relative mb-6">
-            <div className="relative h-80 rounded-xl overflow-hidden border-2 border-gray-200">
-              <img
-                src={images[currentImageIndex] || "/placeholder.jpg"}
-                alt={`${room.name || "Room"} - Image ${currentImageIndex + 1}`}
-                className="w-full h-full object-cover"
-              />
-              
-              {/* Navigation Arrows */}
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-lg"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-lg"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </>
-              )}
-
-              {/* Image Indicators */}
-              {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                  {images.map((_, index) => (
+        {/* Main Content Area with improved layout */}
+        <div className="flex flex-col lg:flex-row">
+          {/* Left Section - Image and Details */}
+          <div className="flex-1 px-6 py-4">
+            {/* Image Gallery with enhanced positioning */}
+            <div className="relative mb-6">
+              <div className="relative h-64 rounded-2xl overflow-hidden border-2 border-gray-200 shadow-lg">
+                <img
+                  src={images[currentImageIndex] || "/placeholder.jpg"}
+                  alt={`${room.name || "Room"} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Navigation Arrows */}
+                {images.length > 1 && (
+                  <>
                     <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={cn(
-                        "w-2 h-2 rounded-full transition-all duration-200",
-                        index === currentImageIndex ? "bg-white" : "bg-white/50"
-                      )}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+                      onClick={prevImage}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-xl"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all duration-200 shadow-xl"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
 
-          {/* Room Details Grid */}
-          <div className="grid lg:grid-cols-3 gap-6 mb-6">
-            {/* Left Column - Details */}
-            <div className="lg:col-span-2 space-y-6">
+                {/* Image Indicators */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                    {images.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all duration-200",
+                          index === currentImageIndex ? "bg-white shadow-lg" : "bg-white/60"
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Room Details with improved spacing */}
+            <div className="space-y-5">
               {/* Specifications */}
-              <Card className="bg-white rounded-xl shadow-md border border-gray-100">
-                <CardContent className="p-6">
-                  <h3 className="font-display font-semibold text-lg mb-4">Room Specifications</h3>
-                  <div className="grid sm:grid-cols-2 gap-4">
+              <Card className="bg-white rounded-2xl shadow-lg border border-gray-100">
+                <CardContent className="p-5">
+                  <h3 className="font-display font-semibold text-lg mb-4 text-center">Room Specifications</h3>
+                  <div className="grid md:grid-cols-2 gap-3">
                     {room.size && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
                         <Maximize className="w-4 h-4 text-primary" />
                         <span className="text-sm">
                           <strong>Size:</strong> {room.size} m²
@@ -188,7 +285,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                       </div>
                     )}
                     {room.maxGuests && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
                         <Users className="w-4 h-4 text-primary" />
                         <span className="text-sm">
                           <strong>Max Guests:</strong> {room.maxGuests}
@@ -196,7 +293,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                       </div>
                     )}
                     {room.bedType && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
                         <CheckCircle className="w-4 h-4 text-primary" />
                         <span className="text-sm">
                           <strong>Bed:</strong> {room.bedType}
@@ -204,7 +301,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                       </div>
                     )}
                     {room.view && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
                         <MapPin className="w-4 h-4 text-primary" />
                         <span className="text-sm">
                           <strong>View:</strong> {room.view}
@@ -217,26 +314,26 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
 
               {/* Description */}
               {room.description && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="font-display font-semibold text-lg mb-4">Why You'll Love This Room</h3>
-                    <p className="text-muted-foreground leading-relaxed">{room.description}</p>
+                <Card className="bg-white rounded-2xl shadow-lg border border-gray-100">
+                  <CardContent className="p-5">
+                    <h3 className="font-display font-semibold text-lg mb-3 text-center">Why You'll Love This Room</h3>
+                    <p className="text-muted-foreground leading-relaxed text-center">{room.description}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Amenities */}
               {amenities.length > 0 && (
-                <Card className="bg-white rounded-xl shadow-md border border-gray-100">
-                  <CardContent className="p-6">
-                    <h3 className="font-display font-semibold text-lg mb-4">Amenities</h3>
-                    <div className="grid sm:grid-cols-2 gap-3">
+                <Card className="bg-white rounded-2xl shadow-lg border border-gray-100">
+                  <CardContent className="p-5">
+                    <h3 className="font-display font-semibold text-lg mb-4 text-center">Amenities</h3>
+                    <div className="grid md:grid-cols-2 gap-3">
                       {amenities.map((amenity) => {
                         const IconComponent = amenityIcons[amenity];
                         return (
-                          <div key={amenity} className="flex items-center gap-3">
+                          <div key={amenity} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
                             {IconComponent && <IconComponent className="w-4 h-4 text-primary" />}
-                            <span className="text-sm">{amenity}</span>
+                            <span className="text-sm font-medium">{amenity}</span>
                           </div>
                         );
                       })}
@@ -247,15 +344,15 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
 
               {/* Recent Reviews */}
               {reviews.recent?.length > 0 && (
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="font-display font-semibold text-lg mb-4">Recent Reviews</h3>
-                    <div className="space-y-4">
+                <Card className="bg-white rounded-2xl shadow-lg border border-gray-100">
+                  <CardContent className="p-5">
+                    <h3 className="font-display font-semibold text-lg mb-4 text-center">Recent Reviews</h3>
+                    <div className="space-y-3">
                       {reviews.recent.map((review, index) => (
-                        <div key={index} className="border-l-2 border-primary pl-4">
-                          <p className="text-sm text-muted-foreground mb-1">"{review.comment}"</p>
+                        <div key={index} className="border-l-4 border-primary pl-4 py-2 bg-gray-50 rounded-r-lg">
+                          <p className="text-sm text-muted-foreground mb-1 italic">"{review.comment}"</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-medium">{review.name}</span>
+                            <span className="font-semibold">{review.name}</span>
                             <span>•</span>
                             <span>{review.date}</span>
                           </div>
@@ -266,77 +363,52 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                 </Card>
               )}
             </div>
+          </div>
 
-            {/* Right Column - Booking */}
-            <div className="lg:col-span-1">
-              <Card className="sticky top-6 bg-white rounded-xl shadow-md border border-gray-100">
-                <CardContent className="p-6">
-                  <h3 className="font-display font-semibold text-lg mb-4">Book This Room</h3>
+          {/* Right Section - Booking Panel */}
+          <div className="lg:w-80 lg:min-w-80 border-l border-white/20">
+            <div className="sticky top-0 h-full">
+              <Card className="h-full bg-white rounded-none lg:rounded-l-2xl shadow-2xl border-0 lg:border border-gray-100">
+                <CardContent className="p-6 h-full flex flex-col">
+                  <div className="text-center mb-6">
+                    <h3 className="font-display font-bold text-xl mb-1">Book This Room</h3>
+                    <p className="text-muted-foreground text-sm">Secure your perfect stay</p>
+                  </div>
                   
-                  <div className="space-y-4">
-                    {/* Check-in Date */}
-                    <div>
-                      <label className="text-sm font-medium block mb-2">Check-in Date</label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !checkInDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {checkInDate ? format(checkInDate, "PPP") : "Select date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={checkInDate}
-                            onSelect={setCheckInDate}
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    {/* Check-out Date */}
-                    <div>
-                      <label className="text-sm font-medium block mb-2">Check-out Date</label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !checkOutDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {checkOutDate ? format(checkOutDate, "PPP") : "Select date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={checkOutDate}
-                            onSelect={setCheckOutDate}
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
+                  <div className="space-y-4 flex-1">
+                    {/* Date Inputs */}
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="checkIn" className="text-sm font-semibold mb-2 block">Check-in Date</Label>
+                        <Input
+                          id="checkIn"
+                          type="date"
+                          value={bookingData.checkIn}
+                          onChange={(e) => handleInputChange('checkIn', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full h-10 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="checkOut" className="text-sm font-semibold mb-2 block">Check-out Date</Label>
+                        <Input
+                          id="checkOut"
+                          type="date"
+                          value={bookingData.checkOut}
+                          onChange={(e) => handleInputChange('checkOut', e.target.value)}
+                          min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
+                          className="w-full h-10 text-sm"
+                        />
+                      </div>
                     </div>
 
                     {/* Guests */}
                     <div>
-                      <label className="text-sm font-medium block mb-2">Guests</label>
+                      <label className="text-sm font-semibold block mb-2">Number of Guests</label>
                       <select
-                        value={guests}
-                        onChange={(e) => setGuests(parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                        value={bookingData.guests}
+                        onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
+                        className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
                       >
                         {Array.from({ length: room.maxGuests || 1 }, (_, i) => i + 1).map((num) => (
                           <option key={num} value={num}>
@@ -345,15 +417,75 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                         ))}
                       </select>
                     </div>
+                  </div>
 
-                   
-                    <Button 
-                    
-                    onClick={handleBookNow} >
-                      Book Now - ${room.price || 0}/night
+                  {/* Cost Breakdown */}
+                  {calculateNights() > 0 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                      <h4 className="text-base font-semibold text-gray-800 mb-3">Booking Summary</h4>
+                      
+                      {/* Stay Duration */}
+                      <div className="mb-3 pb-3 border-b border-blue-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Stay Duration</span>
+                          <span className="text-sm font-medium">
+                            {calculateNights()} Night{calculateNights() > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {bookingData.checkIn && bookingData.checkOut && (
+                            <>
+                              {new Date(bookingData.checkIn).toLocaleDateString()} - {new Date(bookingData.checkOut).toLocaleDateString()}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Cost Breakdown */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">
+                            Room × {calculateNights()} night{calculateNights() > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-sm">LKR {calculateTotalCost().roomCost.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Taxes (12%)</span>
+                          <span className="text-sm">LKR {calculateTotalCost().taxes.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Service Charge (10%)</span>
+                          <span className="text-sm">LKR {calculateTotalCost().serviceCharge.toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="border-t border-blue-200 pt-2 mt-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-base font-semibold text-gray-800">Total Cost</span>
+                            <span className="text-lg font-bold text-primary">
+                              LKR {calculateTotalCost().total.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Booking Action */}
+                  <div className="mt-6 space-y-3">
+                    <Button
+                      onClick={handleBookNow}
+                      disabled={calculateNights() === 0}
+                      className={`w-full h-12 text-base font-semibold bg-gradient-to-r ${gradientClass} text-white hover:opacity-90 transition-opacity rounded-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {calculateNights() > 0 
+                        ? `Book Now - LKR ${calculateTotalCost().total.toLocaleString()}`
+                        : 'Select Dates to Book'
+                      }
                     </Button>
 
-                    <p className="text-xs text-muted-foreground text-center">
+                    <p className="text-xs text-muted-foreground text-center leading-relaxed">
                       You'll receive a mobile QR for check-in & room access
                     </p>
                   </div>

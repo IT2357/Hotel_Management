@@ -34,7 +34,10 @@ export default function RoomCard({
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-blue-600">
-                {formatCurrency(room.pricing.total, room.currency)}
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'LKR'
+                }).format(room.basePrice)}
               </p>
               <p className="text-sm text-gray-500">per night</p>
             </div>
