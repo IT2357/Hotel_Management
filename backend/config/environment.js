@@ -66,6 +66,13 @@ const config = {
     API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
   },
 
+  // AI Vision Configuration
+  AI: {
+    PROVIDER: (process.env.AI_PROVIDER || "off").toLowerCase(),
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  },
+
   // Security Configuration
   BCRYPT_ROUNDS: parseInt(process.env.BCRYPT_ROUNDS) || 12,
   RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000, // 15 minutes

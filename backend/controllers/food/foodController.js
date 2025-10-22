@@ -222,37 +222,66 @@ export const deleteCategory = catchAsync(async (req, res) => {
   });
 });
 
-// AI Menu Generator (Mock implementation)
-export const generateAIMenu = catchAsync(async (req, res) => {
-  const { cuisine, dietaryRestrictions, mealType, budget } = req.body;
+// AI Menu Generator (Vision AI v2 powered)
+import visionMenuServiceV2 from '../../services/ai/visionMenuService_v2.js';
 
-  // Mock AI-generated menu items
-  const aiGeneratedItems = [
-    {
-      name: `${cuisine} ${mealType} Special`,
-      description: `AI-generated ${cuisine} dish perfect for ${mealType}`,
-      category: mealType,
-      price: budget ? Math.floor(budget * 0.8) : 25,
-      ingredients: ['AI-generated ingredients'],
-      allergens: [],
-      dietaryTags: dietaryRestrictions || [],
-      isAvailable: true
-    },
-    {
-      name: `${cuisine} Signature Dish`,
-      description: `Chef's special ${cuisine} creation`,
-      category: mealType,
-      price: budget ? Math.floor(budget * 1.2) : 35,
-      ingredients: ['Premium ingredients'],
-      allergens: [],
-      dietaryTags: dietaryRestrictions || [],
-      isAvailable: true
+export const generateAIMenu = catchAsync(async (req, res) => {
+  // Accepts: imageBuffer (base64 or binary), imageUrl, or ocrText
+  // Optionally: cuisine, dietaryRestrictions, mealType, budget
+  let imageBuffer, mimeType, ocrText;
+  if (req.body.imageBuffer) {
+    // If sent as base64 string
+    if (typeof req.body.imageBuffer === 'string') {
+      imageBuffer = Buffer.from(req.body.imageBuffer, req.body.encoding || 'base64');
+    } else {
+      imageBuffer = req.body.imageBuffer;
     }
-  ];
+    mimeType = req.body.mimeType || 'image/jpeg';
+  } else if (req.body.imageUrl) {
+    // Download image from URL
+    const axios = (await import('axios')).default;
+    const response = await axios.get(req.body.imageUrl, { responseType: 'arraybuffer' });
+    imageBuffer = Buffer.from(response.data);
+    mimeType = response.headers['content-type'] || 'image/jpeg';
+  }
+  if (req.body.ocrText) {
+    ocrText = req.body.ocrText;
+  }
+
+  // Call Vision AI v2 service
+  let v2Items = [];
+  try {
+    v2Items = await visionMenuServiceV2.analyze({ imageBuffer, mimeType, ocrText });
+  } catch (e) {
+    return res.status(500).json({
+      success: false,
+      message: 'Vision AI v2 extraction failed',
+      error: e.message || e
+    });
+  }
+
+  // Map v2 output to MenuItem schema
+  const menuItems = (v2Items || []).map((it, idx) => ({
+    name: it.name_english || it.name || it.name_tamil || `Food Item ${idx+1}`,
+    name_tamil: it.name_tamil || '',
+    name_english: it.name_english || '',
+    description: it.description_english || it.description || '',
+    description_english: it.description_english || '',
+    description_tamil: it.description_tamil || '',
+    price: Number(it.price) || 0,
+    currency: 'LKR',
+    category: req.body.category || null, // Assign category if provided
+    image: it.image || '',
+    ingredients: it.ingredients || [],
+    dietaryTags: it.dietaryTags || [],
+    isVeg: it.isVeg || false,
+    isSpicy: it.isSpicy || false,
+    isAvailable: true
+  }));
 
   res.status(200).json({
     success: true,
-    data: aiGeneratedItems,
+    data: menuItems,
     message: 'AI menu suggestions generated successfully'
   });
 });

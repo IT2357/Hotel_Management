@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
+
+// ...existing code...
+// import { motion } from 'framer-motion'; // Unused import removed
 import { useDropzone } from 'react-dropzone';
 import {
   Plus,
@@ -41,7 +45,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
 import foodService from '@/services/foodService';
-import { useSettings } from '@/context/SettingsContext';
+// import { useSettings } from '@/context/SettingsContext'; // Unused import removed
 import { Sun, Moon } from 'lucide-react';
 
 // Get API base URL for images
@@ -50,18 +54,151 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
 
 const FoodMenuManagementPage = () => {
-  const { settings, updateSettings } = useSettings();
+  // State declarations (must be before any useCallback/useMemo that uses them)
+  const [categoriesList, setCategoriesList] = useState([]);
+  // Helper function to get category ID from name or ID
+  const getCategoryId = useCallback((categoryValue) => {
+    if (!categoryValue) return '';
+    const existingCategory = categoriesList.find(cat => cat._id === categoryValue);
+    if (existingCategory) return categoryValue;
+    const categoryByName = categoriesList.find(cat =>
+      cat.name.toLowerCase() === categoryValue.toLowerCase()
+    );
+    if (categoryByName) return categoryByName._id;
+    return '';
+  }, [categoriesList]);
+  // --- AI Menu Extraction State & Handlers ---
+  const [aiMenuImageFile, setAIMenuImageFile] = useState(null);
+  const [aiMenuImageUrl, setAIMenuImageUrl] = useState('');
+  const [aiExtracting, setAIExtracting] = useState(false);
+  const [aiExtractError, setAIExtractError] = useState('');
+  const [aiExtractedItems, setAIExtractedItems] = useState([]);
+  const [editExtractedIdx, setEditExtractedIdx] = useState(null);
+
+  // Handle image file upload for AI extraction
+  const handleAIMenuImageUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setAIMenuImageFile(file);
+      setAIExtractError('');
+    }
+  };
+
+  // Main AI extraction handler
+  const handleAIMenuExtract = async () => {
+    setAIExtractError('');
+    setAIExtracting(true);
+    setAIExtractedItems([]);
+    try {
+      let result;
+      if (aiMenuImageFile) {
+        result = await foodService.generateMenuFromImage(aiMenuImageFile);
+      } else if (aiMenuImageUrl) {
+        if (foodService.generateMenuFromImageUrl) {
+          result = await foodService.generateMenuFromImageUrl(aiMenuImageUrl);
+        } else {
+          setAIExtractError('Image URL extraction not implemented.');
+          setAIExtracting(false);
+          return;
+        }
+      } else {
+        setAIExtractError('Please upload an image or provide a URL.');
+        setAIExtracting(false);
+        return;
+      }
+      if (result && Array.isArray(result.items)) {
+        setAIExtractedItems(result.items);
+      } else {
+        setAIExtractError('No menu items extracted. Please try another image or URL.');
+      }
+    } catch (err) {
+      setAIExtractError(err.message || 'Failed to extract menu items.');
+    } finally {
+      setAIExtracting(false);
+    }
+  };
+
+  // Accept all extracted items and add to menu
+  const handleAcceptAllExtractedItems = async () => {
+    try {
+      await foodService.createBatchMenuItems(aiExtractedItems);
+      toast.success('All extracted items added to menu!');
+      setAIExtractedItems([]);
+      fetchMenuData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to add items.');
+    }
+  };
+
+  // Accept single extracted item
+  const handleAcceptExtractedItem = async (idx) => {
+    try {
+      await foodService.createMenuItem(aiExtractedItems[idx]);
+      toast.success('Menu item added!');
+      setAIExtractedItems(items => items.filter((_, i) => i !== idx));
+      fetchMenuData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to add item.');
+    }
+  };
+
+  // Reject single extracted item
+  const handleRejectExtractedItem = (idx) => {
+    setAIExtractedItems(items => items.filter((_, i) => i !== idx));
+  };
+
+  // Edit single extracted item
+  const handleEditExtractedItem = (idx) => {
+    setEditExtractedIdx(idx);
+  };
+
+  // Save edit for extracted item
+  const handleSaveEditExtractedItem = (idx, updated) => {
+    setAIExtractedItems(items => items.map((item, i) => (i === idx ? updated : item)));
+    setEditExtractedIdx(null);
+  };
+
+  // Minimal EditExtractedItemDialog stub (replace with real dialog as needed)
+  const EditExtractedItemDialog = ({ item, onSave, onCancel }) => {
+    const [editItem, setEditItem] = useState(item);
+    return (
+      <Dialog open onOpenChange={onCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Extracted Item</DialogTitle>
+          </DialogHeader>
+          {/* Add real form fields here as needed */}
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input value={editItem.name?.en || editItem.name || ''} onChange={e => setEditItem({ ...editItem, name: e.target.value })} />
+            <Label>Description</Label>
+            <Textarea value={editItem.description?.en || editItem.description || ''} onChange={e => setEditItem({ ...editItem, description: e.target.value })} />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button onClick={() => onSave(editItem)} className="bg-green-600 text-white">Save</Button>
+            <Button onClick={onCancel} variant="outline">Cancel</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+  EditExtractedItemDialog.propTypes = {
+    item: PropTypes.object.isRequired,
+    onSave: PropTypes.func.isRequired,
+    onCancel: PropTypes.func.isRequired
+  };
+  // const { settings, updateSettings } = useSettings(); // Unused
   const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
 
   const [foodItems, setFoodItems] = useState([]);
-  const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Removed unused error state
   const [formErrors, setFormErrors] = useState({});
+  // const [error, setError] = useState(null); // Removed unused error state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  // const [isEditDialogOpen, setIsEditDialogOpen] = useState(false); // Unused
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -118,6 +255,8 @@ const FoodMenuManagementPage = () => {
   });
 
   // Categories for form
+  // UNUSED: categories array
+  /*
   const categories = [
     { value: 'all', label: 'All Categories' },
     { value: 'appetizers', label: 'Appetizers' },
@@ -131,6 +270,7 @@ const FoodMenuManagementPage = () => {
     { value: 'dinner', label: 'Dinner' },
     { value: 'snacks', label: 'Snacks' }
   ];
+  */
 
   // Dietary options
   const dietaryOptions = [
@@ -145,16 +285,12 @@ const FoodMenuManagementPage = () => {
     'Kosher'
   ];
 
-  // Fetch menu data when component mounts or filters change
-  useEffect(() => {
-    fetchMenuData();
-  }, [selectedCategory, searchQuery]);
 
   // Fetch menu items and categories from API
   const fetchMenuData = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
+  // setError(null); // error state removed
 
       const [itemsResponse, categoriesResponse] = await Promise.all([
         foodService.getMenuItems({
@@ -168,7 +304,7 @@ const FoodMenuManagementPage = () => {
       setCategoriesList(categoriesResponse.data?.data || []);
     } catch (error) {
       console.error('Error fetching menu data:', error);
-      setError(error.message || 'Failed to load menu items');
+  // setError(error.message || 'Failed to load menu items'); // error state removed
       toast.error('Failed to load menu items');
       setFoodItems([]);
       setCategoriesList([]);
@@ -177,11 +313,16 @@ const FoodMenuManagementPage = () => {
     }
   }, [selectedCategory, searchQuery]);
 
+  // Fetch menu data when component mounts or filters change
+  useEffect(() => {
+    fetchMenuData();
+  }, [selectedCategory, searchQuery, fetchMenuData]);
+
   // Handler functions
   const handleCreateItem = useCallback(async (formData) => {
     try {
       setIsSubmitting(true);
-      setError(null);
+  // setError(null); // error state removed
       
       // Enhanced validation
       const validationErrors = {};
@@ -229,7 +370,7 @@ const FoodMenuManagementPage = () => {
       }
       
       if (Object.keys(validationErrors).length > 0) {
-        setError('Please fix the validation errors below');
+  // setError('Please fix the validation errors below'); // error state removed
         setFormErrors(validationErrors);
         return;
       }
@@ -249,7 +390,7 @@ const FoodMenuManagementPage = () => {
       setIsCreateDialogOpen(false);
       setEditingItem(null);
       setFormErrors({});
-      setError(null);
+  // setError(null); // error state removed
       
       // Show success message
       const notification = document.createElement('div');
@@ -299,14 +440,14 @@ const FoodMenuManagementPage = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [fetchMenuData]);
+  }, [getCategoryId]);
 
   const handleUpdateItem = useCallback(async (formData) => {
     if (!editingItem) return;
 
     try {
       setIsSubmitting(true);
-      setError(null);
+  // setError(null); // error state removed
       
       // Enhanced validation
       const validationErrors = {};
@@ -332,7 +473,7 @@ const FoodMenuManagementPage = () => {
       }
       
       if (Object.keys(validationErrors).length > 0) {
-        setError('Please fix the validation errors below');
+  // setError('Please fix the validation errors below'); // error state removed
         setFormErrors(validationErrors);
         return;
       }
@@ -354,7 +495,7 @@ const FoodMenuManagementPage = () => {
       setIsCreateDialogOpen(false);
       setEditingItem(null);
       setFormErrors({});
-      setError(null);
+  // setError(null); // error state removed
       
       // Show success message
       const notification = document.createElement('div');
@@ -370,11 +511,11 @@ const FoodMenuManagementPage = () => {
       
     } catch (error) {
       console.error('Error updating menu item:', error);
-      setError(error.response?.data?.message || 'Failed to update menu item');
+  // setError(error.response?.data?.message || 'Failed to update menu item'); // error state removed
     } finally {
       setIsSubmitting(false);
     }
-  }, [editingItem]);
+  }, [editingItem, getCategoryId]);
 
   const handleDeleteItem = useCallback(async (itemId) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
@@ -389,23 +530,23 @@ const FoodMenuManagementPage = () => {
     }
   }, []);
 
-  const handleToggleAvailability = useCallback(async (itemId, isAvailable) => {
-    try {
-      await api.put(`/menu/items/${itemId}`, { isAvailable });
-      setFoodItems(prev => prev.map(item =>
-        item._id === itemId ? { ...item, isAvailable } : item
-      ));
-      toast.success(`Menu item ${isAvailable ? 'enabled' : 'disabled'} successfully`);
-    } catch (error) {
-      console.error('Error updating menu item availability:', error);
-      toast.error('Failed to update item availability');
-    }
-  }, []);
+  // const handleToggleAvailability = useCallback(async (itemId, isAvailable) => { // Unused
+  //   try {
+  //     await api.put(`/menu/items/${itemId}`, { isAvailable });
+  //     setFoodItems(prev => prev.map(item =>
+  //       item._id === itemId ? { ...item, isAvailable } : item
+  //     ));
+  //     toast.success(`Menu item ${isAvailable ? 'enabled' : 'disabled'} successfully`);
+  //   } catch (error) {
+  //     console.error('Error updating menu item availability:', error);
+  //     toast.error('Failed to update item availability');
+  //   }
+  // }, []);
 
-  const handleEditItem = useCallback((item) => {
-    setEditingItem(item);
-    setIsEditDialogOpen(true);
-  }, []);
+  // const handleEditItem = useCallback((item) => { // Unused
+  //   setEditingItem(item);
+  //   setIsEditDialogOpen(true);
+  // }, []);
 
   // Form image dropzone
   const onFormImageDrop = useCallback((acceptedFiles) => {
@@ -429,22 +570,12 @@ const FoodMenuManagementPage = () => {
   });
 
   // Helper function to get category ID from name or ID
-  const getCategoryId = (categoryValue) => {
-    if (!categoryValue) return '';
+  // --- (MOVED UP: must be above all usages) ---
+  // (Duplicate getCategoryId removed; only defined at top)
 
-    // If it's already an ID, return it
-    const existingCategory = categoriesList.find(cat => cat._id === categoryValue);
-    if (existingCategory) return categoryValue;
+  // --- (move this above all usages, including fetchMenuData, handleCreateItem, handleUpdateItem, etc.) ---
 
-    // If it's a string name, find the matching category
-    const categoryByName = categoriesList.find(cat =>
-      cat.name.toLowerCase() === categoryValue.toLowerCase()
-    );
-    if (categoryByName) return categoryByName._id;
-
-    // Default fallback
-    return '';
-  };
+  // --- (move this above all usages, including fetchMenuData and handlers) ---
 
   // Form validation
   const validateForm = () => {
@@ -679,7 +810,7 @@ const FoodMenuManagementPage = () => {
             <h1 className={`text-3xl font-bold mb-2 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Menu Management</h1>
-            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Manage your restaurant's menu items and categories</p>
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Manage your restaurant&apos;s menu items and categories</p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -2019,49 +2150,87 @@ const FoodMenuManagementPage = () => {
               </TabsContent>
 
               <TabsContent value="ai-generate" className="mt-0">
-                <div className="text-center py-12">
-                  <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                    isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'
-                  }`}>
-                    <Sparkles className={`h-8 w-8 ${
-                      isDarkMode ? 'text-purple-400' : 'text-purple-600'
-                    }`} />
+                {/* Modern AI Menu Extraction Dialog */}
+                <div className={`rounded-xl border shadow-lg p-8 max-w-3xl mx-auto mt-6 ${isDarkMode ? 'bg-slate-800 border-purple-700' : 'bg-white border-purple-200'}`}>
+                  <div className="flex items-center mb-6 gap-4">
+                    <Sparkles className={`h-8 w-8 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+                    <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>AI Menu Extractor</h3>
                   </div>
-                  <h3 className={`text-xl font-semibold mb-2 ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>AI Menu Extractor</h3>
-                  <p className={`mb-6 max-w-md mx-auto ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    Use our advanced AI-powered menu extraction system to automatically extract menu items from images, URLs, or file paths.
-                  </p>
-                  <div className="flex justify-center gap-6 mb-6">
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Upload menu images
+                  <p className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Upload a menu image or provide a URL. The AI will extract all menu items, including bilingual names, descriptions, price (LKR), category, ingredients, and more. Review, edit, and accept items before adding them to your menu.</p>
+                  <div className="flex flex-col md:flex-row gap-6 mb-6">
+                    {/* Image/File Upload */}
+                    <div className="flex-1">
+                      <Label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Upload Image</Label>
+                      <input type="file" accept="image/*" onChange={handleAIMenuImageUpload} className="block w-full text-sm" />
                     </div>
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Extract from URLs
+                    {/* URL Input */}
+                    <div className="flex-1">
+                      <Label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Or Image URL</Label>
+                      <Input type="url" value={aiMenuImageUrl} onChange={e => setAIMenuImageUrl(e.target.value)} placeholder="https://example.com/menu.jpg" />
                     </div>
-                    <div className={`flex items-center text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                      Process file paths
+                    <div className="flex items-end">
+                      <Button onClick={handleAIMenuExtract} disabled={aiExtracting || (!aiMenuImageFile && !aiMenuImageUrl)} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2">
+                        {aiExtracting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        Extract Menu
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => navigate('/admin/menu-upload')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Go to AI Menu Extractor
-                  </Button>
+                  {/* Extraction Feedback */}
+                  {aiExtractError && <div className="text-red-600 mb-4 flex items-center"><AlertCircle className="h-5 w-5 mr-2" />{aiExtractError}</div>}
+                  {aiExtracting && <div className="text-center text-purple-600 mb-4"><Loader2 className="h-5 w-5 mr-2 animate-spin inline" />Extracting menu items...</div>}
+                  {/* Extracted Items Preview & Batch Review */}
+                  {aiExtractedItems.length > 0 && (
+                    <div className="mt-8">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Extracted Menu Items</h4>
+                        <Button onClick={handleAcceptAllExtractedItems} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2">Accept All</Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {aiExtractedItems.map((item, idx) => (
+                          <div key={idx} className={`rounded-xl border p-4 shadow-sm ${isDarkMode ? 'bg-slate-700 border-purple-800' : 'bg-white border-purple-200'}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <ChefHat className="h-5 w-5 text-blue-500" />
+                              <span className="font-bold text-base">{item.name?.en || item.name}</span>
+                              {item.name?.si && <span className="ml-2 px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">සිංහල</span>}
+                              {item.confidence && <span className="ml-auto px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-700">Confidence: {Math.round(item.confidence * 100)}%</span>}
+                            </div>
+                            <div className="mb-2">
+                              <Label className="text-xs font-medium">Description</Label>
+                              <div className="text-sm mb-1">{item.description?.en || item.description}</div>
+                              {item.description?.si && <div className="text-xs text-blue-600">{item.description.si}</div>}
+                            </div>
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">LKR {item.price}</span>
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">{item.category}</span>
+                              {item.cookingTime && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">{item.cookingTime} min</span>}
+                            </div>
+                            <div className="mb-2">
+                              <Label className="text-xs font-medium">Ingredients</Label>
+                              <div className="text-xs">{Array.isArray(item.ingredients) ? item.ingredients.join(', ') : item.ingredients}</div>
+                            </div>
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {item.isVeg && <span className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Vegetarian</span>}
+                              {item.isSpicy && <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs">Spicy</span>}
+                              {item.isPopular && <span className="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-xs">Popular</span>}
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEditExtractedItem(idx)} className="text-blue-600 border-blue-300">Edit</Button>
+                              <Button size="sm" variant="outline" onClick={() => handleRejectExtractedItem(idx)} className="text-red-600 border-red-300">Reject</Button>
+                              <Button size="sm" variant="outline" onClick={() => handleAcceptExtractedItem(idx)} className="text-green-600 border-green-300">Accept</Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Edit Extracted Item Dialog (if needed) */}
+                  {editExtractedIdx !== null && (
+                    <EditExtractedItemDialog
+                      item={aiExtractedItems[editExtractedIdx]}
+                      onSave={updated => handleSaveEditExtractedItem(editExtractedIdx, updated)}
+                      onCancel={() => setEditExtractedIdx(null)}
+                    />
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

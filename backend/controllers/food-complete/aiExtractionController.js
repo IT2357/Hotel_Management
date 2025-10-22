@@ -7,6 +7,8 @@
 import { createWorker } from 'tesseract.js';
 import sharp from 'sharp';
 import Category from '../../models/Category.js';
+import config from '../../config/environment.js';
+import visionMenuService from '../../services/ai/visionMenuService.js';
 
 /**
  * Preprocess image for better OCR accuracy
@@ -16,15 +18,25 @@ import Category from '../../models/Category.js';
  */
 async function preprocessImage(imageBuffer) {
   try {
-    return await sharp(imageBuffer)
-      .resize(2000, null, { // Max width 2000px, maintain aspect ratio
+    // First pass: upscale slightly to help OCR, convert to grayscale, normalize, and sharpen
+    let img = sharp(imageBuffer)
+      .resize(2200, null, { // Slightly larger for small fonts
         fit: 'inside',
         withoutEnlargement: true
       })
-      .greyscale() // Convert to grayscale for better text recognition
-      .normalize() // Enhance contrast
-      .sharpen() // Sharpen edges for clearer text
+      .grayscale()
+      .normalize()
+      .sharpen();
+
+    // Apply adaptive threshold to increase contrast between text and background
+    // Using linear + threshold as a proxy for binarization
+    const preprocessed = await img
+      .linear(1.1, -10) // increase contrast slightly
+      .toColourspace('b-w')
+      .threshold(180) // binarize; tweak if images are too light/dark
       .toBuffer();
+
+    return preprocessed;
   } catch (error) {
     console.error('❌ Image preprocessing failed:', error);
     return imageBuffer; // Return original if preprocessing fails
@@ -51,7 +63,8 @@ function parseMenuText(text) {
   // Patterns for Jaffna menus
   const patterns = {
     // Price patterns: "LKR 500", "Rs. 250", "500/-"
-    price: /(?:LKR|Rs\.?|රු)\s*(\d+(?:[,.]d{2})?)\s*(?:\/-)?/i,
+  // NOTE: fixed bug: used \\d instead of d in decimal capture
+  price: /(?:LKR|Rs\.?|රු)\s*(\d+(?:[,.]\d{2})?)\s*(?:\/-)?/i,
     
     // Tamil Unicode range
     tamil: /[\u0B80-\u0BFF]+/g,
@@ -199,7 +212,7 @@ function calculateConfidence(name_tamil, name_english, price, ingredients) {
  * @desc    Extract menu items from uploaded image
  * @access  Private/Admin
  */
-export const extractMenuFromImage = async (req, res, next) => {
+export const extractMenuFromImage = async (req, res) => {
   let worker = null;
   
   try {
@@ -232,7 +245,14 @@ export const extractMenuFromImage = async (req, res, next) => {
     console.log('✅ Tesseract worker initialized with Tamil+English');
 
     // Perform OCR
-    const { data: { text, confidence } } = await worker.recognize(processedImage);
+    const { data: { text, confidence } } = await worker.recognize(processedImage, undefined, {
+      // Improve layout analysis for menu columns
+      tessedit_pageseg_mode: 6, // Assume a single uniform block of text
+      preserve_interword_spaces: '1',
+      user_defined_dpi: '300',
+      // Encourage space separation to help regex parsing
+      textord_space_size_is_variable: '1'
+    });
     
     console.log('✅ OCR completed');
     console.log('📊 Raw confidence:', confidence.toFixed(2));
@@ -240,9 +260,101 @@ export const extractMenuFromImage = async (req, res, next) => {
     console.log('📄 Sample text:', text.substring(0, 200));
 
     // Parse text to structured data
-    const menuItems = parseMenuText(text);
+    let menuItems = parseMenuText(text);
+
+    // Fallback: if we parsed too few items, try a different preprocessing + PSM
+    if (menuItems.length < 2) {
+      console.log('⚠️ Low parsed items, attempting fallback OCR pass...');
+      try {
+        const altImg = await sharp(processedImage)
+          .median(1)
+          .gamma(1.2)
+          .toBuffer();
+        const { data: { text: text2 } } = await worker.recognize(altImg, undefined, {
+          tessedit_pageseg_mode: 4, // Single column of text of variable sizes
+          preserve_interword_spaces: '1',
+          user_defined_dpi: '300'
+        });
+        const parsed2 = parseMenuText(text2);
+        if (parsed2.length > menuItems.length) {
+          console.log(`✅ Fallback improved items: ${menuItems.length} -> ${parsed2.length}`);
+          menuItems = parsed2;
+        }
+      } catch (e) {
+        console.warn('Fallback OCR pass failed:', e?.message || e);
+      }
+    }
     
     console.log('✅ Parsed', menuItems.length, 'menu items');
+
+    // Optionally enrich with Vision AI provider for Google Lens-like results
+    let enrichedItems = [];
+    const aiProvider = (config.AI?.PROVIDER || 'off').toLowerCase();
+    const aiEnabled = aiProvider === 'gemini' || aiProvider === 'openai' || (aiProvider === 'mock' && config.NODE_ENV !== 'production');
+    if (aiEnabled) {
+      try {
+        enrichedItems = await visionMenuService.analyze({
+          imageBuffer: processedImage,
+          mimeType: req.file.mimetype || 'image/jpeg',
+          ocrText: text,
+        });
+        console.log(`✨ Vision AI (${aiProvider}) returned ${enrichedItems.length} items`);
+      } catch (e) {
+        console.warn('Vision AI enrichment failed:', e?.message || e);
+      }
+    }
+
+    // Merge OCR-parsed items with enriched items (prefer higher confidence and more complete fields)
+    if (enrichedItems.length) {
+      const byKey = new Map();
+      const normalizeKey = (it) => (it.name_english || it.name_tamil || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+      // seed with OCR items
+      for (const it of menuItems) {
+        const key = normalizeKey(it) || `${it.price}-${it.originalText?.slice(0, 20)}`;
+        byKey.set(key, { ...it, confidence: Number(it.aiConfidence || it.confidence || 60) });
+      }
+      // merge in enriched
+      for (const rich of enrichedItems) {
+        const key = normalizeKey(rich) || `${rich.price}-${rich.name_english || rich.name_tamil}`;
+        const prev = byKey.get(key);
+        if (!prev) {
+          byKey.set(key, {
+            name_tamil: rich.name_tamil || '',
+            name_english: rich.name_english || '',
+            price: rich.price || 0,
+            currency: rich.currency || 'LKR',
+            description_english: rich.description_english || '',
+            ingredients: rich.ingredients || [],
+            dietaryTags: rich.dietaryTags || [],
+            isVeg: !!rich.isVeg,
+            isSpicy: !!rich.isSpicy,
+            culturalContext: 'jaffna',
+            aiConfidence: Number(rich.confidence || 75),
+          });
+        } else {
+          // prefer richer description/ingredients and higher confidence
+          prev.name_tamil = prev.name_tamil || rich.name_tamil || '';
+          prev.name_english = prev.name_english || rich.name_english || '';
+          prev.price = prev.price || rich.price || 0;
+          prev.currency = prev.currency || rich.currency || 'LKR';
+          if ((rich.description_english || '').length > (prev.description_english || '').length) {
+            prev.description_english = rich.description_english;
+          }
+          if ((rich.ingredients || []).length > (prev.ingredients || []).length) {
+            prev.ingredients = rich.ingredients;
+          }
+          prev.isVeg = prev.isVeg || !!rich.isVeg;
+          prev.isSpicy = prev.isSpicy || !!rich.isSpicy;
+          const confRich = Number(rich.confidence || 0);
+          const confPrev = Number(prev.aiConfidence || 0);
+          if (confRich > confPrev) prev.aiConfidence = confRich;
+          byKey.set(key, prev);
+        }
+      }
+      menuItems = Array.from(byKey.values());
+      console.log('🔗 Merged items after enrichment:', menuItems.length);
+    }
 
     // Fetch categories for mapping
     const categories = await Category.find({ isActive: true }).lean();
@@ -278,7 +390,8 @@ export const extractMenuFromImage = async (req, res, next) => {
       success: true,
       message: `Extracted ${menuItems.length} menu items from image`,
       data: {
-        menuItems,
+        // Align property name for frontend table that expects item.confidence
+        menuItems: menuItems.map(it => ({ ...it, confidence: it.aiConfidence })),
         rawText: text,
         ocrConfidence: confidence,
         metadata: {

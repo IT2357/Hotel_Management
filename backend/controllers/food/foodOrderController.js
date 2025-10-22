@@ -16,7 +16,6 @@ export const updateKitchenStatus = async (req, res) => {
   res.json({ success: true, message: "Order status updated" });
 };
 import FoodOrder from '../../models/FoodOrder.js';
-import Food from '../../models/Food.js';
 import MenuItem from '../../models/MenuItem.js';
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
@@ -111,7 +110,7 @@ export const cancelFoodOrder = catchAsync(async (req, res) => {
       // TODO: Replace with real PayHere refund integration
       refundResult = { success: true, refundId: `REFUND_${Date.now()}` };
       order.paymentStatus = 'Refunded';
-    } catch (err) {
+    } catch {
       throw new AppError('Refund failed', 500);
     }
   }
@@ -144,14 +143,24 @@ export const getFoodOrder = catchAsync(async (req, res) => {
 export const updateOrderStatus = catchAsync(async (req, res) => {
   const { status } = req.body;
 
-  const validStatuses = ['Pending', 'Preparing', 'Delivered', 'Cancelled'];
-  if (!validStatuses.includes(status)) {
+  // Normalize incoming status (accept both 'Preparing' and 'preparing', map synonyms)
+  const rawStatus = String(status || '').trim();
+  const normalized = rawStatus.toLowerCase();
+  const statusMap = {
+    assigned: 'confirmed' // some UIs may use 'Assigned' which maps to confirmed
+  };
+
+  const finalStatus = statusMap[normalized] || normalized;
+
+  // Use the enum from model (lowercase) to validate
+  const allowedStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'modified'];
+  if (!allowedStatuses.includes(finalStatus)) {
     throw new AppError('Invalid status', 400);
   }
 
   const order = await FoodOrder.findByIdAndUpdate(
     req.params.id,
-    { status },
+    { status: finalStatus },
     { new: true, runValidators: true }
   ).populate('userId', 'name email');
 
@@ -280,9 +289,9 @@ const {
        if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
          menuItem = await MenuItem.findById(foodId);
        }
-     } catch (error) {
-       // Ignore cast errors
-     }
+    } catch {
+      // Ignore cast errors
+    }
 
      // Strategy 2: Try to find by id field (numeric ID)
      if (!menuItem) {

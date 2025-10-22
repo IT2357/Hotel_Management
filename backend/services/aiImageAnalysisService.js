@@ -16,8 +16,9 @@ try {
 }
 
 try {
-  if (process.env.GOOGLE_AI_API_KEY) {
-    genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (geminiKey) {
+    genAI = new GoogleGenerativeAI(geminiKey);
   }
 } catch (error) {
   console.warn('⚠️ Google AI initialization failed:', error.message);
@@ -37,7 +38,7 @@ class AIImageAnalysisService {
    * @param {Object} options - Additional options
    * @returns {Object} Detailed food analysis
    */
-  async analyzeFoodImage(imageBuffer, imageType = 'image/jpeg', filename = '', options = {}) {
+  async analyzeFoodImage(imageBuffer, imageType = 'image/jpeg', filename = '') {
     console.log('🤖 Starting Google Lens-style AI food image analysis...');
 
     // Check if any AI services are available
@@ -263,7 +264,7 @@ INSTRUCTIONS FOR HIGH ACCURACY:
       throw new Error('Google AI client not initialized');
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  let model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `You are analyzing restaurant menu text extracted from an image using OCR. Parse this text into structured menu data exactly like Google Lens would understand and categorize menu items.
 
@@ -314,7 +315,14 @@ Parse every item mentioned in the OCR text with exact details.`;
       }
     };
 
-    const result = await model.generateContent([prompt, imagePart]);
+    let result;
+    try {
+      result = await model.generateContent([prompt, imagePart]);
+    } catch (err) {
+      console.warn('⚠️ Google AI (flash-latest) failed, falling back to pro-latest:', err?.message || err);
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+      result = await model.generateContent([prompt, imagePart]);
+    }
     const response = await result.response;
     const text = response.text();
 
@@ -521,7 +529,7 @@ If this is a menu image from a Jaffna restaurant like Valdor, identify EVERY vis
       throw new Error('Google AI client not initialized');
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  let model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `You are analyzing a menu image from a Jaffna, Sri Lanka restaurant like Valdor Hotel. Extract ALL visible food items with complete Jaffna Tamil cuisine details.
 
@@ -595,7 +603,14 @@ Extract every visible menu item with proper Tamil names and authentic Jaffna res
       }
     };
 
-    const result = await model.generateContent([prompt, imagePart]);
+    let result;
+    try {
+      result = await model.generateContent([prompt, imagePart]);
+    } catch (err) {
+      console.warn('⚠️ Google AI (flash-latest) failed, falling back to pro-latest:', err?.message || err);
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+      result = await model.generateContent([prompt, imagePart]);
+    }
     const response = await result.response;
     const text = response.text();
 
@@ -1374,7 +1389,7 @@ Extract every visible menu item with proper Tamil names and authentic Jaffna res
     }
 
     // Try partial matches
-    for (const [key, image] of Object.entries(foodImages)) {
+  for (const [key] of Object.entries(foodImages)) {
       if (lowerName.includes(key) || key.includes(lowerName)) {
         return foodImages[key];
       }

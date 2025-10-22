@@ -4,13 +4,10 @@ import htmlParser from '../services/htmlParser.js';
 import imageStorageService from '../services/imageStorageService.js';
 import aiImageAnalysisService from '../services/aiImageAnalysisService.js';
 import AIJaffnaTrainer from '../services/aiJaffnaTrainer.js';
+import config from '../config/environment.js';
+import visionMenuServiceV2 from '../services/ai/visionMenuService_v2.js';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import axios from 'axios';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Check if a URL points to an image
@@ -131,8 +128,6 @@ export const extractMenu = async (req, res) => {
       
       try {
         // For GridFS files, we need to read the buffer from GridFS
-        // Since multer-gridfs-storage doesn't provide buffer, we'll use the file path or create a simple OCR result
-        let ocrResult;
         
         // Enhanced Jaffna-Trained OCR Analysis
         console.log('🤖 AI: Analyzing food image with Jaffna-trained OCR...');
@@ -175,19 +170,51 @@ export const extractMenu = async (req, res) => {
             
             console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
           } else {
-            // Fallback to generic AI analysis
-            console.log('📝 FALLBACK: Using generic AI analysis...');
-            const detailLevel = req.body.detailLevel || 'standard';
-            const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname, { detailLevel });
-            
-            if (aiAnalysis.success) {
-              const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
-              extractionData.categories = menuData.categories;
-              extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected`;
-              extractionData.extractionMethod = 'generic-ai-fallback';
-              extractionData.confidence = aiAnalysis.confidence;
-            } else {
-              throw new Error('Both Jaffna OCR and generic AI failed');
+            // Fallback to AI analysis: try Vision AI v2 first, then legacy generic AI
+            console.log('📝 FALLBACK: Trying Vision AI v2 (if enabled)...');
+            const mapV2ItemToMenu = (it) => ({
+              name: (it?.name_english || it?.name || it?.name_tamil || 'Food Item').toString(),
+              price: Number(it?.price) || 0,
+              description: (it?.description_english || it?.description || '').toString(),
+              image: null
+            });
+
+            let usedV2 = false;
+            let v2Items = [];
+            try {
+              if (config.AI?.PROVIDER && config.AI.PROVIDER !== 'off') {
+                v2Items = await visionMenuServiceV2.analyze({ imageBuffer: fileBuffer, mimeType: req.file.mimetype });
+              }
+            } catch (e) {
+              console.warn('⚠️ Vision AI v2 analysis failed:', e?.message || e);
+            }
+
+            if (Array.isArray(v2Items) && v2Items.length > 0) {
+              const avgConfidence = Math.round(v2Items.reduce((sum, it) => sum + (Number(it.confidence) || 0), 0) / v2Items.length);
+              extractionData.categories = [{
+                name: 'Detected Items',
+                items: v2Items.map(mapV2ItemToMenu)
+              }];
+              extractionData.rawText = `Vision AI v2: ${v2Items.length} food items detected`;
+              extractionData.extractionMethod = `vision-ai-v2-${config.AI?.PROVIDER || 'off'}`;
+              extractionData.confidence = avgConfidence;
+              usedV2 = true;
+            }
+
+            if (!usedV2) {
+              console.log('📝 Vision AI v2 unavailable or returned no items. Falling back to generic AI analysis...');
+              const detailLevel = req.body.detailLevel || 'standard';
+              const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(fileBuffer, req.file.mimetype, req.file.originalname, { detailLevel });
+              
+              if (aiAnalysis.success) {
+                const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+                extractionData.categories = menuData.categories;
+                extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected`;
+                extractionData.extractionMethod = 'generic-ai-fallback';
+                extractionData.confidence = aiAnalysis.confidence;
+              } else {
+                throw new Error('Both Jaffna OCR and AI analysis failed');
+              }
             }
           }
 
@@ -221,7 +248,7 @@ export const extractMenu = async (req, res) => {
           extractionData.extractionMethod = "ocr-fallback";
           extractionData.confidence = 30;
         }
-
+        
         // Add image reference to items using GridFS ID
         if (extractionData.categories.length > 0 && extractionData.imageId) {
           extractionData.categories.forEach(category => {
@@ -267,15 +294,39 @@ export const extractMenu = async (req, res) => {
           });
         }
         
-        // Extract text using OCR
+        // Extract text using OCR (baseline)
         const ocrResult = await ocrService.extractText(filePath);
         extractionData.rawText = ocrResult.text;
         extractionData.extractionMethod = ocrResult.method;
         extractionData.confidence = ocrResult.confidence;
         
-        // Parse text into menu structure
+        // Parse text into menu structure (baseline)
         extractionData.categories = ocrService.parseMenuText(ocrResult.text);
         extractionData.categories = ocrService.validateMenuStructure(extractionData.categories);
+
+        // Try Vision AI v2 on the local file (preferred if enabled)
+        try {
+          if (config.AI?.PROVIDER && config.AI.PROVIDER !== 'off') {
+            console.log('\ud83d\ude80 Vision AI v2: analyzing local file path...');
+            const fileBuffer = fs.readFileSync(filePath);
+            const v2Items = await visionMenuServiceV2.analyze({ imageBuffer: fileBuffer, mimeType: undefined, ocrText: ocrResult.text });
+            if (Array.isArray(v2Items) && v2Items.length > 0) {
+              const mapV2ItemToMenu = (it) => ({
+                name: (it?.name_english || it?.name || it?.name_tamil || 'Food Item').toString(),
+                price: Number(it?.price) || 0,
+                description: (it?.description_english || it?.description || '').toString(),
+                image: null
+              });
+              const avgConfidence = Math.round(v2Items.reduce((sum, it) => sum + (Number(it.confidence) || 0), 0) / v2Items.length);
+              extractionData.categories = [{ name: 'Detected Items', items: v2Items.map(mapV2ItemToMenu) }];
+              extractionData.rawText = `Vision AI v2 (path): ${v2Items.length} food items detected`;
+              extractionData.extractionMethod = `vision-ai-v2-${config.AI?.PROVIDER}-path`;
+              extractionData.confidence = avgConfidence;
+            }
+          }
+        } catch (v2PathErr) {
+          console.warn('\u26a0\ufe0f Vision AI v2 (path) failed:', v2PathErr?.message || v2PathErr);
+        }
         
         // Store image
         if (extractionData.categories.length > 0) {
@@ -296,7 +347,6 @@ export const extractMenu = async (req, res) => {
             console.warn('⚠️ Failed to store image:', imageError.message);
           }
         }
-        
       } catch (error) {
         console.error('❌ File processing failed:', error);
         return res.status(500).json({
@@ -305,8 +355,8 @@ export const extractMenu = async (req, res) => {
           error: error.message
         });
       }
-      
     } else if (req.body.url) {
+
       // URL extraction
       const url = req.body.url;
       console.log('🌐 Processing URL:', url);
@@ -399,26 +449,58 @@ export const extractMenu = async (req, res) => {
               
               console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
             } else {
-              // Fallback to generic AI analysis
-              console.log('📝 FALLBACK: Using generic AI analysis for URL...');
-              const detailLevel = req.body.detailLevel || 'standard';
-              const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url, { detailLevel });
+              // Fallback: Try Vision AI v2 first, then legacy generic AI
+              console.log('📝 FALLBACK: Trying Vision AI v2 (if enabled)...');
+              const mapV2ItemToMenu = (it) => ({
+                name: (it?.name_english || it?.name || it?.name_tamil || 'Food Item').toString(),
+                price: Number(it?.price) || 0,
+                description: (it?.description_english || it?.description || '').toString(),
+                image: null
+              });
 
-              if (aiAnalysis.success) {
-                console.log(`✅ Generic AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+              let usedV2 = false;
+              let v2Items = [];
+              try {
+                if (config.AI?.PROVIDER && config.AI.PROVIDER !== 'off') {
+                  v2Items = await visionMenuServiceV2.analyze({ imageBuffer, mimeType: contentType });
+                }
+              } catch (e) {
+                console.warn('⚠️ Vision AI v2 analysis (URL) failed:', e?.message || e);
+              }
 
-                // Convert AI analysis to menu format
-                const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+              if (Array.isArray(v2Items) && v2Items.length > 0) {
+                const avgConfidence = Math.round(v2Items.reduce((sum, it) => sum + (Number(it.confidence) || 0), 0) / v2Items.length);
+                extractionData.categories = [{
+                  name: 'Detected Items',
+                  items: v2Items.map(mapV2ItemToMenu)
+                }];
+                extractionData.rawText = `Vision AI v2 (URL): ${v2Items.length} food items detected`;
+                extractionData.extractionMethod = `vision-ai-v2-${config.AI?.PROVIDER || 'off'}-url`;
+                extractionData.confidence = avgConfidence;
+                usedV2 = true;
+              }
 
-                extractionData.categories = menuData.categories;
-                extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
-                extractionData.extractionMethod = 'generic-ai-url-fallback';
-                extractionData.confidence = aiAnalysis.confidence;
-                extractionData.aiAnalysis = aiAnalysis.data;
+              if (!usedV2) {
+                console.log('📝 Vision AI v2 unavailable or returned no items. Falling back to generic AI analysis for URL...');
+                const detailLevel = req.body.detailLevel || 'standard';
+                const aiAnalysis = await aiImageAnalysisService.analyzeFoodImage(imageBuffer, contentType, url, { detailLevel });
 
-                console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
-              } else {
-                throw new Error('Both Jaffna OCR and generic AI failed for URL');
+                if (aiAnalysis.success) {
+                  console.log(`✅ Generic AI Analysis successful with ${aiAnalysis.method} (confidence: ${aiAnalysis.confidence}%)`);
+
+                  // Convert AI analysis to menu format
+                  const menuData = aiImageAnalysisService.convertToMenuFormat(aiAnalysis, extractionData.imageId);
+
+                  extractionData.categories = menuData.categories;
+                  extractionData.rawText = `Generic AI: ${menuData.totalItems} food items detected using ${aiAnalysis.method}`;
+                  extractionData.extractionMethod = 'generic-ai-url-fallback';
+                  extractionData.confidence = aiAnalysis.confidence;
+                  extractionData.aiAnalysis = aiAnalysis.data;
+
+                  console.log(`🍽️ Generated ${menuData.totalItems} menu items across ${menuData.categories.length} categories`);
+                } else {
+                  throw new Error('Jaffna OCR, Vision AI v2, and generic AI all failed for URL');
+                }
               }
             }
 

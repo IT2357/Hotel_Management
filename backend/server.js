@@ -375,6 +375,16 @@ const startServer = async () => {
 🏨 Rooms API: http://localhost:${PORT}/api/rooms
 📱 Webhooks: http://localhost:${PORT}/api/webhooks
     `);
+
+    // Safe AI configuration startup log (no secrets printed)
+    const aiProvider = (process.env.AI_PROVIDER || 'off').toLowerCase();
+    const hasGemini = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+    const hasOpenAI = Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim());
+    const mask = (val) => (val ? 'SET' : 'MISSING');
+    console.log(`🤖 AI Vision: provider=${aiProvider} | GEMINI_API_KEY=${mask(hasGemini)} | OPENAI_API_KEY=${mask(hasOpenAI)}`);
+    if ((aiProvider === 'gemini' && !hasGemini) || (aiProvider === 'openai' && !hasOpenAI)) {
+      console.warn('⚠️  AI provider enabled but API key is missing. Falling back to OCR-only for extraction.');
+    }
   });
 
   // Handle termination
