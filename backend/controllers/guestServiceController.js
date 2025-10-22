@@ -4,30 +4,51 @@ import environment from '../config/environment.js';
 
 export const createServiceRequest = async (req, res) => {
   try {
-    const { error } = validateServiceRequest(req.body);
+    console.log('Request body:', req.body);
+    console.log('Files:', req.files);
+
+    // Parse the request body
+    const requestData = {
+      ...req.body,
+      isAnonymous: req.body.isAnonymous === 'true' || req.body.isAnonymous === true,
+      guest: req.body.guest || null,
+      room: req.body.room || null,
+      specialInstructions: req.body.specialInstructions || '',
+      status: 'pending'
+    };
+
+    // Validate the request data
+    const { error } = validateServiceRequest(requestData);
     if (error) {
-      return res.status(400).json({ message: error.details[0].message });
+      console.error('Validation error:', error);
+      return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid request data' });
     }
 
-    const isCloudinaryConfigured = environment.CLOUDINARY.CLOUD_NAME &&
-      environment.CLOUDINARY.API_KEY &&
-      environment.CLOUDINARY.API_SECRET;
+    // Handle file uploads if any
+    let attachments = [];
+    if (req.files && req.files.length > 0) {
+      const isCloudinaryConfigured = environment.CLOUDINARY?.CLOUD_NAME &&
+        environment.CLOUDINARY?.API_KEY &&
+        environment.CLOUDINARY?.API_SECRET;
 
-    const attachments = req.files ? req.files.map(file => ({
-      filename: file.originalname,
-      url: isCloudinaryConfigured ? file.path : `${req.protocol}://${req.get('host')}/uploads/${file.filename}`
-    })) : [];
+      attachments = req.files.map(file => ({
+        filename: file.originalname,
+        url: isCloudinaryConfigured 
+          ? file.path 
+          : `${req.protocol}://${req.get('host')}/uploads/${file.filename}`,
+        type: file.mimetype
+      }));
+    }
 
-    const isAnonymous = req.body.isAnonymous === 'true' || req.body.isAnonymous === true;
-
+    // Create the service request
     const request = new GuestServiceRequest({
-      ...req.body,
-      guest: isAnonymous ? null : req.body.guest,
+      ...requestData,
       attachments,
-      status: 'pending'
+      guest: requestData.isAnonymous ? null : requestData.guest
     });
 
     await request.save();
+    console.log('Service request created successfully:', request);
     res.status(201).json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,8 +1,11 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useCallback } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import useAuth from "../../hooks/useAuth";
 import { sendMessage, getMessages } from "../../services/messageService";
 import staffService from "../../services/staffService";
+import KeyCardManagementPage from "./KeyCardManagementPage";
+import { useSnackbar } from 'notistack';
+import ServiceRequestManagement from '../../components/guestServices/ServiceRequestManagement';
 
 // Module-scope department normalizer so all components can use it
 function normalizeDepartment(value) {
@@ -82,10 +85,12 @@ export default function StaffDashboardPage() {
     'cleaning': 'cleaning'
   };
   
-  // Debug logging
-  console.log('User:', user);
-  console.log('User role:', user?.role);
-  console.log('Staff profile position:', user?.staffProfile?.position);
+  // Development logging
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('User:', user);
+    console.debug('User role:', user?.role);
+    console.debug('Staff profile position:', user?.staffProfile?.position);
+  }
   
   // Determine department based on user's email
   const getDepartmentFromEmail = (email) => {
@@ -182,34 +187,52 @@ export default function StaffDashboardPage() {
   // Ensure we have a valid department configuration
   const currentDept = departmentConfig[department] || departmentConfig.service;
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  // Force re-render when user changes (important for switching between staff members)
-  useEffect(() => {
-    if (user) {
-      console.log("User changed:", user);
-      console.log("Staff Profile:", user.staffProfile);
-      console.log("Department:", department);
-    }
-  }, [user, department]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       // Fetch notifications, alerts, and stats
       // This would be implemented with your API calls
+      
+      // Example implementation:
+      // const [notificationsRes, alertsRes, statsRes] = await Promise.all([
+      //   fetch('/api/notifications'),
+      //   fetch('/api/alerts'),
+      //   fetch('/api/stats')
+      // ]);
+      // const [notifications, alerts, stats] = await Promise.all([
+      //   notificationsRes.json(),
+      //   alertsRes.json(),
+      //   statsRes.json()
+      // ]);
+      // setNotifications(notifications);
+      // setUrgentAlerts(alerts);
+      // setTaskStats(stats);
+      
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       setLoading(false);
     }
-  };
+  }, [/* Add any dependencies here */]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Force re-render when user changes (important for switching between staff members)
+  useEffect(() => {
+    if (user && process.env.NODE_ENV === 'development') {
+      console.debug("User changed:", user);
+      console.debug("Staff Profile:", user.staffProfile);
+      console.debug("Department:", department);
+    }
+  }, [user, department]);
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "tasks", label: "My Tasks", icon: "📋" },
+    { id: "service-requests", label: "Service Requests", icon: "🛎️" },
+    { id: "keycard", label: "Key Card", icon: "🔑" },
     { id: "contact", label: "Contact Manager", icon: "💬" },
     { id: "notifications", label: "Notifications", icon: "🔔" }
   ];
@@ -365,6 +388,8 @@ export default function StaffDashboardPage() {
           <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-xl border border-white/20 dark:border-gray-800/50 p-6 min-h-[calc(100vh-12rem)]">
             {activeTab === "overview" && <OverviewTab user={user} department={department} setActiveTab={setActiveTab} />}
             {activeTab === "tasks" && <TasksTab user={user} department={department} />}
+            {activeTab === "keycard" && <KeyCardManagementPage />}
+            {activeTab === "service-requests" && <ServiceRequestManagement />}
             {activeTab === "contact" && <ContactManagerTab user={user} department={department} />}
             {activeTab === "notifications" && <NotificationsTab user={user} />}
           </div>
@@ -1342,8 +1367,36 @@ function NotificationsTab({ user }) {
   );
 }
 
-// Enhanced Task Card Component for displaying individual tasks
 function TaskCard({ task, onStatusChange, index = 0 }) {
+  const [isRequestingService, setIsRequestingService] = useState(false);
+  
+  const handleServiceRequest = async (taskId, requestType) => {
+    try {
+      setIsRequestingService(true);
+      // Call your API to create a service request
+      const response = await axios.post('/api/guest-services/request', {
+        title: `Service Request for ${task.title || 'Task'}`,
+        description: `Service requested for task: ${task.description || 'No description'}`,
+        requestType: requestType || 'service',
+        guestLocation: task.location || 'Not specified',
+        isAnonymous: false,
+        // Add any other required fields
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // Show success message
+      alert('Service request submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting service request:', error);
+      alert('Failed to submit service request. Please try again.');
+    } finally {
+      setIsRequestingService(false);
+    }
+  };
+
   // Initialize state with task status or default to 'pending'
   const [selectedStatus, setSelectedStatus] = useState(task?.status || 'pending');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -1541,7 +1594,7 @@ function TaskCard({ task, onStatusChange, index = 0 }) {
   return (
     <div
       className="group relative p-6 hover:bg-gradient-to-r hover:from-white/60 hover:to-gray-50/60 dark:hover:from-gray-700/60 dark:hover:to-gray-800/60 transition-all duration-500 transform hover:scale-[1.02] hover:shadow-xl"
-      style={{ animationDelay: `${index * 100}ms`  }}
+      style={{ animationDelay: `${index * 100}ms` }}
     >
       {/* Animated border gradient */}
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-400 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-r-full"></div>

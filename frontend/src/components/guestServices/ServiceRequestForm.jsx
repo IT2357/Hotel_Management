@@ -53,21 +53,58 @@ const ServiceRequestForm = ({ guest, room, onSuccess }) => {
       setIsSubmitting(true);
       
       const formData = new FormData();
-      Object.keys(data).forEach(key => {
-        formData.append(key, data[key]);
-      });
       
-      if (guest) formData.append('guest', guest.userId || guest._id);
-      if (room) formData.append('room', room._id);
+      // Convert checkbox value to string 'true' or 'false'
+      const isAnonymous = data.isAnonymous === true || data.isAnonymous === 'true';
       
-      attachments.forEach(file => {
-        formData.append('attachments', file);
+      // Add all fields as strings
+      formData.append('requestType', String(data.requestType || ''));
+      formData.append('title', String(data.title || ''));
+      formData.append('description', String(data.description || ''));
+      formData.append('guestLocation', String(data.guestLocation || ''));
+      formData.append('isAnonymous', String(isAnonymous));
+      
+      // Add optional fields
+      if (data.specialInstructions) {
+        formData.append('specialInstructions', String(data.specialInstructions));
+      }
+      
+      // Add guest and room if available
+      const guestId = guest?.userId || guest?._id;
+      if (guestId && !isAnonymous) {
+        formData.append('guest', String(guestId));
+      }
+      
+      if (room?._id) {
+        formData.append('room', String(room._id));
+      }
+      
+      // Add attachments if any
+      if (attachments && attachments.length > 0) {
+        attachments.forEach((file, index) => {
+          if (file) {
+            formData.append(`attachments`, file);
+          }
+        });
+      }
+
+      console.log('Submitting form data:', {
+        requestType: data.requestType,
+        title: data.title,
+        description: data.description,
+        guestLocation: data.guestLocation,
+        isAnonymous,
+        guestId: guestId,
+        roomId: room?._id,
+        attachmentCount: attachments?.length || 0
       });
 
       const response = await axios.post('/api/guest-services/request', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        withCredentials: true
       });
       
       enqueueSnackbar('Service request submitted successfully', { variant: 'success' });
@@ -163,11 +200,19 @@ const ServiceRequestForm = ({ guest, room, onSuccess }) => {
         <div className="mt-2 grid grid-cols-3 gap-2">
           {attachments.map((file, index) => (
             <div key={index} className="relative group">
-              {file.type.startsWith('image/') ? (
-                <img src={URL.createObjectURL(file)} alt={file.name} className="h-24 w-full object-cover rounded-md" />
+              {file?.type?.startsWith?.('image/') ? (
+                <img 
+                  src={URL.createObjectURL(file)} 
+                  alt={file.name || 'Preview'} 
+                  className="h-24 w-full object-cover rounded-md" 
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWZpbGUtaW1hZ2UiPjcmIzQ1OzxwYXRoIGQ9Ik0xNC41IDJINmEyIDIgMCAwIDAtMiAydDEuMTcgMS45OTMiLz48cGF0aCBkPSJNMTggMThhMiAyIDAgMCAxLTIgMkg0YTIgMiAwIDAgMS0yLTJWNWEyIDIgMCAwIDEgMi0yaEkuNWMuNDUyIDAgLjg0OS4xNSAxLjE4My40MjRMMTMuNSA4aDVBMS45OTggMS45OTggMCAwIDEgMTggMTBaIi8+PGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMiIvPjxwYXRoIGQ9Im0yMS43IDIxLjM5MS0xLjNjLS4yLjI5OS0uNS41ODMtLjkxLjgxMy0uNDMuMjM5LS45Ni4zNDYtMSLjU5LjM0NnMtMS4xNi0uMTA3LTE41OS0uMzQ2Yy0uNDItLjIzLS43Mi0uNTE0LS45MS0uODEzLS4xOS0uMy0uzYtLjYyMy0uNjktLjg1NS0uMjY1LS41ODMtLjQxMi0xLjI3LS40MTItMi4xM3MuMTQ3LTEuNTQ3LjQxMi0yLjEzYy4wOS0uMjMyLjUtLjU1NS42OS0uODU1LjE5LS4zLjQ5LS41ODMuOTEtLjgxM1MxNS4zNCAxMyAxNS45NyAxM3MxLjE2LjEwNyAxLjU5LjM0NmMuNDMuMjMuNzMuNTE0LjkxLjgxMy4xOS4zLjMzLjYyMy40Mi44NTUuMjY1LjU4My40MSAxLjI3LjQxIDIuMTNzLS4xNDUgMS41NDctLjQxIDIuMTNjLS4wOS4yMzItLjIzLjU1NS0uNDIuODU1WiIvPjwvc3ZnPg==';
+                  }}
+                />
               ) : (
-                <div className="h-24 flex items-center justify-center bg-gray-100 rounded-md">
-                  <span className="text-sm text-gray-500">{file.name}</span>
+                <div className="h-24 flex items-center justify-center bg-gray-100 rounded-md p-2">
+                  <span className="text-xs text-gray-500 text-center break-all">{file?.name || 'File'}</span>
                 </div>
               )}
               <button
