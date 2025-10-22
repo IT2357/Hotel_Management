@@ -62,7 +62,42 @@ const checkInOutSchema = new mongoose.Schema(
     lateCheckOut: { type: Boolean, default: false },
     depositAmount: { type: Number },
     depositReturned: { type: Boolean, default: false },
-    damageReport: String
+    damageReport: String,
+    // ⚠️ SECURITY: Track overstay violations
+    overstay: {
+      detected: { type: Boolean, default: false },
+      daysOverstayed: { type: Number, default: 0 },
+      detectedAt: Date,
+      scheduledCheckoutDate: Date,
+      actualCheckoutDate: Date,
+      chargeAmount: Number,
+      chargePending: { type: Boolean, default: true },
+      // NEW: Invoice tracking for overstay
+      invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
+      paymentMethod: String, // 'cash', 'bank', 'card'
+      paymentStatus: {
+        type: String,
+        enum: ['pending_payment', 'pending_approval', 'approved', 'paid', 'rejected'],
+        default: 'pending_payment'
+      },
+      paymentReference: String,
+      // Track if guest can checkout (only after payment approval/completion)
+      canCheckout: { type: Boolean, default: false },
+      approvalNotes: String
+    },
+    // Early check-in details (if allowed by management)
+    earlyCheckInApproved: { type: Boolean, default: false },
+    earlyCheckInApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    earlyCheckInApprovedAt: Date,
+    earlyCheckInReason: String,
+    // Late checkout details (if allowed by management)
+    lateCheckOutApproved: { type: Boolean, default: false },
+    lateCheckOutApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    lateCheckOutApprovedAt: Date,
+    lateCheckOutReason: String,
+    // Booking period reference for validation
+    bookedCheckInDate: Date,
+    bookedCheckOutDate: Date
   },
   { timestamps: true }
 );

@@ -136,7 +136,8 @@ export const createBooking = async (req, res) => {
     const userId = req.user?._id;
 
     // Get operational settings for validation
-    if (!settings.general) {
+    let currentSettings = settings;
+    if (!currentSettings.general) {
       const defaultSettings = new AdminSettings({
         general: {
           hotelName: 'Hotel Management System',
@@ -163,21 +164,21 @@ export const createBooking = async (req, res) => {
         }
       });
       await defaultSettings.save();
-      settings = defaultSettings.toObject();
+      currentSettings = defaultSettings.toObject();
     }
 
     // Check operational hours if enabled
-    if (settings.operationalSettings?.enabled) {
+    if (currentSettings.operationalSettings?.enabled) {
       const checkInDate = new Date(checkIn);
       const checkInTime = checkInDate.toTimeString().slice(0, 5);
 
-      if (checkInTime < settings.operationalSettings.startTime ||
-          checkInTime > settings.operationalSettings.endTime) {
-        const shouldApprove = settings.operationalSettings.requireApprovalOutsideHours;
-        if (settings.operationalSettings.autoCancelOutsideHours && !shouldApprove) {
+      if (checkInTime < currentSettings.operationalSettings.startTime ||
+          checkInTime > currentSettings.operationalSettings.endTime) {
+        const shouldApprove = currentSettings.operationalSettings.requireApprovalOutsideHours;
+        if (currentSettings.operationalSettings.autoCancelOutsideHours && !shouldApprove) {
           return res.status(400).json({
             success: false,
-            message: `Bookings are not allowed outside operational hours (${settings.operationalSettings.startTime} - ${settings.operationalSettings.endTime}). Booking has been cancelled.`,
+            message: `Bookings are not allowed outside operational hours (${currentSettings.operationalSettings.startTime} - ${currentSettings.operationalSettings.endTime}). Booking has been cancelled.`,
           });
         }
       }
@@ -242,7 +243,7 @@ export const createBooking = async (req, res) => {
     // Add approval information to response
     if (requiresApproval) {
       responseData.approvalRequired = true;
-      responseData.estimatedApprovalTime = settings.approvalTimeoutHours || 24;
+      responseData.estimatedApprovalTime = currentSettings.booking?.approvalTimeoutHours || 24;
     } else {
       responseData.autoApproved = true;
     }

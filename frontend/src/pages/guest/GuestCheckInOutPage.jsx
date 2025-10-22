@@ -4,6 +4,7 @@ import useTitle from '../../hooks/useTitle';
 import { useSnackbar } from 'notistack';
 import axios from 'axios';
 import Modal from '../../components/ui/Modal.jsx';
+import OverstayPaymentForm from '../../components/checkout/OverstayPaymentForm.jsx';
 // Create a local API instance for check-in/out with correct baseURL
 const checkInOutApi = axios.create({
   baseURL: '/api', // Use Vite proxy path
@@ -41,10 +42,13 @@ const GuestCheckInOutPage = () => {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showOverstayPaymentModal, setShowOverstayPaymentModal] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [overstayPaymentProcessing, setOverstayPaymentProcessing] = useState(false);
   const [eligibleBookings, setEligibleBookings] = useState([]);
   const [recentlyCheckedOut, setRecentlyCheckedOut] = useState(null);
+  const [overstayInfo, setOverstayInfo] = useState(null);  // ⚠️ NEW: Track overstay information
 
   // Check-in form state
   const [checkInData, setCheckInData] = useState({
@@ -73,6 +77,55 @@ const GuestCheckInOutPage = () => {
 
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
+
+  // ⚠️ SECURITY: Helper function to validate booking dates
+  const validateBookingDates = (booking) => {
+    if (!booking) return null;
+    
+    const now = new Date();
+    const checkInDate = new Date(booking.checkIn);
+    const checkOutDate = new Date(booking.checkOut);
+    
+    // Reset times for date-only comparison
+    now.setHours(0, 0, 0, 0);
+    checkInDate.setHours(0, 0, 0, 0);
+    checkOutDate.setHours(23, 59, 59, 999);
+    
+    if (now < checkInDate) {
+      const daysUntil = Math.ceil((checkInDate - now) / (1000 * 60 * 60 * 24));
+      return {
+        status: 'early_checkin',
+        message: `Check-in is not yet available. Your booking starts on ${checkInDate.toLocaleDateString()} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away)`,
+        daysUntil,
+        allowed: false
+      };
+    }
+    
+    if (now > checkOutDate) {
+      return {
+        status: 'booking_expired',
+        message: 'Your booking period has ended. Please contact the hotel.',
+        allowed: false
+      };
+    }
+
+    const daysRemaining = Math.ceil((checkOutDate - now) / (1000 * 60 * 60 * 24));
+    return {
+      status: 'valid',
+      message: `Booking valid. ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining until checkout on ${checkOutDate.toLocaleDateString()}`,
+      daysRemaining,
+      checkOutDate: checkOutDate.toISOString(),
+      allowed: true
+    };
+  };
+
+  // ⚠️ SECURITY: Helper function to calculate days between check-in and checkout
+  const getDaysBooked = (booking) => {
+    if (!booking) return 0;
+    const checkIn = new Date(booking.checkIn);
+    const checkOut = new Date(booking.checkOut);
+    return Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+  };
 
   useEffect(() => {
     fetchCheckInStatus();
@@ -245,7 +298,24 @@ const GuestCheckInOutPage = () => {
 
     } catch (error) {
       console.error('❌ Check-in failed:', error);
-      enqueueSnackbar(error.response?.data?.message || 'Check-in failed', { variant: 'error' });
+      const errorMessage = error.response?.data?.message || 'Check-in failed';
+      const errorCode = error.response?.data?.errorCode;
+      
+      // ⚠️ SECURITY: Display specific error messages for date violations
+      if (errorCode === 'EARLY_CHECKIN_ATTEMPT') {
+        const daysUntil = error.response?.data?.daysUntilCheckIn;
+        enqueueSnackbar(
+          `Early check-in not permitted. Check-in available in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+          { variant: 'error' }
+        );
+      } else if (errorCode === 'BOOKING_PERIOD_EXPIRED') {
+        enqueueSnackbar(
+          'Your booking period has expired. Please contact the hotel.',
+          { variant: 'error' }
+        );
+      } else {
+        enqueueSnackbar(errorMessage, { variant: 'error' });
+      }
     } finally {
       setProcessing(false);
     }
@@ -261,6 +331,69 @@ const GuestCheckInOutPage = () => {
     try {
       setProcessing(true);
       console.log('🔚 Processing check-out for:', safeCheckInStatus._id);
+      
+      // ⚠️ SECURITY: Check for overstays - but ONLY if payment not already approved
+      if (safeCheckInStatus.booking) {
+        const bookingCheckOut = new Date(safeCheckInStatus.booking.checkOut);
+        const today = new Date();
+        
+        // Set to end of checkout day for comparison
+        bookingCheckOut.setHours(23, 59, 59, 999);
+        
+        // Check if there's an overstay AND payment hasn't been approved yet
+        const hasOverstay = today > bookingCheckOut;
+        const paymentApproved = safeCheckInStatus?.overstay?.paymentStatus === 'approved';
+        
+        if (hasOverstay && !paymentApproved) {
+          // Calculate overstay charges based on actual room price
+          const daysOverstay = Math.ceil((today - bookingCheckOut) / (1000 * 60 * 60 * 24));
+          
+          // Get the room's actual base price - this is critical for accurate billing
+          const roomRate = safeCheckInStatus.room?.basePrice;
+          if (!roomRate || roomRate <= 0) {
+            console.error('❌ Room price not available or invalid:', {
+              roomId: safeCheckInStatus.room?._id,
+              roomNumber: safeCheckInStatus.room?.roomNumber,
+              basePrice: roomRate
+            });
+            enqueueSnackbar('Error: Unable to calculate overstay charges. Room pricing information is missing.', { variant: 'error' });
+            setProcessing(false);
+            return;
+          }
+          
+          // Calculate charge: room rate × 1.5 (penalty multiplier) × days overstayed
+          const overstayCharge = roomRate * 1.5 * daysOverstay;
+          
+          console.log('⚠️ Overstay detected (payment not approved):', {
+            roomNumber: safeCheckInStatus.room?.roomNumber,
+            roomBasePrice: roomRate,
+            daysOverstay,
+            penaltyMultiplier: 1.5,
+            totalCharge: overstayCharge,
+            calculation: `${roomRate} × 1.5 × ${daysOverstay} = ${overstayCharge}`,
+            scheduledCheckout: bookingCheckOut.toISOString(),
+            actualCheckout: today.toISOString(),
+            paymentStatus: safeCheckInStatus?.overstay?.paymentStatus
+          });
+          
+          // Show overstay payment modal
+          setOverstayInfo({
+            daysOverstay,
+            roomRate,
+            overstayCharge,
+            scheduledCheckout: bookingCheckOut,
+            checkInOutId: safeCheckInStatus._id
+          });
+          
+          setShowCheckOutModal(false);
+          setShowOverstayPaymentModal(true);
+          setProcessing(false);
+          return;
+        } else if (hasOverstay && paymentApproved) {
+          console.log('✅ Overstay detected but payment already approved - proceeding with checkout');
+        }
+      }
+      
       const response = await checkInOutApi.post('/check-in-out/guest/check-out', {
         checkInOutId: safeCheckInStatus._id,
         damageReport: checkOutData.damageReport
@@ -302,6 +435,111 @@ const GuestCheckInOutPage = () => {
     }
   };
 
+  // ⚠️ NEW: Handle overstay payment submission
+  const handleOverstayPayment = async (paymentInfo) => {
+    try {
+      setOverstayPaymentProcessing(true);
+      
+      console.log('💳 Processing overstay payment:', {
+        checkInOutId: overstayInfo.checkInOutId,
+        paymentMethod: paymentInfo.paymentMethod,
+        amount: overstayInfo.overstayCharge
+      });
+
+      // Send payment to backend
+      const response = await checkInOutApi.post('/check-in-out/guest/overstay-payment', {
+        checkInOutId: overstayInfo.checkInOutId,
+        paymentMethod: paymentInfo.paymentMethod,
+        paymentData: paymentInfo.paymentData,
+        amount: overstayInfo.overstayCharge,
+        daysOverstay: overstayInfo.daysOverstay
+      });
+
+      console.log('✅ Overstay payment response:', response.data);
+
+      // Handle different payment statuses
+      if (response.data && response.data.success) {
+        const paymentStatus = response.data.data?.paymentStatus;
+        
+        // For card payments (completed status), immediately proceed to checkout
+        if (paymentStatus === 'completed') {
+          enqueueSnackbar('Card payment processed successfully! You can now proceed with checkout.', { variant: 'success' });
+          setShowOverstayPaymentModal(false);
+          setOverstayInfo(null);
+          
+          // Now proceed with checkout
+          try {
+            const checkoutResponse = await checkInOutApi.post('/check-in-out/guest/check-out', {
+              checkInOutId: overstayInfo.checkInOutId,
+              damageReport: checkOutData.damageReport,
+              overstayPaid: true
+            });
+            
+            console.log('✅ Checkout after overstay payment successful:', checkoutResponse.data);
+            enqueueSnackbar('Check-out successful!', { variant: 'success' });
+            
+            // Refresh status
+            await fetchCheckInStatus();
+            await fetchEligibleBookings();
+            
+            // Reset form
+            setCheckOutData({ damageReport: '' });
+          } catch (checkoutError) {
+            console.error('❌ Checkout failed after overstay payment:', checkoutError);
+            enqueueSnackbar('Payment successful, but checkout failed. Please contact reception.', { variant: 'warning' });
+          }
+        }
+        // For cash payments (pending_approval status), wait for admin approval
+        else if (paymentStatus === 'pending_approval') {
+          enqueueSnackbar(
+            'Your overstay charges have been recorded. Please proceed to reception to complete payment. Admin approval is required before you can checkout.',
+            { variant: 'info', autoHideDuration: 10000 }
+          );
+          setShowOverstayPaymentModal(false);
+          setOverstayInfo(null);
+          
+          // Refresh to show pending status
+          setTimeout(() => {
+            fetchCheckInStatus();
+          }, 1000);
+        }
+        // For bank transfers (pending_verification status)
+        else if (paymentStatus === 'pending_verification') {
+          enqueueSnackbar(
+            'Bank transfer initiated. Your transfer is pending verification. Please contact reception with your transfer details.',
+            { variant: 'info', autoHideDuration: 10000 }
+          );
+          setShowOverstayPaymentModal(false);
+          setOverstayInfo(null);
+          
+          // Refresh status
+          setTimeout(() => {
+            fetchCheckInStatus();
+          }, 1000);
+        } else {
+          enqueueSnackbar('Payment processing initiated. Please wait for confirmation.', { variant: 'info' });
+          setShowOverstayPaymentModal(false);
+          setOverstayInfo(null);
+        }
+      } else {
+        enqueueSnackbar(response.data?.message || 'Payment processing failed', { variant: 'error' });
+      }
+    } catch (error) {
+      console.error('❌ Overstay payment error:', error);
+      
+      // Provide specific feedback for different payment methods
+      if (paymentInfo.paymentMethod === 'cash') {
+        enqueueSnackbar('Cash payment recorded. Please proceed to reception to complete payment and get approval.', { variant: 'info' });
+      } else if (paymentInfo.paymentMethod === 'bank') {
+        enqueueSnackbar('Bank transfer initiated. Please confirm the transfer details with reception.', { variant: 'info' });
+      } else {
+        enqueueSnackbar(error.response?.data?.message || 'Payment processing failed', { variant: 'error' });
+      }
+    } finally {
+      setOverstayPaymentProcessing(false);
+    }
+  };
+
   const downloadReceipt = () => {
     // Simple download implementation - in a real app, you'd generate a PDF
     const receiptText = `
@@ -316,12 +554,12 @@ Check-in: ${new Date(receipt.checkInDate).toLocaleDateString()}
 Check-out: ${new Date(receipt.checkOutDate).toLocaleDateString()}
 
 Charges:
-- Base Charge: ₹${receipt.charges.baseCharge}
-- Services: ₹${receipt.charges.servicesCharges}
-- Food: ₹${receipt.charges.foodCharges}
-- Taxes: ₹${receipt.charges.taxes}
+- Base Charge: රු${receipt.charges.baseCharge}
+- Services: රු${receipt.charges.servicesCharges}
+- Food: රු${receipt.charges.foodCharges}
+- Taxes: රු${receipt.charges.taxes}
 
-Total Amount: ₹${receipt.charges.totalAmount}
+Total Amount: රු${receipt.charges.totalAmount}
 
 Payment Method: ${receipt.paymentMethod}
 Receipt Number: ${receipt.receiptNumber}
@@ -636,6 +874,58 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
           ) : safeCheckInStatus.status === 'checked_in' ? (
             // Checked-in: Show current stay details and service access
             <div className="space-y-6">
+              {/* ⚠️ SECURITY: Show checkout date warning */}
+              {safeCheckInStatus.booking && (() => {
+                const validation = validateBookingDates(safeCheckInStatus.booking);
+                if (!validation) return null;
+                
+                const checkOutDate = new Date(safeCheckInStatus.booking.checkOut);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                checkOutDate.setHours(0, 0, 0, 0);
+                
+                const daysRemaining = Math.ceil((checkOutDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (daysRemaining <= 1) {
+                  return (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-semibold text-red-800">Checkout Approaching</p>
+                          <p className="text-sm text-red-700 mt-1">
+                            You must check out by {checkOutDate.toLocaleDateString()} ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else if (daysRemaining <= 3) {
+                  return (
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-semibold text-yellow-800">Checkout Soon</p>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            Checkout date: {checkOutDate.toLocaleDateString()} ({daysRemaining} days remaining)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                   <div className="mb-4 md:mb-0">
@@ -646,6 +936,12 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                     <p className="text-sm text-gray-500 mt-1">
                       Key Card: {safeCheckInStatus.keyCardNumber || 'Not assigned'}
                     </p>
+                    {safeCheckInStatus.booking && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        <strong>Booking:</strong> {safeCheckInStatus.booking.bookingNumber || 'N/A'} | 
+                        <strong> Checkout:</strong> {new Date(safeCheckInStatus.booking.checkOut).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -944,6 +1240,49 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
         {/* Check-out Modal */}
         <Modal isOpen={showCheckOutModal} onClose={() => setShowCheckOutModal(false)} title="Confirm Check-out" size="md">
                 <div className="space-y-4">
+              {/* ⚠️ SECURITY: Show pending approval message for overstay cash payments */}
+              {safeCheckInStatus?.overstay?.paymentStatus === 'pending_approval' && (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded">
+                  <p className="text-amber-800 font-semibold text-sm mb-2">⏳ Payment Pending Admin Approval</p>
+                  <p className="text-amber-700 text-sm">
+                    Your overstay payment is awaiting admin approval. You cannot checkout until it's approved. 
+                    Please wait for confirmation from the reception desk.
+                  </p>
+                </div>
+              )}
+              
+              {/* ⚠️ SECURITY: Warn about overstays - but ONLY if payment not approved */}
+              {safeCheckInStatus && safeCheckInStatus.booking && (() => {
+                const checkOutDate = new Date(safeCheckInStatus.booking.checkOut);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                checkOutDate.setHours(23, 59, 59, 999);
+                
+                // Check if there's an overstay
+                const hasOverstay = today > checkOutDate;
+                
+                // Check if payment is approved (only show alert if NOT approved)
+                const paymentApproved = safeCheckInStatus?.overstay?.paymentStatus === 'approved';
+                
+                if (hasOverstay && !paymentApproved) {
+                  const hoursOverstay = Math.ceil((today - checkOutDate) / (1000 * 60 * 60));
+                  const daysOverstay = Math.ceil(hoursOverstay / 24);
+                  
+                  return (
+                    <div className="bg-red-50 border border-red-200 p-4 rounded">
+                      <p className="text-red-800 font-semibold text-sm mb-2">⚠️ Overstay Alert</p>
+                      <p className="text-red-700 text-sm">
+                        Your booking ended on {checkOutDate.toLocaleDateString()}. You are currently {daysOverstay} day{daysOverstay !== 1 ? 's' : ''} overdue.
+                      </p>
+                      <p className="text-red-700 text-sm mt-2">
+                        Overstay charges may apply. Please proceed with immediate checkout.
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
               <div className="bg-yellow-50 p-4 rounded-lg">
                 <p className="text-yellow-800">
                   Please ensure you have returned your key card and settled all bills before checking out.
@@ -970,7 +1309,8 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                 </button>
                 <button 
                   onClick={handleCheckOut} 
-                  disabled={processing}
+                  disabled={processing || (safeCheckInStatus?.overstay?.paymentStatus === 'pending_approval')}
+                  title={safeCheckInStatus?.overstay?.paymentStatus === 'pending_approval' ? 'Cannot checkout: Awaiting admin approval for overstay payment' : ''}
                   className="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                 >
                   {processing ? 'Processing...' : 'Confirm Check-out'}
@@ -1007,23 +1347,23 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Room Charges:</span>
-                      <span>₹{receipt.charges.baseCharge}</span>
+                      <span>රු{receipt.charges.baseCharge}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Services:</span>
-                      <span>₹{receipt.charges.servicesCharges}</span>
+                      <span>රු{receipt.charges.servicesCharges}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Food & Beverages:</span>
-                      <span>₹{receipt.charges.foodCharges}</span>
+                      <span>රු{receipt.charges.foodCharges}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Taxes:</span>
-                      <span>₹{receipt.charges.taxes}</span>
+                      <span>රු{receipt.charges.taxes}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>Total Amount:</span>
-                      <span>₹{receipt.charges.totalAmount}</span>
+                      <span>රු{receipt.charges.totalAmount}</span>
                     </div>
                   </div>
                 </div>
@@ -1050,6 +1390,22 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
               </button>
             </div>
         </Modal>
+
+        {/* ⚠️ NEW: Overstay Payment Modal */}
+        {overstayInfo && (
+          <OverstayPaymentForm
+            isOpen={showOverstayPaymentModal}
+            onClose={() => {
+              setShowOverstayPaymentModal(false);
+              setOverstayInfo(null);
+            }}
+            overstayCharges={overstayInfo.overstayCharge}
+            roomBasePrice={overstayInfo.roomRate}
+            daysOverstay={overstayInfo.daysOverstay}
+            onPaymentComplete={handleOverstayPayment}
+            isProcessing={overstayPaymentProcessing}
+          />
+        )}
 
       </div>
     </div>

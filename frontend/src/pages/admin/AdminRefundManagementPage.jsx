@@ -490,9 +490,7 @@ function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatu
                   <span>Created: {format(new Date(refund.createdAt), 'MMM dd, yyyy')}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c2.21 0 4-1.79 4-4S14.21 0 12 0 8 1.79 8 4s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                  </svg>
+                  <span className="mr-2">රු</span>
                   <span>{formatAmount(refund.amount, refund.currency || 'LKR')}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">

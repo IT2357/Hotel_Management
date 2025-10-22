@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 const invoiceSchema = new mongoose.Schema(
   {
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" },
+    checkInOutId: { type: mongoose.Schema.Types.ObjectId, ref: "CheckInOut" }, // NEW: For overstay invoices
     foodOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "FoodOrder" },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     invoiceNumber: { type: String, unique: true, index: true },
@@ -22,7 +23,8 @@ const invoiceSchema = new mongoose.Schema(
         "Overdue",                  // Payment past due date
         "Cancelled",                // Invoice cancelled
         "Refunded",                 // Payment refunded
-        "Failed"                    // Payment failed
+        "Failed",                   // Payment failed
+        "Awaiting Approval"         // NEW: For overstay cash payments awaiting admin approval
       ],
       default: "Draft",
     },
@@ -43,12 +45,42 @@ const invoiceSchema = new mongoose.Schema(
       amount: Number,
       type: {
         type: String,
-        enum: ['room', 'meal', 'meal_plan', 'tax', 'service_fee', 'additional', 'discount'],
+        enum: ['room', 'meal', 'meal_plan', 'tax', 'service_fee', 'additional', 'discount', 'overstay_charge'],
         default: 'room'
       },
       metadata: mongoose.Schema.Types.Mixed // For storing additional item-specific data
     }],
     statusNotes: String,
+    
+    // NEW: Overstay tracking fields
+    overstayTracking: {
+      isOverstayInvoice: { type: Boolean, default: false },
+      originalCheckOutDate: Date,
+      currentCheckOutDate: Date,
+      daysOverstayed: Number,
+      dailyRate: Number, // Room rate for overstay calculation (typically 1.5x base rate)
+      chargeBreakdown: {
+        baseCharges: Number,
+        accumulatedCharges: Number
+      },
+      lastUpdatedAt: Date,
+      updatedByAdmin: Boolean, // Tracks if charges were manually adjusted
+      adjustmentNotes: String // Admin notes for any manual adjustments
+    },
+    
+    // NEW: Payment approval tracking for cash payments
+    paymentApproval: {
+      approvalStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+      },
+      approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Admin who approved
+      approvalNotes: String,
+      approvedAt: Date,
+      rejectionReason: String,
+      rejectionDate: Date
+    }
   },
   { timestamps: true }
 );

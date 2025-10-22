@@ -48,6 +48,15 @@ export default function AdminInvoicesPage() {
   const [bulkActionType, setBulkActionType] = useState('');
   const [actionNotes, setActionNotes] = useState('');
 
+  // Check authentication token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No authentication token found. Redirecting to login.');
+      window.location.href = '/login';
+    }
+  }, []);
+
   // Initial data fetch with debounce
   useEffect(() => {
     let isMounted = true;
@@ -168,7 +177,10 @@ export default function AdminInvoicesPage() {
         
         const token = localStorage.getItem('token');
         if (!token) {
-          throw new Error('No authentication token found');
+          console.warn('No authentication token found in localStorage');
+          // Redirect to login page or show error
+          window.location.href = '/login';
+          throw new Error('No authentication token found. Redirecting to login...');
         }
         
         const fetchOptions = {
@@ -390,6 +402,7 @@ export default function AdminInvoicesPage() {
     if (status === 'Cancelled') return 'bg-gray-100 text-gray-800';
     if (status === 'Refunded') return 'bg-purple-100 text-purple-800';
     if (status === 'Failed') return 'bg-red-100 text-red-800';
+    if (status === 'Awaiting Approval') return 'bg-yellow-100 text-yellow-800';
 
     // Legacy support
     const colors = {
@@ -498,11 +511,18 @@ export default function AdminInvoicesPage() {
       closeActionModal();
       
       // Make the API call
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('Session expired. Redirecting to login.');
+        window.location.href = '/login';
+        return;
+      }
+
       const response = await fetch(`/api/invoices/admin/${invoiceId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         },
@@ -513,6 +533,15 @@ export default function AdminInvoicesPage() {
       });
 
       const data = await response.json();
+      
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        console.warn('Unauthorized. Session expired. Redirecting to login.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return;
+      }
       
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update invoice status');
@@ -641,13 +670,20 @@ export default function AdminInvoicesPage() {
       );
       
       // Process each eligible invoice
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('Session expired. Redirecting to login.');
+        window.location.href = '/login';
+        return;
+      }
+
       const results = await Promise.allSettled(
         eligibleInvoices.map(id => 
           fetch(`/api/invoices/admin/${id}/status`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Authorization': `Bearer ${token}`,
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache'
             },
@@ -868,6 +904,7 @@ export default function AdminInvoicesPage() {
                     <option value="Draft">Draft</option>
                     <option value="Sent - Payment Pending">Sent - Payment Pending</option>
                     <option value="Sent - Payment Processing">Sent - Payment Processing</option>
+                    <option value="Awaiting Approval">Awaiting Approval (Overstay)</option>
                     <option value="Paid">Paid</option>
                     <option value="Overdue">Overdue</option>
                     <option value="Cancelled">Cancelled</option>
@@ -1119,9 +1156,7 @@ export default function AdminInvoicesPage() {
                           <span>Due: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}</span>
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                          </svg>
+                          <span className="mr-2">රු</span>
                           <span className="font-semibold text-green-600">{formatCurrency(invoice.amount || invoice.totalAmount || 0, invoice.currency || 'LKR')}</span>
                         </div>
                       </div>
@@ -1207,59 +1242,151 @@ export default function AdminInvoicesPage() {
             <div>
               <h4 className="font-medium text-gray-700 mb-3">Quick Actions</h4>
               <div className="space-y-2">
-                {selectedInvoice?.status === 'Draft' && (
-                  <Button
-                    onClick={() => {
-                      openActionModal(selectedInvoice, 'send');
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    Send Invoice
-                  </Button>
-                )}
-                {(selectedInvoice?.status === 'Sent - Payment Pending' || selectedInvoice?.status === 'Sent - Payment Processing') && (
+                {/* OVERSTAY INVOICE SPECIFIC ACTIONS */}
+                {selectedInvoice?.overstayTracking?.isOverstayInvoice && (
                   <>
-                    <Button
-                      onClick={() => {
-                        openActionModal(selectedInvoice, 'mark_paid');
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                    >
-                      Mark as Paid
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        openActionModal(selectedInvoice, 'overdue');
-                      }}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Mark Overdue
-                    </Button>
+                    {selectedInvoice?.status === 'Awaiting Approval' && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'approve_overstay');
+                          }}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          ✅ Approve Payment
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'reject_overstay');
+                          }}
+                          variant="danger"
+                          className="w-full"
+                        >
+                          ❌ Reject Payment
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'adjust_overstay');
+                          }}
+                          variant="outline"
+                          className="w-full text-amber-600 border-amber-300 hover:bg-amber-50"
+                        >
+                          ⚙️ Adjust Charges
+                        </Button>
+                      </>
+                    )}
+                    {selectedInvoice?.status === 'Paid' && (
+                      <Button
+                        onClick={() => {
+                          openActionModal(selectedInvoice, 'extend_stay');
+                        }}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        📅 Extend Stay
+                      </Button>
+                    )}
+                    {selectedInvoice?.status === 'Overdue' && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'adjust_overstay');
+                          }}
+                          className="w-full bg-amber-600 hover:bg-amber-700"
+                        >
+                          ⚙️ Adjust Charges
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'approve_overstay');
+                          }}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          ✅ Force Approve
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'waive_charges');
+                          }}
+                          variant="outline"
+                          className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
+                        >
+                          💜 Waive Charges
+                        </Button>
+                      </>
+                    )}
+                    {selectedInvoice?.status === 'Failed' && (
+                      <Button
+                        onClick={() => {
+                          openActionModal(selectedInvoice, 'approve_overstay');
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        🔄 Retry Approval
+                      </Button>
+                    )}
                   </>
                 )}
-                {selectedInvoice?.status === 'Overdue' && (
-                  <Button
-                    onClick={() => {
-                      openActionModal(selectedInvoice, 'mark_paid');
-                    }}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                  >
-                    Mark as Paid
-                  </Button>
+
+                {/* STANDARD INVOICE ACTIONS (Non-Overstay) */}
+                {!selectedInvoice?.overstayTracking?.isOverstayInvoice && (
+                  <>
+                    {selectedInvoice?.status === 'Draft' && (
+                      <Button
+                        onClick={() => {
+                          openActionModal(selectedInvoice, 'send');
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        Send Invoice
+                      </Button>
+                    )}
+                    {(selectedInvoice?.status === 'Sent - Payment Pending' || selectedInvoice?.status === 'Sent - Payment Processing') && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'mark_paid');
+                          }}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          Mark as Paid
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            openActionModal(selectedInvoice, 'overdue');
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Mark Overdue
+                        </Button>
+                      </>
+                    )}
+                    {selectedInvoice?.status === 'Overdue' && (
+                      <Button
+                        onClick={() => {
+                          openActionModal(selectedInvoice, 'mark_paid');
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700"
+                      >
+                        Mark as Paid
+                      </Button>
+                    )}
+                    {selectedInvoice?.status !== 'Paid' && selectedInvoice?.status !== 'Cancelled' &&
+                     selectedInvoice?.status !== 'Refunded' && selectedInvoice?.status !== 'Failed' && (
+                      <Button
+                        onClick={() => {
+                          openActionModal(selectedInvoice, 'cancel');
+                        }}
+                        variant="danger"
+                        className="w-full"
+                      >
+                        Cancel Invoice
+                      </Button>
+                    )}
+                  </>
                 )}
-                {selectedInvoice?.status !== 'Paid' && selectedInvoice?.status !== 'Cancelled' &&
-                 selectedInvoice?.status !== 'Refunded' && selectedInvoice?.status !== 'Failed' && (
-                  <Button
-                    onClick={() => {
-                      openActionModal(selectedInvoice, 'cancel');
-                    }}
-                    variant="danger"
-                    className="w-full"
-                  >
-                    Cancel Invoice
-                  </Button>
-                )}
+
                 <Button
                   onClick={() => {
                     // Export invoice functionality
@@ -1273,6 +1400,95 @@ export default function AdminInvoicesPage() {
               </div>
             </div>
           </div>
+
+          {/* OVERSTAY INFORMATION (if applicable) */}
+          {selectedInvoice?.overstayTracking?.isOverstayInvoice && (
+            <div>
+              <h4 className="font-medium text-gray-700 mb-3">⏱️ Overstay Information</h4>
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-medium text-gray-600">Original Check-out:</span>
+                    <p className="text-gray-900">{selectedInvoice?.overstayTracking?.originalCheckOutDate ? new Date(selectedInvoice.overstayTracking.originalCheckOutDate).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Current Check-out:</span>
+                    <p className="text-gray-900">{selectedInvoice?.overstayTracking?.currentCheckOutDate ? new Date(selectedInvoice.overstayTracking.currentCheckOutDate).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Days Overstayed:</span>
+                    <p className="text-lg font-bold text-amber-700">{selectedInvoice?.overstayTracking?.daysOverstayed} days</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Daily Rate (1.5x):</span>
+                    <p className="text-gray-900">{formatCurrency(selectedInvoice?.overstayTracking?.dailyRate, selectedInvoice?.currency)}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Base Charges:</span>
+                    <p className="text-gray-900">{formatCurrency(selectedInvoice?.overstayTracking?.chargeBreakdown?.baseCharges || 0, selectedInvoice?.currency)}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Accumulated Charges:</span>
+                    <p className="text-gray-900">{formatCurrency(selectedInvoice?.overstayTracking?.chargeBreakdown?.accumulatedCharges || 0, selectedInvoice?.currency)}</p>
+                  </div>
+                  {selectedInvoice?.overstayTracking?.updatedByAdmin && (
+                    <div className="md:col-span-2">
+                      <span className="font-medium text-gray-600">Admin Adjustment Notes:</span>
+                      <p className="text-gray-900 text-sm mt-1">{selectedInvoice?.overstayTracking?.adjustmentNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PAYMENT APPROVAL STATUS (for overstay invoices) */}
+          {selectedInvoice?.overstayTracking?.isOverstayInvoice && (
+            <div>
+              <h4 className="font-medium text-gray-700 mb-3">✓ Approval Status</h4>
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-medium text-gray-600">Approval Status:</span>
+                    <div className="mt-1">
+                      <Badge className={
+                        selectedInvoice?.paymentApproval?.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                        selectedInvoice?.paymentApproval?.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }>
+                        {selectedInvoice?.paymentApproval?.approvalStatus === 'approved' ? '✅ Approved' :
+                         selectedInvoice?.paymentApproval?.approvalStatus === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                      </Badge>
+                    </div>
+                  </div>
+                  {selectedInvoice?.paymentApproval?.approvedBy && (
+                    <div>
+                      <span className="font-medium text-gray-600">Approved By:</span>
+                      <p className="text-gray-900">{selectedInvoice?.paymentApproval?.approvedBy?.name || 'Admin'}</p>
+                    </div>
+                  )}
+                  {selectedInvoice?.paymentApproval?.approvedAt && (
+                    <div>
+                      <span className="font-medium text-gray-600">Approved At:</span>
+                      <p className="text-gray-900">{new Date(selectedInvoice.paymentApproval.approvedAt).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {selectedInvoice?.paymentApproval?.approvalNotes && (
+                    <div>
+                      <span className="font-medium text-gray-600">Approval Notes:</span>
+                      <p className="text-gray-900 text-sm">{selectedInvoice?.paymentApproval?.approvalNotes}</p>
+                    </div>
+                  )}
+                  {selectedInvoice?.paymentApproval?.rejectionReason && (
+                    <div className="md:col-span-2">
+                      <span className="font-medium text-red-600">Rejection Reason:</span>
+                      <p className="text-gray-900 text-sm mt-1">{selectedInvoice?.paymentApproval?.rejectionReason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Customer Information */}
           <div>
@@ -1473,7 +1689,12 @@ export default function AdminInvoicesPage() {
         title={actionType === 'send' ? 'Send Invoice' :
                actionType === 'mark_paid' ? 'Mark Invoice as Paid' :
                actionType === 'overdue' ? 'Mark Invoice as Overdue' :
-               actionType === 'cancel' ? 'Cancel Invoice' : 'Invoice Action'}
+               actionType === 'cancel' ? 'Cancel Invoice' :
+               actionType === 'approve_overstay' ? 'Approve Overstay Payment' :
+               actionType === 'reject_overstay' ? 'Reject Overstay Payment' :
+               actionType === 'adjust_overstay' ? 'Adjust Overstay Charges' :
+               actionType === 'waive_charges' ? 'Waive Overstay Charges' :
+               actionType === 'extend_stay' ? 'Extend Guest Stay' : 'Invoice Action'}
         size="md"
         zIndex={1100}
       >
@@ -1485,23 +1706,160 @@ export default function AdminInvoicesPage() {
           <p className="text-sm text-gray-600">
             Amount: {formatCurrency(selectedActionInvoice?.amount || selectedActionInvoice?.totalAmount || 0, selectedActionInvoice?.currency)}
           </p>
+          {selectedActionInvoice?.overstayTracking?.isOverstayInvoice && (
+            <>
+              <p className="text-sm text-gray-600 mt-2">
+                📅 Days Overstayed: {selectedActionInvoice?.overstayTracking?.daysOverstayed}
+              </p>
+              <p className="text-sm text-gray-600">
+                💰 Daily Rate: {formatCurrency(selectedActionInvoice?.overstayTracking?.dailyRate, selectedActionInvoice?.currency)}
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Action Notes */}
-        {(actionType === 'cancel' || actionType === 'overdue') && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {actionType === 'cancel' ? 'Cancellation Reason' : 'Overdue Reason'} *
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              rows="3"
-              value={actionNotes}
-              onChange={(e) => setActionNotes(e.target.value)}
-              placeholder={actionType === 'cancel' ? 'Reason for cancellation...' : 'Reason for marking overdue...'}
-              required
-            />
-          </div>
+        {/* OVERSTAY-SPECIFIC INPUTS */}
+        {selectedActionInvoice?.overstayTracking?.isOverstayInvoice && (
+          <>
+            {/* Adjust Charges */}
+            {(actionType === 'adjust_overstay' || actionType === 'waive_charges') && (
+              <div className="mb-4 space-y-4">
+                {actionType === 'adjust_overstay' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        New Charge Amount (LKR) *
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        value={actionNotes}
+                        onChange={(e) => setActionNotes(e.target.value)}
+                        placeholder={selectedActionInvoice?.amount?.toString()}
+                        min="0"
+                        step="100"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Current: {formatCurrency(selectedActionInvoice?.amount, selectedActionInvoice?.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reason for Adjustment *
+                      </label>
+                      <textarea
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        rows="2"
+                        placeholder="e.g., Guest negotiated, Damage assessment..."
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+                {actionType === 'waive_charges' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for Waiving Charges *
+                    </label>
+                    <textarea
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      rows="3"
+                      value={actionNotes}
+                      onChange={(e) => setActionNotes(e.target.value)}
+                      placeholder="e.g., Goodwill, Service issue, Loyalty customer..."
+                      required
+                    />
+                    <p className="text-sm text-purple-600 mt-2 font-medium">
+                      ⚠️ This will set charges to 0 and mark as Paid
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reject Payment */}
+            {actionType === 'reject_overstay' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rejection Reason *
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  rows="3"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  placeholder="e.g., Documentation incomplete, Amount disputed..."
+                  required
+                />
+                <p className="text-sm text-red-600 mt-2 font-medium">
+                  ℹ️ Guest will be notified and blocked from checkout
+                </p>
+              </div>
+            )}
+
+            {/* Approve Payment */}
+            {actionType === 'approve_overstay' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Approval Notes (Optional)
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows="2"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  placeholder="e.g., Payment verified, Guest approved for checkout..."
+                />
+                <p className="text-sm text-green-600 mt-2 font-medium">
+                  ✅ Guest will be allowed to checkout immediately
+                </p>
+              </div>
+            )}
+
+            {/* Extend Stay */}
+            {actionType === 'extend_stay' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Days *
+                </label>
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  min="1"
+                  max="30"
+                  placeholder="1"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Will create new invoice for extended days
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* STANDARD INVOICE INPUTS */}
+        {!selectedActionInvoice?.overstayTracking?.isOverstayInvoice && (
+          <>
+            {(actionType === 'cancel' || actionType === 'overdue') && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {actionType === 'cancel' ? 'Cancellation Reason' : 'Overdue Reason'} *
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows="3"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  placeholder={actionType === 'cancel' ? 'Reason for cancellation...' : 'Reason for marking overdue...'}
+                  required
+                />
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
@@ -1514,21 +1872,48 @@ export default function AdminInvoicesPage() {
           </Button>
           <Button
             onClick={() => {
-              const newStatus = actionType === 'send' ? 'Sent' :
-                               actionType === 'mark_paid' ? 'Paid' :
-                               actionType === 'overdue' ? 'Overdue' : 'Cancelled';
-              handleStatusChange(selectedActionInvoice?._id, newStatus, actionNotes);
+              // Overstay-specific actions
+              if (selectedActionInvoice?.overstayTracking?.isOverstayInvoice) {
+                if (actionType === 'approve_overstay') {
+                  handleStatusChange(selectedActionInvoice?._id, 'Paid', actionNotes);
+                } else if (actionType === 'reject_overstay') {
+                  handleStatusChange(selectedActionInvoice?._id, 'Failed', actionNotes);
+                } else if (actionType === 'adjust_overstay') {
+                  handleStatusChange(selectedActionInvoice?._id, 'Awaiting Approval', actionNotes);
+                } else if (actionType === 'waive_charges') {
+                  handleStatusChange(selectedActionInvoice?._id, 'Paid', actionNotes);
+                } else if (actionType === 'extend_stay') {
+                  handleStatusChange(selectedActionInvoice?._id, 'Paid', actionNotes);
+                }
+              } else {
+                // Standard invoice actions
+                const newStatus = actionType === 'send' ? 'Sent' :
+                                 actionType === 'mark_paid' ? 'Paid' :
+                                 actionType === 'overdue' ? 'Overdue' : 'Cancelled';
+                handleStatusChange(selectedActionInvoice?._id, newStatus, actionNotes);
+              }
             }}
             disabled={actionLoading ||
-              ((actionType === 'cancel' || actionType === 'overdue') && !actionNotes.trim())
+              ((actionType === 'cancel' || actionType === 'overdue') && !actionNotes.trim()) ||
+              ((actionType === 'adjust_overstay' || actionType === 'waive_charges' || actionType === 'reject_overstay') && !actionNotes.trim()) ||
+              ((actionType === 'extend_stay') && !actionNotes.trim())
             }
             className={actionType === 'send' ? 'bg-blue-600 hover:bg-blue-700' :
-                       actionType === 'mark_paid' ? 'bg-green-600 hover:bg-green-700' : ''}
+                       actionType === 'mark_paid' || actionType === 'approve_overstay' ? 'bg-green-600 hover:bg-green-700' :
+                       actionType === 'reject_overstay' ? 'bg-red-600 hover:bg-red-700' :
+                       actionType === 'adjust_overstay' || actionType === 'extend_stay' ? 'bg-amber-600 hover:bg-amber-700' :
+                       actionType === 'waive_charges' ? 'bg-purple-600 hover:bg-purple-700' : ''}
           >
             {actionLoading ? 'Processing...' :
              actionType === 'send' ? 'Send Invoice' :
              actionType === 'mark_paid' ? 'Mark as Paid' :
-             actionType === 'overdue' ? 'Mark Overdue' : 'Cancel Invoice'}
+             actionType === 'overdue' ? 'Mark Overdue' :
+             actionType === 'cancel' ? 'Cancel Invoice' :
+             actionType === 'approve_overstay' ? 'Approve Payment' :
+             actionType === 'reject_overstay' ? 'Reject Payment' :
+             actionType === 'adjust_overstay' ? 'Adjust Charges' :
+             actionType === 'waive_charges' ? 'Waive Charges' :
+             actionType === 'extend_stay' ? 'Extend Stay' : 'Submit'}
           </Button>
         </div>
       </Modal>

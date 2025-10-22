@@ -214,6 +214,8 @@ export const getAllInvoices = async (req, res) => {
         'Sent - Payment Pending ': 'Sent - Payment Pending',
         'Sent - Payment Processing': 'Sent - Payment Processing',
         'Sent - Payment Processing ': 'Sent - Payment Processing',
+        'Awaiting Approval': 'Awaiting Approval',
+        'Awaiting Approval ': 'Awaiting Approval',
         'Paid': 'Paid',
         'Paid ': 'Paid',
         'Overdue': 'Overdue',
@@ -299,7 +301,10 @@ export const getAllInvoices = async (req, res) => {
       paymentMethod: 1,
       issuedAt: 1,
       userId: 1,  // Include userId for population
-      bookingId: 1  // Include bookingId for population
+      bookingId: 1,  // Include bookingId for population
+      overstayTracking: 1,  // Include overstay tracking data
+      paymentApproval: 1,  // Include payment approval data
+      checkInOutId: 1  // Include check-in/out reference
     };
 
     // Execute optimized parallel queries
@@ -362,6 +367,7 @@ export const updateInvoiceStatus = async (req, res) => {
     }
 
     const Invoice = (await import("../models/Invoice.js")).default;
+    const CheckInOut = (await import("../models/CheckInOut.js")).default;
 
     const invoice = await Invoice.findById(invoiceId);
     if (!invoice) {
@@ -379,6 +385,24 @@ export const updateInvoiceStatus = async (req, res) => {
     if (status === 'Paid') {
       invoice.status = 'Paid';
       invoice.paidAt = new Date();
+      
+      // 🎯 OVERSTAY SPECIFIC: If this is an overstay invoice being marked as Paid
+      // Update CheckInOut record to allow guest checkout
+      if (invoice.overstayTracking?.isOverstayInvoice && invoice.checkInOutId) {
+        try {
+          const checkInOut = await CheckInOut.findById(invoice.checkInOutId);
+          if (checkInOut) {
+            checkInOut.overstay.paymentStatus = 'approved';
+            checkInOut.overstay.canCheckout = true;
+            checkInOut.overstay.approvalNotes = reason || 'Payment approved by admin';
+            await checkInOut.save();
+            console.log(`✅ CheckInOut updated: canCheckout = true for overstay invoice ${invoice.invoiceNumber}`);
+          }
+        } catch (checkInOutError) {
+          console.error('⚠️ Warning: Could not update CheckInOut record:', checkInOutError.message);
+          // Don't fail the entire operation, just log the warning
+        }
+      }
     } else if (status === 'Overdue') {
       invoice.status = 'Overdue';
       invoice.overdueAt = new Date();
@@ -386,6 +410,25 @@ export const updateInvoiceStatus = async (req, res) => {
       invoice.status = 'Cancelled';
     } else if (status === 'Sent') {
       invoice.status = 'Sent - Payment Pending';
+    } else if (status === 'Failed') {
+      invoice.status = 'Failed';
+      
+      // 🎯 OVERSTAY SPECIFIC: If this is an overstay invoice being marked as Failed
+      // Update CheckInOut record to block guest checkout
+      if (invoice.overstayTracking?.isOverstayInvoice && invoice.checkInOutId) {
+        try {
+          const checkInOut = await CheckInOut.findById(invoice.checkInOutId);
+          if (checkInOut) {
+            checkInOut.overstay.paymentStatus = 'rejected';
+            checkInOut.overstay.canCheckout = false; // Block checkout
+            checkInOut.overstay.approvalNotes = reason || 'Payment rejected by admin';
+            await checkInOut.save();
+            console.log(`✅ CheckInOut updated: canCheckout = false, guest blocked from checkout for overstay invoice ${invoice.invoiceNumber}`);
+          }
+        } catch (checkInOutError) {
+          console.error('⚠️ Warning: Could not update CheckInOut record:', checkInOutError.message);
+        }
+      }
     } else {
       // For other statuses like 'Draft', 'Pending'
       invoice.status = status;

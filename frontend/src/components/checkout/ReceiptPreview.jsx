@@ -45,19 +45,19 @@ const ReceiptPreview = ({ data }) => {
         <h4 className="font-semibold text-gray-800 mb-2">Charges</h4>
         <div className="flex justify-between py-2 border-b border-gray-100">
           <span>Room Charges:</span>
-          <span>₹{data.baseCharge.toLocaleString()}</span>
+          <span>රු{data.baseCharge.toLocaleString()}</span>
         </div>
         <div className="flex justify-between py-2 border-b border-gray-100">
           <span>Services:</span>
-          <span>₹{data.servicesCharges.toLocaleString()}</span>
+          <span>රු{data.servicesCharges.toLocaleString()}</span>
         </div>
         <div className="flex justify-between py-2 border-b border-gray-100">
           <span>Taxes:</span>
-          <span>₹{data.taxes.toLocaleString()}</span>
+          <span>රු{data.taxes.toLocaleString()}</span>
         </div>
         <div className="flex justify-between py-2 font-semibold text-lg">
           <span>Total:</span>
-          <span>₹{data.totalAmount.toLocaleString()}</span>
+          <span>රු{data.totalAmount.toLocaleString()}</span>
         </div>
       </div>
 

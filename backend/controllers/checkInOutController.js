@@ -6,6 +6,8 @@ import FoodOrder from '../models/FoodOrder.js';
 import KeyCard from '../models/KeyCard.js';
 import StaffTask from '../models/StaffTask.js';
 import { validateCheckInData, validateCheckOutData } from "../validations/checkInOutValidation.js";
+import config from "../config/environment.js";
+import OverstayService from "../services/payment/overstayService.js";
 
 // Helper function to create pre_checkin record when booking is confirmed
 export const createPreCheckInRecord = async (bookingId) => {
@@ -73,6 +75,32 @@ export const checkInGuest = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking || booking.status !== 'Confirmed') {
       return res.status(400).json({ message: 'Invalid booking or booking not fully confirmed/paid' });
+    }
+
+    // ⚠️ SECURITY: Validate check-in date is within booking period (only in production)
+    if (!config.DEVELOPMENT.SKIP_DATE_VALIDATION) {
+      const now = new Date();
+      const bookingCheckIn = new Date(booking.checkIn);
+      const bookingCheckOut = new Date(booking.checkOut);
+      
+      // Set time to start of day for date comparison
+      now.setHours(0, 0, 0, 0);
+      bookingCheckIn.setHours(0, 0, 0, 0);
+      bookingCheckOut.setHours(0, 0, 0, 0);
+
+      if (now < bookingCheckIn) {
+        return res.status(400).json({ 
+          message: `Check-in is only available from ${bookingCheckIn.toLocaleDateString()}. Early check-in is not permitted.`
+        });
+      }
+
+      if (now > bookingCheckOut) {
+        return res.status(400).json({ 
+          message: 'Your check-in date has passed the checkout date. Please contact the hotel.'
+        });
+      }
+    } else {
+      console.log('⏭️ Development mode: Skipping check-in date validation for booking:', bookingId);
     }
 
     // Verify room is available
@@ -144,12 +172,36 @@ export const checkOutGuest = async (req, res) => {
 
     const { checkInOutId, damageReport, keyCardReturned, additionalCharges } = req.body;
 
-    const checkInOut = await CheckInOut.findById(checkInOutId).populate('room').populate('guest', 'firstName lastName');
+    const checkInOut = await CheckInOut.findById(checkInOutId).populate('room').populate('guest', 'firstName lastName').populate('booking', 'checkOut');
     if (!checkInOut || checkInOut.status !== 'checked_in') {
       return res.status(400).json({ message: 'Invalid check-in record or guest already checked out' });
     }
 
     const checkoutTime = new Date();
+    
+    // ⚠️ SECURITY: Validate checkout against booking period (only in production)
+    // Guests can check out on or before their scheduled checkout date
+    if (!config.DEVELOPMENT.SKIP_DATE_VALIDATION) {
+      const bookingCheckOut = new Date(checkInOut.booking?.checkOut);
+      bookingCheckOut.setHours(23, 59, 59, 999); // End of checkout day
+      
+      if (checkoutTime > bookingCheckOut) {
+        // Guest is checking out LATE - they exceeded their paid booking period
+        const daysOverstay = Math.ceil((checkoutTime - bookingCheckOut) / (1000 * 60 * 60 * 24));
+        console.warn(`⚠️ OVERSTAY DETECTED: Guest checked out ${daysOverstay} days late. Booking ended on ${bookingCheckOut.toLocaleDateString()}, actual checkout: ${checkoutTime.toLocaleDateString()}`);
+        
+        // We still allow checkout but flag it for billing purposes
+        checkInOut.overstay = {
+          detected: true,
+          daysOverstayed: daysOverstay,
+          detectedAt: checkoutTime,
+          scheduledCheckoutDate: bookingCheckOut,
+          actualCheckoutDate: checkoutTime
+        };
+      }
+    } else {
+      console.log('⏭️ Development mode: Skipping check-out date validation, allowing any checkout time');
+    }
     checkInOut.checkOutTime = checkoutTime;
     checkInOut.checkedOutBy = req.user.id;
     checkInOut.damageReport = damageReport;
@@ -300,12 +352,17 @@ export const getEligibleBookingsForGuest = async (req, res) => {
   try {
     const guestId = req.user.id;
     const now = new Date();
+    
+    // ⚠️ SECURITY: Only show bookings within their check-in date range
+    // Guests can see bookings that:
+    // 1. Are confirmed and fully paid
+    // 2. Have a checkOut date that is today or in the future (not yet passed)
+    // 3. Don't have an active check-in record already
 
-    // Find confirmed bookings for this user that are current or upcoming
     const confirmedBookings = await Booking.find({
       userId: guestId,
       status: 'Confirmed',
-      checkOut: { $gte: now },
+      checkOut: { $gte: now }, // Only future or today's checkouts
     })
       .populate('roomId', 'roomNumber type')
       .select('bookingNumber status checkIn checkOut roomId');
@@ -334,6 +391,7 @@ export const getEligibleBookingsForGuest = async (req, res) => {
         room: b.roomId ? { roomNumber: b.roomId.roomNumber, type: b.roomId.type } : null,
       }));
 
+    console.log(`✅ Found ${eligible.length} eligible bookings for guest ${guestId}`);
     return res.status(200).json(eligible);
   } catch (error) {
     console.error('❌ Backend: Error fetching eligible bookings:', error);
@@ -401,7 +459,7 @@ export const getGuestCheckInStatus = async (req, res) => {
       status: { $in: ['pre_checkin', 'checked_in'] } // Include both pre_checkin and checked_in
     })
       .populate('guest', 'firstName lastName email phone')
-      .populate('room', 'roomNumber type')
+      .populate('room', 'roomNumber type basePrice floor') // Added basePrice for overstay charge calculation
       .populate('booking', 'checkIn checkOut bookingNumber status')
       .populate('keyCard', 'cardNumber status expirationDate')
       .sort({ checkInTime: -1 });
@@ -446,7 +504,7 @@ export const completeGuestCheckIn = async (req, res) => {
     }
 
     // Find the pre_checkin record
-    const checkInOut = await CheckInOut.findById(checkInOutId).populate('booking', 'status checkOut');
+    const checkInOut = await CheckInOut.findById(checkInOutId).populate('booking', 'status checkIn checkOut');
     if (!checkInOut || checkInOut.status !== 'pre_checkin') {
       return res.status(400).json({ message: 'Invalid pre-check-in record' });
     }
@@ -459,6 +517,34 @@ export const completeGuestCheckIn = async (req, res) => {
     // Enforce booking must be fully Confirmed (paid) before allowing check-in completion
     if (!checkInOut.booking || checkInOut.booking.status !== 'Confirmed') {
       return res.status(400).json({ message: 'Booking is not confirmed. Please complete payment before checking in.' });
+    }
+
+    // ⚠️ SECURITY: Validate check-in date is within booking period (only in production)
+    if (!config.DEVELOPMENT.SKIP_DATE_VALIDATION) {
+      const now = new Date();
+      const bookingCheckIn = new Date(checkInOut.booking.checkIn);
+      const bookingCheckOut = new Date(checkInOut.booking.checkOut);
+      
+      // Set time to start of day for date comparison
+      now.setHours(0, 0, 0, 0);
+      bookingCheckIn.setHours(0, 0, 0, 0);
+      bookingCheckOut.setHours(0, 0, 0, 0);
+
+      if (now < bookingCheckIn) {
+        return res.status(400).json({ 
+          message: `Check-in is only available from ${bookingCheckIn.toLocaleDateString()}. Early check-in is not permitted.`,
+          expectedCheckInDate: bookingCheckIn
+        });
+      }
+
+      if (now > bookingCheckOut) {
+        return res.status(400).json({ 
+          message: 'Your check-in date has passed the checkout date. Please contact the hotel.',
+          bookingCheckOut: bookingCheckOut
+        });
+      }
+    } else {
+      console.log('⏭️ Development mode: Skipping check-in date validation for check-in record:', checkInOutId);
     }
 
     // Find an available key card
@@ -569,3 +655,343 @@ export const generateReceipt = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ⚠️ NEW: Handle overstay payment
+export const processOverstayPayment = async (req, res) => {
+  try {
+    const guestId = req.user._id;
+    const { checkInOutId, paymentMethod, paymentData, amount, daysOverstay } = req.body;
+
+    // Validate required fields
+    if (!checkInOutId || !paymentMethod || !amount || !daysOverstay) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required payment information'
+      });
+    }
+
+    // Find the check-in record
+    const checkInOut = await CheckInOut.findById(checkInOutId)
+      .populate('guest', 'firstName lastName email')
+      .populate('room', 'roomNumber basePrice')
+      .populate('booking', 'checkOut');
+
+    if (!checkInOut) {
+      return res.status(404).json({
+        success: false,
+        message: 'Check-in record not found'
+      });
+    }
+
+    // Verify guest is making this request
+    if (checkInOut.guest._id.toString() !== guestId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized: Cannot process payment for another guest'
+      });
+    }
+
+    // Verify guest is still checked in
+    if (checkInOut.status !== 'checked_in') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid check-in status for overstay payment'
+      });
+    }
+
+    // ⚠️ SECURITY: Verify overstay actually occurred
+    const bookingCheckOut = new Date(checkInOut.booking.checkOut);
+    bookingCheckOut.setHours(23, 59, 59, 999);
+    const now = new Date();
+
+    if (now <= bookingCheckOut) {
+      return res.status(400).json({
+        success: false,
+        message: 'No overstay detected. Guest can check out normally.'
+      });
+    }
+
+    // Calculate actual overstay days
+    const actualDaysOverstay = Math.ceil((now - bookingCheckOut) / (1000 * 60 * 60 * 24));
+    
+    // Validate amount is reasonable (should match room rate * 1.5 * days)
+    const roomRate = checkInOut.room.basePrice || 5000;
+    const expectedCharge = roomRate * 1.5 * actualDaysOverstay;
+    const variance = Math.abs(amount - expectedCharge) / expectedCharge;
+
+    if (variance > 0.1) { // Allow 10% variance
+      console.warn(`⚠️ Overstay charge variance detected: expected ${expectedCharge}, received ${amount}`);
+    }
+
+    // Process payment based on method
+    let paymentStatus = 'pending_payment';
+    let paymentReference = null;
+
+    if (paymentMethod === 'card') {
+      // Mock card payment processing - in production, integrate with payment gateway
+      if (paymentData?.cardNumber && paymentData?.cvv && paymentData?.cardholderName) {
+        paymentStatus = 'completed';
+        paymentReference = `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('✅ Card payment processed for overstay');
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid card details'
+        });
+      }
+    } else if (paymentMethod === 'bank') {
+      // Bank transfer - requires manual verification
+      paymentStatus = 'pending_verification';
+      paymentReference = `BANK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log('✅ Bank transfer initiated for overstay');
+    } else if (paymentMethod === 'cash') {
+      // Cash payment - create invoice and set as pending approval
+      paymentStatus = 'pending_approval';
+      paymentReference = `CASH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log('✅ Cash payment initiated for overstay - awaiting admin approval');
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment method'
+      });
+    }
+
+    // Create or update overstay invoice (especially important for cash payments)
+    let invoice = null;
+    try {
+      invoice = await OverstayService.createOverstayInvoice(checkInOutId, actualDaysOverstay, amount);
+      console.log(`✅ Overstay invoice created/updated: ${invoice.invoiceNumber}`);
+    } catch (invoiceError) {
+      console.error('⚠️ Warning: Could not create overstay invoice:', invoiceError.message);
+      // Don't fail the payment if invoice creation fails, but log it
+    }
+
+    // Record overstay payment
+    checkInOut.overstay = {
+      detected: true,
+      daysOverstayed: actualDaysOverstay,
+      detectedAt: new Date(),
+      scheduledCheckoutDate: bookingCheckOut,
+      actualCheckoutDate: now,
+      chargeAmount: amount,
+      chargePending: paymentStatus !== 'completed',
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      paymentReference: paymentReference,
+      invoiceId: invoice?._id,
+      canCheckout: paymentStatus === 'completed' // Only completed payments allow checkout
+    };
+
+    await checkInOut.save();
+
+    console.log('✅ Overstay payment recorded:', {
+      checkInOutId,
+      paymentMethod,
+      amount,
+      daysOverstay: actualDaysOverstay,
+      paymentStatus,
+      paymentReference,
+      invoiceId: invoice?._id
+    });
+
+    // Prepare response based on payment method
+    let nextStep = 'Please contact reception for next steps.';
+    if (paymentStatus === 'completed') {
+      nextStep = 'Payment completed. You can now proceed with checkout.';
+    } else if (paymentStatus === 'pending_verification') {
+      nextStep = 'Your bank transfer is pending verification. Please contact reception.';
+    } else if (paymentStatus === 'pending_approval') {
+      nextStep = 'Your cash payment has been recorded. Please wait for admin approval before checkout.';
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Overstay payment of රු${amount} processed successfully`,
+      data: {
+        checkInOutId,
+        invoiceId: invoice?._id,
+        invoiceNumber: invoice?.invoiceNumber,
+        daysOverstayed: actualDaysOverstay,
+        chargeAmount: amount,
+        paymentMethod,
+        paymentStatus,
+        paymentReference,
+        nextStep,
+        canCheckout: paymentStatus === 'completed'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error processing overstay payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing overstay payment',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Admin approves overstay cash payment
+ * Allows guest to proceed with checkout
+ */
+export const approveOverstayPayment = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { invoiceId } = req.params;
+    const { approvalNotes = '' } = req.body;
+
+    if (!invoiceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID is required'
+      });
+    }
+
+    const invoice = await OverstayService.approveOverstayPayment(invoiceId, adminId, approvalNotes);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Overstay payment approved successfully',
+      data: {
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        status: invoice.status,
+        approvedAt: invoice.paymentApproval.approvedAt,
+        approvalNotes: invoice.paymentApproval.approvalNotes
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error approving overstay payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error approving overstay payment',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Admin rejects overstay cash payment
+ * Requires guest to pay more or provide additional evidence
+ */
+export const rejectOverstayPayment = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { invoiceId } = req.params;
+    const { rejectionReason = '' } = req.body;
+
+    if (!invoiceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID is required'
+      });
+    }
+
+    if (!rejectionReason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
+
+    const invoice = await OverstayService.rejectOverstayPayment(invoiceId, adminId, rejectionReason);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Overstay payment rejected',
+      data: {
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        status: invoice.status,
+        rejectionReason: invoice.paymentApproval.rejectionReason,
+        rejectionDate: invoice.paymentApproval.rejectionDate
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error rejecting overstay payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error rejecting overstay payment',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Admin adjusts overstay charges
+ */
+export const adjustOverstayCharges = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { invoiceId } = req.params;
+    const { newAmount, adjustmentNotes = '' } = req.body;
+
+    if (!invoiceId || newAmount === undefined || newAmount === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID and new amount are required'
+      });
+    }
+
+    if (newAmount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'New amount cannot be negative'
+      });
+    }
+
+    const invoice = await OverstayService.adjustOverstayCharges(invoiceId, adminId, newAmount, adjustmentNotes);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Overstay charges adjusted successfully',
+      data: {
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        newAmount: invoice.amount,
+        adjustmentNotes: invoice.overstayTracking.adjustmentNotes,
+        updatedAt: invoice.overstayTracking.lastUpdatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error adjusting overstay charges:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adjusting overstay charges',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get pending overstay invoices (for admin dashboard)
+ */
+export const getPendingOverstayInvoices = async (req, res) => {
+  try {
+    const { approvalStatus = 'pending', page = 1, limit = 20 } = req.query;
+
+    const invoices = await OverstayService.getPendingOverstayInvoices({
+      approvalStatus,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: invoices,
+      total: invoices.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching pending overstay invoices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching pending overstay invoices',
+      error: error.message
+    });
+  }
+};
+

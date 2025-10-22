@@ -114,6 +114,7 @@ const config = {
     MOCK_PAYMENTS: process.env.MOCK_PAYMENTS === "true",
     SKIP_EMAIL_VERIFICATION: process.env.SKIP_EMAIL_VERIFICATION === "true",
     DEBUG_MODE: process.env.DEBUG_MODE === "true",
+    SKIP_DATE_VALIDATION: process.env.SKIP_DATE_VALIDATION === "true" || process.env.NODE_ENV !== "production",
   },
 };
 
