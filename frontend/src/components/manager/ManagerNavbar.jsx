@@ -1,15 +1,15 @@
 import { motion } from "framer-motion";
-import { Search, Bell, Moon, Sun, Hotel, Menu, LogOut } from "lucide-react";
+import { Search, Moon, Sun, Hotel, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 import { ManagerInput } from "@/components/manager/ManagerInput";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/manager/ManagerAvatar";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
+import NotificationDropdown from "@/components/common/NotificationDropdown.jsx";
 
 export const ManagerNavbar = ({ onToggleSidebar }) => {
   const [isDark, setIsDark] = useState(true);
-  const [notifications] = useState(3);
   const { user, logout } = useAuth();
 
   const managerProfile = useMemo(() => {
@@ -118,22 +118,7 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
             )}
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative rounded-xl border border-transparent text-gray-800 transition-all duration-300 hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50"
-          >
-            <Bell className="h-5 w-5 text-indigo-600" />
-            {notifications > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-semibold text-white shadow-sm"
-              >
-                {notifications}
-              </motion.span>
-            )}
-          </Button>
+          <NotificationDropdown />
 
           <Button
             variant="ghost"

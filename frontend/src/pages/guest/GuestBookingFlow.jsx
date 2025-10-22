@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSettings } from '../../context/SettingsContext';
 import RoomCard from '../../components/booking/RoomCard';
 import Card, { CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -17,7 +18,20 @@ import paymentService from '../../services/paymentService';
 const GuestBookingFlow = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { settings } = useSettings();
   const { user, isAuthenticated } = useContext(AuthContext);
+
+  // Check if guest booking is allowed
+  useEffect(() => {
+    if (settings.allowGuestBooking === false && !isAuthenticated) {
+      navigate('/login', { state: { from: location.pathname, message: 'Please login to book a room' } });
+    }
+  }, [settings.allowGuestBooking, isAuthenticated, navigate, location.pathname]);
+
+  // If guest booking is not allowed and user is not authenticated, don't render anything
+  if (settings.allowGuestBooking === false && !isAuthenticated) {
+    return null;
+  }
 
   const [step, setStep] = useState(1);
   const [availableRooms, setAvailableRooms] = useState([]);

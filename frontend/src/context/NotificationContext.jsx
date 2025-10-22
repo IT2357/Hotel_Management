@@ -106,9 +106,16 @@ const NotificationContext = createContext(undefined);
 export const NotificationProvider = ({ children }) => {
   const [state, dispatch] = useReducer(notificationReducer, initialState);
 
+  // Helper: check auth token
+  const hasToken = () => {
+    const token = localStorage.getItem('token');
+    return token && token !== 'undefined' && token !== 'null';
+  };
+
   // Fetch notifications
   const fetchNotifications = useCallback(async (params = {}) => {
     try {
+      if (!hasToken()) return;
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
       const response = await notificationService.getMyNotifications(params);
       console.log('Fetched notifications response:', response); // Debug log
@@ -136,6 +143,7 @@ export const NotificationProvider = ({ children }) => {
   // Fetch unread count
   const fetchUnreadCount = useCallback(async () => {
     try {
+      if (!hasToken()) return;
       const response = await notificationService.getUnreadCount();
       console.log('Unread count response:', response); // Debug log
       
@@ -156,17 +164,19 @@ export const NotificationProvider = ({ children }) => {
   // Fetch preferences
   const fetchPreferences = useCallback(async () => {
     try {
+      if (!hasToken()) return;
       const data = await notificationService.getMyPreferences();
       dispatch({ type: ActionTypes.SET_PREFERENCES, payload: data.preferences || {} });
     } catch (error) {
       dispatch({ type: ActionTypes.SET_ERROR, payload: error.message });
-      toast.error(`Failed to fetch preferences: ${error.message}`);
+      if (hasToken()) toast.error(`Failed to fetch preferences: ${error.message}`);
     }
   }, []);
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
+      if (!hasToken()) return;
       await notificationService.markAsRead(notificationId);
       dispatch({ type: ActionTypes.MARK_AS_READ, payload: notificationId });
     } catch (error) {
@@ -177,6 +187,7 @@ export const NotificationProvider = ({ children }) => {
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
     try {
+      if (!hasToken()) return;
       await notificationService.markAllAsRead();
       dispatch({ type: ActionTypes.MARK_ALL_AS_READ });
       toast.success('All notifications marked as read');
@@ -188,6 +199,7 @@ export const NotificationProvider = ({ children }) => {
   // Delete notification
   const deleteNotification = useCallback(async (notificationId) => {
     try {
+      if (!hasToken()) return;
       await notificationService.deleteNotification(notificationId);
       dispatch({ type: ActionTypes.REMOVE_NOTIFICATION, payload: notificationId });
       toast.success('Notification deleted');
@@ -199,6 +211,7 @@ export const NotificationProvider = ({ children }) => {
   // Update preferences
   const updatePreferences = useCallback(async (preferences) => {
     try {
+      if (!hasToken()) return;
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
       const data = await notificationService.updateMyPreferences(preferences);
       dispatch({ type: ActionTypes.SET_PREFERENCES, payload: data.preferences || {} });
@@ -220,20 +233,21 @@ export const NotificationProvider = ({ children }) => {
     dispatch({ type: ActionTypes.CLEAR_ERROR });
   }, []);
 
-  // Initialize data on mount and set up polling
+  // Initialize data on mount and set up polling (only when authenticated)
   useEffect(() => {
+    if (!hasToken()) return;
     fetchNotifications();
     fetchUnreadCount();
     fetchPreferences();
 
     // Set up real-time polling every 30 seconds for unread count
     const unreadCountInterval = setInterval(() => {
-      fetchUnreadCount();
+      if (hasToken()) fetchUnreadCount();
     }, 30000);
 
     // Set up polling every 60 seconds for new notifications
     const notificationsInterval = setInterval(() => {
-      fetchNotifications({ limit: 20 }); // Get latest 20 notifications
+      if (hasToken()) fetchNotifications({ limit: 20 }); // Get latest 20 notifications
     }, 60000);
 
     // Cleanup intervals on unmount

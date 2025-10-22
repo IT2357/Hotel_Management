@@ -56,6 +56,15 @@ const settingsService = {
         "bookingConfirmations",
         "promotionalEmails",
         "adminNotifications",
+        "smsProvider",
+        "smsAccountSid",
+        "smsAuthToken",
+        "smsPhoneNumber",
+        "enableGoogleAuth",
+        "enableFacebookAuth",
+        "enableSocialRegistration",
+        "autoApprovalThreshold",
+        "approvalTimeoutHours",
         
         // Security settings
         "passwordMinLength",
@@ -63,6 +72,14 @@ const settingsService = {
         "sessionTimeout",
         "maxLoginAttempts",
         "twoFactorRequired",
+        "allowGuestBooking",
+        "requireApprovalForAllBookings",
+        "maxAdvanceBooking",
+        "cancellationPolicy",
+        "defaultCheckInTime",
+        "defaultCheckOutTime",
+        "maxGuestsPerRoom",
+        "maintenanceMode",
         
         // Operational settings
         "operationalSettings",
@@ -100,7 +117,7 @@ const settingsService = {
       );
 
       if (Object.keys(filteredUpdates).length === 0) {
-        throw new Error("No valid fields provided for update");
+        throw new Error("No valid fields for update");
       }
 
       console.log("Filtered updates:", filteredUpdates);
@@ -138,6 +155,18 @@ const settingsService = {
         isNaN(filteredUpdates.maxGuestsPerRoom)
       ) {
         throw new Error("maxGuestsPerRoom must be a number");
+      }
+      if (
+        filteredUpdates.autoApprovalThreshold &&
+        isNaN(filteredUpdates.autoApprovalThreshold)
+      ) {
+        throw new Error("autoApprovalThreshold must be a number");
+      }
+      if (
+        filteredUpdates.approvalTimeoutHours &&
+        isNaN(filteredUpdates.approvalTimeoutHours)
+      ) {
+        throw new Error("approvalTimeoutHours must be a number");
       }
 
       const settings = await AdminSettings.findOneAndUpdate(

@@ -2,6 +2,7 @@ import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { NavLink } from "react-router-dom";
 import Card from "../../components/ui/Card";
+import { formatCurrency } from "../../utils/currencyUtils";
 
 export default function AdminDashboardPage() {
   const { user } = useContext(AuthContext);
@@ -55,15 +56,6 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
   };
 
   const quickStatsItems = [
@@ -284,13 +276,6 @@ export default function AdminDashboardPage() {
               >
                 <div className="text-purple-600 font-medium">👥</div>
                 <div className="text-sm mt-1">User Management</div>
-              </NavLink>
-              <NavLink
-                to="/admin/reports"
-                className="p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-center"
-              >
-                <div className="text-blue-600 font-medium">📊</div>
-                <div className="text-sm mt-1">View Reports</div>
               </NavLink>
               <NavLink
                 to="/admin/rooms"

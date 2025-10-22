@@ -4,6 +4,7 @@ import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import { Users, Star } from 'lucide-react';
+import { formatCurrency } from '../../utils/currencyUtils';
 
 export default function RoomCard({
   room,
@@ -33,10 +34,7 @@ export default function RoomCard({
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-blue-600">
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'LKR'
-                }).format(room.pricing.total)}
+                {formatCurrency(room.pricing.total, room.currency)}
               </p>
               <p className="text-sm text-gray-500">per night</p>
             </div>
@@ -59,26 +57,17 @@ export default function RoomCard({
             <div className="flex flex-wrap gap-2">
               {room.pricing.breakdown.roomCost > 0 && (
                 <Badge variant="secondary">
-                  Room Cost: {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'LKR'
-                  }).format(room.pricing.breakdown.roomCost)}
+                  Room Cost: {formatCurrency(room.pricing.breakdown.roomCost, room.currency)}
                 </Badge>
               )}
               {room.pricing.breakdown.taxes > 0 && (
                 <Badge variant="secondary">
-                  Tax: {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'LKR'
-                  }).format(room.pricing.breakdown.taxes)}
+                  Taxes: {formatCurrency(room.pricing.breakdown.taxes, room.currency)}
                 </Badge>
               )}
               {room.pricing.breakdown.serviceFees > 0 && (
                 <Badge variant="secondary">
-                  Service Fee: {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'LKR'
-                  }).format(room.pricing.breakdown.serviceFees)}
+                  Service Fee: {formatCurrency(room.pricing.breakdown.serviceFees, room.currency)}
                 </Badge>
               )}
             </div>
@@ -86,10 +75,7 @@ export default function RoomCard({
             <div className="bg-gray-50 p-3 rounded">
               <p className="text-sm font-medium">Total for {room.pricing.nights} nights:</p>
               <p className="text-lg font-bold text-green-600">
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'LKR'
-                }).format(room.pricing.total)}
+                {formatCurrency(room.pricing.total, room.currency)}
               </p>
               <p className="text-xs text-gray-500">
                 Includes all taxes and fees

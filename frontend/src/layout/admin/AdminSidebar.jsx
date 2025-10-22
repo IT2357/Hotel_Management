@@ -23,7 +23,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
     { label: 'Bookings', to: '/admin/bookings', icon: '📅' },
     { label: 'Invoices', to: '/admin/invoices', icon: '🧾' },
     { label: 'Refunds', to: '/admin/refunds', icon: '💸' },
-    { label: 'Reports', to: '/admin/reports', icon: '📊' },
+    // { label: 'Reports', to: '/admin/reports', icon: '📊' }, // REMOVED: Placeholder functionality
     { label: 'Rooms', to: '/admin/rooms', icon: '🛏️' },
     { 
       label: 'Food Management', 

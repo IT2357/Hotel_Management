@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import adminService from '../services/adminService';
+import { setAppCurrency } from '../utils/currencyUtils';
 
 const SettingsContext = createContext();
 
@@ -21,7 +22,12 @@ export const SettingsProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       const response = await adminService.getAdminSettings();
-      setSettings(response.data || {});
+      const settingsData = response.data || {};
+      setSettings(settingsData);
+      // Set the currency in the currency utils
+      if (settingsData.currency) {
+        setAppCurrency(settingsData.currency);
+      }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
       // Check if it's an authentication error (403)
@@ -35,7 +41,7 @@ export const SettingsProvider = ({ children }) => {
       setSettings({
         siteName: 'Hotel Management System',
         hotelName: 'Grand Hotel',
-        currency: 'USD',
+        currency: 'LKR',
         timezone: 'UTC',
         sessionTimeout: 30,
         passwordMinLength: 8,
@@ -48,6 +54,8 @@ export const SettingsProvider = ({ children }) => {
         allowGuestBooking: true,
         requireApproval: false
       });
+      // Set default currency in currency utils
+      setAppCurrency('LKR');
     } finally {
       setLoading(false);
     }
@@ -57,6 +65,10 @@ export const SettingsProvider = ({ children }) => {
     try {
       const response = await adminService.updateAdminSettings(newSettings);
       setSettings(response.data);
+      // Update currency in currency utils if currency was changed
+      if (newSettings.currency) {
+        setAppCurrency(newSettings.currency);
+      }
       return response.data;
     } catch (err) {
       console.error('Failed to update settings:', err);

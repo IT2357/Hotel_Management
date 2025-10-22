@@ -4,6 +4,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2, Mail } from 'lucide-react';
+import { formatCurrency } from '../../utils/currencyUtils';
 
 export default function BookingConfirmation({ bookingData, onClose }) {
   const navigate = useNavigate();
@@ -35,11 +36,8 @@ export default function BookingConfirmation({ bookingData, onClose }) {
     });
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
+  const formatPrice = (price, currency = 'LKR') => {
+    return formatCurrency(price, currency);
   };
 
   const getNights = () => {

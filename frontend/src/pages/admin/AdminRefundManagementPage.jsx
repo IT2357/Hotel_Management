@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
 import { AuthContext } from '../../context/AuthContext';
 import adminService from '../../services/adminService';
+import { formatCurrency } from '../../utils/currencyUtils';
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -235,9 +236,8 @@ const AdminRefundManagementPage = () => {
     }
   };
 
-  const formatAmount = (amount, currency = 'LKR') => {
-    return new Intl.NumberFormat('en-LK', { style: 'currency', currency }).format(amount);
-  };
+  // Use the imported formatCurrency utility for consistent currency formatting
+  const formatAmount = formatCurrency;
 
   return (
     <DefaultAdminLayout>
@@ -493,7 +493,7 @@ function RefundsList({ refunds, onViewDetails, onAction, onCheckStatus, getStatu
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c2.21 0 4-1.79 4-4S14.21 0 12 0 8 1.79 8 4s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                   </svg>
-                  <span>{formatAmount(refund.amount, refund.currency)}</span>
+                  <span>{formatAmount(refund.amount, refund.currency || 'LKR')}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -591,7 +591,9 @@ function RefundDetailsModal({ isOpen, refund, onClose, formatAmount, getStatusCo
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-600">Amount</p>
-              <p className="text-sm text-gray-900">{formatAmount(refund.amount, refund.currency)}</p>
+              <p className="text-sm text-gray-900">
+                {formatAmount(refund.amount, refund.currency || 'LKR')}
+              </p>
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-600">Status</p>
@@ -687,7 +689,7 @@ function RefundActionModal({
           <p className="text-gray-700 mb-2">You are about to {actionType} the following refund:</p>
           <div className="space-y-2">
             <p><strong>Booking:</strong> {refund.bookingId?.bookingNumber || 'N/A'}</p>
-            <p><strong>Amount:</strong> {formatAmount(refund.amount, refund.currency)}</p>
+            <p><strong>Amount:</strong> {formatAmount(refund.amount, refund.currency || 'LKR')}</p>
             <p><strong>Guest:</strong> {refund.guestId?.name || 'N/A'}</p>
           </div>
         </div>

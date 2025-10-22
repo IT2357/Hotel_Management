@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 
 import { AuthContext } from "../../context/AuthContext";
+import { formatCurrency } from '../../utils/currencyUtils';
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

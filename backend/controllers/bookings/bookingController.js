@@ -114,12 +114,20 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    const userId = req.user._id;
+    // Check if user is authenticated if guest booking is not allowed
+    const settings = await AdminSettings.findOne().lean() || {};
+    if (settings.allowGuestBooking === false && !req.user?._id) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest booking is not allowed. Please log in to make a booking.",
+        requiresLogin: true
+      });
+    }
+
+    const userId = req.user?._id;
 
     // Get operational settings for validation
-    const settings = await AdminSettings.findOne().lean();
-    if (!settings) {
-      // Create default settings if none exist
+    if (!settings.general) {
       const defaultSettings = new AdminSettings({
         general: {
           hotelName: 'Hotel Management System',
@@ -133,7 +141,8 @@ export const createBooking = async (req, res) => {
           bankTransferApprovalRequired: true,
           cashPaymentApprovalRequired: true,
           autoApprovalThreshold: 50000,
-          approvalTimeoutHours: 24
+          approvalTimeoutHours: 24,
+          allowGuestBooking: false // Default to false for security
         },
         email: {
           smtpHost: 'smtp.gmail.com',

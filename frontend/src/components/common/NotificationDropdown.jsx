@@ -1,10 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNotifications } from '../../context/NotificationContext';
+import useAuth from '../../hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [filterChannel, setFilterChannel] = useState('all');
+  const { user } = useAuth();
   const dropdownRef = useRef(null);
   const {
     notifications,
@@ -21,7 +26,9 @@ const NotificationDropdown = () => {
     notifications,
     unreadCount,
     loading,
-    notificationsLength: notifications?.length
+    notificationsLength: notifications?.length,
+    hasUnread: unreadCount > 0,
+    shouldShowButton: unreadCount > 0
   });
 
   // Close dropdown when clicking outside
@@ -90,6 +97,32 @@ const NotificationDropdown = () => {
     return iconMap[type] || iconMap.default;
   };
 
+  // Derived: unique types/channels for filter dropdowns
+  const typeOptions = useMemo(() => {
+    const set = new Set();
+    notifications.forEach(n => n.type && set.add(n.type));
+    return ['all', ...Array.from(set)];
+  }, [notifications]);
+
+  const channelOptions = useMemo(() => {
+    const set = new Set();
+    notifications.forEach(n => n.channel && set.add(n.channel));
+    return ['all', ...Array.from(set)];
+  }, [notifications]);
+
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      // Defensive: ensure only current user's notifications if userId present
+      if (n.userId && user?._id && String(n.userId) !== String(user._id)) return false;
+      if (showUnreadOnly && n.isRead) return false;
+      if (filterType !== 'all' && n.type !== filterType) return false;
+      if (filterChannel !== 'all' && n.channel !== filterChannel) return false;
+      // Role-aware client check (defensive): if notification has userType, ensure it matches current role
+      if (n.userType && user?.role && n.userType !== user.role) return false;
+      return true;
+    });
+  }, [notifications, showUnreadOnly, filterType, filterChannel, user]);
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Notification Bell Button */}
@@ -139,18 +172,44 @@ const NotificationDropdown = () => {
             </div>
           </div>
 
+          {/* Filters */}
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/40 flex items-center gap-2">
+            <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+              <input type="checkbox" checked={showUnreadOnly} onChange={(e) => setShowUnreadOnly(e.target.checked)} />
+              Unread
+            </label>
+            <select
+              className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              {typeOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <select
+              className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1"
+              value={filterChannel}
+              onChange={(e) => setFilterChannel(e.target.value)}
+            >
+              {channelOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Notifications List */}
           <div className="max-h-80 overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 Loading notifications...
               </div>
-            ) : notifications.length === 0 ? (
+            ) : filteredNotifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                No notifications yet
+                No notifications to display
               </div>
             ) : (
-              notifications.slice(0, 10).map((notification) => (
+              filteredNotifications.slice(0, 10).map((notification) => (
                 <div
                   key={notification._id || notification.id}
                   onClick={() => handleNotificationClick(notification)}
@@ -202,7 +261,7 @@ const NotificationDropdown = () => {
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
+          {filteredNotifications.length > 0 && user?.role === 'admin' && (
             <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
               <button
                 onClick={() => {
@@ -216,6 +275,21 @@ const NotificationDropdown = () => {
               </button>
             </div>
           )}
+
+          {/* Footer - REMOVED: Dashboard now provides full notification functionality */}
+          {/* {filteredNotifications.length > 0 && user?.role === 'staff' && (
+            <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  window.location.href = '/staff/notifications';
+                }}
+                className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 w-full text-center"
+              >
+                View all notifications
+              </button>
+            </div>
+          )} */}
         </div>
       )}
 

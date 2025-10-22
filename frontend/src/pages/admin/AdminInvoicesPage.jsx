@@ -1,6 +1,7 @@
 // 📁 frontend/src/pages/admin/AdminInvoicesPage.jsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import debounce from 'lodash/debounce';
+import { formatCurrency } from '../../utils/currencyUtils';
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";

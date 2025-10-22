@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, X, User, LogIn, LogOut, ArrowLeft } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import NotificationDropdown from '../../components/common/NotificationDropdown.jsx';
 
 export default function SharedNavbar({ showBackButton = false, backPath = '/' }) {
   const { user, logout } = useContext(AuthContext);
@@ -91,6 +92,8 @@ export default function SharedNavbar({ showBackButton = false, backPath = '/' })
             {/* Authentication Buttons */}
             {user ? (
               <div className="hidden lg:flex items-center space-x-3">
+                {/* Notifications Bell for authenticated users */}
+                <NotificationDropdown />
                 <Link
                   to="/user/dashboard"
                   className="text-gray-700 hover:text-indigo-600 transition-colors font-medium px-4 py-2 rounded-lg hover:bg-indigo-50"

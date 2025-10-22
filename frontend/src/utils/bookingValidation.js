@@ -1,4 +1,5 @@
 import { format, addDays, differenceInDays, parseISO, isAfter, isBefore } from 'date-fns';
+import { formatCurrency } from './currencyUtils';
 
 // Booking validation utility that uses settings
 export const validateBookingDates = (checkIn, checkOut, settings = {}) => {
@@ -130,15 +131,8 @@ export const calculateBookingCost = (checkIn, checkOut, roomRate, settings = {})
     total,
     deposit,
     depositRequired,
-    currency: settings.currency || 'USD'
+    currency: settings.currency || 'LKR'
   };
-};
-
-export const formatCurrency = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency
-  }).format(amount);
 };
 
 export const getCancellationPolicy = (settings = {}) => {
