@@ -186,20 +186,49 @@ const IntegratedBookingFlow = ({
       console.log('User authenticated:', isAuthenticated);
       console.log('Booking service available:', !!bookingService);
 
+      // Get detailed cost breakdown for complete data submission
+      const costBreakdown = calculateTotalCost();
+
       const bookingPayload = {
         ...bookingData,
         roomId: roomId,
         checkIn: new Date(bookingData.checkIn).toISOString(),
         checkOut: new Date(bookingData.checkOut).toISOString(),
-        totalAmount: calculateTotalCost().total,
+        totalAmount: costBreakdown.total,
         nights: calculateNights(),
         status: 'Pending Approval',
         roomBasePrice: roomPrice,
         foodPlan: bookingData.foodPlan || 'None',
+        selectedMeals: bookingData.selectedMeals || [],
         guests: bookingData.guests || 1,
+        guestCount: {
+          adults: bookingData.guests || 1,
+          children: 0 // Default for now, can be enhanced later
+        },
         specialRequests: bookingData.specialRequests || '',
         paymentMethod: paymentData.paymentMethod || 'cash',
-        roomTitle: roomName
+        roomTitle: roomName,
+        source: 'website',
+        // Include detailed cost breakdown
+        costBreakdown: {
+          nights: costBreakdown.nights,
+          roomRate: roomPrice,
+          subtotal: costBreakdown.roomCost,
+          tax: costBreakdown.taxes,
+          serviceFee: costBreakdown.serviceCharge,
+          mealPlanCost: costBreakdown.foodCost,
+          total: costBreakdown.total,
+          currency: 'LKR',
+          depositRequired: false,
+          deposit: 0
+        },
+        metadata: {
+          ip: 'N/A',
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          bookingSource: 'frontend_booking_flow',
+          version: '1.0'
+        }
       };
 
       console.log('Submitting booking:', bookingPayload);

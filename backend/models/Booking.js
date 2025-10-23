@@ -125,6 +125,21 @@ const bookingSchema = new mongoose.Schema(
     requiresReview: { type: Boolean, default: true },
     autoCancelled: { type: Boolean, default: false },
 
+    // Additional booking details
+    roomTitle: String, // Room name/title for reference
+    roomBasePrice: Number, // Base price per night
+    nights: Number, // Number of nights
+    source: { type: String, default: 'website' }, // Booking source
+    
+    // Metadata for tracking and analytics
+    metadata: {
+      ip: String,
+      userAgent: String,
+      timestamp: String,
+      bookingSource: String,
+      version: String
+    },
+
     // Timestamps with workflow
     lastStatusChange: { type: Date, default: Date.now }
   },

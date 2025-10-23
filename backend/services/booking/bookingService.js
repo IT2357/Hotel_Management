@@ -389,16 +389,31 @@ class BookingService {
       console.log('✅ Final booking status:', finalStatus);
 
       // Create booking
-      const booking = new Booking({
+      let booking = new Booking({
         ...bookingData,
         userId,
         roomId: bookingData.roomId,
         checkIn: bookingData.checkIn,
         checkOut: bookingData.checkOut,
-        guests: bookingData.guests || bookingData.guestCount || 1,
+        guests: bookingData.guests || bookingData.guestCount?.adults || 1,
         guestCount: bookingData.guestCount || { adults: bookingData.guests || 1, children: 0 },
         specialRequests: bookingData.specialRequests,
-        costBreakdown,
+        totalPrice: bookingData.totalAmount || costBreakdown.total,
+        costBreakdown: bookingData.costBreakdown || costBreakdown,
+        nights: bookingData.nights || nights,
+        roomBasePrice: bookingData.roomBasePrice || room.pricePerNight,
+        roomTitle: bookingData.roomTitle || room.title || room.name,
+        source: bookingData.source || 'website',
+        paymentMethod: bookingData.paymentMethod || 'cash',
+        foodPlan: bookingData.foodPlan || 'None',
+        selectedMeals: bookingData.selectedMeals || [],
+        metadata: bookingData.metadata || {
+          ip: 'backend-generated',
+          userAgent: 'backend-service',
+          timestamp: new Date().toISOString(),
+          bookingSource: 'backend_service',
+          version: '1.0'
+        },
         status: finalStatus, // Use the determined status
         bookingSettings: {
           checkInTime: settings.defaultCheckInTime,

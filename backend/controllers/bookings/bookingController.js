@@ -56,7 +56,7 @@ export const releaseBookingHold = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Booking ID is required' });
     }
 
-    const booking = await Booking.findById(bookingId);
+    let booking = await Booking.findById(bookingId);
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
@@ -103,7 +103,16 @@ export const createBooking = async (req, res) => {
       specialRequests,
       foodPlan,
       selectedMeals,
-      paymentMethod
+      paymentMethod,
+      totalAmount,
+      nights,
+      status,
+      roomBasePrice,
+      guestCount,
+      roomTitle,
+      source,
+      costBreakdown,
+      metadata
     } = req.body;
 
     // Input validation
@@ -115,7 +124,7 @@ export const createBooking = async (req, res) => {
     }
 
     // Check if user is authenticated if guest booking is not allowed
-    const settings = await AdminSettings.findOne().lean() || {};
+    let settings = await AdminSettings.findOne().lean() || {};
     if (settings.allowGuestBooking === false && !req.user?._id) {
       return res.status(403).json({
         success: false,
@@ -188,10 +197,23 @@ export const createBooking = async (req, res) => {
       specialRequests,
       foodPlan: foodPlan || "None",
       selectedMeals: selectedMeals || [],
-      source: "website",
+      source: source || "website",
       paymentMethod: paymentMethod || 'cash',
-      status: bookingStatus, // Let service determine final status
-      requiresApproval
+      status: status || bookingStatus, // Use provided status or default
+      requiresApproval,
+      totalAmount,
+      nights,
+      roomBasePrice,
+      guestCount: guestCount || { adults: guests || 1, children: 0 },
+      roomTitle,
+      costBreakdown,
+      metadata: metadata || {
+        ip: req.ip || 'unknown',
+        userAgent: req.headers['user-agent'] || 'unknown',
+        timestamp: new Date().toISOString(),
+        bookingSource: 'backend_controller',
+        version: '1.0'
+      }
     };
 
     // Create booking with JWT authentication - backend will extract user from token
@@ -464,7 +486,7 @@ export const approveBooking = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findById(bookingId)
+    let booking = await Booking.findById(bookingId)
       .populate('userId')
       .populate('roomId');
 
@@ -567,7 +589,7 @@ export const rejectBooking = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findById(bookingId)
+    let booking = await Booking.findById(bookingId)
       .populate('userId')
       .populate('roomId');
 
@@ -660,7 +682,7 @@ export const putOnHold = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findById(bookingId)
+    let booking = await Booking.findById(bookingId)
       .populate('userId')
       .populate('roomId');
 
@@ -796,7 +818,7 @@ export const bulkApproveBookings = async (req, res) => {
     for (const bookingId of bookingIds) {
       try {
         console.log(`🔄 Processing booking ${bookingId} for approval`);
-        const booking = await Booking.findById(bookingId)
+        let booking = await Booking.findById(bookingId)
           .populate('userId')
           .populate('roomId');
 
@@ -940,7 +962,7 @@ export const bulkRejectBookings = async (req, res) => {
 
     for (const bookingId of bookingIds) {
       try {
-        const booking = await Booking.findById(bookingId)
+        let booking = await Booking.findById(bookingId)
           .populate('userId')
           .populate('roomId');
 
@@ -1054,7 +1076,7 @@ export const bulkHoldBookings = async (req, res) => {
     for (const bookingId of bookingIds) {
       try {
         console.log(`⏸️ Processing booking ${bookingId}`);
-        const booking = await Booking.findById(bookingId)
+        let booking = await Booking.findById(bookingId)
           .populate('userId')
           .populate('roomId');
 
