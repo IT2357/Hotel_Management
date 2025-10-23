@@ -14,6 +14,17 @@ import { Calendar, Users } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
+import { 
+  calculateBookingCost, 
+  calculateNights as calcNights,
+  formatBookingCurrency,
+  createBookingPayload
+} from '../../utils/bookingCalculations';
+import { 
+  BOOKING_STATUS, 
+  getStatusBadgeClass, 
+  getStatusDisplayText 
+} from '../../types/bookingTypes';
 
 const GuestBookingFlow = () => {
   const navigate = useNavigate();
@@ -157,19 +168,46 @@ const GuestBookingFlow = () => {
     );
   };
 
+  const calculateNights = () => {
+    return calcNights(bookingData.checkIn, bookingData.checkOut);
+  };
+
   const calculateTotal = () => {
-    if (!selectedRoom || !selectedRoom.pricing) return 0;
+    if (!selectedRoom) return 0;
+    
+    const costData = calculateBookingCost({
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
+      guests: bookingData.guests,
+      foodPlan: bookingData.foodPlan
+    });
+    
+    return costData.total;
+  };
 
-    const nights = calculateNights();
-    if (nights === 0) return 0;
-
-    const basePrice = selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0;
-    const subtotal = basePrice * nights;
-    const tax = subtotal * 0.1; // 10% tax
-    const serviceFee = subtotal * 0.05; // 5% service fee
-    const total = subtotal + tax + serviceFee;
-
-    return total;
+  // Get detailed cost breakdown for display
+  const getDetailedCostBreakdown = () => {
+    if (!selectedRoom) {
+      return {
+        nights: 0,
+        roomCost: 0,
+        foodCost: 0,
+        subtotal: 0,
+        taxes: 0,
+        serviceCharge: 0,
+        total: 0,
+        breakdown: []
+      };
+    }
+    
+    return calculateBookingCost({
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
+      guests: bookingData.guests,
+      foodPlan: bookingData.foodPlan
+    });
   };
 
   const decodeJWT = (token) => {
@@ -286,13 +324,6 @@ const GuestBookingFlow = () => {
     }));
   };
 
-  const calculateNights = () => {
-    if (!bookingData.checkIn || !bookingData.checkOut) return 0;
-    const checkIn = new Date(bookingData.checkIn);
-    const checkOut = new Date(bookingData.checkOut);
-    return Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-  };
-
   const handleRoomSelect = (room) => {
     setSelectedRoom(room);
     setBookingData(prev => ({
@@ -304,20 +335,22 @@ const GuestBookingFlow = () => {
   const handleBookingSubmit = async () => {
     setLoading(true);
     try {
-      const bookingPayload = {
-        ...bookingData,
+      // Use the unified booking payload creator with accurate calculations
+      const bookingPayload = createBookingPayload({
         roomId: selectedRoom.roomId,
-        checkIn: new Date(bookingData.checkIn).toISOString(),
-        checkOut: new Date(bookingData.checkOut).toISOString(),
-        totalAmount: selectedRoom.pricing.total,
-        nights: calculateNights(),
-        status: 'Pending Approval',
-        roomBasePrice: selectedRoom.basePrice || selectedRoom.pricing?.roomRate || 0,
-        foodPlan: bookingData.foodPlan || 'None',
-        guests: bookingData.guests || 1,
-        specialRequests: bookingData.specialRequests || '',
-        paymentMethod: paymentData.paymentMethod || 'cash'
-      };
+        roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
+        roomTitle: selectedRoom.title || selectedRoom.name,
+        checkIn: bookingData.checkIn,
+        checkOut: bookingData.checkOut,
+        guests: bookingData.guests,
+        foodPlan: bookingData.foodPlan,
+        selectedMeals: bookingData.selectedMeals,
+        specialRequests: bookingData.specialRequests,
+        paymentMethod: paymentData.paymentMethod || 'cash',
+        source: 'guest_booking_flow'
+      });
+
+      console.log('Submitting booking with accurate calculations:', bookingPayload);
 
       // Use the booking service instead of direct fetch
       const data = await bookingService.createBooking(bookingPayload);
@@ -476,7 +509,10 @@ const GuestBookingFlow = () => {
     );
   };
 
-  const renderStep3 = () => (
+  const renderStep3 = () => {
+    const costBreakdown = getDetailedCostBreakdown();
+    
+    return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Booking Details</h2>
@@ -508,19 +544,32 @@ const GuestBookingFlow = () => {
               </div>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex justify-between items-center text-lg font-semibold">
-              <span>Total Amount:</span>
-              <span className="text-green-600">
-                {selectedRoom && new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'LKR'
-                }).format(selectedRoom.pricing.total)}
-              </span>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Cost Breakdown Card */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Cost Breakdown</h3>
+          <div className="space-y-2">
+            {costBreakdown.breakdown.map((item, index) => (
+              <div key={index} className="flex justify-between text-sm">
+                <span className="text-gray-600">{item.label}</span>
+                <span className="font-medium">{formatBookingCurrency(item.amount)}</span>
+              </div>
+            ))}
+            <div className="border-t pt-3 mt-3">
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total Amount</span>
+                <span className="text-green-600">
+                  {formatBookingCurrency(costBreakdown.total)}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
+      
       <Card>
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold mb-4">Additional Options</h3>
@@ -532,10 +581,10 @@ const GuestBookingFlow = () => {
                 onChange={(e) => handleInputChange('foodPlan', e.target.value)}
               >
                 <option value="None">No Food Plan</option>
-                <option value="Breakfast">Breakfast Only</option>
-                <option value="Half Board">Half Board (Breakfast + Dinner)</option>
-                <option value="Full Board">Full Board (All Meals)</option>
-                <option value="A la carte">A la carte</option>
+                <option value="Breakfast">Breakfast Only (+LKR 1,500/person/night)</option>
+                <option value="Half Board">Half Board (+LKR 3,500/person/night)</option>
+                <option value="Full Board">Full Board (+LKR 5,500/person/night)</option>
+                <option value="A la carte">A la carte (+LKR 2,500/person/night)</option>
               </Select>
             </div>
             <div>
@@ -560,7 +609,8 @@ const GuestBookingFlow = () => {
         </Button>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderStep4 = () => (
     <div className="text-center space-y-6">
@@ -1003,18 +1053,8 @@ const GuestBookingFlow = () => {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Status:</span>
-                <Badge className={
-                  bookingResult.status === 'Confirmed' ? 'bg-green-100 text-green-800' :
-                  bookingResult.status === 'Approved - Payment Pending' ? 'bg-green-100 text-green-800' :
-                  bookingResult.status === 'Approved - Payment Processing' ? 'bg-blue-100 text-blue-800' :
-                  bookingResult.status === 'On Hold' ? 'bg-blue-100 text-blue-800' :
-                  bookingResult.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }>
-                  {bookingResult.status === 'Confirmed' ? 'Confirmed' :
-                   bookingResult.status === 'Approved - Payment Pending' ? 'Approved (Pay at Hotel)' :
-                   bookingResult.status === 'Approved - Payment Processing' ? 'Approved (Payment Processing)' :
-                   bookingResult.status || 'Pending'}
+                <Badge className={getStatusBadgeClass(bookingResult.status)}>
+                  {getStatusDisplayText(bookingResult.status)}
                 </Badge>
               </div>
               <div className="flex justify-between">

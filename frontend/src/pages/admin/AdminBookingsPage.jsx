@@ -1117,11 +1117,24 @@ export default function AdminBookingsPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Room Charges:</span>
-                  <span className="font-medium">{formatCurrency(selectedBooking?.roomBasePrice || 0)}</span>
+                  <span className="font-medium">
+                    {(() => {
+                      const cb = selectedBooking?.costBreakdown || {};
+                      const nights = cb.nights || (selectedBooking?.checkIn && selectedBooking?.checkOut
+                        ? Math.ceil((new Date(selectedBooking.checkOut) - new Date(selectedBooking.checkIn)) / (1000 * 60 * 60 * 24))
+                        : 1);
+                      const roomCost = typeof cb.roomCost === 'number'
+                        ? cb.roomCost
+                        : (typeof cb.subtotal === 'number' && typeof cb.mealPlanCost === 'number' && cb.subtotal >= cb.mealPlanCost)
+                          ? (cb.subtotal - cb.mealPlanCost)
+                          : (selectedBooking?.roomBasePrice || 0) * (nights || 1);
+                      return formatCurrency(roomCost || 0);
+                    })()}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Food Charges:</span>
-                  <span className="font-medium">{formatCurrency(selectedBooking?.costBreakdown.subtotal || 0)}</span>
+                  <span className="font-medium">{formatCurrency(selectedBooking?.costBreakdown?.mealPlanCost || 0)}</span>
                 </div>
                 {selectedBooking?.costBreakdown?.tax > 0 && (
                   <div className="flex justify-between">

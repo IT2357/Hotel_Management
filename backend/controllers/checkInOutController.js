@@ -148,6 +148,21 @@ export const checkInGuest = async (req, res) => {
 
     await checkIn.save();
 
+    // Update booking status to Checked In
+    booking.status = 'Checked In';
+    booking.lastStatusChange = new Date();
+    await booking.save();
+
+    // ✅ Update invoice status to reflect check-in
+    try {
+      const InvoiceService = (await import("../services/payment/invoiceService.js")).default;
+      await InvoiceService.updateInvoiceStatusFromBooking(bookingId);
+      console.log(`✅ Invoice status synchronized after check-in`);
+    } catch (invoiceError) {
+      console.error('❌ Failed to update invoice status after check-in:', invoiceError);
+      // Don't fail check-in if invoice update fails
+    }
+
     // Update room status to Booked
     room.status = 'Booked';
     await room.save();
@@ -172,7 +187,12 @@ export const checkOutGuest = async (req, res) => {
 
     const { checkInOutId, damageReport, keyCardReturned, additionalCharges } = req.body;
 
-    const checkInOut = await CheckInOut.findById(checkInOutId).populate('room').populate('guest', 'firstName lastName').populate('booking', 'checkOut');
+    const checkInOut = await CheckInOut.findById(checkInOutId)
+      .populate('room')
+      .populate('guest', 'firstName lastName')
+      .populate('booking', 'checkOut')
+      .populate('overstay.invoiceId'); // Add this to check overstay payment status
+      
     if (!checkInOut || checkInOut.status !== 'checked_in') {
       return res.status(400).json({ message: 'Invalid check-in record or guest already checked out' });
     }
@@ -190,23 +210,79 @@ export const checkOutGuest = async (req, res) => {
         const daysOverstay = Math.ceil((checkoutTime - bookingCheckOut) / (1000 * 60 * 60 * 24));
         console.warn(`⚠️ OVERSTAY DETECTED: Guest checked out ${daysOverstay} days late. Booking ended on ${bookingCheckOut.toLocaleDateString()}, actual checkout: ${checkoutTime.toLocaleDateString()}`);
         
-        // We still allow checkout but flag it for billing purposes
-        checkInOut.overstay = {
-          detected: true,
-          daysOverstayed: daysOverstay,
-          detectedAt: checkoutTime,
-          scheduledCheckoutDate: bookingCheckOut,
-          actualCheckoutDate: checkoutTime
-        };
+        // CRITICAL FIX: Block checkout if there's an overstay and payment isn't handled
+        if (!checkInOut.overstay || !checkInOut.overstay.detected) {
+          // First time detecting this overstay - create the overstay record
+          checkInOut.overstay = {
+            detected: true,
+            daysOverstayed: daysOverstay,
+            detectedAt: checkoutTime,
+            scheduledCheckoutDate: bookingCheckOut,
+            actualCheckoutDate: checkoutTime,
+            chargePending: true,
+            paymentStatus: 'pending_payment',
+            canCheckout: false
+          };
+          
+          // Save the updated check-in record with overstay information
+          await checkInOut.save();
+          
+          // Create an overstay invoice
+          try {
+            const roomRate = checkInOut.room.basePrice || 5000; // Default rate if not specified
+            const chargeAmount = roomRate * 1.5 * daysOverstay; // 1.5x room rate per day
+            
+            const invoice = await OverstayService.createOverstayInvoice(
+              checkInOutId,
+              daysOverstay,
+              chargeAmount
+            );
+            
+            // Return response that checkout is blocked due to overstay
+            return res.status(402).json({ 
+              message: `Checkout blocked due to ${daysOverstay} day(s) overstay. Payment of रु${chargeAmount} is required before checkout.`,
+              overstay: {
+                daysOverstayed: daysOverstay,
+                invoiceId: invoice._id,
+                invoiceNumber: invoice.invoiceNumber,
+                amount: chargeAmount
+              }
+            });
+          } catch (invoiceError) {
+            console.error('❌ Error creating overstay invoice:', invoiceError);
+            return res.status(500).json({ message: 'Error processing overstay. Please contact reception.' });
+          }
+        } else if (checkInOut.overstay && !checkInOut.overstay.canCheckout) {
+          // Overstay already detected but payment not completed/approved
+          return res.status(402).json({
+            message: `Checkout blocked due to unpaid overstay charges. Please settle your overstay invoice before checking out.`,
+            overstay: {
+              daysOverstayed: checkInOut.overstay.daysOverstayed,
+              invoiceId: checkInOut.overstay.invoiceId?._id,
+              invoiceNumber: checkInOut.overstay.invoiceId?.invoiceNumber,
+              amount: checkInOut.overstay.invoiceId?.amount || 0
+            }
+          });
+        }
+        
+        // If we reach here, overstay is detected but canCheckout is true (payment completed)
+        console.log(`✅ Overstay payment completed/approved. Allowing checkout.`);
       }
     } else {
       console.log('⏭️ Development mode: Skipping check-out date validation, allowing any checkout time');
     }
+    
+    // Proceed with checkout (we've already handled and blocked overstay cases above)
     checkInOut.checkOutTime = checkoutTime;
     checkInOut.checkedOutBy = req.user.id;
     checkInOut.damageReport = damageReport;
     checkInOut.keyCardReturned = keyCardReturned || false;
     checkInOut.status = 'checked_out';
+
+    // If additionalCharges are specified, add them to the record
+    if (additionalCharges && additionalCharges > 0) {
+      checkInOut.additionalCharges = additionalCharges;
+    }
 
     await checkInOut.save();
 
@@ -267,6 +343,16 @@ export const checkOutGuest = async (req, res) => {
       }
       booking.lastStatusChange = new Date();
       await booking.save();
+
+      // ✅ Update invoice status to reflect completion
+      try {
+        const InvoiceService = (await import("../services/payment/invoiceService.js")).default;
+        await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+        console.log(`✅ Invoice status synchronized after check-out - booking completed`);
+      } catch (invoiceError) {
+        console.error('❌ Failed to update invoice status after check-out:', invoiceError);
+        // Don't fail check-out if invoice update fails
+      }
 
       // Free the room immediately if early checkout, otherwise keep Cleaning workflow
       if (room) {
@@ -355,13 +441,13 @@ export const getEligibleBookingsForGuest = async (req, res) => {
     
     // ⚠️ SECURITY: Only show bookings within their check-in date range
     // Guests can see bookings that:
-    // 1. Are confirmed and fully paid
+    // 1. Are confirmed or approved (payment may be pending for cash)
     // 2. Have a checkOut date that is today or in the future (not yet passed)
     // 3. Don't have an active check-in record already
 
     const confirmedBookings = await Booking.find({
       userId: guestId,
-      status: 'Confirmed',
+      status: { $in: ['Confirmed', 'Approved - Payment Pending', 'Approved - Payment Processing'] },
       checkOut: { $gte: now }, // Only future or today's checkouts
     })
       .populate('roomId', 'roomNumber type')
@@ -378,10 +464,19 @@ export const getEligibleBookingsForGuest = async (req, res) => {
       status: { $in: ['pre_checkin', 'checked_in'] },
     }).select('booking status');
 
-    const activeMap = new Map(activeCheckIns.map(ci => [ci.booking.toString(), ci.status]));
+    // Build maps for quick lookup of status and pre_checkin id
+    const statusByBookingId = new Map();
+    const preCheckInIdByBookingId = new Map();
+    for (const ci of activeCheckIns) {
+      const key = ci.booking.toString();
+      statusByBookingId.set(key, ci.status);
+      if (ci.status === 'pre_checkin') {
+        preCheckInIdByBookingId.set(key, ci._id);
+      }
+    }
 
     const eligible = confirmedBookings
-      .filter(b => !activeMap.has(b._id.toString()) || activeMap.get(b._id.toString()) === 'pre_checkin')
+      .filter(b => !statusByBookingId.has(b._id.toString()) || statusByBookingId.get(b._id.toString()) === 'pre_checkin')
       .map(b => ({
         id: b._id,
         bookingNumber: b.bookingNumber,
@@ -389,6 +484,7 @@ export const getEligibleBookingsForGuest = async (req, res) => {
         checkIn: b.checkIn,
         checkOut: b.checkOut,
         room: b.roomId ? { roomNumber: b.roomId.roomNumber, type: b.roomId.type } : null,
+        preCheckInId: preCheckInIdByBookingId.get(b._id.toString()) || null
       }));
 
     console.log(`✅ Found ${eligible.length} eligible bookings for guest ${guestId}`);
@@ -419,13 +515,31 @@ export const getCheckInDetails = async (req, res) => {
 
 export const listCurrentGuests = async (req, res) => {
   try {
-    const guests = await CheckInOut.find({ status: 'checked_in' })
+    // Enhanced query to only return valid, active check-ins
+    const guests = await CheckInOut.find({ 
+      status: 'checked_in',
+      // Ensure we don't include any entries that have a check-out time
+      checkOutTime: { $exists: false }
+    })
       .populate('guest', 'firstName lastName')
       .populate('room', 'roomNumber type')
+      .populate('booking', 'checkIn checkOut status')  // Add booking info to check dates
       .sort({ checkInTime: -1 });
     
-    res.status(200).json(guests);
+    // Additional validation - filter out any bookings that have been marked as Completed
+    const filteredGuests = guests.filter(guest => {
+      // Skip guests whose bookings are already completed
+      if (guest.booking && guest.booking.status === 'Completed') {
+        console.log(`⚠️ Found anomaly: Guest ${guest.guest._id} shows as checked-in but booking ${guest.booking._id} is Completed`);
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`✅ Found ${filteredGuests.length} current guests (filtered from ${guests.length} total records)`);
+    res.status(200).json(filteredGuests);
   } catch (error) {
+    console.error('❌ Error fetching current guests:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -504,7 +618,7 @@ export const completeGuestCheckIn = async (req, res) => {
     }
 
     // Find the pre_checkin record
-    const checkInOut = await CheckInOut.findById(checkInOutId).populate('booking', 'status checkIn checkOut');
+    const checkInOut = await CheckInOut.findById(checkInOutId).populate('booking', 'status checkIn checkOut userId');
     if (!checkInOut || checkInOut.status !== 'pre_checkin') {
       return res.status(400).json({ message: 'Invalid pre-check-in record' });
     }
@@ -514,16 +628,48 @@ export const completeGuestCheckIn = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Enforce booking must be fully Confirmed (paid) before allowing check-in completion
-    if (!checkInOut.booking || checkInOut.booking.status !== 'Confirmed') {
-      return res.status(400).json({ message: 'Booking is not confirmed. Please complete payment before checking in.' });
+    // Debug: Log booking information
+    console.log('📋 Check-in record booking:', {
+      bookingRef: checkInOut.booking,
+      bookingStatus: checkInOut.booking?.status,
+      guestId: checkInOut.guest,
+      authUserId: req.user.id,
+      checkInOutId: checkInOutId
+    });
+
+    // Enforce booking must be confirmed or approved for check-in
+    let booking = checkInOut.booking;
+    
+    if (!booking) {
+      // If booking is not populated, try to find it via guest + room
+      console.warn('⚠️ Booking not populated on CheckInOut record. Searching by guest and room...');
+      booking = await Booking.findOne({
+        userId: checkInOut.guest,
+        roomId: checkInOut.room,
+        status: { $in: ['Confirmed', 'Approved - Payment Pending', 'Approved - Payment Processing'] }
+      }).select('status checkIn checkOut userId');
+      
+      if (!booking) {
+        console.error('❌ No confirmed/approved booking found for guest:', checkInOut.guest);
+        return res.status(400).json({ message: 'Booking reference is missing or booking is not confirmed. Please contact support.' });
+      }
+    }
+    
+    // ✅ FIX: Allow check-in for Confirmed AND approved bookings (payment may be pending for cash)
+    const allowedStatuses = ['Confirmed', 'Approved - Payment Pending', 'Approved - Payment Processing'];
+    if (!allowedStatuses.includes(booking.status)) {
+      console.error('❌ Booking status is not eligible for check-in:', booking.status);
+      return res.status(400).json({ 
+        message: 'Booking is not confirmed. Please complete payment or approval before checking in.',
+        currentStatus: booking.status 
+      });
     }
 
     // ⚠️ SECURITY: Validate check-in date is within booking period (only in production)
     if (!config.DEVELOPMENT.SKIP_DATE_VALIDATION) {
       const now = new Date();
-      const bookingCheckIn = new Date(checkInOut.booking.checkIn);
-      const bookingCheckOut = new Date(checkInOut.booking.checkOut);
+      const bookingCheckIn = new Date(booking.checkIn);
+      const bookingCheckOut = new Date(booking.checkOut);
       
       // Set time to start of day for date comparison
       now.setHours(0, 0, 0, 0);
@@ -558,7 +704,7 @@ export const completeGuestCheckIn = async (req, res) => {
     availableKeyCard.assignedRoom = checkInOut.room;
     availableKeyCard.status = 'active';
     availableKeyCard.activationDate = new Date();
-    availableKeyCard.expirationDate = checkInOut.booking.checkOut;
+    availableKeyCard.expirationDate = booking.checkOut;
     await availableKeyCard.save();
 
     // Update document scan

@@ -381,7 +381,7 @@ export default function MyBookings() {
                         <MapPin className="h-4 w-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800">Room</p>
-                          <p className="text-sm text-gray-600">{booking.roomNumber}</p>
+                          <p className="text-sm text-gray-600">{booking.roomNumber || booking?.roomId?.roomNumber || 'N/A'}</p>
                         </div>
                       </div>
                     </div>
@@ -397,7 +397,9 @@ export default function MyBookings() {
                                 : 'Total Amount'}
                           </p>
                           <p className="text-lg font-semibold text-gray-800">
-                            {formatPrice(booking.costBreakdown?.total || booking.totalPrice)}
+                            {formatPrice(
+                              (booking?.costBreakdown?.total ?? booking?.totalPrice ?? 0)
+                            )}
                           </p>
                         </div>
                         <div key={`nights-${booking._id || booking.id}`}>

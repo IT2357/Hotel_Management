@@ -95,9 +95,11 @@ const bookingSchema = new mongoose.Schema(
     costBreakdown: {
       nights: Number,
       roomRate: Number,
+      roomCost: Number,
       subtotal: Number,
       tax: Number,
       serviceFee: Number,
+      mealPlanCost: Number,
       total: Number,
       currency: { type: String, default: "LKR" },
       deposit: Number,

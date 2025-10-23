@@ -220,27 +220,30 @@ class BookingService {
       }
     }
 
-    // Calculate room cost
-    const subtotal = nights * roomRate;
+  // Calculate room cost (per stay)
+  const roomCost = nights * roomRate;
 
-    const financialSettings = settings.financialSettings || {};
-    const taxRate = (financialSettings.taxRate || 0) / 100;
-    const serviceFeeRate = (financialSettings.serviceFee || 0) / 100;
+  const financialSettings = settings.financialSettings || {};
+  // Prefer admin-configured rates if > 0, else fall back to standard 12% tax and 10% service
+  const taxRatePct = Number(financialSettings.taxRate);
+  const serviceFeePct = Number(financialSettings.serviceFee);
+  const taxRate = ((taxRatePct && taxRatePct > 0) ? taxRatePct : 12) / 100;
+  const serviceFeeRate = ((serviceFeePct && serviceFeePct > 0) ? serviceFeePct : 10) / 100;
 
-    // Calculate taxes and service fees
-    const tax = subtotal * taxRate;
-    const serviceFee = subtotal * serviceFeeRate;
+  // Calculate taxes and service fees (on subtotal including meals; meals computed below)
+  // Note: We'll compute tax/service after we know mealPlanCost to ensure parity with frontend
 
     // Calculate meal plan costs
-    let mealPlanCost = 0;
+  let mealPlanCost = 0;
     let mealBreakdown = {};
 
     if (bookingData.foodPlan && bookingData.foodPlan !== 'None') {
       const guests = bookingData.guests || 1;
+      // ✅ FIX: Use consistent rates with frontend (LKR per person per night)
       const mealPlanRates = {
-        'Breakfast': 15,
-        'Half Board': 35, // Breakfast + Dinner
-        'Full Board': 50, // All meals
+        'Breakfast': 1500,
+        'Half Board': 3500, // Breakfast + Dinner
+        'Full Board': 5500, // All meals
         'A la carte': 0 // Will be calculated separately based on selected meals
       };
 
@@ -270,7 +273,14 @@ class BookingService {
       }
     }
 
-    const total = subtotal + tax + serviceFee + mealPlanCost;
+  // Subtotal should include both room and meal costs
+  const subtotal = roomCost + mealPlanCost;
+
+  // Calculate taxes and service fees on the full subtotal (room + meals)
+  const tax = subtotal * taxRate;
+  const serviceFee = subtotal * serviceFeeRate;
+
+  const total = subtotal + tax + serviceFee;
 
     const depositRequired = financialSettings.depositRequired !== false;
     const depositAmount = financialSettings.depositAmount || 100;
@@ -285,9 +295,11 @@ class BookingService {
 
     return {
       nights,
-      subtotal,
-      tax,
-      serviceFee,
+  // Expose detailed amounts
+  roomCost,
+  subtotal,
+  tax,
+  serviceFee,
       mealPlanCost,
       total,
       deposit,
@@ -296,7 +308,7 @@ class BookingService {
       roomRate,
       mealBreakdown,
       breakdown: {
-        roomCost: subtotal,
+        roomCost: roomCost,
         taxes: tax,
         serviceFees: serviceFee,
         meals: mealPlanCost,
@@ -399,9 +411,24 @@ class BookingService {
         guestCount: bookingData.guestCount || { adults: bookingData.guests || 1, children: 0 },
         specialRequests: bookingData.specialRequests,
         totalPrice: bookingData.totalAmount || costBreakdown.total,
-        costBreakdown: bookingData.costBreakdown || costBreakdown,
-        nights: bookingData.nights || nights,
-        roomBasePrice: bookingData.roomBasePrice || room.pricePerNight,
+        // ✅ FIX: Always use the backend-calculated costBreakdown (complete with all fields)
+        // Never use bookingData.costBreakdown as it may be incomplete from frontend
+        costBreakdown: {
+          nights: costBreakdown.nights,
+          roomRate: costBreakdown.roomRate,
+          roomCost: costBreakdown.roomCost,
+          subtotal: costBreakdown.subtotal,
+          tax: costBreakdown.tax,
+          serviceFee: costBreakdown.serviceFee,
+          mealPlanCost: costBreakdown.mealPlanCost,
+          total: costBreakdown.total,
+          currency: costBreakdown.currency,
+          deposit: costBreakdown.deposit,
+          depositRequired: costBreakdown.depositRequired,
+          mealBreakdown: costBreakdown.mealBreakdown
+        },
+        nights: costBreakdown.nights, // Use calculated nights
+        roomBasePrice: costBreakdown.roomRate, // Use calculated room rate
         roomTitle: bookingData.roomTitle || room.title || room.name,
         source: bookingData.source || 'website',
         paymentMethod: bookingData.paymentMethod || 'cash',
@@ -463,25 +490,58 @@ class BookingService {
 
       await booking.save();
 
-      // Only create invoice for confirmed bookings, NEVER for pending approval
-      if (booking.status === 'Confirmed') {
-        try {
-          // Create invoice for confirmed bookings
-          const InvoiceService = (await import("../payment/invoiceService.js")).default;
-          const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
-          booking.invoiceId = invoice._id;
-          await booking.save(); // Save the invoiceId
-          console.log(`✅ Invoice created for confirmed booking ${booking.bookingNumber}`);
-        } catch (invoiceError) {
-          console.error('❌ Failed to create invoice for confirmed booking:', invoiceError.message);
-          // For confirmed bookings, invoice creation failure is critical
-          if (!invoiceError.message.includes('Invoice already exists')) {
-            console.error('❌ Unexpected invoice creation error for confirmed booking:', invoiceError);
-            // Don't fail the booking creation if invoice creation fails, but log it
+      // ✅ ALWAYS create invoice for ALL bookings - critical for check-in/out flow
+      // Invoice status will be set based on booking status:
+      // - Draft: For Pending Approval / On Hold bookings
+      // - Sent - Payment Pending: For Approved bookings
+      // - Paid: For completed payments
+      let invoiceCreated = false;
+      try {
+        console.log(`📄 [INVOICE] Starting invoice creation for booking ${booking.bookingNumber} (ID: ${booking._id}) with status ${booking.status}`);
+        console.log(`📄 [INVOICE] Calling InvoiceService.createInvoiceFromBooking with bookingId: ${booking._id}`);
+        
+        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        
+        console.log(`✅ [INVOICE] Invoice created successfully: ${invoice.invoiceNumber} (ID: ${invoice._id})`);
+        
+        booking.invoiceId = invoice._id;
+        await booking.save(); // Save the invoiceId to booking
+        invoiceCreated = true;
+        
+        console.log(`✅ [INVOICE] Invoice ${invoice.invoiceNumber} linked to booking ${booking.bookingNumber}`);
+      } catch (invoiceError) {
+        console.error('❌ [INVOICE] Failed to create invoice for booking:', invoiceError);
+        console.error('❌ [INVOICE] Error stack:', invoiceError.stack);
+        
+        // If invoice already exists (edge case), try to link it
+        if (invoiceError.message && invoiceError.message.includes('Invoice already exists')) {
+          console.log('ℹ️ [INVOICE] Invoice already exists, attempting to link...');
+          try {
+            const Invoice = (await import("../../models/Invoice.js")).default;
+            const existingInvoice = await Invoice.findOne({ bookingId: booking._id }).select('_id invoiceNumber');
+            if (existingInvoice) {
+              booking.invoiceId = existingInvoice._id;
+              await booking.save();
+              invoiceCreated = true;
+              console.log(`🔗 [INVOICE] Linked existing invoice ${existingInvoice.invoiceNumber} to booking ${booking.bookingNumber}`);
+            } else {
+              console.error('❌ [INVOICE] Could not find existing invoice to link');
+            }
+          } catch (linkErr) {
+            console.error('❌ [INVOICE] Failed to link existing invoice to booking:', linkErr);
+            console.error('❌ [INVOICE] Link error stack:', linkErr.stack);
           }
+        } else {
+          console.error('❌ [INVOICE] Unexpected invoice creation error - not a duplicate issue');
+          console.error('❌ [INVOICE] Full error object:', JSON.stringify(invoiceError, Object.getOwnPropertyNames(invoiceError)));
         }
-      } else {
-        console.log(`📋 Booking ${booking.bookingNumber} created with status ${booking.status} - no invoice created`);
+        // Don't fail the booking creation if invoice creation fails
+        // The invoice can be created later manually if needed
+      }
+      
+      if (!invoiceCreated) {
+        console.warn('⚠️ [INVOICE] WARNING: Booking created without invoice! Booking ID:', booking._id);
+        console.warn('⚠️ [INVOICE] This may cause issues with check-in/check-out flow');
       }
 
       // Send notifications based on settings (non-blocking)
@@ -513,7 +573,7 @@ class BookingService {
       }
 
       // Send admin notification if approval is required (non-blocking)
-      if (booking.status === 'Pending Approval') {
+      if (booking.status === 'Pending Approval' || booking.status === 'On Hold') {
         try {
           const admins = await User.find({ role: 'admin', isActive: true });
           for (const admin of admins) {

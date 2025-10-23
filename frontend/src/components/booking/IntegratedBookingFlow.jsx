@@ -26,6 +26,17 @@ import { cn } from "@/lib/utils";
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
 import { AuthContext } from '../../context/AuthContext';
+import { 
+  calculateBookingCost, 
+  calculateNights as calcNights,
+  formatBookingCurrency,
+  createBookingPayload
+} from '../../utils/bookingCalculations';
+import { 
+  BOOKING_STATUS, 
+  getStatusBadgeClass, 
+  getStatusDisplayText 
+} from '../../types/bookingTypes';
 
 const amenityIcons = {
   'WiFi': Wifi,
@@ -125,42 +136,19 @@ const IntegratedBookingFlow = ({
   }, [isOpen, isAuthenticated, onClose, navigate, room, initialStep, initialBookingData]);
   
 
-  // Calculate functions
+  // Calculate functions using unified engine
   const calculateNights = () => {
-    if (!bookingData.checkIn || !bookingData.checkOut) return 0;
-    const checkIn = new Date(bookingData.checkIn);
-    const checkOut = new Date(bookingData.checkOut);
-    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-    return nights > 0 ? nights : 0;
+    return calcNights(bookingData.checkIn, bookingData.checkOut);
   };
 
   const calculateTotalCost = () => {
-    const nights = calculateNights();
-    const roomPrice = room?.price || room?.pricePerNight || room?.basePrice || 0;
-    const roomCost = nights * roomPrice;
-    const taxes = roomCost * 0.12; // 12% tax
-    const serviceCharge = roomCost * 0.10; // 10% service charge
-    
-    // Food plan costs
-    let foodCost = 0;
-    if (bookingData.foodPlan !== 'None') {
-      const foodPrices = {
-        'Breakfast': 1500,
-        'Half Board': 3500,
-        'Full Board': 5500,
-        'A la carte': 2500
-      };
-      foodCost = (foodPrices[bookingData.foodPlan] || 0) * nights * bookingData.guests;
-    }
-
-    return {
-      nights,
-      roomCost,
-      taxes,
-      serviceCharge,
-      foodCost,
-      total: roomCost + taxes + serviceCharge + foodCost
-    };
+    return calculateBookingCost({
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      roomPrice: room?.price || room?.pricePerNight || room?.basePrice || 0,
+      guests: bookingData.guests,
+      foodPlan: bookingData.foodPlan
+    });
   };
 
   // Handle booking submission
@@ -183,55 +171,24 @@ const IntegratedBookingFlow = ({
       const roomName = room?.name || room?.title || room?.roomTitle || 'Unknown Room';
 
       console.log('Room data received:', room);
-      console.log('User authenticated:', isAuthenticated);
-      console.log('Booking service available:', !!bookingService);
+      console.log('Creating booking with unified calculations...');
 
-      // Get detailed cost breakdown for complete data submission
-      const costBreakdown = calculateTotalCost();
-
-      const bookingPayload = {
-        ...bookingData,
+      // Use the unified booking payload creator
+      const bookingPayload = createBookingPayload({
         roomId: roomId,
-        checkIn: new Date(bookingData.checkIn).toISOString(),
-        checkOut: new Date(bookingData.checkOut).toISOString(),
-        totalAmount: costBreakdown.total,
-        nights: calculateNights(),
-        status: 'Pending Approval',
-        roomBasePrice: roomPrice,
-        foodPlan: bookingData.foodPlan || 'None',
-        selectedMeals: bookingData.selectedMeals || [],
-        guests: bookingData.guests || 1,
-        guestCount: {
-          adults: bookingData.guests || 1,
-          children: 0 // Default for now, can be enhanced later
-        },
-        specialRequests: bookingData.specialRequests || '',
-        paymentMethod: paymentData.paymentMethod || 'cash',
+        roomPrice: roomPrice,
         roomTitle: roomName,
-        source: 'website',
-        // Include detailed cost breakdown
-        costBreakdown: {
-          nights: costBreakdown.nights,
-          roomRate: roomPrice,
-          subtotal: costBreakdown.roomCost,
-          tax: costBreakdown.taxes,
-          serviceFee: costBreakdown.serviceCharge,
-          mealPlanCost: costBreakdown.foodCost,
-          total: costBreakdown.total,
-          currency: 'LKR',
-          depositRequired: false,
-          deposit: 0
-        },
-        metadata: {
-          ip: 'N/A',
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-          bookingSource: 'frontend_booking_flow',
-          version: '1.0'
-        }
-      };
+        checkIn: bookingData.checkIn,
+        checkOut: bookingData.checkOut,
+        guests: bookingData.guests,
+        foodPlan: bookingData.foodPlan,
+        selectedMeals: bookingData.selectedMeals,
+        specialRequests: bookingData.specialRequests,
+        paymentMethod: paymentData.paymentMethod || 'cash',
+        source: 'integrated_booking_flow'
+      });
 
-      console.log('Submitting booking:', bookingPayload);
+      console.log('Submitting booking with accurate calculations:', bookingPayload);
       
       // Use the booking service to create booking
       const data = await bookingService.createBooking(bookingPayload);
@@ -1021,18 +978,8 @@ const IntegratedBookingFlow = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Status:</span>
-                  <Badge className={
-                    bookingResult.status === 'Confirmed' ? 'bg-green-100 text-green-800' :
-                    bookingResult.status === 'Approved - Payment Pending' ? 'bg-green-100 text-green-800' :
-                    bookingResult.status === 'Approved - Payment Processing' ? 'bg-blue-100 text-blue-800' :
-                    bookingResult.status === 'On Hold' ? 'bg-blue-100 text-blue-800' :
-                    bookingResult.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }>
-                    {bookingResult.status === 'Confirmed' ? 'Confirmed' :
-                     bookingResult.status === 'Approved - Payment Pending' ? 'Approved (Pay at Hotel)' :
-                     bookingResult.status === 'Approved - Payment Processing' ? 'Approved (Payment Processing)' :
-                     bookingResult.status || 'Pending'}
+                  <Badge className={getStatusBadgeClass(bookingResult.status)}>
+                    {getStatusDisplayText(bookingResult.status)}
                   </Badge>
                 </div>
                 <div className="flex justify-between">

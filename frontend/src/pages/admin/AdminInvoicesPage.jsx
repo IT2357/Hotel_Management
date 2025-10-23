@@ -1209,66 +1209,66 @@ export default function AdminInvoicesPage() {
         zIndex={1000}
       >
         {selectedInvoice && (
-          <div>
+          <>
             <div className="space-y-6">
-          {/* Status and Basic Info */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <h4 className="font-medium text-gray-700 mb-3">Invoice Information</h4>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-medium text-gray-600">Invoice Number:</span>
-                    <p className="text-gray-900">{selectedInvoice?.invoiceNumber}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Status:</span>
-                    <div className="mt-1">
-                      {getStatusBadge(selectedInvoice?.paymentStatus || selectedInvoice?.status)}
+              {/* Status and Basic Info */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                  <h4 className="font-medium text-gray-700 mb-3">📄 Invoice Information</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="font-medium text-gray-600">Invoice Number:</span>
+                        <p className="text-gray-900">{selectedInvoice?.invoiceNumber}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Status:</span>
+                        <div className="mt-1">
+                          {getStatusBadge(selectedInvoice?.paymentStatus || selectedInvoice?.status)}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Created:</span>
+                        <p className="text-gray-900">{selectedInvoice?.createdAt ? new Date(selectedInvoice.createdAt).toLocaleString() : 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-600">Currency:</span>
+                        <p className="text-gray-900">{selectedInvoice?.currency || 'LKR'}</p>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Created:</span>
-                    <p className="text-gray-900">{selectedInvoice?.createdAt ? new Date(selectedInvoice.createdAt).toLocaleString() : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Currency:</span>
-                    <p className="text-gray-900">{selectedInvoice?.currency || 'LKR'}</p>
-                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div>
-              <h4 className="font-medium text-gray-700 mb-3">Quick Actions</h4>
-              <div className="space-y-2">
-                {/* OVERSTAY INVOICE SPECIFIC ACTIONS */}
-                {selectedInvoice?.overstayTracking?.isOverstayInvoice && (
-                  <>
-                    {selectedInvoice?.status === 'Awaiting Approval' && (
-                      <>
-                        <Button
-                          onClick={() => {
-                            openActionModal(selectedInvoice, 'approve_overstay');
-                          }}
-                          className="w-full bg-green-600 hover:bg-green-700"
-                        >
-                          ✅ Approve Payment
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            openActionModal(selectedInvoice, 'reject_overstay');
-                          }}
-                          variant="danger"
-                          className="w-full"
-                        >
-                          ❌ Reject Payment
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            openActionModal(selectedInvoice, 'adjust_overstay');
-                          }}
-                          variant="outline"
+              <div>
+                <h4 className="font-medium text-gray-700 mb-3">Quick Actions</h4>
+                <div className="space-y-2">
+                  {/* OVERSTAY INVOICE SPECIFIC ACTIONS */}
+                  {selectedInvoice?.overstayTracking?.isOverstayInvoice && (
+                    <>
+                      {selectedInvoice?.status === 'Awaiting Approval' && (
+                        <>
+                          <Button
+                            onClick={() => {
+                              openActionModal(selectedInvoice, 'approve_overstay');
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                          >
+                            ✅ Approve Payment
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              openActionModal(selectedInvoice, 'reject_overstay');
+                            }}
+                            variant="danger"
+                            className="w-full"
+                          >
+                            ❌ Reject Payment
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              openActionModal(selectedInvoice, 'adjust_overstay');
+                            }}
+                            variant="outline"
                           className="w-full text-amber-600 border-amber-300 hover:bg-amber-50"
                         >
                           ⚙️ Adjust Charges
@@ -1492,16 +1492,16 @@ export default function AdminInvoicesPage() {
 
           {/* Customer Information */}
           <div>
-            <h4 className="font-medium text-gray-700 mb-3">Customer Information</h4>
+            <h4 className="font-medium text-gray-700 mb-3">👤 Customer Information</h4>
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <span className="font-medium text-gray-600">Name:</span>
-                  <p className="text-gray-900">{selectedInvoice.userId?.name}</p>
+                  <p className="text-gray-900">{selectedInvoice.userId?.name || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Email:</span>
-                  <p className="text-gray-900">{selectedInvoice.userId?.email}</p>
+                  <p className="text-gray-900">{selectedInvoice.userId?.email || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Phone:</span>
@@ -1509,7 +1509,20 @@ export default function AdminInvoicesPage() {
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Address:</span>
-                  <p className="text-gray-900">{selectedInvoice.userId?.address || 'Not provided'}</p>
+                  <p className="text-gray-900">
+                    {selectedInvoice.userId?.address ? 
+                      (typeof selectedInvoice.userId.address === 'string' ? 
+                        selectedInvoice.userId.address : 
+                        [
+                          selectedInvoice.userId.address.street,
+                          selectedInvoice.userId.address.city,
+                          selectedInvoice.userId.address.postalCode,
+                          selectedInvoice.userId.address.country
+                        ].filter(Boolean).join(', ') || 'Not provided'
+                      ) : 
+                      'Not provided'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -1518,26 +1531,30 @@ export default function AdminInvoicesPage() {
           {/* Booking Information */}
           {selectedInvoice.bookingId && (
             <div>
-              <h4 className="font-medium text-gray-700 mb-3">Booking Information</h4>
+              <h4 className="font-medium text-gray-700 mb-3">📅 Booking Information</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="font-medium text-gray-600">Booking Number:</span>
-                  <p className="text-gray-900">{selectedInvoice?.bookingId?.bookingNumber}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-medium text-gray-600">Booking Number:</span>
+                    <p className="text-gray-900 font-mono">{selectedInvoice?.bookingId?.bookingNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Room Number:</span>
+                    <p className="text-gray-900">{selectedInvoice?.bookingId?.roomId?.roomNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Room Type:</span>
+                    <p className="text-gray-900">{selectedInvoice?.bookingId?.roomId?.title || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Check-in:</span>
+                    <p className="text-gray-900">{selectedInvoice?.bookingId?.checkIn ? new Date(selectedInvoice.bookingId.checkIn).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Check-out:</span>
+                    <p className="text-gray-900">{selectedInvoice?.bookingId?.checkOut ? new Date(selectedInvoice.bookingId.checkOut).toLocaleDateString() : 'N/A'}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-600">Room:</span>
-                  <p className="text-gray-900">{selectedInvoice?.bookingId?.roomId?.title}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Check-in:</span>
-                  <p className="text-gray-900">{selectedInvoice?.bookingId?.checkIn ? new Date(selectedInvoice.bookingId.checkIn).toLocaleDateString() : 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Check-out:</span>
-                  <p className="text-gray-900">{selectedInvoice?.bookingId?.checkOut ? new Date(selectedInvoice.bookingId.checkOut).toLocaleDateString() : 'N/A'}</p>
-                </div>
-              </div>
               </div>
             </div>
           )}
@@ -1675,14 +1692,12 @@ export default function AdminInvoicesPage() {
             }}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Email Customer
-          </Button>
-        </div>
+              Email Customer
+            </Button>
           </div>
+          </>
         )}
-      </Modal>
-
-      {/* Action Modal */}
+      </Modal>      {/* Action Modal */}
       <Modal
         isOpen={showActionModal && selectedActionInvoice}
         onClose={closeActionModal}

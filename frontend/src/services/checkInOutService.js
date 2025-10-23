@@ -62,6 +62,30 @@ export const getCurrentGuests = async () => {
   return response.data;
 };
 
+// Overstay management functions
+export const getPendingOverstayInvoices = async () => {
+  const response = await api.get(`${API_URL}/admin/overstay/pending-invoices`);
+  return response.data;
+};
+
+export const approveOverstayPayment = async (invoiceId, notes = '') => {
+  const response = await api.post(`${API_URL}/admin/overstay/${invoiceId}/approve`, { approvalNotes: notes });
+  return response.data;
+};
+
+export const rejectOverstayPayment = async (invoiceId, reason = '') => {
+  const response = await api.post(`${API_URL}/admin/overstay/${invoiceId}/reject`, { rejectionReason: reason });
+  return response.data;
+};
+
+export const adjustOverstayCharges = async (invoiceId, newAmount, notes = '') => {
+  const response = await api.post(`${API_URL}/admin/overstay/${invoiceId}/adjust-charges`, {
+    newAmount,
+    adjustmentNotes: notes
+  });
+  return response.data;
+};
+
 export const getCheckInDetails = async (id) => {
   const response = await api.get(`${API_URL}/check-in/${id}`);
   return response.data;

@@ -1,6 +1,7 @@
 // 📁 backend/controllers/invoiceController.js
 import InvoiceService from "../services/payment/invoiceService.js";
 import Booking from "../models/Booking.js";
+import { createPreCheckInRecord } from "./checkInOutController.js";
 
 // Helper for consistent error responses
 const handleError = (res, error, defaultMessage = "Operation failed") => {
@@ -312,12 +313,17 @@ export const getAllInvoices = async (req, res) => {
       Invoice.find(query, projection, findOptions)
         .populate({
           path: 'userId',
-          select: 'name email',
+          select: 'name email phone address',
           options: { lean: true }
         })
         .populate({
           path: 'bookingId',
-          select: 'checkIn checkOut roomId',
+          select: 'bookingNumber checkIn checkOut roomId',
+          populate: {
+            path: 'roomId',
+            select: 'roomNumber title',
+            options: { lean: true }
+          },
           options: { lean: true }
         })
         .lean(),
@@ -449,6 +455,15 @@ export const updateInvoiceStatus = async (req, res) => {
         if (status === 'Paid') {
           booking.status = 'Confirmed'; // Payment completed, booking confirmed
           booking.paidAt = new Date();
+          
+          // Create pre-check-in record when booking is confirmed via payment
+          try {
+            await createPreCheckInRecord(booking._id);
+            console.log('✅ Pre-check-in record created for confirmed booking:', booking._id);
+          } catch (preCheckInError) {
+            console.error('❌ Failed to create pre-check-in record:', preCheckInError.message);
+            // Don't fail the booking confirmation if pre-check-in creation fails
+          }
         } else if (status === 'Sent - Payment Pending') {
           // Invoice sent, keep booking status as is but ensure it's not completed
           if (booking.status === 'Confirmed') {

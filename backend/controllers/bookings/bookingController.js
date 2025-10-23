@@ -207,7 +207,9 @@ export const createBooking = async (req, res) => {
       roomBasePrice,
       guestCount: guestCount || { adults: guests || 1, children: 0 },
       roomTitle,
-      costBreakdown,
+      // ✅ FIX: Don't pass costBreakdown from frontend - let backend calculate it properly
+      // The frontend's costBreakdown is incomplete and causes invoice errors
+      // costBreakdown, // REMOVED - backend will calculate complete breakdown
       metadata: metadata || {
         ip: req.ip || 'unknown',
         userAgent: req.headers['user-agent'] || 'unknown',
@@ -370,6 +372,16 @@ export const cancelBooking = async (req, res) => {
     booking.cancellationReason = reason || 'Cancelled by guest';
     await booking.save();
 
+    // ✅ Update invoice status to cancelled
+    try {
+      const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+      await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+      console.log(`✅ Invoice status updated to reflect cancellation`);
+    } catch (invoiceError) {
+      console.error('❌ Failed to update invoice status after cancellation:', invoiceError);
+      // Don't fail the cancellation if invoice update fails
+    }
+
     // Create refund request for cancelled booking
     try {
       const refundRequest = await RefundService.createRefundRequest(booking, booking.cancellationReason, userId);
@@ -509,16 +521,55 @@ export const approveBooking = async (req, res) => {
     if (booking.paymentMethod === 'cash') {
       try {
         const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
-        const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
-        booking.invoiceId = invoice._id;
-        console.log(`✅ Invoice created for cash booking ${booking.bookingNumber}`);
-      } catch (invoiceError) {
-        console.error('❌ Failed to create invoice for booking:', invoiceError.message);
-        // For cash payments, if invoice already exists, that's okay - just log it
-        if (!invoiceError.message.includes('Invoice already exists')) {
-          console.error('❌ Unexpected invoice creation error:', invoiceError);
+        
+        // Check if invoice already exists
+        if (!booking.invoiceId) {
+          // Create invoice if it doesn't exist
+          const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+          booking.invoiceId = invoice._id;
+          console.log(`✅ Invoice ${invoice.invoiceNumber} created for cash booking ${booking.bookingNumber}`);
+        } else {
+          // Update existing invoice status
+          await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+          console.log(`✅ Invoice status updated for cash booking ${booking.bookingNumber}`);
         }
-        // Don't fail the approval if invoice creation fails
+      } catch (invoiceError) {
+        console.error('❌ Failed to handle invoice for booking:', invoiceError.message);
+        // For cash payments, if invoice already exists, that's okay - just log it
+        if (invoiceError.message.includes('Invoice already exists')) {
+          try {
+            const Invoice = (await import("../../models/Invoice.js")).default;
+            const existingInvoice = await Invoice.findOne({ bookingId: booking._id }).select('_id invoiceNumber');
+            if (existingInvoice) {
+              booking.invoiceId = existingInvoice._id;
+              console.log(`🔗 Linked existing invoice ${existingInvoice.invoiceNumber} to booking`);
+            }
+          } catch (linkErr) {
+            console.error('❌ Failed to link existing invoice to booking:', linkErr);
+          }
+        } else {
+          console.error('❌ Unexpected invoice error:', invoiceError);
+        }
+        // Don't fail the approval if invoice handling fails
+      }
+    } else {
+      // For non-cash payments, ensure invoice exists and update its status
+      try {
+        const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+        
+        if (!booking.invoiceId) {
+          // Create invoice if it doesn't exist
+          const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+          booking.invoiceId = invoice._id;
+          console.log(`✅ Invoice ${invoice.invoiceNumber} created for booking ${booking.bookingNumber}`);
+        } else {
+          // Update existing invoice status
+          await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+          console.log(`✅ Invoice status updated for booking ${booking.bookingNumber}`);
+        }
+      } catch (invoiceError) {
+        console.error('❌ Failed to handle invoice:', invoiceError);
+        // Don't fail approval on invoice errors
       }
     }
 
@@ -547,6 +598,16 @@ export const approveBooking = async (req, res) => {
     booking.requiresReview = false;
 
     await booking.save();
+
+    // ✅ Update invoice status to reflect the new booking status
+    try {
+      const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+      await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+      console.log(`✅ Invoice status synchronized with booking status: ${booking.status}`);
+    } catch (invoiceError) {
+      console.error('❌ Failed to update invoice status after approval:', invoiceError);
+      // Don't fail the approval if invoice update fails
+    }
 
     // Create pre-check-in record for confirmed bookings
     try {
@@ -616,6 +677,16 @@ export const rejectBooking = async (req, res) => {
     booking.reviewedBy = adminId;
     booking.reviewedAt = new Date();
     await booking.save();
+
+    // ✅ Update invoice status to cancelled/rejected
+    try {
+      const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+      await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+      console.log(`✅ Invoice status updated to reflect rejection`);
+    } catch (invoiceError) {
+      console.error('❌ Failed to update invoice status after rejection:', invoiceError);
+      // Don't fail the rejection if invoice update fails
+    }
 
     // Create refund request automatically
     try {
@@ -1338,6 +1409,38 @@ export const processBookingPayment = async (req, res) => {
       booking.paymentMethod = paymentMethod;
       booking.lastStatusChange = new Date();
       await booking.save();
+
+      // ✅ Sync linked invoice payment method and status
+      try {
+        const Invoice = (await import("../../models/Invoice.js")).default;
+        let invoice = await Invoice.findOne({ bookingId: booking._id });
+        if (!invoice) {
+          // Create invoice if it doesn't exist yet
+          const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+          invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
+        }
+        if (invoice) {
+          // Update payment method to reflect user's choice
+          // Map to enum via service mapping by reusing create/update logic
+          const mapped = ((pm) => {
+            switch ((pm || '').toLowerCase()) {
+              case 'cash': return 'Cash';
+              case 'card': return 'Credit Card';
+              case 'paypal': return 'Online';
+              case 'bank': return 'Online';
+              default: return 'Online';
+            }
+          })(paymentMethod);
+          invoice.paymentMethod = mapped;
+          await invoice.save();
+
+          // Also align invoice status with booking status
+          const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+          await InvoiceService.updateInvoiceStatusFromBooking(booking._id);
+        }
+      } catch (syncErr) {
+        console.error('⚠️ Failed to sync invoice after payment method change:', syncErr.message);
+      }
 
       sendSuccess(res, {
         bookingId: booking._id,

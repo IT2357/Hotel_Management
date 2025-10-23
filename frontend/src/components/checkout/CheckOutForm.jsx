@@ -3,7 +3,11 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useSnackbar } from 'notistack';
-import { checkOutGuest, generateReceipt as generateReceiptService } from '../../services/checkInOutService';
+import { 
+  checkOutGuest, 
+  generateReceipt as generateReceiptService,
+  approveOverstayPayment
+} from '../../services/checkInOutService';
 import ReceiptPreview from './ReceiptPreview';
 
 const CheckOutForm = ({ checkInRecord, onSuccess }) => {
@@ -42,6 +46,8 @@ const CheckOutForm = ({ checkInRecord, onSuccess }) => {
     }
   };
 
+  const [overstayWarning, setOverstayWarning] = useState(null);
+
   const onSubmit = async (data) => {
     try {
       setIsSubmitting(true);
@@ -57,7 +63,19 @@ const CheckOutForm = ({ checkInRecord, onSuccess }) => {
       enqueueSnackbar('Guest checked out successfully', { variant: 'success' });
       onSuccess(response);
     } catch (error) {
-      enqueueSnackbar(error.response?.data?.message || 'Check-out failed', { variant: 'error' });
+      if (error.response?.status === 402 && error.response?.data?.overstay) {
+        // This is an overstay error - display the warning
+        setOverstayWarning({
+          message: error.response.data.message,
+          overstay: error.response.data.overstay
+        });
+        enqueueSnackbar('Checkout blocked: Guest has overstayed their booking period', { 
+          variant: 'warning',
+          autoHideDuration: 10000
+        });
+      } else {
+        enqueueSnackbar(error.response?.data?.message || 'Check-out failed', { variant: 'error' });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +101,62 @@ const CheckOutForm = ({ checkInRecord, onSuccess }) => {
             </p>
           </div>
         </div>
+
+        {/* Overstay Warning */}
+        {overstayWarning && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Checkout Blocked: Overstay Detected</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{overstayWarning.message}</p>
+                  <ul className="list-disc pl-5 mt-1 space-y-1">
+                    <li>Days overstayed: <span className="font-semibold">{overstayWarning.overstay.daysOverstayed}</span></li>
+                    <li>Amount due: <span className="font-semibold">रु{overstayWarning.overstay.amount}</span></li>
+                    <li>Invoice: <span className="font-semibold">{overstayWarning.overstay.invoiceNumber || 'Pending'}</span></li>
+                  </ul>
+                </div>
+                <div className="mt-3 flex space-x-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    onClick={() => window.alert('Please direct the guest to reception for payment processing.')}
+                  >
+                    Process Payment at Reception
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to mark the overstay payment as received? This will approve a payment of रु${overstayWarning.overstay.amount}.`)) {
+                        try {
+                          approveOverstayPayment(
+                            overstayWarning.overstay.invoiceId, 
+                            `Payment received and approved by ${localStorage.getItem('userName') || 'staff'}`
+                          ).then(() => {
+                            enqueueSnackbar('Overstay payment approved. Guest can now check out.', { variant: 'success' });
+                            setOverstayWarning(null);
+                          }).catch(err => {
+                            enqueueSnackbar(`Error approving payment: ${err.message}`, { variant: 'error' });
+                          });
+                        } catch (error) {
+                          enqueueSnackbar(`Error approving payment: ${error.message}`, { variant: 'error' });
+                        }
+                      }
+                    }}
+                  >
+                    Mark as Paid (Staff Only)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex items-center">
