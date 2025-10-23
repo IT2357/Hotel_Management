@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, User, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, User, ChevronLeft, ClipboardList } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 
 const menuItems = [
@@ -54,24 +54,20 @@ export const Sidebar = ({ isCollapsed, onToggle, activeItem, onItemClick }) => {
       </div>
 
       {/* Toggle Button */}
-      <motion.div
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggle}
+        className="absolute -right-4 top-6 z-50 rounded-full border-2 border-slate-200/20 bg-gradient-to-br from-white to-slate-50 text-slate-700 shadow-xl shadow-slate-900/20 transition-all hover:shadow-2xl hover:from-slate-50 hover:to-white hover:border-slate-300/30 hover:scale-110 active:scale-95 backdrop-blur-sm cursor-pointer"
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          className="absolute -right-4 top-6 z-20 rounded-full border-2 border-slate-200/20 bg-gradient-to-br from-white to-slate-50 text-slate-700 shadow-xl shadow-slate-900/20 transition-all hover:shadow-2xl hover:from-slate-50 hover:to-white hover:border-slate-300/30 backdrop-blur-sm"
+        <motion.div 
+          animate={{ rotate: isCollapsed ? 180 : 0 }}
+          transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+          className="pointer-events-none"
         >
-          <motion.div 
-            animate={{ rotate: isCollapsed ? 180 : 0 }}
-            transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </motion.div>
-        </Button>
-      </motion.div>
+          <ChevronLeft className="h-4 w-4" />
+        </motion.div>
+      </Button>
 
       {/* Logo/Brand Area */}
       {!isCollapsed && (

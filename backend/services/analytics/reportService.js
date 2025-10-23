@@ -13,7 +13,7 @@ class ReportService {
   async getBookingAnalytics({ startDate, endDate, period = 'daily', groupBy = 'date' }) {
     const matchStage = {
       createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ['Confirmed', 'Cancelled'] }
+      status: { $in: ['Confirmed', 'Approved - Payment Pending', 'Completed', 'Cancelled'] }
     };
 
     // Total bookings and revenue
@@ -54,12 +54,12 @@ class ReportService {
       { $sort: { '_id': 1 } }
     ]);
 
-    // Bookings by channel
+    // Bookings by channel (using 'source' field from seed data)
     const bookingsByChannel = await Booking.aggregate([
       { $match: matchStage },
       {
         $group: {
-          _id: '$bookingChannel',
+          _id: { $ifNull: ['$source', '$bookingChannel'] }, // Check both fields
           count: { $sum: 1 },
           revenue: {
             $sum: { $cond: [{ $eq: ['$status', 'Confirmed'] }, '$totalPrice', 0] }

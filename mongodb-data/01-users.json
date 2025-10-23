@@ -7,7 +7,7 @@
     "isActive": true,
     "isApproved": true,
     "emailVerified": true,
-    "authProviders": ["local"],
+    "authProviders": [],
     "notificationPreferences": {
       "email": true,
       "sms": false,
@@ -24,7 +24,7 @@
     "isActive": true,
     "isApproved": true,
     "emailVerified": true,
-    "authProviders": ["local"],
+    "authProviders": [],
     "profile": {
       "department": "Housekeeping",
       "position": "Head Housekeeper",
@@ -46,7 +46,7 @@
     "isActive": true,
     "isApproved": true,
     "emailVerified": true,
-    "authProviders": ["local"],
+    "authProviders": [],
     "profile": {
       "department": "Maintenance",
       "position": "Maintenance Technician",
@@ -68,7 +68,7 @@
     "isActive": true,
     "isApproved": true,
     "emailVerified": true,
-    "authProviders": ["local"],
+    "authProviders": [],
     "profile": {
       "department": "Kitchen",
       "position": "Chef",
@@ -90,13 +90,87 @@
     "isActive": true,
     "isApproved": true,
     "emailVerified": true,
-    "authProviders": ["local"],
+    "authProviders": [],
     "profile": {
       "phone": "+94-71-123-4567",
       "address": "123 Colombo Street, Colombo 03",
       "nationality": "Sri Lankan",
       "idType": "passport",
       "idNumber": "N1234567"
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Admin User",
+    "email": "admin@hotel.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "admin",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": [],
+    "notificationPreferences": {
+      "email": true,
+      "sms": true,
+      "push": true
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Alice Johnson",
+    "email": "alice@example.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "guest",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": [],
+    "profile": {
+      "phone": "+94-71-234-5678",
+      "address": "456 Kandy Road, Kandy",
+      "nationality": "Sri Lankan",
+      "idType": "nic",
+      "idNumber": "987654321V"
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Bob Smith",
+    "email": "bob@example.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "guest",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": [],
+    "profile": {
+      "phone": "+94-71-345-6789",
+      "address": "789 Galle Road, Galle",
+      "nationality": "British",
+      "idType": "passport",
+      "idNumber": "GB123456"
+    },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "name": "Charlie Brown",
+    "email": "charlie@example.com",
+    "password": "$2b$10$rOvjQ8pNr3Q.h4EfGcCuF.8lTDJr8kx9nM1QYyYUvL7PqKoYzH7TC",
+    "role": "guest",
+    "isActive": true,
+    "isApproved": true,
+    "emailVerified": true,
+    "authProviders": [],
+    "profile": {
+      "phone": "+94-71-456-7890",
+      "address": "321 Main Street, Negombo",
+      "nationality": "American",
+      "idType": "passport",
+      "idNumber": "US654321"
     },
     "createdAt": "2025-09-25T10:00:00.000Z",
     "updatedAt": "2025-09-25T10:00:00.000Z"

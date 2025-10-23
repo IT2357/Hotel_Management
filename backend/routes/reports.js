@@ -13,6 +13,11 @@ import {
   updateKPIs
 } from '../controllers/dashboard/reportController.js';
 import { getManagerOverviewReport } from '../controllers/manager/managerReportController.js';
+import { 
+  getTaskReports, 
+  getWorkloadReport, 
+  getDelayedTasksReport 
+} from '../controllers/manager/taskReportController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import { validateReportRequest } from '../middleware/validation.js';
@@ -38,6 +43,42 @@ router.get(
   '/manager/overview',
   authorizeRoles(['manager', 'admin']),
   getManagerOverviewReport
+);
+
+/**
+ * @route   GET /api/reports/tasks
+ * @desc    Get task performance reports
+ * @access  Manager, Admin
+ * @query   startDate, endDate, department, reportType
+ */
+router.get(
+  '/tasks',
+  authorizeRoles(['manager', 'admin']),
+  getTaskReports
+);
+
+/**
+ * @route   GET /api/reports/workload
+ * @desc    Get staff workload reports
+ * @access  Manager, Admin
+ * @query   startDate, endDate, department
+ */
+router.get(
+  '/workload',
+  authorizeRoles(['manager', 'admin']),
+  getWorkloadReport
+);
+
+/**
+ * @route   GET /api/reports/delayed-tasks
+ * @desc    Get delayed tasks report
+ * @access  Manager, Admin
+ * @query   department, severity
+ */
+router.get(
+  '/delayed-tasks',
+  authorizeRoles(['manager', 'admin']),
+  getDelayedTasksReport
 );
 
 /**

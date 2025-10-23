@@ -1,24 +1,34 @@
-import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import useAuth from "@/hooks/useAuth";
 import { taskAPI } from "@/services/taskManagementAPI";
 import { ManagerLayout } from "@/components/manager";
-import { SummaryCards } from "@/components/manager/SummaryCards";
-import { KanbanBoard } from "@/components/manager/KanbanBoard";
+import { TaskQueueBoard } from "@/components/manager/TaskQueueBoard";
 import { Button } from "@/components/manager/ManagerButton";
-import {
-  ManagerSelect,
-  ManagerSelectContent,
-  ManagerSelectItem,
-  ManagerSelectTrigger,
-  ManagerSelectValue,
-} from "@/components/manager/ManagerSelect";
-import { ManagerInput } from "@/components/manager/ManagerInput";
-import { ClipboardList, Clock, CheckCircle2, Star, Users, RotateCw, Filter, Plus } from "lucide-react";
+import { RotateCw, Plus } from "lucide-react";
 import ManagerPageHeader from "@/components/manager/ManagerPageHeader";
-import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS, MANAGER_SECTION_CLASS } from "./managerStyles";
+import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS } from "./managerStyles";
 import { TaskCreateDialog } from "@/components/manager/TaskCreateDialog";
+
+/**
+ * Manager Task Management Page - Guest Request Workflow
+ * 
+ * WORKFLOW:
+ * 1. Guest creates a service request (food order, room cleaning, maintenance, etc.)
+ * 2. Request appears in "Awaiting Assignment" column (Pending status)
+ * 3. Manager reviews request details and assigns to appropriate staff member
+ * 4. Staff receives notification and accepts the task
+ * 5. Task moves to "Staff Working" column (In Progress status) when staff starts
+ * 6. Staff completes the task
+ * 7. Task moves to "Completed" column
+ * 
+ * This page allows managers to:
+ * - View all guest requests and tasks across departments
+ * - Filter by status, department, and priority
+ * - Assign tasks to available staff members
+ * - Track task progress in real-time
+ * - Create manual tasks for general maintenance or operations
+ */
 
 const INITIAL_BOARD_STATE = Object.freeze({ pending: [], inProgress: [], completed: [] });
 
@@ -235,11 +245,9 @@ const ManagerTaskManagementPage = () => {
   const { user } = useAuth();
   const [filters, setFilters] = useState(FILTER_INITIAL_STATE);
   const [boardData, setBoardData] = useState(INITIAL_BOARD_STATE);
-  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSidebarToggle = useCallback((isCollapsed) => {
     toast.info(isCollapsed ? "Sidebar collapsed" : "Sidebar expanded", {
@@ -267,29 +275,9 @@ const ManagerTaskManagementPage = () => {
     return false;
   }, []);
 
-  const loadTaskStats = useCallback(async () => {
-    try {
-      const data = await taskAPI.getTaskStats();
-      const payload = data?.data || data;
-      if (!payload) return;
-
-      const overview = payload.overview || payload;
-
-      setStats({
-        totalTasks: overview.totalTasks ?? overview.total ?? 0,
-        inProgress: overview.inProgressTasks ?? overview.inProgress ?? overview.active ?? 0,
-        completed: overview.completedTasks ?? overview.completed ?? overview.done ?? 0,
-        avgRating: Number(overview.averageRating ?? overview.feedbackScore ?? 0) || 0,
-        staffOnline: Number(payload.staffOnline ?? payload.activeStaff ?? 0) || 0,
-      });
-    } catch (error) {
-      console.error("Failed to load task stats", error);
-    }
-  }, []);
 
   const loadTasks = useCallback(async (currentFilters, showToast = false) => {
     setIsLoading(true);
-    setErrorMessage("");
 
     try {
       const params = {
@@ -333,16 +321,15 @@ const ManagerTaskManagementPage = () => {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([loadTasks(filters, true), loadTaskStats()]);
+      await loadTasks(filters, true);
     } finally {
       setIsRefreshing(false);
     }
-  }, [filters, loadTaskStats, loadTasks]);
+  }, [filters, loadTasks]);
 
   useEffect(() => {
     loadTasks(filters);
-    loadTaskStats();
-  }, [filters, loadTaskStats, loadTasks]);
+  }, [filters, loadTasks]);
 
   const displayName = useMemo(
     () =>
@@ -354,25 +341,6 @@ const ManagerTaskManagementPage = () => {
     [user]
   );
 
-  const summaryCards = useMemo(() => {
-    if (!stats) {
-      return [
-        { icon: ClipboardList, label: "Total Tasks", value: boardData.pending.length + boardData.inProgress.length + boardData.completed.length, iconColor: "#38bdf8" },
-        { icon: Clock, label: "In Progress", value: boardData.inProgress.length, iconColor: "#facc15" },
-        { icon: CheckCircle2, label: "Completed", value: boardData.completed.length, iconColor: "#22c55e" },
-        { icon: Star, label: "Avg Rating", value: 0, iconColor: "#facc15", suffix: "/5" },
-        { icon: Users, label: "Staff Online", value: 0, iconColor: "#22c55e" },
-      ];
-    }
-
-    return [
-      { icon: ClipboardList, label: "Total Tasks", value: stats.totalTasks, iconColor: "#38bdf8" },
-      { icon: Clock, label: "In Progress", value: stats.inProgress, iconColor: "#facc15" },
-      { icon: CheckCircle2, label: "Completed", value: stats.completed, iconColor: "#22c55e" },
-      { icon: Star, label: "Avg Rating", value: stats.avgRating, iconColor: "#facc15", suffix: "/5" },
-      { icon: Users, label: "Staff Online", value: stats.staffOnline, iconColor: "#22c55e" },
-    ];
-  }, [boardData, stats]);
 
   const createDepartmentOptions = useMemo(
     () => DEPARTMENT_OPTIONS.filter((option) => option.value !== "all"),
@@ -384,43 +352,36 @@ const ManagerTaskManagementPage = () => {
     [],
   );
 
-  const handleFilterChange = useCallback((key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handleSearchChange = useCallback((event) => {
-    handleFilterChange("search", event.target.value);
-  }, [handleFilterChange]);
-
   const handleTaskAssign = useCallback(async (task, staff) => {
     if (!task?.rawTask?._id) {
       throw new Error("Task identifier is missing.");
     }
 
     if (!staff?.staffId) {
-      throw new Error("Select a staff member with an active account.");
+      throw new Error("Please select a staff member to assign this task.");
     }
 
     try {
       // Assign the task to the staff member
       await taskAPI.assignTask(task.rawTask._id, { staffId: staff.staffId });
       
-      // Keep status as "pending" - staff needs to accept it first
-      // Task stays in "Pending" column until staff accepts
-      // When staff accepts, it will move to "In Progress" column
+      // Task stays in "Pending" column until staff accepts it
+      // When staff accepts and starts working, it will move to "In Progress" column
+      // When staff completes it, it will move to "Completed" column
       
       // Reload the tasks to show the updated state
-      await Promise.all([loadTasks(filters), loadTaskStats()]);
+      await loadTasks(filters);
       
-      toast.success("Task assigned", {
-        description: `${task.title} has been assigned to ${staff.name}. Awaiting acceptance.`,
+      toast.success("Task Assigned Successfully", {
+        description: `${task.title} has been assigned to ${staff.name}. The task will move to "In Progress" when staff starts working on it.`,
+        duration: 4000,
       });
     } catch (error) {
       console.error("Unable to assign task", error);
       const message = error?.response?.data?.message || error.message || "Failed to assign task";
       throw new Error(message);
     }
-  }, [filters, loadTaskStats, loadTasks]);
+  }, [filters, loadTasks]);
 
   const handleTaskCreate = useCallback(
     async (values) => {
@@ -461,102 +422,18 @@ const ManagerTaskManagementPage = () => {
 
       try {
         await taskAPI.createTask(payload);
-        toast.success("Task created", {
-          description: `${payload.title} is now queued for assignment.`,
+        toast.success("Task Created", {
+          description: `${payload.title} has been added to the pending queue. You can now assign it to a staff member.`,
+          duration: 3500,
         });
-        await Promise.all([loadTasks(filters), loadTaskStats()]);
+        await loadTasks(filters);
       } catch (error) {
         console.error("Unable to create task", error);
         const message = error?.response?.data?.message || error.message || "Failed to create task";
         throw new Error(message);
       }
     },
-    [filters, loadTaskStats, loadTasks],
-  );
-
-  const filterBar = (
-    <div className={MANAGER_SECTION_CLASS}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">Status</p>
-            <ManagerSelect value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
-              <ManagerSelectTrigger className="border-cyan-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-cyan-400/60">
-                <ManagerSelectValue placeholder="Select status" />
-              </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
-                {STATUS_OPTIONS.map((option) => (
-                  <ManagerSelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </ManagerSelectItem>
-                ))}
-              </ManagerSelectContent>
-            </ManagerSelect>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-purple-300 to-indigo-300 bg-clip-text text-transparent">Department</p>
-            <ManagerSelect value={filters.department} onValueChange={(value) => handleFilterChange("department", value)}>
-              <ManagerSelectTrigger className="border-purple-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-purple-400/60">
-                <ManagerSelectValue placeholder="Select department" />
-              </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
-                {DEPARTMENT_OPTIONS.map((option) => (
-                  <ManagerSelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </ManagerSelectItem>
-                ))}
-              </ManagerSelectContent>
-            </ManagerSelect>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">Priority</p>
-            <ManagerSelect value={filters.priority} onValueChange={(value) => handleFilterChange("priority", value)}>
-              <ManagerSelectTrigger className="border-amber-500/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 hover:border-amber-400/60">
-                <ManagerSelectValue placeholder="Select priority" />
-              </ManagerSelectTrigger>
-              <ManagerSelectContent className="border-slate-600/50 bg-slate-800/95 text-slate-100">
-                {PRIORITY_OPTIONS.map((option) => (
-                  <ManagerSelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </ManagerSelectItem>
-                ))}
-              </ManagerSelectContent>
-            </ManagerSelect>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Search</p>
-            <ManagerInput
-              value={filters.search}
-              onChange={handleSearchChange}
-              placeholder="Search tasks or staff"
-              className="border-slate-600/30 bg-slate-700/40 text-slate-100 placeholder:text-slate-400 focus:border-cyan-400/60"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setFilters({ ...FILTER_INITIAL_STATE })}
-            className="border-slate-600/30 bg-slate-700/40 text-slate-100 shadow-lg transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-600/50 hover:-translate-y-0.5"
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            Reset filters
-          </Button>
-          <Button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-400 text-slate-900 shadow-xl transition-all duration-300 hover:from-emerald-300 hover:via-green-300 hover:to-emerald-300 hover:shadow-2xl hover:-translate-y-0.5"
-          >
-            <RotateCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh board
-          </Button>
-        </div>
-      </div>
-      {errorMessage && (
-        <p className="mt-4 text-sm text-rose-400">{errorMessage}</p>
-      )}
-    </div>
+    [filters, loadTasks],
   );
 
   return (
@@ -568,9 +445,9 @@ const ManagerTaskManagementPage = () => {
     >
       <div className={`${MANAGER_PAGE_CONTAINER_CLASS} space-y-6`}>
         <ManagerPageHeader
-          title="Task Management"
-          subtitle={`${displayName}, orchestrate assignments and track real-time execution.`}
-          accentChips={["Operations Workspace", "Manager orchestrated"]}
+          title="Smart Task Management"
+          subtitle={`${displayName}, intelligently assign tasks with AI-powered staff matching and priority-driven workflow.`}
+          accentChips={["AI-Powered", "Smart Assignment", "Real-Time Tracking"]}
           actions={(
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
@@ -579,7 +456,7 @@ const ManagerTaskManagementPage = () => {
                 className="bg-gradient-to-r from-cyan-400 to-blue-400 text-slate-900 shadow-xl transition-all duration-300 hover:from-cyan-300 hover:to-blue-300 hover:-translate-y-0.5 disabled:opacity-70"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                New task
+                Create Task
               </Button>
               <Button
                 variant="outline"
@@ -588,41 +465,23 @@ const ManagerTaskManagementPage = () => {
                 className="border-slate-600/30 bg-slate-700/40 text-slate-100 shadow-lg transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-600/50 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <RotateCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                Refresh board
+                Refresh
               </Button>
             </div>
           )}
           footerChips={[
-            <span key="pending">Pending {boardData.pending.length}</span>,
-            <span key="inprogress">In progress {boardData.inProgress.length}</span>,
-            <span key="completed">Completed {boardData.completed.length}</span>,
+            <span key="pending">Awaiting Assignment: {boardData.pending.length}</span>,
+            <span key="inprogress">Staff Working: {boardData.inProgress.length}</span>,
+            <span key="completed">Completed: {boardData.completed.length}</span>,
           ]}
         />
 
-        <SummaryCards cards={summaryCards} />
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-4"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent">Live Kanban</h2>
-              <p className="text-sm text-slate-300">Drag, assign, and prioritize tasks across every department.</p>
-            </div>
-          </div>
-
-          {filterBar}
-
-          <KanbanBoard
-            tasksByStatus={boardData}
-            onTaskAssign={handleTaskAssign}
-            isLoading={isLoading}
-            emptyMessage="No tasks match your filters"
-          />
-        </motion.div>
+        <TaskQueueBoard
+          tasksByStatus={boardData}
+          onTaskAssign={handleTaskAssign}
+          isLoading={isLoading}
+          emptyMessage="No guest requests or tasks available"
+        />
       </div>
       <TaskCreateDialog
         open={isCreateOpen}

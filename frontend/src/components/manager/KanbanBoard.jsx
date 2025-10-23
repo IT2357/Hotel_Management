@@ -2,38 +2,44 @@ import { motion } from "framer-motion";
 import { TaskCard } from "./TaskCard";
 import { useMemo, useState } from "react";
 import { TaskDrawer } from "./TaskDrawer";
-import { Package, Clock, User, CheckCircle } from "lucide-react";
+import { Package, Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 const columns = [
   {
     id: "pending",
     title: "Pending",
-    accent: "text-rose-200",
-    chipBg: "bg-gradient-to-br from-rose-500/40 via-pink-500/35 to-fuchsia-500/30 border border-rose-300/60 shadow-lg shadow-rose-400/30",
-    shellClass: "border border-rose-400/50 bg-gradient-to-br from-rose-950/70 via-pink-950/60 to-slate-900/80 hover:border-rose-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
-    icon: <Clock className="h-5 w-5 text-rose-200" />,
-    badge: "Queued",
-    badgeClass: "bg-gradient-to-r from-rose-500/60 to-pink-500/50 text-rose-50 border border-rose-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
+    icon: Clock,
+    iconClass: "h-4 w-4 text-blue-600",
+    iconBg: "bg-blue-50",
+    badgeClass: "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold",
+    shellClass: "rounded-xl bg-gray-50 border border-gray-200 p-3",
   },
   {
     id: "inProgress",
     title: "In Progress",
-    accent: "text-sky-200",
-    chipBg: "bg-gradient-to-br from-sky-500/40 via-blue-500/35 to-indigo-500/30 border border-sky-300/60 shadow-lg shadow-sky-400/30",
-    shellClass: "border border-sky-400/50 bg-gradient-to-br from-sky-950/70 via-blue-950/60 to-slate-900/80 hover:border-sky-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
-    icon: <User className="h-5 w-5 text-sky-200" />,
-    badge: "Active",
-    badgeClass: "bg-gradient-to-r from-sky-500/60 to-blue-500/50 text-sky-50 border border-sky-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
+    icon: AlertCircle,
+    iconClass: "h-4 w-4 text-yellow-600",
+    iconBg: "bg-yellow-50",
+    badgeClass: "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold",
+    shellClass: "rounded-xl bg-gray-50 border border-gray-200 p-3",
   },
   {
     id: "completed",
     title: "Completed",
-    accent: "text-lime-200",
-    chipBg: "bg-gradient-to-br from-lime-500/40 via-green-500/35 to-emerald-500/30 border border-lime-300/60 shadow-lg shadow-lime-400/30",
-    shellClass: "border border-lime-400/50 bg-gradient-to-br from-lime-950/70 via-green-950/60 to-slate-900/80 hover:border-lime-300/70 shadow-xl hover:shadow-2xl backdrop-blur-md transition-all duration-300",
-    icon: <CheckCircle className="h-5 w-5 text-lime-200" />,
-    badge: "Done",
-    badgeClass: "bg-gradient-to-r from-lime-500/60 to-green-500/50 text-lime-50 border border-lime-300/60 shadow-md text-[10px] font-bold uppercase tracking-wide px-3 py-1"
+    icon: CheckCircle,
+    iconClass: "h-4 w-4 text-green-600",
+    iconBg: "bg-green-50",
+    badgeClass: "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold",
+    shellClass: "rounded-xl bg-gray-50 border border-gray-200 p-3",
+  },
+  {
+    id: "cancelled",
+    title: "Cancelled",
+    icon: XCircle,
+    iconClass: "h-4 w-4 text-red-600",
+    iconBg: "bg-red-50",
+    badgeClass: "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold",
+    shellClass: "rounded-xl bg-gray-50 border border-gray-200 p-3",
   },
 ];
 
@@ -51,6 +57,7 @@ export const KanbanBoard = ({
     pending: tasksByStatus?.pending || [],
     inProgress: tasksByStatus?.inProgress || [],
     completed: tasksByStatus?.completed || [],
+    cancelled: tasksByStatus?.cancelled || [],
   }), [tasksByStatus]);
 
   const handleTaskClick = (task) => {
@@ -67,66 +74,73 @@ export const KanbanBoard = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {columns.map((column, columnIndex) => (
-          <motion.div
-            key={column.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: columnIndex * 0.1 }}
-            className={`space-y-4 rounded-2xl p-5 shadow-xl transition-all duration-300 ${column.shellClass}`}
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className={`rounded-xl p-2.5 ${column.chipBg}`}>
-                  {column.icon}
-                </div>
-                <div>
-                  <h3 className={`text-base font-bold ${column.accent}`}>{column.title}</h3>
-                  <p className="text-xs text-slate-300 mt-0.5 font-medium">{groupedTasks[column.id].length} tasks</p>
-                </div>
-              </div>
-              <span className={`rounded-lg ${column.badgeClass}`}>
-                {column.badge}
-              </span>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        {columns.map((column, columnIndex) => {
+          const Icon = column.icon;
+          const taskCount = groupedTasks[column.id]?.length || 0;
 
-            <div className="space-y-3">
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[0, 1, 2].map((index) => (
-                    <div
-                      key={`${column.id}-skeleton-${index}`}
-                      className="animate-pulse rounded-xl border border-slate-700/60 bg-slate-800/50 p-4"
-                    >
-                      <div className="h-4 w-3/4 rounded bg-slate-700/70" />
-                      <div className="mt-3 h-3 w-1/2 rounded bg-slate-700/50" />
-                      <div className="mt-4 h-12 rounded-lg bg-slate-700/30" />
-                    </div>
-                  ))}
+          return (
+            <motion.div
+              key={column.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: columnIndex * 0.1 }}
+              className={column.shellClass}
+            >
+              {/* Column Header - exactly like image */}
+              <div className="flex items-center gap-2 mb-3 bg-white rounded-lg p-2.5 border border-gray-200">
+                <div className={`w-7 h-7 rounded-md ${column.iconBg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon className={column.iconClass} />
                 </div>
-              ) : groupedTasks[column.id].length > 0 ? (
-                groupedTasks[column.id].map((task, index) => (
-                  <motion.div
-                    key={task.id || `${column.id}-${index}`}
-                    initial={{ opacity: 0, x: -15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TaskCard task={task} onClick={() => handleTaskClick(task)} />
-                  </motion.div>
-                ))
-              ) : (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 py-14 text-center">
-                  <div className="mx-auto w-16 h-16 rounded-xl bg-slate-800/40 flex items-center justify-center border border-slate-700/40">
-                    <Package className="h-8 w-8 text-slate-600" />
+                <span className="text-sm font-medium text-gray-900 flex-1">
+                  {column.title}
+                </span>
+                <span className={column.badgeClass}>
+                  {taskCount}
+                </span>
+              </div>
+
+              {/* Tasks */}
+              <div className="space-y-2">
+                {isLoading ? (
+                  <div className="space-y-2">
+                    {[0, 1].map((index) => (
+                      <div
+                        key={`${column.id}-skeleton-${index}`}
+                        className="animate-pulse rounded-lg bg-white p-3 border border-gray-200"
+                      >
+                        <div className="h-3 w-3/4 rounded bg-gray-200 mb-2" />
+                        <div className="h-2 w-1/2 rounded bg-gray-100" />
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-sm text-slate-500 font-medium">{emptyMessage}</p>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        ))}
+                ) : taskCount > 0 ? (
+                  groupedTasks[column.id].map((task, index) => (
+                    <motion.div
+                      key={task.id || `${column.id}-${index}`}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      <TaskCard task={task} onClick={() => handleTaskClick(task)} />
+                    </motion.div>
+                  ))
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="py-6 text-center bg-white rounded-lg border border-gray-200"
+                  >
+                    <Icon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400">
+                      {column.id === "completed" ? "No tasks in completed" : column.id === "cancelled" ? "No tasks in cancelled" : "No tasks"}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       <TaskDrawer

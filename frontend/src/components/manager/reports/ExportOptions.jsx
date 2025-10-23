@@ -94,16 +94,18 @@ const ExportOptions = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow border p-4 ${className}`}>
-      <div className="flex items-center gap-2 mb-4">
-        <Download className="w-5 h-5 text-gray-600" />
-        <h3 className="text-lg font-semibold">Export Report</h3>
+    <div className={`rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 shadow-2xl border-0 p-6 ${className}`}>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="p-2 rounded-xl bg-green-300/20 backdrop-blur-sm">
+          <Download className="w-5 h-5 text-green-200" />
+        </div>
+        <h3 className="text-xl font-black text-white tracking-tight">Export Report</h3>
       </div>
 
       <div className="space-y-4">
         {/* Format Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs font-black text-emerald-200 mb-3 uppercase tracking-widest">
             Export Format
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -112,10 +114,10 @@ const ExportOptions = ({
               return (
                 <label
                   key={format.value}
-                  className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center p-3 border-0 rounded-2xl cursor-pointer transition-all ${
                     exportOptions.format === format.value
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 hover:border-gray-400'
+                      ? 'bg-white/20 backdrop-blur-sm shadow-lg scale-105'
+                      : 'bg-white/10 backdrop-blur-sm hover:bg-white/15'
                   }`}
                 >
                   <input
@@ -126,8 +128,8 @@ const ExportOptions = ({
                     onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value }))}
                     className="sr-only"
                   />
-                  <Icon className="w-5 h-5 mr-2 text-gray-600" />
-                  <span className="text-sm font-medium">{format.label}</span>
+                  <Icon className="w-5 h-5 mr-2 text-white" />
+                  <span className="text-sm font-bold text-white">{format.label}</span>
                 </label>
               );
             })}
@@ -136,35 +138,35 @@ const ExportOptions = ({
 
         {/* Options */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs font-black text-emerald-200 mb-3 uppercase tracking-widest">
             Options
           </label>
           <div className="space-y-2">
-            <label className="flex items-center">
+            <label className="flex items-center bg-white/10 backdrop-blur-sm p-3 rounded-2xl hover:bg-white/15 transition-all cursor-pointer">
               <input
                 type="checkbox"
                 checked={exportOptions.includeCharts}
                 onChange={(e) => setExportOptions(prev => ({ ...prev, includeCharts: e.target.checked }))}
-                className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="mr-3 rounded-md border-white/30 bg-white/10 text-green-400 focus:ring-green-400 focus:ring-offset-0 w-4 h-4"
               />
-              <span className="text-sm">Include charts and visualizations</span>
+              <span className="text-sm font-semibold text-white">Include charts and visualizations</span>
             </label>
           </div>
         </div>
 
         {/* Export Status */}
         {exportStatus && (
-          <div className={`p-3 rounded-lg ${
-            exportStatus.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          <div className={`p-4 rounded-2xl backdrop-blur-sm ${
+            exportStatus.type === 'success' ? 'bg-green-400/20 border-2 border-green-300/50' : 'bg-red-400/20 border-2 border-red-300/50'
           }`}>
             <div className="flex items-center gap-2">
               {exportStatus.type === 'success' ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                <CheckCircle className="w-5 h-5 text-green-200" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-600" />
+                <AlertCircle className="w-5 h-5 text-red-200" />
               )}
-              <span className={`text-sm font-medium ${
-                exportStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
+              <span className={`text-sm font-bold ${
+                exportStatus.type === 'success' ? 'text-white' : 'text-white'
               }`}>
                 {exportStatus.message}
               </span>
@@ -173,7 +175,7 @@ const ExportOptions = ({
             {exportStatus.type === 'success' && exportStatus.downloadUrl && (
               <button
                 onClick={handleDownload}
-                className="mt-2 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                className="mt-3 px-4 py-2 bg-white/20 text-white text-sm font-bold rounded-xl hover:bg-white/30 transition-all hover:scale-105"
               >
                 Download File
               </button>
@@ -185,20 +187,20 @@ const ExportOptions = ({
         <button
           onClick={handleExport}
           disabled={disabled || isExporting}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors ${
+          className={`w-full flex items-center justify-center gap-3 px-5 py-3 rounded-2xl text-white font-black transition-all ${
             disabled || isExporting
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
+              ? 'bg-white/10 cursor-not-allowed opacity-50'
+              : 'bg-white/20 hover:bg-white/30 backdrop-blur-sm hover:scale-105 hover:shadow-xl'
           }`}
         >
           {isExporting ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Exporting...
             </>
           ) : (
             <>
-              <Download className="w-4 h-4" />
+              <Download className="w-5 h-5" />
               Export Report
             </>
           )}

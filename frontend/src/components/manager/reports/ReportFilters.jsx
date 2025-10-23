@@ -19,20 +19,20 @@ const THEMES = {
     subLabel: 'text-sm text-gray-600',
   },
   manager: {
-    container: 'rounded-2xl border border-[#162a52] bg-[#0f2349]/90 shadow-[0_18px_40px_rgba(8,14,29,0.55)] backdrop-blur-lg text-[#f5f7ff]',
-    headerBorder: 'border-b border-[#162a52]/70',
-    icon: 'text-[#facc15]',
-    heading: 'text-lg font-semibold text-[#f5f7ff]',
-    buttonClear: 'text-sm text-[#bcd1ff] hover:text-[#facc15] flex items-center gap-1 transition-colors',
-    toggleButton: 'text-[#bcd1ff] hover:text-[#facc15] transition-colors',
+    container: 'rounded-3xl bg-gradient-to-br from-indigo-600 via-blue-700 to-indigo-800 shadow-2xl border-0',
+    headerBorder: 'border-b border-white/10',
+    icon: 'text-yellow-300',
+    heading: 'text-xl font-black text-white tracking-tight',
+    buttonClear: 'text-sm text-blue-100 hover:text-yellow-300 flex items-center gap-2 transition-all font-bold hover:scale-110',
+    toggleButton: 'text-blue-100 hover:text-yellow-300 transition-all hover:scale-110',
     sectionSpacing: 'mb-6',
-    label: 'block text-sm font-medium text-[#bcd1ff] mb-2',
-    input: 'w-full px-3 py-2 border border-[#1b3265] bg-[#081931] text-[#f5f7ff] placeholder-[#8ba3d0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563eb]',
-    pill: 'px-3 py-1 text-sm rounded-md bg-[#102a58] hover:bg-[#1b3a78] transition-colors text-[#f5f7ff]',
-    checkbox: 'mr-2 rounded border-[#1b3265] bg-[#081931] text-[#38bdf8] focus:ring-[#2563eb]',
-    checkboxLabel: 'text-sm text-[#d6e2ff]',
-    compareLabel: 'text-sm font-medium text-[#bcd1ff]',
-    subLabel: 'text-sm text-[#8ba3d0]',
+    label: 'block text-xs font-black text-blue-200 mb-2.5 uppercase tracking-widest',
+    input: 'w-full px-4 py-3 border-0 bg-white/10 backdrop-blur-sm text-white placeholder-blue-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400 font-semibold transition-all hover:bg-white/15',
+    pill: 'px-5 py-2.5 text-sm font-bold rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all text-white hover:shadow-lg hover:-translate-y-0.5',
+    checkbox: 'mr-3 rounded-md border-white/30 bg-white/10 text-yellow-400 focus:ring-yellow-400 focus:ring-offset-0 w-4 h-4',
+    checkboxLabel: 'text-sm text-white font-semibold',
+    compareLabel: 'text-sm font-bold text-white',
+    subLabel: 'text-sm text-blue-200',
   },
 };
 
@@ -130,13 +130,15 @@ const ReportFilters = ({
 
   return (
     <div className={`${theme.container} ${className}`}>
-      <div className={`p-4 ${theme.headerBorder}`}>
+      <div className={`p-6 ${theme.headerBorder}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className={`w-5 h-5 ${theme.icon}`} />
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-yellow-400/20 backdrop-blur-sm">
+              <Filter className={`w-5 h-5 ${theme.icon}`} />
+            </div>
             <h3 className={theme.heading}>Report Filters</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <button
               onClick={clearFilters}
               className={theme.buttonClear}
@@ -148,20 +150,20 @@ const ReportFilters = ({
               onClick={() => setIsExpanded(!isExpanded)}
               className={theme.toggleButton}
             >
-              <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-6 h-6 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-6">
         {/* Date Range */}
         {showDateRange && (
           <div className={theme.sectionSpacing}>
             <label className={theme.label}>
               Date Range
             </label>
-            <div className="grid grid-cols-2 gap-4 mb-3">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <input
                   type="date"
@@ -179,7 +181,7 @@ const ReportFilters = ({
                 />
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-3 flex-wrap">
               <button
                 onClick={() => setQuickDateRange(7)}
                 className={theme.pill}

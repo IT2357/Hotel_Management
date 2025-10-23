@@ -20,21 +20,23 @@ const VARIANTS = {
     progressLabel: 'text-gray-500',
   },
   manager: {
-    container: 'bg-[#0e1f42] border border-[#162a52] shadow-[0_18px_40px_rgba(8,14,29,0.55)] backdrop-blur-sm',
-    title: 'text-[#8ba3d0]',
-    value: 'text-[#f5f7ff]',
-    unit: 'text-[#bcd1ff]',
-    footer: 'text-[#8ba3d0]',
-    trendUp: 'text-[#34d399]',
-    trendDown: 'text-[#f87171]',
-    trendFlat: 'text-[#8ba3d0]',
-  iconContainer: 'rounded-xl bg-[#10234f] p-3 transition-transform duration-300 group-hover:scale-110',
-    iconWrapper: 'text-[#facc15]',
-    iconWarning: 'text-[#f87171]',
-    progressTrack: 'bg-[#132a58]',
-    progressFillOnTrack: 'bg-[#2563eb]',
-    progressFillMet: 'bg-[#22c55e]',
-    progressLabel: 'text-[#8ba3d0]',
+    // Fresh modern card design with vibrant colors
+    container: 'relative overflow-hidden rounded-3xl bg-white shadow-xl hover:shadow-2xl border-0',
+    title: 'text-gray-700',
+    value: 'text-gray-900',
+    unit: 'text-gray-600',
+    footer: 'text-gray-600',
+    trendUp: 'text-emerald-600',
+    trendDown: 'text-rose-600',
+    trendFlat: 'text-gray-600',
+    // Large vibrant icon badge
+    iconContainer: 'absolute top-6 right-6 w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl',
+    iconWrapper: 'text-white',
+    iconWarning: 'text-red-500',
+    progressTrack: 'bg-gray-200',
+    progressFillOnTrack: 'bg-blue-500',
+    progressFillMet: 'bg-emerald-500',
+    progressLabel: 'text-gray-600',
   },
 };
 
@@ -84,9 +86,9 @@ const KPICard = ({
   const isUnderTarget = target && value < target;
 
   const sizeClasses = {
-    small: 'p-3',
-    medium: 'p-4',
-    large: 'p-6'
+    small: 'p-4',
+    medium: 'p-6',
+    large: 'p-8'
   };
 
   const titleSizes = {
@@ -96,78 +98,88 @@ const KPICard = ({
   };
 
   const valueSizes = {
-    small: 'text-lg',
-    medium: 'text-2xl',
-    large: 'text-3xl'
+    small: 'text-2xl',
+    medium: 'text-4xl',
+    large: 'text-5xl'
   };
 
   const containerHover = variant === 'manager'
-    ? 'group cursor-pointer transition-all duration-300 hover:shadow-[0_25px_50px_rgba(10,20,48,0.65)]'
+    ? 'group cursor-default transition-all duration-500 hover:scale-105 hover:-translate-y-2'
     : '';
 
+  const titleColorFromIcon = (hex) => {
+    switch (hex) {
+      case '#38bdf8': return 'text-cyan-600';
+      case '#f87171': return 'text-rose-600';
+      case '#22c55e': return 'text-emerald-600';
+      case '#facc15': return 'text-amber-600';
+      case '#a855f7': return 'text-purple-600';
+      case '#f97316': return 'text-orange-600';
+      default: return theme.title;
+    }
+  };
+
   return (
-    <div className={`rounded-lg ${theme.container} ${containerHover} ${sizeClasses[size]} ${className}`}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <p className={`${theme.title} font-medium ${titleSizes[size]}`}>{title}</p>
-          <div className="flex items-baseline gap-1 mt-1">
-            <p className={`font-bold ${theme.value} ${valueSizes[size]}`}>
-              {formatValue(value)}
-            </p>
-            {unit && <span className={`${theme.unit} text-sm`}>{unit}</span>}
+    <div className={`rounded-3xl ${theme.container} ${containerHover} ${sizeClasses[size]} ${className}`}>
+      {/* Colored accent bar on the left */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-3xl" 
+        style={{ background: iconColor }}
+      />
+
+      <div className="relative">
+        <div className="flex items-start">
+          {/* Left content */}
+          <div className="flex-1 pr-20">
+            <p className={`${titleColorFromIcon(iconColor)} font-bold ${titleSizes[size]} mb-3 uppercase tracking-wider text-xs`}>{title}</p>
+            <div className="flex items-baseline gap-2.5">
+              <p className={`font-black ${theme.value} ${valueSizes[size]} tracking-tight leading-none`}>{formatValue(value)}</p>
+              {unit && <span className={`${theme.unit} text-sm font-bold uppercase`}>{unit}</span>}
+            </div>
+
+            {trend && (
+              <div className="mt-4 flex items-center gap-2">
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                  trend.direction === 'up' ? 'bg-emerald-100 text-emerald-700' : 
+                  trend.direction === 'down' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {trend.direction === 'up' ? <TrendingUp className="w-3.5 h-3.5" /> : trend.direction === 'down' ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
+                  <span className="text-xs font-bold">{trend.percentage ? `${trend.percentage.toFixed(1)}%` : trend.description}</span>
+                </div>
+              </div>
+            )}
+
+            {target && (
+              <div className={`mt-3 ${theme.footer} text-xs`}>
+                <div className="flex items-center justify-between">
+                  <span className="opacity-80">Target</span>
+                  <span className="font-semibold">{formatValue(target)}{unit}</span>
+                </div>
+                <div className={`w-full ${theme.progressTrack} rounded-full h-2 mt-2`}> 
+                  <div className={`h-2 rounded-full ${value >= target ? theme.progressFillMet : theme.progressFillOnTrack}`} style={{ width: `${Math.min((value / target) * 100, 100)}%` }} />
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* empty spacer (could hold a small right-side element) */}
+          <div className="w-3" />
         </div>
-        
+
+        {/* Icon badge (top-right) */}
         {Icon && (
           <div
-            className={`${theme.iconContainer} ${
-              isUnderTarget ? theme.iconWarning : theme.iconWrapper
-            }`}
-            style={!isUnderTarget && iconColor ? { color: iconColor } : undefined}
+            className={`${theme.iconContainer} ${isUnderTarget ? 'bg-red-500' : ''} group-hover:scale-110 transition-transform duration-500`}
+            aria-hidden
+            style={!isUnderTarget && iconColor ? { 
+              background: `linear-gradient(135deg, ${iconColor} 0%, ${iconColor}dd 100%)`,
+              boxShadow: `0 10px 30px ${iconColor}40`
+            } : undefined}
           >
-            <Icon
-              className={
-                size === 'large' ? 'w-8 h-8' : size === 'small' ? 'w-5 h-5' : 'w-6 h-6'
-              }
-            />
+            <Icon className={`${theme.iconWrapper} w-7 h-7`} />
           </div>
         )}
       </div>
-
-      <div className="flex items-center justify-between">
-        {trend && (
-          <div className="flex items-center gap-1">
-            {getTrendIcon()}
-            <span className={`text-sm font-medium ${getTrendColor()}`}>
-              {trend.percentage ? `${trend.percentage.toFixed(1)}%` : trend.description}
-            </span>
-          </div>
-        )}
-
-        {target && (
-          <div className={`flex items-center gap-1 text-sm ${theme.footer}`}>
-            <span>Target: {formatValue(target)}{unit}</span>
-            {isUnderTarget && <AlertTriangle className={`w-4 h-4 ${theme.iconWarning}`} />}
-          </div>
-        )}
-      </div>
-
-      {target && (
-        <div className="mt-3">
-          <div className={`flex justify-between text-xs ${theme.progressLabel} mb-1`}>
-            <span>Progress</span>
-            <span>{((value / target) * 100).toFixed(0)}%</span>
-          </div>
-          <div className={`w-full ${theme.progressTrack} rounded-full h-2`}>
-            <div 
-              className={`h-2 rounded-full transition-all duration-300 ${
-                value >= target ? theme.progressFillMet : theme.progressFillOnTrack
-              }`}
-              style={{ width: `${Math.min((value / target) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

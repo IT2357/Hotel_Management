@@ -1,72 +1,80 @@
 import mongoose from "mongoose";
-import ManagerTask, {
-  TASK_DEPARTMENTS,
-  TASK_PRIORITIES,
-  TASK_STATUSES,
-  TASK_TYPES,
-} from "../../models/ManagerTask.js";
 import { User } from "../../models/User.js";
 import StaffProfile from "../../models/profiles/StaffProfile.js";
 import StaffNotification from "../../models/StaffNotification.js";
 import StaffTask from "../../models/StaffTask.js";
 import { getIO } from "../../utils/socket.js";
 
+// Normalize incoming status values to StaffTask schema (lowercase)
 const STATUS_MAP = {
-  pending: "Pending",
-  queued: "Pending",
-  assigned: "Assigned",
-  inprogress: "In-Progress",
-  "in-progress": "In-Progress",
-  "in_progress": "In-Progress",
-  active: "In-Progress",
-  completed: "Completed",
-  done: "Completed",
-  finished: "Completed",
-  cancelled: "Cancelled",
-  canceled: "Cancelled",
+  pending: "pending",
+  queued: "pending",
+  assigned: "assigned",
+  inprogress: "in_progress",
+  "in-progress": "in_progress",
+  "in_progress": "in_progress",
+  active: "in_progress",
+  completed: "completed",
+  done: "completed",
+  finished: "completed",
+  cancelled: "cancelled",
+  canceled: "cancelled",
 };
 
+// Normalize incoming priority values to StaffTask (lowercase)
 const PRIORITY_MAP = {
-  low: "Low",
-  normal: "Medium",
-  medium: "Medium",
-  moderate: "Medium",
-  high: "High",
-  urgent: "Urgent",
-  critical: "Urgent",
+  low: "low",
+  normal: "medium",
+  medium: "medium",
+  moderate: "medium",
+  high: "high",
+  urgent: "urgent",
+  critical: "urgent",
 };
 
+// Map various inputs to StaffTask department enum
+// StaffTask departments: ["Housekeeping", "Kitchen", "Maintenance", "Service"]
 const DEPARTMENT_MAP = {
-  housekeeping: "cleaning",
-  cleaning: "cleaning",
-  "cleaning staff": "cleaning",
+  housekeeping: "Housekeeping",
+  cleaning: "Housekeeping",
+  "cleaning staff": "Housekeeping",
   kitchen: "Kitchen",
   food: "Kitchen",
   "kitchen staff": "Kitchen",
   maintenance: "Maintenance",
   engineering: "Maintenance",
-  service: "service",
-  services: "service",
-  "guest services": "service",
-  concierge: "service",
-  "room service": "service",
-  "front desk": "service",
-  reception: "service",
+  service: "Service",
+  services: "Service",
+  "guest services": "Service",
+  concierge: "Service",
+  "room service": "Service",
+  "front desk": "Service",
+  reception: "Service",
 };
 
-const TYPE_MAP = {
-  cleaning: "cleaning",
-  housekeeping: "cleaning",
-  kitchen: "Kitchen",
-  food: "Kitchen",
-  maintenance: "Maintenance",
-  engineering: "Maintenance",
-  service: "service",
-  services: "service",
-  "guest services": "service",
-  concierge: "service",
-  general: "general",
-};
+// Map to StaffTask category enum
+const CATEGORY_ALLOWED = new Set([
+  "electrical",
+  "plumbing",
+  "hvac",
+  "appliance",
+  "structural",
+  "general",
+  "food_preparation",
+  "cooking",
+  "cleaning",
+  "inventory",
+  "equipment",
+  "guest_request",
+  "room_service",
+  "concierge",
+  "transportation",
+  "event",
+  "laundry",
+  "restocking",
+  "inspection",
+  "deep_cleaning",
+]);
 
 const ALLOWED_SORT_FIELDS = new Set(["createdAt", "dueDate", "priority", "status"]);
 
@@ -78,45 +86,40 @@ const toTitleCase = (value = "") =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const normalizeDepartment = (value) => {
-  if (!value) return "service";
+  if (!value) return "Service";
   const normalized = String(value).trim().toLowerCase();
-  const mapped = DEPARTMENT_MAP[normalized];
-  if (mapped) return mapped;
-  if (TASK_DEPARTMENTS.includes(value)) return value;
-  const title = toTitleCase(value);
-  return TASK_DEPARTMENTS.includes(title) ? title : "service";
+  if (DEPARTMENT_MAP[normalized]) return DEPARTMENT_MAP[normalized];
+  // If already one of StaffTask enums, keep
+  const maybe = toTitleCase(value);
+  return ["Housekeeping", "Kitchen", "Maintenance", "Service"].includes(maybe)
+    ? maybe
+    : "Service";
 };
 
-const inferTypeFromDepartment = (department) => {
+const inferCategoryFromDepartment = (department) => {
   const normalized = String(department).trim().toLowerCase();
-  if (normalized === "maintenance") return "Maintenance";
-  if (normalized === "service") return "service";
-  if (normalized === "kitchen") return "Kitchen";
-  if (normalized === "cleaning") return "cleaning";
-  return "general";
+  if (normalized === "kitchen") return "food_preparation";
+  if (normalized === "housekeeping" || normalized === "cleaning") return "cleaning";
+  if (normalized === "maintenance") return "general";
+  return "guest_request";
 };
 
-const normalizeType = (value, department) => {
-  if (!value) return inferTypeFromDepartment(department || "");
-  const normalized = String(value).trim().toLowerCase();
-  const mapped = TYPE_MAP[normalized];
-  if (mapped && TASK_TYPES.includes(mapped)) return mapped;
-  if (TASK_TYPES.includes(value)) return value;
-  const title = toTitleCase(value);
-  if (TASK_TYPES.includes(title)) return title;
-  return inferTypeFromDepartment(department || "");
+const normalizeCategory = (value, department) => {
+  if (!value) return inferCategoryFromDepartment(department || "");
+  const normalized = String(value).trim().toLowerCase().replace(/[-\s]+/g, "_");
+  return CATEGORY_ALLOWED.has(normalized) ? normalized : inferCategoryFromDepartment(department || "");
 };
 
 const normalizePriority = (value) => {
-  if (!value) return "Medium";
+  if (!value) return "medium";
   const normalized = String(value).trim().toLowerCase();
-  return PRIORITY_MAP[normalized] || (TASK_PRIORITIES.includes(value) ? value : "Medium");
+  return PRIORITY_MAP[normalized] || "medium";
 };
 
 const normalizeStatus = (value) => {
-  if (!value) return "Pending";
+  if (!value) return "pending";
   const normalized = String(value).trim().toLowerCase();
-  return STATUS_MAP[normalized] || (TASK_STATUSES.includes(value) ? value : "Pending");
+  return STATUS_MAP[normalized] || "pending";
 };
 
 const parseDate = (value) => {
@@ -127,22 +130,14 @@ const parseDate = (value) => {
 
 const extractUserId = (user) => user?._id || user?.id || user?.userId;
 
+// For StaffTask we won't compute AI staff recommendations here; provide a simple placeholder
 const ensureRecommendations = (task) => {
-  if (Array.isArray(task.recommendedStaff) && task.recommendedStaff.length > 0) {
-    return task.recommendedStaff.map((member) => ({
-      staffId: member.staffId,
-      name: member.name,
-      role: member.role || task.department || "Staff Member",
-      match: member.match ?? task.aiRecommendationScore ?? 80,
-    }));
-  }
-
   const fallbackName = task.assignedTo?.name || "Available Staff";
   return [
     {
       name: fallbackName,
-      role: task.department || task.type || "Staff Member",
-      match: task.aiRecommendationScore ?? 82,
+      role: task.department || "Staff Member",
+      match: 80,
     },
   ];
 };
@@ -174,7 +169,7 @@ const buildTaskResponse = (taskDoc) => {
     title: task.title,
     description: task.description || "",
     department: task.department,
-    type: task.type,
+    type: task.category || "general",
     priority: task.priority,
     status: task.status,
     location: task.location,
@@ -183,10 +178,12 @@ const buildTaskResponse = (taskDoc) => {
     estimatedDuration: task.estimatedDuration,
     tags: task.tags || [],
     recommendedStaff: ensureRecommendations({ ...task, assignedTo: assigned }),
-    aiRecommendationScore: task.aiRecommendationScore,
+    aiRecommendationScore: undefined,
     assignedTo: assigned,
     assignmentHistory: formatAssignmentHistory(task.assignmentHistory),
-    notes: task.notes || {},
+    notes: Array.isArray(task.notes)
+      ? { manager: task.notes.map(n => n.content).join("\n") }
+      : task.notes || {},
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   };
@@ -205,7 +202,7 @@ export const getAllTasks = async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    const filters = { isArchived: false };
+    const filters = {};
 
     if (status) {
       filters.status = normalizeStatus(status);
@@ -235,8 +232,9 @@ export const getAllTasks = async (req, res) => {
     const sortField = ALLOWED_SORT_FIELDS.has(sortBy) ? sortBy : "createdAt";
     const sortDirection = String(sortOrder).toLowerCase() === "asc" ? 1 : -1;
 
-    const query = ManagerTask.find(filters)
+    const query = StaffTask.find(filters)
       .populate("assignedTo", "name email role")
+      .populate("assignedBy", "name email role")
       .sort({ [sortField]: sortDirection })
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
@@ -244,7 +242,7 @@ export const getAllTasks = async (req, res) => {
 
     const [tasks, total] = await Promise.all([
       query,
-      ManagerTask.countDocuments(filters),
+      StaffTask.countDocuments(filters),
     ]);
 
     res.status(200).json({
@@ -272,8 +270,9 @@ export const getTaskById = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid task ID" });
     }
 
-    const task = await ManagerTask.findOne({ _id: id, isArchived: false })
+    const task = await StaffTask.findOne({ _id: id })
       .populate("assignedTo", "name email role")
+      .populate("assignedBy", "name email role")
       .lean();
 
     if (!task) {
@@ -302,6 +301,8 @@ export const createTask = async (req, res) => {
       roomNumber,
       tags,
       notes,
+      category,
+      assignedTo,
     } = req.body;
 
     if (!title) {
@@ -314,32 +315,44 @@ export const createTask = async (req, res) => {
     }
 
     const safeDepartment = normalizeDepartment(department);
-
     const payload = {
       title: String(title).trim(),
       description: description ? String(description).trim() : "",
       department: safeDepartment,
       priority: normalizePriority(priority),
       status: normalizeStatus(status),
-      type: normalizeType(type, safeDepartment),
+      category: normalizeCategory(category || type, safeDepartment),
       dueDate: parseDate(dueDate),
       estimatedDuration:
         estimatedDuration !== undefined && estimatedDuration !== null
           ? Math.max(Number(estimatedDuration), 0)
           : undefined,
-      location: location ? String(location).trim() : "",
+      location: location ? String(location).trim().toLowerCase() : "",
       roomNumber: roomNumber ? String(roomNumber).trim() : undefined,
       tags: Array.isArray(tags) ? tags.map((tag) => String(tag).trim()).filter(Boolean) : undefined,
-      notes: {
-        manager: notes?.manager ? String(notes.manager).trim() : undefined,
-        staff: notes?.staff ? String(notes.staff).trim() : undefined,
-      },
+      notes: notes ? [{ content: String(notes?.manager || notes).trim(), addedBy: creatorId }] : [],
       createdBy: creatorId,
-      updatedBy: creatorId,
+      assignedBy: creatorId,
+      assignmentSource: "user",
     };
 
-    const task = await ManagerTask.create(payload);
-    const populatedTask = await task.populate("assignedTo", "name email role");
+    if (assignedTo && isValidObjectId(assignedTo)) {
+      payload.assignedTo = assignedTo;
+      payload.status = "assigned";
+      payload.assignmentHistory = [{
+        assignedTo,
+        assignedBy: creatorId,
+        source: "user",
+        assignedAt: new Date(),
+        status: "assigned",
+        notes: notes ? String(notes).trim() : undefined,
+      }];
+    }
+
+    const task = await StaffTask.create(payload);
+    const populatedTask = await StaffTask.findById(task._id)
+      .populate("assignedTo", "name email role")
+      .lean();
 
     res.status(201).json({
       success: true,
@@ -366,7 +379,7 @@ export const assignTask = async (req, res) => {
     }
 
     const [task, staff] = await Promise.all([
-      ManagerTask.findOne({ _id: id, isArchived: false }),
+      StaffTask.findOne({ _id: id }),
       User.findOne({ _id: staffId, role: "staff", isActive: true }).lean(),
     ]);
 
@@ -381,19 +394,20 @@ export const assignTask = async (req, res) => {
     const managerId = extractUserId(req.user);
 
     task.assignedTo = staff._id;
-    task.status = task.status === "Completed" ? task.status : "Assigned";
-    task.updatedBy = managerId || staff._id;
+    task.status = task.status === "completed" ? task.status : "assigned";
+    task.assignmentHistory = task.assignmentHistory || [];
     task.assignmentHistory.push({
       assignedTo: staff._id,
-      assignedName: staff.name,
-      assignedAt: new Date(),
       assignedBy: managerId,
+      source: "user",
+      assignedAt: new Date(),
+      status: "assigned",
       notes: notes ? String(notes).trim() : undefined,
     });
 
     await task.save();
-    const populatedTask = await task.populate("assignedTo", "name email role");
-    const responsePayload = buildTaskResponse(populatedTask);
+    const populatedTaskDoc = await StaffTask.findById(task._id).populate("assignedTo", "name email role");
+    const responsePayload = buildTaskResponse(populatedTaskDoc);
 
     try {
       const io = getIO();
@@ -413,75 +427,7 @@ export const assignTask = async (req, res) => {
       console.error("manager:assignTask socket emit failed", socketError);
     }
 
-    // Create StaffTask so it appears on staff page
-    try {
-      // Map ManagerTask departments to StaffTask departments
-      const staffTaskDepartmentMap = {
-        "cleaning": "Housekeeping",
-        "Maintenance": "Maintenance",
-        "service": "Service",
-        "Kitchen": "Kitchen"
-      };
-
-      // Map ManagerTask priorities to StaffTask priorities
-      const staffTaskPriorityMap = {
-        "Low": "low",
-        "Medium": "medium",
-        "High": "high",
-        "Urgent": "urgent"
-      };
-
-      // Map ManagerTask status to StaffTask status
-      const staffTaskStatusMap = {
-        "Pending": "pending",
-        "Assigned": "assigned",
-        "In-Progress": "in_progress",
-        "Completed": "completed",
-        "Cancelled": "cancelled"
-      };
-
-      // Map location
-      const locationMap = {
-        "room": "room",
-        "kitchen": "kitchen",
-        "lobby": "lobby",
-        "gym": "gym",
-        "pool": "pool",
-        "parking": "parking"
-      };
-
-      const staffTaskData = {
-        title: task.title,
-        description: task.description || "",
-        department: staffTaskDepartmentMap[task.department] || "Service",
-        priority: staffTaskPriorityMap[task.priority] || "medium",
-        status: staffTaskStatusMap[task.status] || "assigned",
-        assignedTo: staff._id,
-        assignedBy: managerId,
-        assignmentSource: "user",
-        location: locationMap[task.location?.toLowerCase()] || "other",
-        roomNumber: task.roomNumber || "",
-        category: task.type === "cleaning" ? "cleaning" : task.type === "Kitchen" ? "food_preparation" : "general",
-        dueDate: task.dueDate,
-        estimatedDuration: task.estimatedDuration,
-        notes: notes ? [{ content: notes, createdBy: managerId, createdAt: new Date() }] : [],
-        assignmentHistory: [{
-          assignedTo: staff._id,
-          assignedBy: managerId,
-          source: "user",
-          assignedAt: new Date(),
-          status: "assigned",
-          notes: notes || ""
-        }],
-        managerTaskId: task._id // Reference to the ManagerTask
-      };
-
-      await StaffTask.create(staffTaskData);
-      console.log(`StaffTask created for task ${task.title} assigned to ${staff.name}`);
-    } catch (staffTaskError) {
-      console.error("manager:assignTask StaffTask creation failed", staffTaskError);
-      // Don't fail the request if StaffTask creation fails
-    }
+    // We already updated StaffTask directly; no shadow copy needed
 
     // Create notification for staff member
     try {
@@ -531,36 +477,31 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid task ID" });
     }
 
-    const task = await ManagerTask.findOne({ _id: id, isArchived: false });
+    const task = await StaffTask.findOne({ _id: id });
     if (!task) {
       return res.status(404).json({ success: false, message: "Task not found" });
     }
 
     const normalizedStatus = normalizeStatus(status);
 
-    if (normalizedStatus === "Assigned" && !task.assignedTo) {
+    if (normalizedStatus === "assigned" && !task.assignedTo) {
       return res.status(400).json({ success: false, message: "Assign staff before marking as Assigned" });
     }
 
     task.status = normalizedStatus;
-    task.updatedBy = extractUserId(req.user) || task.updatedBy;
 
     if (notes) {
-      task.notes = task.notes || {};
-      task.notes.manager = task.notes.manager
-        ? `${task.notes.manager}\n${String(notes).trim()}`
-        : String(notes).trim();
+      task.notes = task.notes || [];
+      task.notes.push({ content: String(notes).trim(), addedBy: extractUserId(req.user) });
     }
 
     if (staffNotes) {
-      task.notes = task.notes || {};
-      task.notes.staff = task.notes.staff
-        ? `${task.notes.staff}\n${String(staffNotes).trim()}`
-        : String(staffNotes).trim();
+      task.notes = task.notes || [];
+      task.notes.push({ content: String(staffNotes).trim(), addedBy: extractUserId(req.user) });
     }
 
     await task.save();
-    const populatedTask = await task.populate("assignedTo", "name email role");
+    const populatedTask = await StaffTask.findById(task._id).populate("assignedTo", "name email role");
 
     res.status(200).json({
       success: true,
@@ -580,17 +521,13 @@ export const deleteTask = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid task ID" });
     }
 
-    const task = await ManagerTask.findOneAndUpdate(
-      { _id: id, isArchived: false },
-      { isArchived: true, updatedBy: extractUserId(req.user) },
-      { new: true },
-    );
+    const task = await StaffTask.findOneAndDelete({ _id: id });
 
     if (!task) {
       return res.status(404).json({ success: false, message: "Task not found" });
     }
 
-    res.status(200).json({ success: true, message: "Task archived successfully" });
+    res.status(200).json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     console.error("manager:deleteTask", error);
     res.status(500).json({ success: false, message: "Failed to delete task" });
@@ -604,10 +541,7 @@ export const getMyTasks = async (req, res) => {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const tasks = await ManagerTask.find({
-      isArchived: false,
-      assignedTo: userId,
-    })
+    const tasks = await StaffTask.find({ assignedTo: userId })
       .sort({ dueDate: 1, createdAt: -1 })
       .populate("assignedTo", "name email role")
       .lean();
@@ -686,7 +620,7 @@ export const getTaskStats = async (req, res) => {
   try {
     const { startDate, endDate, department } = req.query;
 
-    const matchStage = { isArchived: false };
+    const matchStage = {};
 
     if (department) {
       matchStage.department = normalizeDepartment(department);
@@ -704,7 +638,7 @@ export const getTaskStats = async (req, res) => {
       if (Object.keys(matchStage.createdAt).length === 0) delete matchStage.createdAt;
     }
 
-    const aggregation = await ManagerTask.aggregate([
+    const aggregation = await StaffTask.aggregate([
       { $match: matchStage },
       {
         $group: {
@@ -726,19 +660,19 @@ export const getTaskStats = async (req, res) => {
     aggregation.forEach((bucket) => {
       overview.totalTasks += bucket.count;
       switch (bucket._id) {
-        case "Pending":
+        case "pending":
           overview.pendingTasks = bucket.count;
           break;
-        case "Assigned":
+        case "assigned":
           overview.assignedTasks = bucket.count;
           break;
-        case "In-Progress":
+        case "in_progress":
           overview.inProgressTasks = bucket.count;
           break;
-        case "Completed":
+        case "completed":
           overview.completedTasks = bucket.count;
           break;
-        case "Cancelled":
+        case "cancelled":
           overview.cancelledTasks = bucket.count;
           break;
         default:
@@ -746,7 +680,7 @@ export const getTaskStats = async (req, res) => {
       }
     });
 
-    const departmentBreakdown = await ManagerTask.aggregate([
+    const departmentBreakdown = await StaffTask.aggregate([
       { $match: matchStage },
       {
         $group: {
@@ -754,7 +688,7 @@ export const getTaskStats = async (req, res) => {
           count: { $sum: 1 },
           completed: {
             $sum: {
-              $cond: [{ $eq: ["$status", "Completed"] }, 1, 0],
+              $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
             },
           },
         },
