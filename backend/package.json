@@ -11,6 +11,7 @@
     "seed:menu": "node scripts/seedMenuItems.js",
     "seed:manager-tasks": "node scripts/manager/seedManagerTasks.js",
     "seed:guest-requests": "node scripts/manager/seedGuestRequests.js",
+    "seed:guest-feedback": "node scripts/seedGuestFeedback.js",
     "seed:staff-analytics": "node scripts/seedStaffAnalytics.js",
     "seed:reports": "node scripts/seedReportData.js"
   },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Plus, Clock, MapPin, Building2, Calendar, Timer, FileText, StickyNote } from "lucide-react";
+import { Loader2, Plus, Clock, MapPin, Building2, Calendar, Timer, FileText, StickyNote, Workflow } from "lucide-react";
 
 import {
   ManagerDialog,
@@ -53,12 +53,16 @@ export const TaskCreateDialog = ({
       roomNumber: "",
       description: "",
       managerNote: "",
+      autoCreateFollowUp: false,
     }),
     [fallbackDepartment, fallbackPriority],
   );
 
   const form = useForm({ defaultValues: defaults });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Watch department to control workflow checkbox visibility
+  const watchDepartment = form.watch("department");
 
   useEffect(() => {
     if (open) {
@@ -351,6 +355,70 @@ export const TaskCreateDialog = ({
                 </ManagerFormItem>
               )}
             />
+
+            {/* Workflow Automation - Kitchen to Service */}
+            {(watchDepartment === "Kitchen" || watchDepartment === "kitchen") && (
+              <ManagerFormField
+                control={form.control}
+                name="autoCreateFollowUp"
+                render={({ field }) => (
+                  <ManagerFormItem>
+                    <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl">
+                      <input
+                        type="checkbox"
+                        id="autoCreateFollowUp"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="mt-1 h-5 w-5 rounded border-2 border-indigo-400 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="autoCreateFollowUp" className="text-sm font-bold text-gray-900 flex items-center gap-2 cursor-pointer">
+                          <Workflow className="h-4 w-4 text-indigo-600" />
+                          Auto-create Service Task (Kitchen → Service Workflow)
+                        </label>
+                        <p className="text-xs text-gray-600 mt-1 font-medium leading-relaxed">
+                          ✨ When Kitchen staff completes this task, a Service task will automatically be created to serve the food. 
+                          Perfect for food preparation and cooking tasks!
+                        </p>
+                      </div>
+                    </div>
+                    <ManagerFormMessage />
+                  </ManagerFormItem>
+                )}
+              />
+            )}
+
+            {/* Workflow Automation - Maintenance to Housekeeping */}
+            {(watchDepartment === "Maintenance" || watchDepartment === "maintenance") && (
+              <ManagerFormField
+                control={form.control}
+                name="autoCreateFollowUp"
+                render={({ field }) => (
+                  <ManagerFormItem>
+                    <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl">
+                      <input
+                        type="checkbox"
+                        id="autoCreateFollowUp"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="mt-1 h-5 w-5 rounded border-2 border-emerald-400 text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="autoCreateFollowUp" className="text-sm font-bold text-gray-900 flex items-center gap-2 cursor-pointer">
+                          <Workflow className="h-4 w-4 text-emerald-600" />
+                          Auto-create Housekeeping Task (Maintenance → Cleaning Workflow)
+                        </label>
+                        <p className="text-xs text-gray-600 mt-1 font-medium leading-relaxed">
+                          🧹 When Maintenance staff completes this task, a Housekeeping task will automatically be created to clean the area. 
+                          Perfect for repairs, fixes, and maintenance work!
+                        </p>
+                      </div>
+                    </div>
+                    <ManagerFormMessage />
+                  </ManagerFormItem>
+                )}
+              />
+            )}
 
             <ManagerDialogFooter className="gap-3 pt-6 border-t-2 border-gray-100">
               <Button

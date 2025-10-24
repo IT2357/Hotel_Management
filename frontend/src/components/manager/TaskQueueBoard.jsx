@@ -21,6 +21,7 @@ const SORT_OPTIONS = [
 
 const VIEW_TABS = [
   { id: "pending", label: "Pending", icon: Clock, count: 0, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+  { id: "awaitingAssignment", label: "🍽️ Need Assignment", icon: ListChecks, count: 0, color: "text-orange-400", bg: "bg-orange-500/10" }, // ✅ New tab
   { id: "inProgress", label: "In Progress", icon: AlertCircle, count: 0, color: "text-blue-400", bg: "bg-blue-500/10" },
   { id: "completed", label: "Completed", icon: CheckCircle2, count: 0, color: "text-green-400", bg: "bg-green-500/10" },
 ];
@@ -43,6 +44,7 @@ export const TaskQueueBoard = ({
 
   const groupedTasks = useMemo(() => ({
     pending: tasksByStatus?.pending || [],
+    awaitingAssignment: tasksByStatus?.awaitingAssignment || [], // ✅ New column
     inProgress: tasksByStatus?.inProgress || [],
     completed: tasksByStatus?.completed || [],
   }), [tasksByStatus]);
@@ -205,6 +207,7 @@ export const TaskQueueBoard = ({
             const isActive = activeTab === tab.id;
             const colorMap = {
               pending: { active: "bg-yellow-600 text-white border-yellow-600", inactive: "bg-white text-gray-600 border-gray-300" },
+              awaitingAssignment: { active: "bg-orange-600 text-white border-orange-600", inactive: "bg-white text-gray-600 border-gray-300" }, // ✅ Added for workflow tasks
               inProgress: { active: "bg-blue-600 text-white border-blue-600", inactive: "bg-white text-gray-600 border-gray-300" },
               completed: { active: "bg-green-600 text-white border-green-600", inactive: "bg-white text-gray-600 border-gray-300" },
             };

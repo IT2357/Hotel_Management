@@ -1,51 +1,15 @@
 import GuestFeedback from '../../models/GuestFeedback.js';
+import { buildFeedbackQuery, buildFeedbackSort } from '../../services/manager/feedbackQueryBuilder.js';
+import { getAllFeedbackStats } from '../../services/manager/feedbackStatsService.js';
 
 // Get all guest feedback with filters
 export const getAllFeedback = async (req, res) => {
   try {
-    const {
-      status,
-      rating,
-      search,
-      sortBy = 'recent',
-    } = req.query;
+    const { status, rating, search, sortBy = 'recent' } = req.query;
 
-    // Build filter query
-    let query = {};
-
-    if (status && status !== 'all') {
-      query.status = status;
-    }
-
-    if (rating) {
-      query.rating = parseInt(rating);
-    }
-
-    if (search) {
-      query.$or = [
-        { guestName: { $regex: search, $options: 'i' } },
-        { roomTitle: { $regex: search, $options: 'i' } },
-        { roomNumber: { $regex: search, $options: 'i' } },
-        { title: { $regex: search, $options: 'i' } },
-        { comment: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    // Build sort query
-    let sort = {};
-    switch (sortBy) {
-      case 'recent':
-        sort = { stayDate: -1 };
-        break;
-      case 'rating-high':
-        sort = { rating: -1 };
-        break;
-      case 'rating-low':
-        sort = { rating: 1 };
-        break;
-      default:
-        sort = { createdAt: -1 };
-    }
+    // Build query and sort using helper functions
+    const query = buildFeedbackQuery({ status, rating, search });
+    const sort = buildFeedbackSort(sortBy);
 
     const feedback = await GuestFeedback.find(query).sort(sort);
 
@@ -67,78 +31,11 @@ export const getAllFeedback = async (req, res) => {
 // Get feedback statistics
 export const getFeedbackStats = async (req, res) => {
   try {
-    const totalFeedback = await GuestFeedback.countDocuments();
-    const pendingCount = await GuestFeedback.countDocuments({ status: 'pending' });
-    const publishedCount = await GuestFeedback.countDocuments({ status: 'published' });
-    const respondedCount = await GuestFeedback.countDocuments({ 'response.hasResponse': true });
-
-    // Calculate average rating
-    const avgRatingResult = await GuestFeedback.aggregate([
-      { $group: { _id: null, avgRating: { $avg: '$rating' } } },
-    ]);
-    const averageRating = avgRatingResult[0]?.avgRating || 0;
-
-    // Get rating distribution
-    const ratingDist = await GuestFeedback.aggregate([
-      { $group: { _id: '$rating', count: { $sum: 1 } } },
-      { $sort: { _id: -1 } },
-    ]);
-
-    const ratingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    ratingDist.forEach(item => {
-      ratingDistribution[item._id] = item.count;
-    });
-
-    // Get sentiment distribution
-    const sentimentDist = await GuestFeedback.aggregate([
-      { $group: { _id: '$sentiment', count: { $sum: 1 } } },
-    ]);
-
-    const sentimentStats = { positive: 0, neutral: 0, negative: 0 };
-    sentimentDist.forEach(item => {
-      sentimentStats[item._id] = item.count;
-    });
-
-    // Calculate trend (compare this month to last month)
-    const now = new Date();
-    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    
-    const thisMonthAvg = await GuestFeedback.aggregate([
-      { $match: { createdAt: { $gte: startOfThisMonth } } },
-      { $group: { _id: null, avgRating: { $avg: '$rating' } } },
-    ]);
-    
-    const lastMonthAvg = await GuestFeedback.aggregate([
-      { $match: { 
-        createdAt: { 
-          $gte: startOfLastMonth, 
-          $lt: startOfThisMonth 
-        } 
-      }},
-      { $group: { _id: null, avgRating: { $avg: '$rating' } } },
-    ]);
-
-    const thisMonthRating = thisMonthAvg[0]?.avgRating || 0;
-    const lastMonthRating = lastMonthAvg[0]?.avgRating || 0;
-    
-    let trend = 0;
-    if (lastMonthRating > 0) {
-      trend = ((thisMonthRating - lastMonthRating) / lastMonthRating) * 100;
-    }
+    const stats = await getAllFeedbackStats();
 
     res.json({
       success: true,
-      data: {
-        totalFeedback,
-        pendingCount,
-        publishedCount,
-        respondedCount,
-        averageRating: parseFloat(averageRating.toFixed(1)),
-        ratingDistribution,
-        sentimentStats,
-        trend: parseFloat(trend.toFixed(1)),
-      },
+      data: stats,
     });
   } catch (error) {
     console.error('Error fetching feedback stats:', error);

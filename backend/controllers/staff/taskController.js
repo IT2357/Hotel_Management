@@ -348,6 +348,101 @@ export const updateTaskStatus = async (req, res) => {
       task.completedAt = new Date();
       const duration = Math.round((new Date(task.completedAt) - new Date(task.createdAt)) / (1000 * 60));
       task.actualDuration = task.actualDuration || (isNaN(duration) ? 0 : duration);
+
+      // AUTO-CREATE FOLLOW-UP TASK WORKFLOW (Kitchen -> Service)
+      if (task.autoCreateFollowUp && task.department === 'Kitchen' && 
+          (task.category === 'food_preparation' || task.category === 'cooking')) {
+        try {
+          console.log(' Creating automatic Service task for completed Kitchen task:', task._id);
+          
+          const followUpTask = new StaffTask({
+            title: `🍽️ Serve Food - ${task.roomNumber || 'Guest Request'}`,
+            description: `Service task auto-created from Kitchen task: "${task.title}". Food is ready and needs to be served to the guest.${task.roomNumber ? ` Room: ${task.roomNumber}` : ''}`,
+            department: 'Service',
+            status: 'Pending', // ✅ PENDING - Manager needs to assign to Service staff
+            priority: task.isUrgent ? 'urgent' : task.priority, // Inherit urgency
+            category: 'room_service',
+            location: task.location || 'room',
+            roomNumber: task.roomNumber || null,
+            dueDate: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes to serve
+            estimatedDuration: 10, // 10 minutes to serve
+            createdBy: task.assignedBy || req.user._id, // Who created the original task
+            assignedBy: task.assignedBy || req.user._id, // Manager who will assign
+            // ✅ NO assignedTo - Manager must assign to Service staff
+            assignmentSource: 'system',
+            isUrgent: task.isUrgent,
+            isWorkflowTask: true,
+            workflowType: 'kitchen_to_service',
+            parentTaskId: task._id, // Link to the kitchen task
+            tags: ['auto-created', 'workflow', 'room-service', 'awaiting-assignment', ...(task.tags || []).filter(t => !['auto-generated', 'auto-created'].includes(t))]
+          });
+
+          const savedFollowUpTask = await followUpTask.save();
+          
+          // Link the follow-up task to the parent
+          task.followUpTaskId = savedFollowUpTask._id;
+          
+          console.log('✅ Auto-created Service task:', savedFollowUpTask._id, '- Status: PENDING (awaiting manager assignment)');
+          
+          // Create notification for manager about new pending Service task
+          try {
+            await createTaskNotification(savedFollowUpTask, "task_created");
+          } catch (notifyError) {
+            console.error('❌ Failed to create notification for auto-created Service task:', notifyError);
+            // Don't fail the workflow if notification fails
+          }
+        } catch (followUpError) {
+          console.error(' Failed to auto-create follow-up Service task:', followUpError);
+          // Don't fail the completion if follow-up creation fails
+        }
+      }
+
+      // ✅ AUTO-CREATE FOLLOW-UP TASK WORKFLOW (Maintenance -> Cleaning/Housekeeping)
+      if (task.autoCreateFollowUp && task.department === 'Maintenance') {
+        try {
+          console.log('🔧 Creating automatic Housekeeping task for completed Maintenance task:', task._id);
+          
+          const followUpTask = new StaffTask({
+            title: `🧹 Clean After Maintenance - ${task.roomNumber || task.location || 'Area'}`,
+            description: `Housekeeping task auto-created from Maintenance task: "${task.title}". Area needs cleaning after maintenance work completed.${task.roomNumber ? ` Room: ${task.roomNumber}` : ''} Location: ${task.location || 'N/A'}`,
+            department: 'Housekeeping',
+            status: 'Pending', // ✅ PENDING - Manager needs to assign to Housekeeping staff
+            priority: task.isUrgent ? 'urgent' : task.priority, // Inherit urgency
+            category: 'cleaning',
+            location: task.location || 'room',
+            roomNumber: task.roomNumber || null,
+            dueDate: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes to clean
+            estimatedDuration: 20, // 20 minutes to clean
+            createdBy: task.assignedBy || req.user._id, // Who created the original task
+            assignedBy: task.assignedBy || req.user._id, // Manager who will assign
+            // ✅ NO assignedTo - Manager must assign to Housekeeping staff
+            assignmentSource: 'system',
+            isUrgent: task.isUrgent,
+            isWorkflowTask: true,
+            workflowType: 'maintenance_to_cleaning',
+            parentTaskId: task._id, // Link to the maintenance task
+            tags: ['auto-created', 'workflow', 'post-maintenance', 'awaiting-assignment', ...(task.tags || []).filter(t => !['auto-generated', 'auto-created'].includes(t))]
+          });
+
+          const savedFollowUpTask = await followUpTask.save();
+          
+          // Link the follow-up task to the parent
+          task.followUpTaskId = savedFollowUpTask._id;
+          
+          console.log('✅ Auto-created Housekeeping task:', savedFollowUpTask._id, '- Status: PENDING (awaiting manager assignment)');
+          
+          // Create notification for manager about new pending Housekeeping task
+          try {
+            await createTaskNotification(savedFollowUpTask, "task_created");
+          } catch (notifyError) {
+            console.error('❌ Failed to create notification for auto-created Housekeeping task:', notifyError);
+            // Don't fail the workflow if notification fails
+          }
+        } catch (followUpError) {
+          console.error('❌ Failed to auto-create follow-up Housekeeping task:', followUpError);
+          // Don't fail the completion if follow-up creation fails
+        }
+      }
     }
 
     // Handle handoff logic

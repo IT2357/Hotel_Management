@@ -635,6 +635,63 @@ export const getManagerOverviewReport = async (req, res, next) => {
       ? Math.min(100, (totalNights / (totalRooms * totalDays)) * 100)
       : 0;
 
+    // Generate risk alerts based on real data
+    const riskAlerts = [];
+    
+    // Alert for overdue tasks
+    if (overdueTasks > 0) {
+      riskAlerts.push({
+        id: `alert-overdue-${Date.now()}`,
+        title: overdueTasks > 5 ? "Critical task backlog" : "Tasks overdue",
+        detail: `${overdueTasks} task${overdueTasks > 1 ? 's' : ''} past due date requiring immediate attention`,
+        severity: overdueTasks > 5 ? "high" : "medium",
+      });
+    }
+    
+    // Alert for low completion rate
+    if (completionRate < 75 && totalStaffTasks > 10) {
+      riskAlerts.push({
+        id: `alert-completion-${Date.now()}`,
+        title: "Low task completion rate",
+        detail: `Overall completion rate at ${Math.round(completionRate)}%, below 75% threshold`,
+        severity: completionRate < 60 ? "high" : "medium",
+      });
+    }
+    
+    // Alert for staff availability
+    if (totalStaffCount > 0 && (onDutyCount / totalStaffCount) < 0.4) {
+      riskAlerts.push({
+        id: `alert-staffing-${Date.now()}`,
+        title: "Low staff availability",
+        detail: `Only ${onDutyCount} out of ${totalStaffCount} staff members currently on duty`,
+        severity: "medium",
+      });
+    }
+    
+    // Alert for department performance issues
+    const underperformingDepts = departmentPerformance.filter(dept => 
+      dept.completionRate < 70 && dept.totalTasks > 5
+    );
+    if (underperformingDepts.length > 0) {
+      const deptNames = underperformingDepts.map(d => d.department).join(", ");
+      riskAlerts.push({
+        id: `alert-dept-${Date.now()}`,
+        title: "Department performance concern",
+        detail: `${deptNames} showing completion rates below 70%`,
+        severity: "medium",
+      });
+    }
+    
+    // Alert for high in-progress tasks
+    if (inProgressTasks > completedStaffTasks && totalStaffTasks > 20) {
+      riskAlerts.push({
+        id: `alert-progress-${Date.now()}`,
+        title: "High work-in-progress",
+        detail: `${inProgressTasks} tasks in progress, may indicate resource bottleneck`,
+        severity: "low",
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -682,6 +739,7 @@ export const getManagerOverviewReport = async (req, res, next) => {
           topPerformers,
           taskTrend,
           statusDistribution: staffStatusDistribution,
+          riskAlerts,
         },
         managerTasks: {
           statusDistribution: managerTaskStatus,

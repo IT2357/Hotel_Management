@@ -16,7 +16,7 @@ const staffTaskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "assigned", "in_progress", "completed", "cancelled"],
+      enum: ["pending", "Pending", "assigned", "in_progress", "completed", "cancelled"],
       default: "pending",
     },
     // Who created the task (user) if applicable
@@ -106,6 +106,12 @@ const staffTaskSchema = new mongoose.Schema(
     handoffFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     handoffDepartment: { type: String },
     handoffReason: { type: String },
+    // Workflow - Sequential Task Chain (e.g., Kitchen -> Service, Maintenance -> Cleaning)
+    isWorkflowTask: { type: Boolean, default: false },
+    workflowType: { type: String, enum: ["kitchen_to_service", "maintenance_to_cleaning", "other"], default: null },
+    parentTaskId: { type: mongoose.Schema.Types.ObjectId, ref: "StaffTask" }, // Task that triggered this one
+    followUpTaskId: { type: mongoose.Schema.Types.ObjectId, ref: "StaffTask" }, // Task created after completion
+    autoCreateFollowUp: { type: Boolean, default: false }, // Should auto-create next task when completed
     // Status change tracking and governance
     lastStatusChange: { type: Date, default: Date.now },
     statusHistory: [{

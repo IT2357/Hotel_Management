@@ -5,10 +5,11 @@ import StaffNotification from "../../models/StaffNotification.js";
 import StaffTask from "../../models/StaffTask.js";
 import { getIO } from "../../utils/socket.js";
 
-// Normalize incoming status values to StaffTask schema (lowercase)
+// Normalize incoming status values to StaffTask schema
+// Note: "pending" returns as "Pending" (capital P) for frontend compatibility
 const STATUS_MAP = {
-  pending: "pending",
-  queued: "pending",
+  pending: "Pending", // ✅ Capital P for frontend
+  queued: "Pending",  // ✅ Capital P for frontend
   assigned: "assigned",
   inprogress: "in_progress",
   "in-progress": "in_progress",
@@ -117,9 +118,9 @@ const normalizePriority = (value) => {
 };
 
 const normalizeStatus = (value) => {
-  if (!value) return "pending";
+  if (!value) return "Pending"; // ✅ Capital P for frontend
   const normalized = String(value).trim().toLowerCase();
-  return STATUS_MAP[normalized] || "pending";
+  return STATUS_MAP[normalized] || "Pending"; // Default to "Pending" with capital P
 };
 
 const parseDate = (value) => {
@@ -396,6 +397,7 @@ export const createTask = async (req, res) => {
       notes,
       category,
       assignedTo,
+      autoCreateFollowUp, // ✅ Kitchen → Service workflow
     } = req.body;
 
     if (!title) {
@@ -427,6 +429,7 @@ export const createTask = async (req, res) => {
       createdBy: creatorId,
       assignedBy: creatorId,
       assignmentSource: "user",
+      autoCreateFollowUp: autoCreateFollowUp === true, // ✅ Kitchen → Service workflow flag
     };
 
     if (assignedTo && isValidObjectId(assignedTo)) {
