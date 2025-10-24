@@ -78,8 +78,8 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-// Ensure preflight requests are handled for all routes
-app.options("*", cors(corsOptions));
+// Note: CORS middleware already handles OPTIONS requests automatically
+// app.options("*", cors(corsOptions)); // REMOVED: This causes "Missing parameter name" error in Express 5.x
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
