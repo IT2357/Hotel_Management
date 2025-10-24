@@ -452,6 +452,44 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
+// Guest-initiated: Request refund for a booking (if eligible)
+export const requestRefundForBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user._id;
+
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: 'Booking ID is required' });
+    }
+
+    const Booking = (await import("../../models/Booking.js")).default;
+    const booking = await Booking.findOne({ _id: bookingId, userId: userId }).populate('invoiceId');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    // Only allow for Confirmed/Completed/Cancelled bookings
+    if (!['Confirmed', 'Completed', 'Cancelled'].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: 'Refunds can only be requested for confirmed, completed, or cancelled bookings' });
+    }
+
+    // Delegate to RefundService which already checks invoice Paid and window
+    const refundRequest = await RefundService.createRefundRequest(booking, reason || 'Refund requested by guest', userId);
+
+    if (!refundRequest) {
+      return res.status(400).json({ success: false, message: 'Refund not applicable or invoice not paid' });
+    }
+
+    return res.status(201).json({ success: true, message: 'Refund request submitted', data: refundRequest });
+
+  } catch (error) {
+    console.error('Failed to request refund:', error);
+    return res.status(500).json({ success: false, message: 'Failed to request refund' });
+  }
+};
+
 // ===== ADMIN BOOKING MANAGEMENT FUNCTIONS =====
 
 // Get all bookings (admin)

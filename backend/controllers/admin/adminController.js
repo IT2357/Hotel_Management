@@ -672,6 +672,7 @@ export const getRefundDetails = async (req, res) => {
     const refund = await RefundRequest.findById(refundId)
       .populate('bookingId', 'bookingNumber checkIn checkOut totalPrice')
       .populate('guestId', 'name email')
+      .populate('invoiceId', 'invoiceNumber status paymentMethod')
       .populate('approvedBy', 'name')
       .populate('deniedBy', 'name');
 
@@ -808,7 +809,10 @@ export const processRefund = async (req, res) => {
       });
     }
 
-    const refund = await RefundRequest.findById(refundId);
+    const refund = await RefundRequest.findById(refundId)
+      .populate('invoiceId')
+      .populate('guestId', 'name email')
+      .populate('bookingId', 'bookingNumber');
     if (!refund) {
       console.log('📋 Refund not found:', refundId);
       return res.status(404).json({
@@ -825,9 +829,27 @@ export const processRefund = async (req, res) => {
       });
     }
 
+    // Validate invoice exists and is paid (cash flow requires invoice to be settled first)
+    const invoice = refund.invoiceId;
+    if (!invoice) {
+      return res.status(400).json({ success: false, message: 'No invoice linked to this refund request' });
+    }
+
+    if (invoice.status !== 'Paid') {
+      return res.status(400).json({ success: false, message: `Cannot process refund for unpaid invoice (status: ${invoice.status})` });
+    }
+
+    // For our system (pay at hotel), treat refunds as cash counter-transactions.
+    // Record minimal gatewayResponse metadata for audit and mark invoice as Refunded.
+    const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
+
+    // Update invoice status and notify guest
+    await InvoiceService.processInvoiceRefund(invoice._id, refund.amount, refund.reason || 'Manual refund processed');
+
+    // Update refund record
     refund.status = 'processed';
     refund.processedAt = new Date();
-    refund.gatewayResponse = gatewayResponse;
+    refund.gatewayResponse = gatewayResponse || { method: 'Cash', note: 'Processed via front desk (pay-at-hotel).' };
     await refund.save();
 
     console.log('📋 Refund processed successfully:', refund._id);

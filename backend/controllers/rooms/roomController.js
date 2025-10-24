@@ -59,7 +59,7 @@ export const getAllRooms = async (req, res) => {
       success: true,
       count: rooms.length,
       total,
-      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit),
       currentPage: page,
       data: rooms,
     });

@@ -18,6 +18,7 @@ import {
   bulkHoldBookings,
   processBookingPayment,
   getRoomBookings,
+  requestRefundForBooking,
 } from "../controllers/bookings/bookingController.js";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import BookingScheduler from "../services/booking/bookingScheduler.js";
@@ -49,6 +50,9 @@ router.put("/admin/:bookingId/release-hold", authenticateToken, requireRole(['ad
 
 // Cancel booking
 router.put("/:bookingId/cancel", authenticateToken, cancelBooking);
+
+// Request refund for a booking (guest)
+router.post("/:bookingId/refunds/request", authenticateToken, requestRefundForBooking);
 
 // Process booking payment
 router.put("/:bookingNumber/process-payment", authenticateToken, processBookingPayment);

@@ -7,6 +7,8 @@ import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import { Calendar, MapPin, Users, CreditCard, Eye, Download, Star, Clock, ArrowLeft } from 'lucide-react';
 import bookingService from '../../services/bookingService';
+import Modal from '../../components/ui/Modal';
+import Textarea from '../../components/ui/Textarea';
 
 export default function MyBookings() {
   const navigate = useNavigate();
@@ -14,6 +16,10 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundBooking, setRefundBooking] = useState(null);
+  const [refundReason, setRefundReason] = useState('');
+  const REFUND_WINDOW_DAYS = 180; // Keep in sync with server config
 
   useEffect(() => {
     fetchBookings();
@@ -71,6 +77,35 @@ export default function MyBookings() {
   const handleViewDetails = (bookingId) => {
     // Navigate to booking details page
     window.location.href = `/booking/details/${bookingId}`;
+  };
+
+  const isRefundEligible = (booking) => {
+    if (!booking) return false;
+    if (!['Confirmed','Completed','Cancelled'].includes(booking.status)) return false;
+    // Basic time-window gating using createdAt; backend enforces final check
+    const createdAt = booking.createdAt ? new Date(booking.createdAt) : null;
+    const baseDate = createdAt || new Date(booking.checkIn || Date.now());
+    const now = new Date();
+    const daysSince = Math.floor((now - baseDate) / (1000*60*60*24));
+    return daysSince <= REFUND_WINDOW_DAYS;
+  };
+
+  const openRefundModal = (booking) => {
+    setRefundBooking(booking);
+    setRefundReason('');
+    setRefundModalOpen(true);
+  };
+
+  const submitRefundRequest = async () => {
+    if (!refundBooking) return;
+    try {
+      const res = await bookingService.requestRefund(refundBooking._id || refundBooking.id, refundReason || 'Refund requested by guest');
+      alert(res.message || 'Refund request submitted');
+      setRefundModalOpen(false);
+    } catch (err) {
+      const msg = err?.message || err?.response?.data?.message || 'Unable to submit refund request';
+      alert(msg);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -177,20 +212,21 @@ export default function MyBookings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header with Back Button */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              onClick={() => navigate('/guest/dashboard')}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 hover:border-indigo-500 hover:text-indigo-600"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Header with Back Button */}
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                onClick={() => navigate('/guest/dashboard')}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 hover:border-indigo-500 hover:text-indigo-600"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Button>
           </div>
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl p-6 shadow-xl">
             <h1 className="text-3xl font-bold mb-2">
@@ -290,10 +326,10 @@ export default function MyBookings() {
           /* Bookings List */
           <div className="space-y-6">
             {filteredBookings.map((booking) => (
-              <Card key={booking._id || booking.id} className="overflow-hidden h-auto">
-                <div className="md:flex md:h-64">
+              <Card key={booking._id || booking.id} className="overflow-visible h-auto">
+                <div className="md:flex">
                   {/* Image */}
-                  <div className="md:w-1/3 h-40 md:h-full">
+                  <div className="md:w-1/3 h-40 md:h-auto">
                     <img
                       src={booking.roomId?.images?.[0]?.url || booking.room?.images?.[0]?.url || `https://source.unsplash.com/600x400?hotel,room,${booking.roomTitle?.replace(/\s+/g, ',')}`}
                       alt={booking.roomTitle || booking.roomId?.title || 'Hotel Room'}
@@ -393,6 +429,18 @@ export default function MyBookings() {
                               Receipt
                             </Button>
                           )}
+                          {isRefundEligible(booking) && (
+                            <Button
+                              key={`refund-${booking._id || booking.id}`}
+                              variant="default"
+                              size="sm"
+                              onClick={() => openRefundModal(booking)}
+                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0"
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Request Refund
+                            </Button>
+                          )}
                           {booking.status === 'Pending Approval' ||
                            booking.status === 'On Hold' ? (
                             <Button
@@ -451,6 +499,8 @@ export default function MyBookings() {
                           </div>
                         </div>
                       )}
+
+                      {null}
                     </div>
                   </div>
                 </div>
@@ -508,5 +558,25 @@ export default function MyBookings() {
         </div>
       </div>
     </div>
+    <Modal
+      isOpen={refundModalOpen}
+      onClose={() => setRefundModalOpen(false)}
+      title="Request Refund"
+    >
+      <div className="space-y-4 p-4">
+        <p className="text-sm text-gray-700">Please provide a reason for your refund request.</p>
+        <Textarea
+          rows={4}
+          value={refundReason}
+          onChange={(e) => setRefundReason(e.target.value)}
+          placeholder="Describe your reason (e.g., emergency, duplicate booking, etc.)"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setRefundModalOpen(false)}>Cancel</Button>
+          <Button onClick={submitRefundRequest}>Submit</Button>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }

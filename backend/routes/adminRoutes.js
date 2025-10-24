@@ -43,6 +43,7 @@ import {
   testSocialAuthConfig,
 } from "../controllers/admin/settingsController.js";
 import {
+  getAllRooms,
   createRoom,
   updateRoom,
   deleteRoom,
@@ -356,6 +357,7 @@ router.get(
 );
 
 // Admin CRUD for rooms
+router.get("/rooms", getAllRooms);
 router.post("/rooms", createRoom);
 router.put("/rooms/:id", updateRoom);
 router.delete("/rooms/:id", deleteRoom);

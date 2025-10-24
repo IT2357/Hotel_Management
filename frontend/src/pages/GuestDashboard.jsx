@@ -46,13 +46,30 @@ export default function UserProfile() {
     confirm: false
   });
 
+  // Helper to safely format address which may be a string or an object
+  const formatAddress = (addr) => {
+    if (!addr) return '';
+    if (typeof addr === 'string') return addr;
+    if (typeof addr === 'object') {
+      const parts = [
+        addr.street,
+        addr.city,
+        addr.state || addr.province,
+        addr.postalCode || addr.zip,
+        addr.country
+      ].filter(Boolean);
+      return parts.join(', ');
+    }
+    return String(addr);
+  };
+
   useEffect(() => {
     if (user) {
       setProfileData({
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
-        address: user.address || '',
+        address: formatAddress(user.address) || '',
         profilePicture: user.profilePicture || null
       });
     }

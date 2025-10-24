@@ -2,7 +2,10 @@
 import api from './api.js';
 
 const roomService = {
-  getAllRooms: (params) => api.get("/rooms/", { params }),
+  // Public list for guests/home pages
+  getAllRooms: (params) => api.get("/rooms", { params }),
+  // Admin list with elevated data/filters
+  getAdminRooms: (params) => api.get("/admin/rooms/", { params }),
   getRoomById: (id) => api.get(`/rooms/${id}`),
 
   // Get available rooms for specific dates

@@ -24,9 +24,16 @@ class RefundService {
         throw new Error('Booking not found');
       }
 
-      // Check if booking has been paid
+      // Check if booking has an invoice and that it's paid
       if (!populatedBooking.invoiceId) {
         console.log('No invoice found for booking, skipping refund creation');
+        return null;
+      }
+
+      // Only create refunds for paid invoices (pay-at-hotel flow)
+      const invoiceDoc = populatedBooking.invoiceId;
+      if (!invoiceDoc || invoiceDoc.status !== 'Paid') {
+        console.log(`Invoice not paid (status: ${invoiceDoc?.status}). Skipping refund creation for booking ${populatedBooking.bookingNumber}`);
         return null;
       }
 
@@ -41,10 +48,10 @@ class RefundService {
       }
 
       // Calculate refund amount based on booking status and policy
-      const refundAmount = await this.calculateRefundAmount(populatedBooking);
+  const refundAmount = await this.calculateRefundAmount(populatedBooking, requestedBy);
 
-      if (refundAmount <= 0) {
-        console.log('No refund amount calculated, skipping refund creation');
+      if (refundAmount < 0) {
+        console.log('Negative refund amount calculated, skipping refund creation');
         return null;
       }
 
@@ -54,10 +61,11 @@ class RefundService {
         guestId: populatedBooking.userId._id,
         invoiceId: populatedBooking.invoiceId._id,
         amount: refundAmount,
-        currency: populatedBooking.invoiceId.currency || 'LKR',
+        currency: 'LKR', // Tailored for Sri Lankan site
         reason: reason || 'Booking rejected/cancelled',
         paymentGatewayRef: populatedBooking.invoiceId.paymentGatewayRef,
-        status: 'pending'
+        status: 'pending',
+        evidence: []
       });
 
       await refundRequest.save();
@@ -93,7 +101,7 @@ class RefundService {
    * @param {Object} booking - Booking object
    * @returns {number} - Calculated refund amount
    */
-  static async calculateRefundAmount(booking) {
+  static async calculateRefundAmount(booking, requestedBy = null) {
     try {
       // Get admin settings for refund policy
       const AdminSettings = (await import("../../models/AdminSettings.js")).default;
@@ -105,28 +113,34 @@ class RefundService {
 
       let refundPercentage = 100; // Default full refund
 
-      // Determine refund percentage based on booking status and timing
-      const now = new Date();
-      const checkInDate = new Date(booking.checkIn);
-      const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
+      // For guest-initiated refunds, always give full refund
+      const isGuestRequest = requestedBy && requestedBy.toString() === booking.userId.toString();
+      if (!isGuestRequest) {
+        // Admin-initiated: apply time-based policy
+        const now = new Date();
+        const checkInDate = new Date(booking.checkIn);
+        const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
 
-      // Refund policy based on time until check-in
-      if (hoursUntilCheckIn < 24) {
-        // Less than 24 hours - no refund
-        refundPercentage = 0;
-      } else if (hoursUntilCheckIn < 48) {
-        // Less than 48 hours - 50% refund
-        refundPercentage = 50;
-      } else if (hoursUntilCheckIn < 72) {
-        // Less than 72 hours - 75% refund
-        refundPercentage = 75;
+        // Refund policy based on time until check-in
+        if (hoursUntilCheckIn < 24) {
+          // Less than 24 hours - no refund
+          refundPercentage = 0;
+        } else if (hoursUntilCheckIn < 48) {
+          // Less than 48 hours - 50% refund
+          refundPercentage = 50;
+        } else if (hoursUntilCheckIn < 72) {
+          // Less than 72 hours - 75% refund
+          refundPercentage = 75;
+        }
       }
 
-      // Apply admin refund policy if set
-      if (settings?.financialSettings?.refundPolicy === 'partial') {
-        refundPercentage = Math.min(refundPercentage, 80); // Max 80% for partial policy
-      } else if (settings?.financialSettings?.refundPolicy === 'none') {
-        refundPercentage = 0; // No refunds
+      // Apply admin refund policy if set (only for admin-initiated refunds)
+      if (!isGuestRequest) {
+        if (settings?.financialSettings?.refundPolicy === 'partial') {
+          refundPercentage = Math.min(refundPercentage, 80); // Max 80% for partial policy
+        } else if (settings?.financialSettings?.refundPolicy === 'none') {
+          refundPercentage = 0; // No refunds
+        }
       }
 
       const refundAmount = (booking.totalPrice * refundPercentage) / 100;
@@ -186,6 +200,7 @@ class RefundService {
       const refundRequests = await RefundRequest.find(query)
         .populate('bookingId', 'bookingNumber checkIn checkOut totalPrice')
         .populate('guestId', 'name email')
+        .populate('invoiceId', 'invoiceNumber status paymentMethod')
         .populate('approvedBy', 'name')
         .populate('deniedBy', 'name')
         .populate('infoRequestedBy', 'name')

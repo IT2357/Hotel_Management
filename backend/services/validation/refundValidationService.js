@@ -70,7 +70,7 @@ class RefundValidationService {
       if (guestId) {
         const guest = await User.findById(guestId);
         if (!guest) {
-          errors.push("Guest not found");
+                !["Confirmed", "Completed", "Cancelled"].includes(booking.status)
         } else if (guest.role !== "guest") {
           errors.push("Refund can only be requested by guests");
         }
@@ -82,13 +82,14 @@ class RefundValidationService {
         if (!invoice) {
           errors.push("Invoice not found");
         } else {
-          // Check if refund amount exceeds invoice amount
-          if (amount > invoice.totalAmount) {
+          // Check if refund amount exceeds invoice total/amount
+          const invoiceTotal = typeof invoice.totalAmount === 'number' ? invoice.totalAmount : invoice.amount;
+          if (amount > invoiceTotal) {
             errors.push("Refund amount cannot exceed invoice total");
           }
 
           // Check if invoice is paid
-          if (invoice.status !== "paid") {
+          if (invoice.status !== "Paid") {
             errors.push("Refunds can only be processed for paid invoices");
           }
         }
@@ -291,9 +292,27 @@ class RefundValidationService {
         errors.push("Only approved refunds can be processed");
       }
 
-      // Validate original payment ID
-      if (!originalPaymentId || originalPaymentId.trim().length === 0) {
-        errors.push("Original payment ID is required for processing");
+      // Fetch invoice context to determine if gateway reference is needed
+      let invoice = null;
+      if (refund.invoiceId) {
+        const Invoice = (await import("../../models/Invoice.js")).default;
+        invoice = await Invoice.findById(refund.invoiceId);
+      }
+
+      // Validate invoice status
+      if (!invoice) {
+        errors.push("Linked invoice not found");
+      } else {
+        if (invoice.status !== 'Paid') {
+          errors.push("Cannot process refund for unpaid invoice");
+        }
+
+        // For non-cash payments, require originalPaymentId (gateway reference)
+        if (invoice.paymentMethod !== 'Cash') {
+          if (!originalPaymentId || originalPaymentId.trim().length === 0) {
+            errors.push("Original payment ID is required for gateway refunds");
+          }
+        }
       }
 
       // Check if refund has already been processed

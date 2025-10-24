@@ -258,3 +258,21 @@ export const validatePaymentGateway = async (req, res) => {
     handleError(res, error, "Failed to validate payment gateway");
   }
 };
+
+export const getPublicSocialSettings = async (req, res) => {
+  try {
+    const settings = await settingsService.getAdminSettings();
+    console.log("Public social settings - raw settings:", settings);
+    console.log("enableGoogleAuth:", settings.enableGoogleAuth, "enableFacebookAuth:", settings.enableFacebookAuth);
+    sendSuccess(res, {
+      enableGoogleAuth: settings.enableGoogleAuth || false,
+      enableFacebookAuth: settings.enableFacebookAuth || false,
+    }, "Public social settings retrieved successfully");
+  } catch (error) {
+    console.error("Get public social settings error:", {
+      message: error.message,
+      stack: error.stack,
+    });
+    handleError(res, error, "Failed to fetch public social settings");
+  }
+};

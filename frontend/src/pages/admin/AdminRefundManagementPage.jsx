@@ -24,6 +24,7 @@ const AdminRefundManagementPage = () => {
   const [actionType, setActionType] = useState('');
   const [actionReason, setActionReason] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  // Gateway payment ID only needed for non-cash payments
   const [originalPaymentId, setOriginalPaymentId] = useState('');
   const [processing, setProcessing] = useState(false);
   const [filters, setFilters] = useState({
@@ -145,7 +146,7 @@ const AdminRefundManagementPage = () => {
     setActionType(action);
     setActionReason('');
     setActionMessage('');
-    setOriginalPaymentId('');
+    // nothing to reset for gateway input (cash only)
     setShowActionModal(true);
   };
 
@@ -177,11 +178,16 @@ const AdminRefundManagementPage = () => {
           response = await adminService.requestMoreInfo(selectedRefund._id, actionMessage);
           break;
         case 'process':
-          if (!originalPaymentId.trim()) {
-            alert('Please provide the original payment ID');
+          // Conditionally require payment id for non-cash
+          const isCash = selectedRefund?.invoiceId?.paymentMethod === 'Cash';
+          if (!isCash && !originalPaymentId.trim()) {
+            alert('Please provide the original payment ID for gateway refunds');
             return;
           }
-          response = await adminService.processRefund(selectedRefund._id, originalPaymentId);
+          response = await adminService.processRefund(selectedRefund._id, {
+            originalPaymentId: isCash ? undefined : originalPaymentId,
+            gatewayResponse: isCash ? { method: 'Cash' } : { method: 'Gateway', originalPaymentId }
+          });
           break;
         default:
           throw new Error('Invalid action type');
@@ -425,8 +431,6 @@ const AdminRefundManagementPage = () => {
           setActionReason={setActionReason}
           actionMessage={actionMessage}
           setActionMessage={setActionMessage}
-          originalPaymentId={originalPaymentId}
-          setOriginalPaymentId={setOriginalPaymentId}
           onClose={() => setShowActionModal(false)}
           onConfirm={confirmAction}
           processing={processing}
@@ -666,8 +670,6 @@ function RefundActionModal({
   setActionReason,
   actionMessage,
   setActionMessage,
-  originalPaymentId,
-  setOriginalPaymentId,
   onClose,
   onConfirm,
   processing,
@@ -719,15 +721,23 @@ function RefundActionModal({
         )}
         {actionType === 'process' && (
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Original Payment ID *</label>
-            <Input
-              value={originalPaymentId}
-              onChange={(e) => setOriginalPaymentId(e.target.value)}
-              placeholder="Enter the original PayHere payment ID"
-              className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-              required
-            />
-            <p className="text-sm text-gray-500 mt-1">This is the payment ID from the original booking payment.</p>
+            {refund?.invoiceId?.paymentMethod === 'Cash' ? (
+              <div className="bg-gray-50 p-4 rounded-xl text-sm text-gray-700">
+                This refund will be recorded as a cash refund (pay-at-hotel). No gateway reference is required.
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Original Payment ID *</label>
+                <Input
+                  value={originalPaymentId}
+                  onChange={(e) => setOriginalPaymentId(e.target.value)}
+                  placeholder="Enter the original gateway payment ID"
+                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">Required for card/bank refunds.</p>
+              </div>
+            )}
           </div>
         )}
         <div className="flex justify-end gap-3">

@@ -53,6 +53,7 @@ import menuEnhancedRoutes from "./routes/food-complete/menuEnhancedRoutes.js"; /
 import aiExtractionRoutes from "./routes/food-complete/aiExtractionRoutes.js"; // AI/OCR menu extraction
 import orderEnhancedRoutes from "./routes/food-complete/orderEnhancedRoutes.js"; // Order modification & reviews
 import imageRoutes from "./routes/imageRoutes.js"; // Image serving routes (GridFS/Cloudinary)
+import { getPublicSocialSettings } from "./controllers/admin/settingsController.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -251,6 +252,7 @@ const startServer = async () => {
       database: dbHealth,
     });
   });
+  app.get("/api/public/social-auth-settings", getPublicSocialSettings);
   app.use("/api/auth", authRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/notifications", notificationRoutes);

@@ -104,6 +104,19 @@ const bookingService = {
     }
   },
 
+  // Request a refund for a booking
+  requestRefund: async (bookingId, reason) => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/refunds/request`, { reason });
+      return response.data;
+    } catch (error) {
+      console.error('Error requesting refund:', error);
+      const serverMsg = error?.response?.data?.message;
+      const msg = serverMsg || error.message || 'Failed to request refund';
+      throw new Error(msg);
+    }
+  },
+
   // Get booking details
   getBookingDetails: async (bookingId) => {
     try {

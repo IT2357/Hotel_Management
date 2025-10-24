@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import adminService from '../../../services/adminService';
+import api from '../../../services/api';
 
 const SocialAuthButtons = () => {
   const [enabledProviders, setEnabledProviders] = useState({
@@ -11,11 +11,11 @@ const SocialAuthButtons = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch social auth settings from admin settings
+    // Fetch social auth settings from public endpoint
     const fetchSocialSettings = async () => {
       try {
-        const response = await adminService.getAdminSettings();
-        const settings = response.data;
+        const response = await api.get(`/public/social-auth-settings?_t=${Date.now()}`);
+        const settings = response.data.data; // Access the nested data property
         setEnabledProviders({
           google: settings.enableGoogleAuth || false,
           facebook: settings.enableFacebookAuth || false

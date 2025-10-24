@@ -216,7 +216,7 @@ export const loadRefundById = async (req, res, next) => {
     const refund = await RefundRequest.findById(id)
       .populate("bookingId", "bookingNumber guestId")
       .populate("guestId", "name email")
-      .populate("invoiceId", "invoiceNumber totalAmount");
+      .populate("invoiceId", "invoiceNumber totalAmount status paymentMethod");
 
     if (!refund) {
       return res.status(404).json({

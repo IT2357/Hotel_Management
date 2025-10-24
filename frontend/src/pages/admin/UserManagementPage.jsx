@@ -464,11 +464,11 @@ export default function UserManagementPage() {
             )}
 
             {/* Pagination */}
-            {pagination.pages > 1 && (
+            {pagination.totalPages > 1 && (
               <div className="mt-6">
                 <Pagination
-                  currentPage={pagination.page}
-                  totalPages={pagination.pages}
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
                   onPageChange={(page) => setFilters({ ...filters, page })}
                 />
               </div>

@@ -28,20 +28,20 @@ export default function AdminSettingsPage() {
   const tabs = [
     { id: "general", label: "General", icon: "⚙️", description: "Basic hotel information and contact details" },
     { id: "email", label: "Email Settings", icon: "📧", description: "SMTP configuration and email settings" },
-    { id: "sms", label: "SMS Settings", icon: "📱", description: "SMS configuration and notifications" },
+    //{ id: "sms", label: "SMS Settings", icon: "📱", description: "SMS configuration and notifications" },
     { id: "social", label: "Social Auth", icon: "🔐", description: "Social authentication settings" },
     { id: "notifications", label: "Notifications", icon: "🔔", description: "Notification preferences and alerts" },
-    { id: "security", label: "Security", icon: "🔒", description: "Authentication and security policies" },
+    //{ id: "security", label: "Security", icon: "🔒", description: "Authentication and security policies" },
     { id: "booking", label: "Booking Settings", icon: "📅", description: "Reservation and booking configurations" },
     { id: "payment", label: "Payment Gateway", icon: "💳", description: "Payment processing and gateway settings" },
-    { id: "rooms", label: "Room Management", icon: "🏨", description: "Room assignment and housekeeping settings" },
-    { id: "staff", label: "Staff Management", icon: "👥", description: "Employee scheduling and performance tracking" },
-    { id: "financial", label: "Financial", icon: "💰", description: "Taxes, fees, and financial configurations" },
-    { id: "reporting", label: "Reporting", icon: "📊", description: "Analytics and reporting preferences" },
-    { id: "integrations", label: "Integrations", icon: "🔗", description: "Third-party service integrations" },
-    { id: "system", label: "System", icon: "🖥️", description: "System maintenance and performance settings" },
-    { id: "customization", label: "Customization", icon: "🎨", description: "Theme, branding, and UI customization" },
-    { id: "guest", label: "Guest Experience", icon: "🌟", description: "Guest services and experience settings" },
+    // { id: "rooms", label: "Room Management", icon: "🏨", description: "Room assignment and housekeeping settings" },
+    // { id: "staff", label: "Staff Management", icon: "👥", description: "Employee scheduling and performance tracking" },
+    // { id: "financial", label: "Financial", icon: "💰", description: "Taxes, fees, and financial configurations" },
+    // { id: "reporting", label: "Reporting", icon: "📊", description: "Analytics and reporting preferences" },
+    // { id: "integrations", label: "Integrations", icon: "🔗", description: "Third-party service integrations" },
+    // { id: "system", label: "System", icon: "🖥️", description: "System maintenance and performance settings" },
+    // { id: "customization", label: "Customization", icon: "🎨", description: "Theme, branding, and UI customization" },
+    // { id: "guest", label: "Guest Experience", icon: "🌟", description: "Guest services and experience settings" },
   ];
 
   const fetchSettings = useCallback(async () => {
@@ -151,9 +151,13 @@ export default function AdminSettingsPage() {
       setAlert({ type: "success", message: "Social authentication configuration validated successfully!" });
     } catch (error) {
       console.error("Failed to test social auth:", error);
+      let message = `Failed to validate social authentication: ${error.response?.data?.message || error.message}`;
+      if (error.response?.data?.issues && Array.isArray(error.response.data.issues)) {
+        message += '\n\nIssues found:\n' + error.response.data.issues.map(issue => `• ${issue}`).join('\n');
+      }
       setAlert({
         type: "error",
-        message: `Failed to validate social authentication: ${error.response?.data?.message || error.message}`
+        message
       });
     } finally {
       setLoading(false);

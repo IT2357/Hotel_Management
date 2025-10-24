@@ -48,11 +48,8 @@ const adminService = {
   denyRefund: (id, reason) => api.post(`/admin/refunds/${id}/deny`, { reason }),
   requestMoreInfo: (id, message) =>
     api.post(`/admin/refunds/${id}/request-info`, { infoRequested: message }),
-  processRefund: (id, originalPaymentId) =>
-    api.post(`/admin/payment-gateway/refund`, {
-      id,
-      originalPaymentId,
-    }),
+  processRefund: (id, { originalPaymentId = undefined, gatewayResponse = { method: 'Cash' } } = {}) =>
+    api.post(`/admin/refunds/${id}/process`, { originalPaymentId, gatewayResponse }),
   checkRefundStatus: (id) => api.get(`/admin/refunds/${id}/status`),
 
   // Admin Settings

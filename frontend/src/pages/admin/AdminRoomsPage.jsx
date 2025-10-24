@@ -16,7 +16,7 @@ export default function AdminRoomsPage() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    page: 1,
+    totalPages: 1,
     limit: 20,
     type: "",
     status: "",
@@ -25,10 +25,10 @@ export default function AdminRoomsPage() {
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
   const [searchTerm, setSearchTerm] = useState("");
   const [pagination, setPagination] = useState({
-    page: 1,
+    currentPage: 1,
     limit: 20,
     total: 0,
-    pages: 1,
+    totalPages: 1,
   });
 
   // Debounce the search term
@@ -74,24 +74,24 @@ export default function AdminRoomsPage() {
       }, {});
 
       // Remove the 'params' wrapper if it exists
-      const response = await roomService.getAllRooms(cleanFilters);
+  const response = await roomService.getAdminRooms(cleanFilters);
       const data = response?.data;
       const roomsData = data?.data ?? [];
 
       setRooms(roomsData);
 
       setPagination({
-        page: data?.page || 1,
+        currentPage: data?.currentPage || 1,
         limit: data?.limit || 20,
-        total: data?.count || roomsData.length,
-        pages: data?.pages || 1,
+        total: data?.total || roomsData.length,
+        totalPages: data?.totalPages || 1,
       });
 
       console.log("Fetched rooms:", roomsData);
     } catch (err) {
       console.error("Error fetching rooms:", err);
       setRooms([]);
-      setPagination({ page: 1, limit: 20, total: 0, pages: 1 });
+            setPagination({ currentPage: 1, limit: 20, total: 0, totalPages: 1 });
     } finally {
       setLoading(false);
     }
@@ -254,11 +254,11 @@ export default function AdminRoomsPage() {
         )}
 
         {/* Pagination */}
-        {pagination?.pages > 1 && (
+        {pagination?.totalPages > 1 && (
           <div className="mt-6">
             <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.pages}
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
               onPageChange={(page) => setFilters({ ...filters, page })}
             />
           </div>
