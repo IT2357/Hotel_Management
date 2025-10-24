@@ -8,7 +8,7 @@ import foodService from '../services/foodService';
 import roomService from '../services/roomService';
 
 export default function HomePage() {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [activeTab, setActiveTab] = useState('home');

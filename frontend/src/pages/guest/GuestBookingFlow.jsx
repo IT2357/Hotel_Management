@@ -10,8 +10,9 @@ import Label from '../../components/ui/Label';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Alert from '../../components/common/Alert';
-import { Calendar, Users } from 'lucide-react';
+import { Calendar, Users, ChefHat } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
+import BookingMenuSelector from '../../components/booking/BookingMenuSelector';
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
 import { 
@@ -61,6 +62,8 @@ const GuestBookingFlow = () => {
     foodPlan: 'None',
     selectedMeals: []
   });
+  const [selectedFoodItems, setSelectedFoodItems] = useState([]);
+  const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [paymentData, setPaymentData] = useState({
     paymentMethod: 'card',
     cardNumber: '',
@@ -180,7 +183,8 @@ const GuestBookingFlow = () => {
       checkOut: bookingData.checkOut,
       roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
       guests: bookingData.guests,
-      foodPlan: bookingData.foodPlan
+      foodPlan: bookingData.foodPlan,
+      selectedFoodItems: selectedFoodItems
     });
     
     return costData.total;
@@ -197,7 +201,8 @@ const GuestBookingFlow = () => {
         taxes: 0,
         serviceCharge: 0,
         total: 0,
-        breakdown: []
+        breakdown: [],
+        selectedFoodItems: []
       };
     }
     
@@ -206,8 +211,24 @@ const GuestBookingFlow = () => {
       checkOut: bookingData.checkOut,
       roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
       guests: bookingData.guests,
-      foodPlan: bookingData.foodPlan
+      foodPlan: bookingData.foodPlan,
+      selectedFoodItems: selectedFoodItems
     });
+  };
+
+  // Calculate food total
+  const calculateFoodTotal = () => {
+    if (selectedFoodItems.length === 0) return 0;
+    const nights = calculateNights();
+    return selectedFoodItems.reduce((total, item) => {
+      return total + (item.price * item.quantity * nights * bookingData.guests);
+    }, 0);
+  };
+
+  // Handle food items selected from menu
+  const handleFoodItemsSelected = (items) => {
+    setSelectedFoodItems(items);
+    setShowMenuSelector(false);
   };
 
   const decodeJWT = (token) => {
@@ -333,6 +354,12 @@ const GuestBookingFlow = () => {
   };
 
   const handleBookingSubmit = async () => {
+    // Validate food plan selection
+    if (bookingData.foodPlan !== 'None' && selectedFoodItems.length === 0) {
+      window.alert(`Please select food items for your ${bookingData.foodPlan} plan or choose "No Food Plan"`);
+      return;
+    }
+
     setLoading(true);
     try {
       // Use the unified booking payload creator with accurate calculations
@@ -344,6 +371,7 @@ const GuestBookingFlow = () => {
         checkOut: bookingData.checkOut,
         guests: bookingData.guests,
         foodPlan: bookingData.foodPlan,
+        selectedFoodItems: selectedFoodItems,
         selectedMeals: bookingData.selectedMeals,
         specialRequests: bookingData.specialRequests,
         paymentMethod: paymentData.paymentMethod || 'cash',
@@ -578,14 +606,67 @@ const GuestBookingFlow = () => {
               <Label htmlFor="foodPlan">Food Plan</Label>
               <Select
                 value={bookingData.foodPlan}
-                onChange={(e) => handleInputChange('foodPlan', e.target.value)}
+                onChange={(e) => {
+                  handleInputChange('foodPlan', e.target.value);
+                  // Clear selected items if changing to None
+                  if (e.target.value === 'None') {
+                    setSelectedFoodItems([]);
+                  }
+                }}
               >
                 <option value="None">No Food Plan</option>
-                <option value="Breakfast">Breakfast Only (+LKR 1,500/person/night)</option>
-                <option value="Half Board">Half Board (+LKR 3,500/person/night)</option>
-                <option value="Full Board">Full Board (+LKR 5,500/person/night)</option>
-                <option value="A la carte">A la carte (+LKR 2,500/person/night)</option>
+                <option value="Breakfast">Breakfast Plan (Select Items)</option>
+                <option value="Half Board">Half Board (Breakfast + Dinner)</option>
+                <option value="Full Board">Full Board (All Meals)</option>
+                <option value="A la carte">A la carte (Choose Anything)</option>
               </Select>
+              
+              {/* Menu Selector Button */}
+              {bookingData.foodPlan !== 'None' && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    onClick={() => setShowMenuSelector(true)}
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    <ChefHat className="w-4 h-4" />
+                    {selectedFoodItems.length > 0 ? 'Edit Food Selection' : 'Browse Menu & Select Items'}
+                  </Button>
+                  
+                  {/* Selected Items Summary */}
+                  {selectedFoodItems.length > 0 && (
+                    <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-semibold mb-2 text-blue-900">
+                        Selected Items ({selectedFoodItems.length})
+                      </h4>
+                      <div className="space-y-1 text-sm">
+                        {selectedFoodItems.slice(0, 3).map(item => (
+                          <div key={item._id} className="flex justify-between text-blue-800">
+                            <span>{item.name} × {item.quantity}</span>
+                            <span className="font-medium">LKR {(item.price * item.quantity).toLocaleString()}</span>
+                          </div>
+                        ))}
+                        {selectedFoodItems.length > 3 && (
+                          <p className="text-blue-600 italic">+ {selectedFoodItems.length - 3} more items</p>
+                        )}
+                      </div>
+                      <div className="border-t border-blue-300 mt-2 pt-2 flex justify-between font-bold text-blue-900">
+                        <span>Total Food Cost ({calculateNights()} nights × {bookingData.guests} guests):</span>
+                        <span className="text-green-600">
+                          LKR {calculateFoodTotal().toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Validation Warning */}
+                  {selectedFoodItems.length === 0 && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                      ⚠️ Please select food items for your {bookingData.foodPlan} plan
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor="specialRequests">Special Requests</Label>
@@ -599,6 +680,19 @@ const GuestBookingFlow = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* BookingMenuSelector Modal */}
+      {showMenuSelector && (
+        <BookingMenuSelector
+          isOpen={showMenuSelector}
+          planType={bookingData.foodPlan}
+          nights={calculateNights()}
+          guests={bookingData.guests}
+          initialItems={selectedFoodItems}
+          onItemsSelected={handleFoodItemsSelected}
+          onClose={() => setShowMenuSelector(false)}
+        />
+      )}
       <div className="flex justify-end">
         <Button
           onClick={handleBookingSubmit}
@@ -660,6 +754,39 @@ const GuestBookingFlow = () => {
           </CardContent>
         </Card>
       )}
+      
+      {/* Food Items Breakdown */}
+      {bookingData.foodPlan !== 'None' && selectedFoodItems.length > 0 && (
+        <Card className="max-w-2xl mx-auto">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              Your {bookingData.foodPlan} Plan Items
+            </h3>
+            <div className="space-y-3">
+              {selectedFoodItems.map(item => (
+                <div key={item._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {item.quantity} portion{item.quantity > 1 ? 's' : ''} × {calculateNights()} night{calculateNights() > 1 ? 's' : ''} × {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <p className="font-semibold text-green-600">
+                    LKR {(item.price * item.quantity * calculateNights() * bookingData.guests).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+              <div className="border-t pt-3">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total Food Cost:</span>
+                  <span className="text-green-600">LKR {calculateFoodTotal().toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       <div className="flex gap-4 justify-center">
         <Button variant="outline" onClick={() => setStep(3)}>
           Back to Booking Details

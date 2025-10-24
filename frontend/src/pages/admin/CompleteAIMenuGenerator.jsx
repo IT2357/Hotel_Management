@@ -553,9 +553,11 @@ const CompleteAIMenuGenerator = () => {
             culturalContext: item.culturalContext || 'jaffna',
             culturalOrigin: item.culturalOrigin || 'Jaffna Tamil Cuisine',
             isAvailable: true,
-            imageUrl: item.image || item.imageUrl || '',
+            image: item.image || item.imageUrl || '',  // Use 'image' field to match backend schema
             cookingTime: item.cookingTime || 30
           };
+          
+          console.log('💾 Saving menu item:', dishName, 'with image:', menuItemData.image);
 
           await foodService.createMenuItem(menuItemData);
           savedCount++;

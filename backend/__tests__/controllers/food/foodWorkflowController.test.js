@@ -100,7 +100,7 @@ describe('foodWorkflowController', () => {
         phone: '1234567890'
       },
       paymentStatus: 'Pending',
-      status: 'Pending'
+      status: 'pending'
     });
     
     const savedOrder = await order.save();
@@ -417,7 +417,7 @@ describe('foodWorkflowController', () => {
     test('should return 400 when trying to review non-delivered order', async () => {
       // Set order back to pending
       await FoodOrder.findByIdAndUpdate(orderId, {
-        status: 'Pending'
+        status: 'pending'
       });
 
       await request(app)

@@ -45,15 +45,23 @@ const EnhancedFoodMenuManagementPage = () => {
       setLoading(true);
       setError(null);
       
+      console.log('🔄 Loading menu data...');
       const [itemsResponse, categoriesResponse] = await Promise.all([
         foodService.getMenuItems(),
         foodService.getCategories()
       ]);
 
+      console.log('📦 Items loaded:', itemsResponse.data?.length || 0);
+      console.log('📂 Categories loaded:', categoriesResponse.data?.length || 0, categoriesResponse.data);
+      
       setMenuItems(itemsResponse.data || []);
       setCategories(categoriesResponse.data || []);
+      
+      if (!categoriesResponse.data || categoriesResponse.data.length === 0) {
+        toast.warning('No categories found. Please create categories first.');
+      }
     } catch (err) {
-      console.error('Error loading data:', err);
+      console.error('❌ Error loading data:', err);
       setError('Failed to load menu data');
       toast.error('Failed to load menu data');
     } finally {
@@ -191,28 +199,44 @@ const EnhancedFoodMenuManagementPage = () => {
 
   // Filter items by category and search
   const filteredItems = menuItems.filter(item => {
-    const matchesCategory = selectedCategory === 'all' || 
-      (item.category && typeof item.category === 'object' && item.category !== null 
-        ? item.category._id === selectedCategory 
-        : item.category === selectedCategory);
+    // Handle category matching
+    let matchesCategory = selectedCategory === 'all';
     
+    if (!matchesCategory && item.category) {
+      if (typeof item.category === 'object' && item.category !== null) {
+        matchesCategory = item.category._id === selectedCategory;
+      } else if (typeof item.category === 'string') {
+        matchesCategory = item.category === selectedCategory;
+      }
+    }
+    
+    // Handle search matching
     const matchesSearch = searchQuery === '' || 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
     return matchesCategory && matchesSearch;
   });
+  
+  console.log('🔍 Filtered items:', filteredItems.length, 'out of', menuItems.length);
 
   // Group items by category
-  const itemsByCategory = categories.map(category => ({
-    category,
-    items: filteredItems.filter(item => {
+  const itemsByCategory = categories.map(category => {
+    const items = filteredItems.filter(item => {
       if (!item.category) return false; // Skip items without category
-      return typeof item.category === 'object' && item.category !== null
-        ? item.category._id === category._id 
-        : item.category === category._id;
-    })
-  })).filter(group => group.items.length > 0);
+      
+      if (typeof item.category === 'object' && item.category !== null) {
+        return item.category._id === category._id;
+      } else if (typeof item.category === 'string') {
+        return item.category === category._id;
+      }
+      return false;
+    });
+    
+    return { category, items };
+  }).filter(group => group.items.length > 0);
+  
+  console.log('📊 Items grouped into', itemsByCategory.length, 'categories');
 
   // Enhanced Menu Item Card
   const MenuItemCard = ({ item }) => {
@@ -223,44 +247,8 @@ const EnhancedFoodMenuManagementPage = () => {
       ? item.category.icon 
       : '🍽️';
 
-    // Build proper image URL
-    const getImageUrl = () => {
-      if (item.imageUrl) {
-        // If imageUrl starts with http, use as-is
-        if (item.imageUrl.startsWith('http')) {
-          return item.imageUrl;
-        }
-        // If it's a relative path, prepend API base
-        if (item.imageUrl.startsWith('/')) {
-          // Convert old /api/menu/image/ paths to new /api/images/ format
-          const normalizedPath = item.imageUrl.replace('/api/menu/image/', '/api/images/');
-          return `${API_BASE_URL}${normalizedPath}`;
-        }
-        return item.imageUrl;
-      }
-      
-      if (item.image) {
-        // If image starts with http, use as-is
-        if (item.image.startsWith('http')) {
-          return item.image;
-        }
-        // If it's a relative path starting with /api/, prepend base URL
-        if (item.image.startsWith('/api/')) {
-          // Convert old /api/menu/image/ paths to new /api/images/ format
-          const normalizedPath = item.image.replace('/api/menu/image/', '/api/images/');
-          return `${API_BASE_URL}${normalizedPath}`;
-        }
-        // If it's just an ID or relative path, assume it needs /api/images/ prefix
-        if (!item.image.startsWith('/')) {
-          return `${API_BASE_URL}/api/images/${item.image}`;
-        }
-        return `${API_BASE_URL}${item.image}`;
-      }
-      
-      return null;
-    };
-
-    const imageSrc = getImageUrl();
+    // Use the same simple approach as guest page - just use the image field as-is
+    const imageSrc = item.imageUrl || item.image;
 
     return (
       <motion.div
@@ -274,16 +262,21 @@ const EnhancedFoodMenuManagementPage = () => {
         {/* Image */}
         <div className="relative h-48 bg-gradient-to-br from-orange-100 to-amber-100">
           {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={item.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                console.error('Image load error:', imageSrc);
-                e.target.style.display = 'none';
-                e.target.parentElement.querySelector('.placeholder-icon')?.classList.remove('hidden');
-              }}
-            />
+            <>
+              <img
+                src={imageSrc}
+                alt={item.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  const placeholder = e.target.parentElement.querySelector('.placeholder-icon');
+                  if (placeholder) {
+                    placeholder.classList.remove('hidden');
+                  }
+                }}
+              />
+            </>
           ) : null}
           <div className={`placeholder-icon w-full h-full flex items-center justify-center absolute inset-0 ${imageSrc ? 'hidden' : ''}`}>
             <ChefHat className="w-16 h-16 text-orange-300" />

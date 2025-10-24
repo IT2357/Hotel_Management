@@ -62,27 +62,25 @@ export const getMenuItems = async (req, res) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Execute query with population
+    // Execute query with population - include icon for frontend display
     const menuItems = await MenuItem.find(filter)
-      .populate("category", "name slug displayOrder")
+      .populate("category", "name slug displayOrder icon")
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Add proper image URLs to each menu item
+    // Convert to objects - keep the image field as-is for frontend
     const menuItemsWithImages = menuItems.map(item => {
       const itemObj = item.toObject();
       
-      // Handle image URL generation
-      if (itemObj.imageId) {
-        itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
-      } else if (itemObj.image && itemObj.image.startsWith('http')) {
-        itemObj.imageUrl = itemObj.image;
-      } else if (itemObj.image && itemObj.image.startsWith('/api/')) {
-        itemObj.imageUrl = itemObj.image;
-      } else {
-        itemObj.imageUrl = itemObj.image || "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item";
+      // Ensure category has icon if populated
+      if (itemObj.category && !itemObj.category.icon) {
+        itemObj.category.icon = '🍽️'; // Default icon
       }
+      
+      
+      // Keep the image field as-is - frontend will handle URL construction
+      // The image field already contains the correct path (e.g., /api/images/gridfs:xyz)
       
       return itemObj;
     });
@@ -311,7 +309,7 @@ export const updateMenuItem = async (req, res) => {
       id,
       updateData,
       { new: true, runValidators: true }
-    ).populate("category", "name slug displayOrder");
+    ).populate("category", "name slug displayOrder icon");
 
     if (!menuItem) {
       return res.status(404).json({

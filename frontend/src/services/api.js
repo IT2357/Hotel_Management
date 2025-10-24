@@ -1,10 +1,10 @@
 //src/services/api.js
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const BASE_URL = "/api";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api", // Fallback to /api for Vite proxy
+  baseURL: "/api", // Use /api for Vite proxy
   headers: {
     "Content-Type": "application/json",
   },
@@ -23,6 +23,13 @@ api.interceptors.request.use((config) => {
   } else {
     console.log("No valid token found");
   }
+  
+  // Handle FormData - remove Content-Type to let browser set it with boundary
+  if (config.data instanceof FormData) {
+    console.log("🔍 Detected FormData - removing Content-Type header");
+    delete config.headers['Content-Type'];
+  }
+  
   return config;
 });
 

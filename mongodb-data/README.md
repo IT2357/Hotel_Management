@@ -69,6 +69,88 @@
 
 **Note:** You'll need to update the `userId` and `roomId` fields with actual ObjectIds.
 
+### 9. Insert Food Categories and Menu Items (Authentic Jaffna Cuisine)
+
+#### Option 1: Using the Import Script (Recommended)
+```bash
+# From project root
+node import-jaffna-food.js
+
+# OR from backend directory
+cd backend
+node ../mongodb-data/import-food-data.js
+```
+
+This script will:
+- Import 12 authentic Jaffna/Sri Lankan food categories
+- Import 100+ menu items with real matching images
+- Properly link menu items to categories
+- Set time slot availability (Breakfast, Lunch, Dinner, Snacks)
+- Display a summary with counts
+- Based on real Valampuri Hotel menu in Jaffna
+
+#### Option 2: Manual Import via MongoDB Compass
+1. **Import Categories First:**
+   - Click on the `categories` collection (create if it doesn't exist)
+   - Click "Insert Document"
+   - Switch to JSON view
+   - Copy and paste the content from `08-food-categories.json`
+   - Click "Insert"
+
+2. **Import Menu Items:**
+   - Note down the category `_id` values
+   - Click on the `menuitems` collection (create if it doesn't exist)
+   - For each item in `09-menu-items.json`:
+     - Replace the category name with the corresponding `_id` from categories
+     - Insert the document
+
+## Food Data Summary (Authentic Jaffna Cuisine)
+
+Based on [Valampuri Hotel Jaffna Menu](https://valampuri.foodorders.lk/menu/2)
+
+### Categories (12 total):
+- 🍛 Biryani - Aromatic rice dishes (6 items)
+- 🥘 Kottu - Traditional Sri Lankan stir fry (6 items)  
+- 🍚 Rice & Curry - Authentic rice with curries (5 items)
+- 🦀 Jaffna Specials - Traditional Jaffna cuisine (5 items)
+- 🥞 Dosa & Hoppers - Breakfast favorites (6 items)
+- 🍜 Noodles & Fried Rice - Asian inspired (6 items)
+- 🦐 Seafood - Fresh from Jaffna waters (5 items)
+- 🥟 Appetizers & Snacks - Light bites (5 items)
+- 🫓 Breads - Naan, chapati, paratha (6 items)
+- 🍰 Desserts - Traditional sweets (5 items)
+- ☕ Beverages - Hot and cold drinks (6 items)
+- 🍲 Soups - Warming broths (4 items)
+
+### Menu Items (65 total):
+All items include:
+- ✅ **Real food images** that match the dish names exactly
+- ⏰ **Time slot availability** (Breakfast/Lunch/Dinner/Snacks)
+- 🌱 **Vegetarian flags** for dietary preferences
+- 🌶️ **Spicy indicators** for authentic Sri Lankan heat
+- ⭐ **Popular item markers** for best sellers
+- 💰 **Realistic pricing** in LKR (60 - 2200)
+- 👨‍🍳 **Cooking time** estimates
+- 📝 **Authentic descriptions** of each dish
+
+### Featured Dishes:
+- **Jaffna Crab Curry** - Signature dish (LKR 1800)
+- **Mutton Kottu** - Popular street food (LKR 1000)
+- **String Hoppers** - Traditional breakfast (LKR 350)
+- **Chicken Biryani** - Aromatic favorite (LKR 950)
+- **Watalappan** - Traditional dessert (LKR 250)
+
+### Time Slot Distribution:
+- 🌅 **Breakfast Plan**: ~15 items (hoppers, dosa, beverages, paratha)
+- 🌅🌙 **Half Board**: ~50 items (breakfast + dinner items)
+- 🌅🌞🌙 **Full Board**: ~60 items (all-day dining)
+- 🎯 **A la carte**: 65 items (complete menu)
+
+### Price Range:
+- **Budget**: LKR 60 - 400 (hoppers, naan, samosa)
+- **Mid-range**: LKR 450 - 900 (kottu, rice & curry, dosa)
+- **Premium**: LKR 1000 - 2200 (biryani, seafood, Jaffna specials)
+
 ## Important Notes
 
 ### ObjectId References

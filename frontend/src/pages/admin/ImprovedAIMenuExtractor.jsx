@@ -150,8 +150,11 @@ const ImprovedAIMenuExtractor = () => {
           isVeg: item.isVeg || false,
           isSpicy: item.isSpicy || false,
           culturalContext: item.culturalContext || '',
-          isAvailable: true
+          isAvailable: true,
+          image: item.image || item.imageUrl || ''  // Use 'image' field to match backend schema
         };
+        
+        console.log('💾 Saving extracted item:', menuItemData.name, 'with image:', menuItemData.image);
 
         await foodService.createMenuItem(menuItemData);
       }

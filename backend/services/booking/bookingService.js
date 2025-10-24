@@ -93,30 +93,38 @@ class BookingService {
       const checkInTime = checkInDate.toTimeString().slice(0, 5); // HH:MM format
       const checkOutTime = checkOutDate.toTimeString().slice(0, 5);
 
-      if (operationalSettings.startTime && operationalSettings.endTime) {
-        if (checkInTime < operationalSettings.startTime ||
-            checkInTime > operationalSettings.endTime) {
-          errors.push(`Check-in time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
-        }
+      // Check check-in time - prioritize specific window over general operational hours
+      const hasCheckInWindow = operationalSettings.checkInWindowStart && operationalSettings.checkInWindowEnd;
+      const hasCheckOutWindow = operationalSettings.checkOutWindowStart && operationalSettings.checkOutWindowEnd;
+      const hasGeneralHours = operationalSettings.startTime && operationalSettings.endTime;
 
-        if (checkOutTime < operationalSettings.startTime ||
-            checkOutTime > operationalSettings.endTime) {
-          errors.push(`Check-out time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
-        }
-      }
-
-      // Check check-in/check-out windows
-      if (operationalSettings.checkInWindowStart && operationalSettings.checkInWindowEnd) {
+      // Validate check-in time
+      if (hasCheckInWindow) {
+        // Use specific check-in window if defined
         if (checkInTime < operationalSettings.checkInWindowStart ||
             checkInTime > operationalSettings.checkInWindowEnd) {
           errors.push(`Check-in must be between ${operationalSettings.checkInWindowStart} and ${operationalSettings.checkInWindowEnd}`);
         }
+      } else if (hasGeneralHours) {
+        // Fall back to general operational hours if no specific window
+        if (checkInTime < operationalSettings.startTime ||
+            checkInTime > operationalSettings.endTime) {
+          errors.push(`Check-in time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
+        }
       }
 
-      if (operationalSettings.checkOutWindowStart && operationalSettings.checkOutWindowEnd) {
+      // Validate check-out time
+      if (hasCheckOutWindow) {
+        // Use specific check-out window if defined
         if (checkOutTime < operationalSettings.checkOutWindowStart ||
             checkOutTime > operationalSettings.checkOutWindowEnd) {
           errors.push(`Check-out must be between ${operationalSettings.checkOutWindowStart} and ${operationalSettings.checkOutWindowEnd}`);
+        }
+      } else if (hasGeneralHours) {
+        // Fall back to general operational hours if no specific window
+        if (checkOutTime < operationalSettings.startTime ||
+            checkOutTime > operationalSettings.endTime) {
+          errors.push(`Check-out time must be between ${operationalSettings.startTime} and ${operationalSettings.endTime}`);
         }
       }
 

@@ -20,8 +20,11 @@ import {
   Wifi,
   Coffee,
   Car,
-  Bath
+  Bath,
+  ChefHat,
+  UtensilsCrossed
 } from "lucide-react";
+import BookingMenuSelector from './BookingMenuSelector';
 import { cn } from "@/lib/utils";
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
@@ -115,6 +118,9 @@ const IntegratedBookingFlow = ({
   });
 
   const [bookingResult, setBookingResult] = useState(null);
+  
+  // Menu selector state
+  const [showMenuSelector, setShowMenuSelector] = useState(false);
 
   // Check authentication
   useEffect(() => {
@@ -147,8 +153,28 @@ const IntegratedBookingFlow = ({
       checkOut: bookingData.checkOut,
       roomPrice: room?.price || room?.pricePerNight || room?.basePrice || 0,
       guests: bookingData.guests,
-      foodPlan: bookingData.foodPlan
+      foodPlan: bookingData.foodPlan,
+      selectedFoodItems: bookingData.selectedMeals
     });
+  };
+
+  // Handle menu items selection
+  const handleMenuItemsSelected = (items) => {
+    console.log('Menu items selected:', items);
+    setBookingData(prev => ({
+      ...prev,
+      selectedMeals: items
+    }));
+    setShowMenuSelector(false);
+  };
+
+  // Open menu selector
+  const openMenuSelector = () => {
+    if (bookingData.foodPlan === 'None') {
+      window.alert('Please select a food plan first');
+      return;
+    }
+    setShowMenuSelector(true);
   };
 
   // Handle booking submission
@@ -487,11 +513,50 @@ const IntegratedBookingFlow = ({
                 className="w-full p-2 border rounded-md"
               >
                 <option value="None">No Food Plan</option>
-                <option value="Breakfast">Breakfast Only (+LKR 1,500/person/night)</option>
-                <option value="Half Board">Half Board (+LKR 3,500/person/night)</option>
-                <option value="Full Board">Full Board (+LKR 5,500/person/night)</option>
-                <option value="A la carte">A la carte (+LKR 2,500/person/night)</option>
+                <option value="Breakfast">Breakfast Only</option>
+                <option value="Half Board">Half Board (Breakfast + Dinner)</option>
+                <option value="Full Board">Full Board (Breakfast + Lunch + Dinner)</option>
+                <option value="A la carte">A la carte (Choose Your Own)</option>
               </select>
+              
+              {bookingData.foodPlan !== 'None' && (
+                <p className="text-sm text-gray-500 mt-1 italic">
+                  💡 Price depends on menu items you select
+                </p>
+              )}
+              
+              {bookingData.foodPlan !== 'None' && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    onClick={openMenuSelector}
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 transition-all"
+                  >
+                    <UtensilsCrossed className="w-4 h-4" />
+                    {bookingData.selectedMeals.length > 0 
+                      ? `${bookingData.selectedMeals.length} items selected - Click to modify`
+                      : 'Browse & Select Menu Items'}
+                  </Button>
+                  
+                  {bookingData.selectedMeals.length > 0 && (
+                    <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700 text-sm font-medium mb-2">
+                        <ChefHat className="w-4 h-4" />
+                        <span>Selected Items ({bookingData.selectedMeals.length})</span>
+                      </div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {bookingData.selectedMeals.map((item, idx) => (
+                          <div key={idx} className="text-xs text-green-600 flex justify-between items-center">
+                            <span>{item.name}</span>
+                            <span className="font-medium">×{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -596,17 +661,56 @@ const IntegratedBookingFlow = ({
             </div>
           </div>
 
-          {bookingData.specialRequests && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold mb-1">Special Requests</h4>
-              <p className="text-sm text-gray-600">{bookingData.specialRequests}</p>
+          {/* Food Items Breakdown */}
+          {bookingData.foodPlan !== 'None' && bookingData.selectedMeals.length > 0 && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 mb-3">
+                <ChefHat className="w-5 h-5 text-green-600" />
+                <h4 className="font-semibold text-green-800">Food Plan: {bookingData.foodPlan}</h4>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                {bookingData.selectedMeals.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-sm bg-white/60 px-3 py-2 rounded border border-green-100">
+                    <span className="text-gray-700">{item.name}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-500">×{item.quantity}</span>
+                      <span className="font-medium text-green-600">LKR {(item.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t">
-            <div className="flex justify-between items-center text-xl font-bold">
+          {bookingData.specialRequests && (
+            <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <h4 className="font-semibold mb-1 text-amber-900">💬 Special Requests</h4>
+              <p className="text-sm text-amber-700">{bookingData.specialRequests}</p>
+            </div>
+          )}
+
+          <div className="mt-6 pt-4 border-t-2 border-gray-200">
+            <div className="space-y-2 text-sm mb-3">
+              <div className="flex justify-between">
+                <span>Room × {calculateNights()} night{calculateNights() > 1 ? 's' : ''}</span>
+                <span>LKR {calculateTotalCost().roomCost.toLocaleString()}</span>
+              </div>
+              {calculateTotalCost().foodCost > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Food Items × {calculateNights()} nights × {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}</span>
+                  <span>LKR {calculateTotalCost().foodCost.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Taxes (12%)</span>
+                <span>LKR {calculateTotalCost().taxes.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-2xl font-bold pt-3 border-t-2 border-gray-300">
               <span>Total Amount:</span>
-              <span className="text-primary">LKR {calculateTotalCost().total.toLocaleString()}</span>
+              <span className="text-green-600 bg-green-50 px-4 py-2 rounded-lg border-2 border-green-200">
+                LKR {calculateTotalCost().total.toLocaleString()}
+              </span>
             </div>
           </div>
         </CardContent>
@@ -1161,6 +1265,19 @@ const IntegratedBookingFlow = ({
           {renderCurrentStep()}
         </div>
       </DialogContent>
+      
+      {/* Menu Selector Modal */}
+      {showMenuSelector && (
+        <BookingMenuSelector
+          isOpen={showMenuSelector}
+          planType={bookingData.foodPlan}
+          nights={calculateNights()}
+          guests={bookingData.guests}
+          initialItems={bookingData.selectedMeals}
+          onItemsSelected={handleMenuItemsSelected}
+          onClose={() => setShowMenuSelector(false)}
+        />
+      )}
     </Dialog>
   );
 };

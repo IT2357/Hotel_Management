@@ -382,10 +382,27 @@ const {
    throw new AppError('Delivery fee is incorrect', 400);
  }
 
- // Validate total price
- const expectedTotal = calculatedSubtotal + tax + deliveryFee;
+ // Extract discount information (if any)
+ const discount = parseFloat(req.body.discount) || 0;
+ const appliedOffer = req.body.appliedOffer || null;
+
+ // Validate discount amount (shouldn't exceed subtotal)
+ if (discount < 0 || discount > calculatedSubtotal) {
+   throw new AppError('Invalid discount amount', 400);
+ }
+
+ // Validate total price with discount consideration
+ const expectedTotal = calculatedSubtotal - discount + tax + deliveryFee;
  if (Math.abs(expectedTotal - totalPrice) > 0.01) {
-   throw new AppError('Total price does not match calculated price', 400);
+   console.error('Price mismatch:', {
+     calculatedSubtotal,
+     discount,
+     tax,
+     deliveryFee,
+     expectedTotal,
+     receivedTotal: totalPrice
+   });
+   throw new AppError(`Total price does not match calculated price. Expected: ${expectedTotal.toFixed(2)}, Received: ${totalPrice.toFixed(2)}`, 400);
  }
 
  // Process payment

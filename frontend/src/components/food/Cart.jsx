@@ -130,13 +130,10 @@ const Cart = ({ onCheckout, onClose }) => {
     }
   });
 
-  // Calculate totals with Jaffna discount
+  // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const lkrAdjustment = subtotal * 0.05; // -5% LKR adjustment for Jaffna
-  const finalTotal = subtotal - lkrAdjustment;
-  const tax = finalTotal * 0.1; // 10% tax
-  const serviceFee = finalTotal * 0.05; // 5% service fee
-  const grandTotal = finalTotal + tax + serviceFee;
+  const tax = subtotal * 0.1; // 10% tax on subtotal
+  const grandTotal = subtotal + tax;
 
   // Handle checkout with validation
   const handleCheckout = async () => {
@@ -586,15 +583,10 @@ const Cart = ({ onCheckout, onClose }) => {
       <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4">
         <h4 className="font-bold text-gray-800 text-base sm:text-lg">Order Summary</h4>
         
-        <div className="space-y-3 text-sm">
+        <div className="space-y-3 text-sm sm:text-base">
           <div className="flex justify-between">
             <span className="text-gray-600">Subtotal</span>
             <span className="text-gray-800 font-semibold">LKR {subtotal.toFixed(2)}</span>
-          </div>
-          
-          <div className="flex justify-between text-green-600">
-            <span>Jaffna Discount (-5%)</span>
-            <span>-LKR {lkrAdjustment.toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between">
@@ -602,13 +594,8 @@ const Cart = ({ onCheckout, onClose }) => {
             <span className="text-gray-800 font-semibold">LKR {tax.toFixed(2)}</span>
           </div>
           
-          <div className="flex justify-between">
-            <span className="text-gray-600">Service Fee (5%)</span>
-            <span className="text-gray-800 font-semibold">LKR {serviceFee.toFixed(2)}</span>
-          </div>
-          
           <div className="border-t border-gray-200 pt-3">
-            <div className="flex justify-between font-bold text-xl">
+            <div className="flex justify-between font-bold text-lg sm:text-xl">
               <span className="text-gray-800">Total</span>
               <span className="text-indigo-600">LKR {grandTotal.toFixed(2)}</span>
             </div>

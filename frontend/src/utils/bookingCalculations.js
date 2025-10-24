@@ -4,14 +4,8 @@
  * Used by both GuestBookingFlow and IntegratedBookingFlow
  */
 
-// Food plan pricing per person per night (in LKR)
-export const FOOD_PLAN_PRICING = {
-  'None': 0,
-  'Breakfast': 1500,
-  'Half Board': 3500,
-  'Full Board': 5500,
-  'A la carte': 2500
-};
+// Food plan pricing - NOW CALCULATED FROM SELECTED ITEMS
+// Removed flat rates to support real menu item selection
 
 // Tax and service charge rates
 export const TAX_RATE = 0.12;           // 12% tax
@@ -53,6 +47,7 @@ export const calculateNights = (checkIn, checkOut) => {
  * @param {number} params.roomPrice - Room price per night
  * @param {number} params.guests - Number of guests (default: 1)
  * @param {string} params.foodPlan - Food plan type (default: 'None')
+ * @param {Array} params.selectedFoodItems - Array of selected menu items with quantities (default: [])
  * @returns {Object} Detailed cost breakdown
  */
 export const calculateBookingCost = ({
@@ -60,7 +55,8 @@ export const calculateBookingCost = ({
   checkOut,
   roomPrice,
   guests = 1,
-  foodPlan = 'None'
+  foodPlan = 'None',
+  selectedFoodItems = []
 }) => {
   const nights = calculateNights(checkIn, checkOut);
   
@@ -74,7 +70,8 @@ export const calculateBookingCost = ({
       taxes: 0,
       serviceCharge: 0,
       total: 0,
-      breakdown: []
+      breakdown: [],
+      selectedFoodItems: []
     };
   }
   
@@ -85,9 +82,16 @@ export const calculateBookingCost = ({
   // Calculate base room cost
   const roomCost = validRoomPrice * nights;
   
-  // Calculate food plan cost (per person per night)
-  const foodPricePerPersonPerNight = FOOD_PLAN_PRICING[foodPlan] || 0;
-  const foodCost = nights * validGuests * foodPricePerPersonPerNight;
+  // Calculate food cost from selected items
+  let foodCost = 0;
+  if (foodPlan !== 'None' && selectedFoodItems.length > 0) {
+    // Sum all item prices × quantities × nights × guests
+    foodCost = selectedFoodItems.reduce((total, item) => {
+      const itemPrice = Number(item.price) || 0;
+      const itemQuantity = Number(item.quantity) || 1;
+      return total + (itemPrice * itemQuantity * nights * validGuests);
+    }, 0);
+  }
   
   // Calculate subtotal (before taxes and charges)
   const subtotal = roomCost + foodCost;
@@ -108,11 +112,19 @@ export const calculateBookingCost = ({
     }
   ];
   
-  if (foodCost > 0) {
-    breakdown.push({
-      label: `${foodPlan} × ${nights} night${nights > 1 ? 's' : ''} × ${validGuests} guest${validGuests > 1 ? 's' : ''}`,
-      amount: foodCost,
-      type: 'food'
+  // Add itemized food breakdown
+  if (foodCost > 0 && selectedFoodItems.length > 0) {
+    selectedFoodItems.forEach(item => {
+      const itemPrice = Number(item.price) || 0;
+      const itemQuantity = Number(item.quantity) || 1;
+      const itemTotal = itemPrice * itemQuantity * nights * validGuests;
+      
+      breakdown.push({
+        label: `${item.name} × ${itemQuantity} × ${nights} night${nights > 1 ? 's' : ''} × ${validGuests} guest${validGuests > 1 ? 's' : ''}`,
+        amount: itemTotal,
+        type: 'food',
+        itemId: item._id
+      });
     });
   }
   
@@ -137,7 +149,8 @@ export const calculateBookingCost = ({
     taxes,
     serviceCharge,
     total,
-    breakdown
+    breakdown,
+    selectedFoodItems
   };
 };
 
@@ -217,6 +230,7 @@ export const createBookingPayload = ({
   checkOut,
   guests,
   foodPlan = 'None',
+  selectedFoodItems = [],
   selectedMeals = [],
   specialRequests = '',
   paymentMethod = 'cash',
@@ -227,7 +241,8 @@ export const createBookingPayload = ({
     checkOut,
     roomPrice,
     guests,
-    foodPlan
+    foodPlan,
+    selectedFoodItems
   });
 
   return {
@@ -257,9 +272,23 @@ export const createBookingPayload = ({
       total: costBreakdown.total
     },
     
-    // Additional details
+    // Food details
     foodPlan,
+    selectedFoodItems, // NEW: Include selected menu items
     selectedMeals,
+    foodDetails: {     // NEW: Metadata for kitchen/restaurant
+      planType: foodPlan,
+      itemsCount: selectedFoodItems.length,
+      totalFoodCost: costBreakdown.foodCost,
+      itemsBreakdown: selectedFoodItems.map(item => ({
+        itemId: item._id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        totalPerNight: item.price * item.quantity,
+        totalAllNights: item.price * item.quantity * costBreakdown.nights * guests
+      }))
+    },
     specialRequests,
     paymentMethod,
     
@@ -268,14 +297,14 @@ export const createBookingPayload = ({
     metadata: {
       bookingSource: source,
       timestamp: new Date().toISOString(),
-      version: '2.0',
-      calculationEngine: 'unified'
+      version: '2.1',
+      calculationEngine: 'unified',
+      foodSelectionEnabled: true
     }
   };
 };
 
 export default {
-  FOOD_PLAN_PRICING,
   TAX_RATE,
   SERVICE_CHARGE_RATE,
   calculateNights,

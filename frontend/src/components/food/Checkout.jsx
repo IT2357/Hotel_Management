@@ -158,6 +158,17 @@ const Checkout = ({ onClose, onOrderComplete }) => {
     }
 
     setErrors(newErrors);
+    
+    // Log validation results for debugging
+    if (Object.keys(newErrors).length > 0) {
+      console.error('❌ Validation failed:', newErrors);
+      toast.error('Please fix the form errors before submitting', {
+        description: Object.values(newErrors)[0]
+      });
+    } else {
+      console.log('✅ Validation passed');
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -247,11 +258,16 @@ const Checkout = ({ onClose, onOrderComplete }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    console.log('🚀 Form submitted, validating...');
+    console.log('📝 Form data:', formData);
+    
     if (!validateForm()) {
+      console.error('❌ Validation failed, staying on page');
       setCurrentStep(1); // Go back to first step if validation fails
       return;
     }
-
+    
+    console.log('✅ Validation passed, processing order...');
     setIsProcessing(true);
 
     try {
@@ -303,15 +319,26 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         subtotal: subtotal,
         tax: tax,
         deliveryFee: deliveryFee, // Backend requires this field (0 for non-delivery orders)
-        totalPrice: totalPrice, // Backend expects 'totalPrice', not 'total'
-        total: totalPrice, // Keep for compatibility
+        totalPrice: totalPrice, // Total with discount applied
+        total: totalPrice,
+        discount: offerDiscount, // Discount amount
+        appliedOffer: appliedOffer ? {
+          offerId: appliedOffer._id,
+          code: appliedOffer.code,
+          type: appliedOffer.type,
+          value: appliedOffer.discountValue,
+          discountAmount: offerDiscount
+        } : null,
         status: 'pending',
         createdAt: new Date().toISOString()
       };
 
+      console.log('📦 Order object created:', order);
+      
       // Handle different payment methods
       if (formData.paymentMethod === 'card') {
         // For card payments, redirect to PayHere
+        console.log('💳 Processing card payment...');
         toast.info('Redirecting to secure payment gateway...');
         
         // Create order first to get order ID
@@ -326,12 +353,16 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         }
       } else {
         // For other payment methods, submit order directly
+        console.log('💰 Processing order with payment method:', formData.paymentMethod);
         submitOrderMutation.mutate(order);
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error('Checkout failed. Please try again.');
-      setErrors({ submit: 'Checkout failed. Please try again.' });
+      console.error('❌ Checkout error:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Checkout failed. Please try again.';
+      toast.error(errorMessage);
+      setErrors({ submit: errorMessage });
     } finally {
       setIsProcessing(false);
     }

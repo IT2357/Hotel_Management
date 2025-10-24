@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Biryani",
+    "description": "Aromatic rice dishes with spices and meat",
+    "color": "#FF6B35",
+    "icon": "🍛",
+    "isActive": true,
+    "sortOrder": 1
+  },
+  {
+    "name": "Kottu",
+    "description": "Traditional Sri Lankan chopped roti stir fry",
+    "color": "#F7931E",
+    "icon": "🥘",
+    "isActive": true,
+    "sortOrder": 2
+  },
+  {
+    "name": "Rice & Curry",
+    "description": "Authentic Sri Lankan rice with mixed curries",
+    "color": "#C1292E",
+    "icon": "🍚",
+    "isActive": true,
+    "sortOrder": 3
+  },
+  {
+    "name": "Jaffna Specials",
+    "description": "Traditional Jaffna cuisine specialties",
+    "color": "#8B0000",
+    "icon": "🦀",
+    "isActive": true,
+    "sortOrder": 4
+  },
+  {
+    "name": "Dosa & Hoppers",
+    "description": "South Indian inspired breakfast favorites",
+    "color": "#FFB300",
+    "icon": "🥞",
+    "isActive": true,
+    "sortOrder": 5
+  },
+  {
+    "name": "Noodles & Fried Rice",
+    "description": "Asian inspired noodles and rice dishes",
+    "color": "#FF8C42",
+    "icon": "🍜",
+    "isActive": true,
+    "sortOrder": 6
+  },
+  {
+    "name": "Seafood",
+    "description": "Fresh seafood from Jaffna waters",
+    "color": "#1976D2",
+    "icon": "🦐",
+    "isActive": true,
+    "sortOrder": 7
+  },
+  {
+    "name": "Appetizers & Snacks",
+    "description": "Light bites and starters",
+    "color": "#43A047",
+    "icon": "🥟",
+    "isActive": true,
+    "sortOrder": 8
+  },
+  {
+    "name": "Breads",
+    "description": "Naan, chapati, paratha and more",
+    "color": "#D4A574",
+    "icon": "🫓",
+    "isActive": true,
+    "sortOrder": 9
+  },
+  {
+    "name": "Desserts",
+    "description": "Traditional Sri Lankan sweet treats",
+    "color": "#E91E63",
+    "icon": "🍰",
+    "isActive": true,
+    "sortOrder": 10
+  },
+  {
+    "name": "Beverages",
+    "description": "Hot and cold refreshing drinks",
+    "color": "#00BCD4",
+    "icon": "☕",
+    "isActive": true,
+    "sortOrder": 11
+  },
+  {
+    "name": "Soups",
+    "description": "Warming soups and broths",
+    "color": "#FF5722",
+    "icon": "🍲",
+    "isActive": true,
+    "sortOrder": 12
+  }
+]

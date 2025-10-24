@@ -824,6 +824,129 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
               <div className="border-t pt-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Operational Hours & Windows</h4>
+                <SettingsToggle
+                  label="Enable Operational Hours Validation"
+                  description="Enforce operational hours and check-in/check-out time windows"
+                  checked={settings.operationalSettings?.enabled ?? true}
+                  onChange={(value) => handleSettingChange("operationalSettings.enabled", value)}
+                />
+                
+                {(settings.operationalSettings?.enabled ?? true) && (
+                  <div className="space-y-4 mt-4 bg-gray-50 p-4 rounded-xl">
+                    <SettingsGrid>
+                      <SettingsField label="Operational Start Time" description="Hotel operational hours start (24h format)">
+                        <Input
+                          type="time"
+                          value={settings.operationalSettings?.startTime || "06:00"}
+                          onChange={(e) => handleSettingChange("operationalSettings.startTime", e.target.value)}
+                          className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </SettingsField>
+                      <SettingsField label="Operational End Time" description="Hotel operational hours end (24h format)">
+                        <Input
+                          type="time"
+                          value={settings.operationalSettings?.endTime || "23:00"}
+                          onChange={(e) => handleSettingChange("operationalSettings.endTime", e.target.value)}
+                          className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </SettingsField>
+                    </SettingsGrid>
+                    
+                    <div className="border-t pt-4">
+                      <h5 className="text-md font-semibold text-gray-800 mb-2">Check-in Window</h5>
+                      <SettingsGrid>
+                        <SettingsField label="Check-in Window Start" description="Earliest check-in time allowed">
+                          <Input
+                            type="time"
+                            value={settings.operationalSettings?.checkInWindowStart || "14:00"}
+                            onChange={(e) => handleSettingChange("operationalSettings.checkInWindowStart", e.target.value)}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                        <SettingsField label="Check-in Window End" description="Latest check-in time allowed">
+                          <Input
+                            type="time"
+                            value={settings.operationalSettings?.checkInWindowEnd || "22:00"}
+                            onChange={(e) => handleSettingChange("operationalSettings.checkInWindowEnd", e.target.value)}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                      </SettingsGrid>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <h5 className="text-md font-semibold text-gray-800 mb-2">Check-out Window</h5>
+                      <SettingsGrid>
+                        <SettingsField label="Check-out Window Start" description="Earliest check-out time allowed">
+                          <Input
+                            type="time"
+                            value={settings.operationalSettings?.checkOutWindowStart || "07:00"}
+                            onChange={(e) => handleSettingChange("operationalSettings.checkOutWindowStart", e.target.value)}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                        <SettingsField label="Check-out Window End" description="Latest check-out time allowed">
+                          <Input
+                            type="time"
+                            value={settings.operationalSettings?.checkOutWindowEnd || "12:00"}
+                            onChange={(e) => handleSettingChange("operationalSettings.checkOutWindowEnd", e.target.value)}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                      </SettingsGrid>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <h5 className="text-md font-semibold text-gray-800 mb-2">Stay Duration Limits</h5>
+                      <SettingsGrid>
+                        <SettingsField label="Minimum Stay Hours" description="Minimum hours required (1-168)">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="168"
+                            value={settings.operationalSettings?.minStayHours || "24"}
+                            onChange={(e) => handleSettingChange("operationalSettings.minStayHours", parseInt(e.target.value))}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                        <SettingsField label="Maximum Stay Days" description="Maximum days allowed (1-365)">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="365"
+                            value={settings.operationalSettings?.maxStayDays || "30"}
+                            onChange={(e) => handleSettingChange("operationalSettings.maxStayDays", parseInt(e.target.value))}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                        <SettingsField label="Advance Booking Days" description="Max days in advance (1-730)">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="730"
+                            value={settings.operationalSettings?.advanceBookingDays || "365"}
+                            onChange={(e) => handleSettingChange("operationalSettings.advanceBookingDays", parseInt(e.target.value))}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                        <SettingsField label="Cleaning Buffer Hours" description="Hours between bookings (0-24)">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="24"
+                            value={settings.operationalSettings?.cleaningBufferHours || "2"}
+                            onChange={(e) => handleSettingChange("operationalSettings.cleaningBufferHours", parseInt(e.target.value))}
+                            className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                          />
+                        </SettingsField>
+                      </SettingsGrid>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="border-t pt-4">
                 <h4 className="text-lg font-semibold text-gray-900 mb-3">Approval Workflow Settings</h4>
                 <SettingsGrid>
                   <SettingsField label="Auto-Approval Threshold" description="Amount below which bookings are auto-approved">

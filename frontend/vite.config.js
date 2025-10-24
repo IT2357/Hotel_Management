@@ -8,7 +8,6 @@ import { loadEnv } from "vite";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const rawTarget = env.VITE_API_BASE_URL || "http://localhost:5000";
-  const hasApiPath = /\/(api)(\/|$)/.test(new URL(rawTarget, "http://dummy").pathname);
 
   return {
     plugins: [react(), tailwindcss()],
@@ -18,16 +17,15 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      port: 5173,
       hmr: {
         overlay: false, // Disable error overlay that might cause refreshes
       },
       proxy: {
         "/api": {
-          target: rawTarget, // can be http://host or http://host/api
+          target: rawTarget,
           changeOrigin: true,
           secure: false,
-          // If target already includes /api, strip it from incoming path. Otherwise, keep /api in path.
-          rewrite: (path) => path.replace(/^\/api/, hasApiPath ? "" : "/api"),
         },
       },
     },

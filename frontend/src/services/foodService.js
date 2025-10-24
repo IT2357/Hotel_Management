@@ -27,20 +27,27 @@ class FoodService {
       const queryString = queryParams.toString();
       const url = `${FOOD_API_BASE}${queryString ? `?${queryString}` : ''}`;
 
+      console.log('📦 Fetching menu items from:', url);
       const response = await api.get(url);
+      console.log('📦 Menu items response:', response.data);
+      
       // Handle different response formats
       if (response.data && response.data.data) {
         // New format with success/data structure
         if (response.data.data.items) {
           // Return just the items array for compatibility
+          console.log('📦 Returning', response.data.data.items.length, 'menu items');
           return { ...response, data: response.data.data.items };
         }
+        console.log('📦 Returning', response.data.data.length || 0, 'menu items');
         return { ...response, data: response.data.data };
       }
       // Legacy format or direct array
+      console.log('📦 Returning legacy format menu items');
       return response;
     } catch (error) {
-      console.error('Error fetching menu items:', error);
+      console.error('❌ Error fetching menu items:', error);
+      console.error('❌ Error response:', error.response?.data);
       throw new Error(error.response?.data?.message || 'Failed to fetch menu items');
     }
   }
@@ -48,10 +55,18 @@ class FoodService {
   // Get categories
   async getCategories() {
     try {
+      console.log('📂 Fetching categories from /food/categories...');
       const response = await api.get('/food/categories');
-      return response.data;
+      console.log('📂 Categories response:', response.data);
+      
+      // Ensure we have the data array
+      const categoriesData = response.data?.data || response.data || [];
+      console.log('📂 Categories loaded:', categoriesData.length, 'items');
+      
+      return { ...response, data: categoriesData };
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('❌ Error fetching categories:', error);
+      console.error('❌ Error response:', error.response?.data);
       throw new Error(error.response?.data?.message || 'Failed to fetch categories');
     }
   }
@@ -70,6 +85,8 @@ class FoodService {
   // Create new menu item
   async createMenuItem(menuItemData) {
     try {
+      console.log('📝 Creating menu item with data:', menuItemData);
+      
       const formData = new FormData();
 
       // Add all text fields
@@ -83,7 +100,9 @@ class FoodService {
           } else if (typeof menuItemData[key] === 'object') {
             // For category field, extract the ID if it's an object
             if (key === 'category') {
-              formData.append(key, menuItemData[key]._id || menuItemData[key].id || menuItemData[key]);
+              const categoryId = menuItemData[key]._id || menuItemData[key].id || menuItemData[key];
+              console.log('📂 Category ID being sent:', categoryId);
+              formData.append(key, categoryId);
             } else {
               formData.append(key, JSON.stringify(menuItemData[key]));
             }
@@ -98,11 +117,18 @@ class FoodService {
         formData.append('file', menuItemData.image);
       }
 
+      // Log all FormData entries for debugging
+      console.log('📤 FormData entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+
       const response = await api.post(`${FOOD_API_BASE}`, formData);
 
       return response.data;
     } catch (error) {
-      console.error('Error creating menu item:', error);
+      console.error('❌ Error creating menu item:', error);
+      console.error('❌ Response data:', error.response?.data);
       throw new Error(error.response?.data?.message || 'Failed to create menu item');
     }
   }

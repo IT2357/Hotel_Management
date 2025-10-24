@@ -30,6 +30,10 @@ const MenuItemForm = ({
     isPopular: false,
     isVeg: false,
     isSpicy: false,
+    isBreakfast: true,
+    isLunch: true,
+    isDinner: true,
+    isSnacks: true,
     image: null
   });
 
@@ -38,6 +42,7 @@ const MenuItemForm = ({
   const [dietaryTagInput, setDietaryTagInput] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState(new Set());
+
 
   // Initialize form data when editing
   useEffect(() => {
@@ -55,9 +60,15 @@ const MenuItemForm = ({
         isPopular: initialData.isPopular || false,
         isVeg: initialData.isVeg || false,
         isSpicy: initialData.isSpicy || false,
+        isBreakfast: initialData.isBreakfast !== undefined ? initialData.isBreakfast : true,
+        isLunch: initialData.isLunch !== undefined ? initialData.isLunch : true,
+        isDinner: initialData.isDinner !== undefined ? initialData.isDinner : true,
+        isSnacks: initialData.isSnacks !== undefined ? initialData.isSnacks : true,
         image: null
       });
-      setImagePreview(initialData.imageUrl || '');
+      
+      // Use image field directly like guest page
+      setImagePreview(initialData.imageUrl || initialData.image || '');
     } else {
       // Reset form for new item
       setFormData({
@@ -73,6 +84,10 @@ const MenuItemForm = ({
         isPopular: false,
         isVeg: false,
         isSpicy: false,
+        isBreakfast: true,
+        isLunch: true,
+        isDinner: true,
+        isSnacks: true,
         image: null
       });
       setImagePreview('');
@@ -256,10 +271,12 @@ const MenuItemForm = ({
               <div>
                 <FoodLabel htmlFor="category">Category *</FoodLabel>
                 <FoodSelect
+                  id="category"
                   value={formData.category}
-                  onValueChange={(value) => handleInputChange('category', value)}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
                   onBlur={() => handleFieldBlur('category')}
                   className={validationErrors.category && touchedFields.has('category') ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
+                  required
                 >
                   <option value="">Select a category</option>
                   {categories.map(category => (
@@ -343,8 +360,9 @@ const MenuItemForm = ({
               <div>
                 <FoodLabel htmlFor="spiceLevel">Spice Level</FoodLabel>
                 <FoodSelect
+                  id="spiceLevel"
                   value={formData.spiceLevel}
-                  onValueChange={(value) => handleInputChange('spiceLevel', value)}
+                  onChange={(e) => handleInputChange('spiceLevel', e.target.value)}
                 >
                   <option value="mild">Mild</option>
                   <option value="medium">Medium</option>
@@ -416,43 +434,90 @@ const MenuItemForm = ({
           </div>
 
           {/* Checkboxes */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={formData.isAvailable}
-                onChange={(e) => handleInputChange('isAvailable', e.target.checked)}
-                className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-sm">Available</span>
-            </label>
-            <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={formData.isPopular}
-                onChange={(e) => handleInputChange('isPopular', e.target.checked)}
-                className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-sm">Popular</span>
-            </label>
-            <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={formData.isVeg}
-                onChange={(e) => handleInputChange('isVeg', e.target.checked)}
-                className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-sm">Vegetarian</span>
-            </label>
-            <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={formData.isSpicy}
-                onChange={(e) => handleInputChange('isSpicy', e.target.checked)}
-                className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <span className="text-sm">Spicy</span>
-            </label>
+          <div className="space-y-4">
+            <div>
+              <FoodLabel>Item Properties</FoodLabel>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isAvailable}
+                    onChange={(e) => handleInputChange('isAvailable', e.target.checked)}
+                    className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">Available</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isPopular}
+                    onChange={(e) => handleInputChange('isPopular', e.target.checked)}
+                    className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">Popular</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isVeg}
+                    onChange={(e) => handleInputChange('isVeg', e.target.checked)}
+                    className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">Vegetarian</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isSpicy}
+                    onChange={(e) => handleInputChange('isSpicy', e.target.checked)}
+                    className="rounded text-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">Spicy</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <FoodLabel>Available During (Meal Times)</FoodLabel>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isBreakfast}
+                    onChange={(e) => handleInputChange('isBreakfast', e.target.checked)}
+                    className="rounded text-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">🌅 Breakfast</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isLunch}
+                    onChange={(e) => handleInputChange('isLunch', e.target.checked)}
+                    className="rounded text-yellow-500 focus:ring-yellow-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">☀️ Lunch</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isDinner}
+                    onChange={(e) => handleInputChange('isDinner', e.target.checked)}
+                    className="rounded text-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">🌙 Dinner</span>
+                </label>
+                <label className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.isSnacks}
+                    onChange={(e) => handleInputChange('isSnacks', e.target.checked)}
+                    className="rounded text-green-500 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm">🍿 Snacks</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Form Actions */}

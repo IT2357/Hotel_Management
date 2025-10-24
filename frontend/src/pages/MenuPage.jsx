@@ -14,6 +14,7 @@ import {
 import { useCart } from '../context/CartContext';
 import foodService from '../services/foodService';
 import offerService from '../services/offerService';
+import { toast } from 'sonner';
 
 // Get API base URL for images
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -30,6 +31,7 @@ const MenuPage = () => {
   const [selectedDietary, setSelectedDietary] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [activeOffer, setActiveOffer] = useState(null);
+  const [isApplyingOffer, setIsApplyingOffer] = useState(false);
   const { addToCart, getItemCount } = useCart();
   const navigate = useNavigate();
 
@@ -153,6 +155,46 @@ const MenuPage = () => {
   // Handle view cart
   const handleViewCart = () => {
     navigate('/food-ordering');
+  };
+
+  // Handle claim/apply offer
+  const handleApplyOffer = async (offer) => {
+    setIsApplyingOffer(true);
+    try {
+      // Store offer in localStorage to be used during checkout
+      localStorage.setItem('appliedOffer', JSON.stringify({
+        _id: offer._id,
+        code: offer.code,
+        title: offer.title,
+        description: offer.description,
+        type: offer.type,
+        discountValue: offer.discountValue,
+        appliedAt: new Date().toISOString()
+      }));
+      
+      console.log('✅ Offer claimed:', offer.title);
+      
+      // Show beautiful success toast notification
+      toast.success('Offer Claimed Successfully! 🎉', {
+        description: `${offer.title} - ${offer.type === 'percentage' ? `${offer.discountValue}% off` : `LKR ${offer.discountValue} off`} will be applied at checkout`,
+        duration: 4000,
+        icon: '🎁',
+        style: {
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          border: 'none',
+        },
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to claim offer:', error);
+      toast.error('Failed to claim offer', {
+        description: 'Please try again later',
+        duration: 3000,
+      });
+    } finally {
+      setIsApplyingOffer(false);
+    }
   };
 
   return (
@@ -344,7 +386,13 @@ const MenuPage = () => {
       <section className="py-12 bg-gray-50">
         <div className="container mx-auto px-6">
           {/* Offer Banner */}
-          {activeOffer && <OfferBanner offer={activeOffer} />}
+          {activeOffer && (
+            <OfferBanner 
+              offer={activeOffer} 
+              onApply={handleApplyOffer} 
+              isLoading={isApplyingOffer} 
+            />
+          )}
 
           {/* Results Count */}
           {!loading && !error && (
