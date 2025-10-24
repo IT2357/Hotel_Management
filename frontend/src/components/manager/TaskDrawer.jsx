@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Users, Clock, MapPin, Sparkles, CheckCircle2, Calendar, Loader2 } from "lucide-react";
+import { X, User, Users, Clock, MapPin, Sparkles, CheckCircle2, Calendar, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 import { ManagerBadge } from "@/components/manager/ManagerBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/manager/ManagerAvatar";
@@ -9,10 +9,10 @@ import { toast } from "sonner";
 import { taskAPI } from "@/services/taskManagementAPI";
 
 const priorityStyles = {
-  Low: "border-[#38bdf8]/40 bg-[#102a46] text-[#38bdf8]",
-  Normal: "border-[#1b335f] bg-[#132b4f] text-[#f5f7ff]",
-  High: "border-[#facc15]/45 bg-[#2a230d] text-[#facc15]",
-  Urgent: "border-[#f87171]/45 bg-[#35131f] text-[#f87171]",
+  Low: "bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 border-2 border-emerald-300",
+  Normal: "bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 border-2 border-blue-300",
+  High: "bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 border-2 border-orange-300",
+  Urgent: "bg-gradient-to-r from-red-100 to-rose-100 text-red-700 border-2 border-red-400",
 };
 
 const resolvePriorityKey = (priority) => {
@@ -99,7 +99,7 @@ const collectNotes = (task) => {
     .map(([source, content]) => ({ source, content }));
 };
 
-export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
+export const TaskDrawer = ({ task, open, onOpenChange, onAssign, onCancel }) => {
   if (!task) return null;
 
   const [departmentStaff, setDepartmentStaff] = useState([]);
@@ -108,6 +108,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
   const [assigningStaffId, setAssigningStaffId] = useState(null);
   const [staffReloadToken, setStaffReloadToken] = useState(0);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const lastTaskIdRef = useRef(null); // Track last task id to preserve selection behavior
 
   const recommendedStaff = useMemo(() => collectRecommendedStaff(task), [task]);
@@ -289,7 +290,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => onOpenChange(false)}
-            className="fixed inset-0 z-50 bg-[#030711]/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md"
           />
 
           <motion.div
@@ -297,60 +298,89 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 z-50 h-full w-full overflow-y-auto border-l border-[#1b2d54] bg-[#06122b]/95 shadow-[0_-12px_40px_rgba(8,12,24,0.6)] md:w-[500px]"
+            className="fixed right-0 top-0 z-50 h-full w-full overflow-y-auto border-l-4 border-cyan-200 bg-gradient-to-br from-white via-gray-50 to-cyan-50/30 shadow-2xl md:w-[580px]"
           >
-            <div className="space-y-6 p-6 text-[#d6e2ff]">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 space-y-1">
-                  <h2 className="text-2xl font-bold text-[#f5f7ff]">{task?.title || "Task Details"}</h2>
-                  <p className="text-sm text-[#8ba3d0]">{task?.department || "General"}</p>
+            <div className="space-y-6 p-6 text-gray-800">
+              <div className="flex items-start justify-between border-b-2 border-gray-200 pb-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-900">{task?.title || "Task Details"}</h2>
+                      <p className="text-sm font-semibold text-cyan-600">{task?.department || "General"}</p>
+                    </div>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => onOpenChange(false)}
-                  className="text-[#a6b8e3] hover:bg-[#132444]"
+                  className="text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-6 w-6" />
                 </Button>
               </div>
 
-              <ManagerBadge className={`${priorityStyles[priorityKey] || priorityStyles.Normal} text-sm`}>
+              <ManagerBadge className={`${priorityStyles[priorityKey] || priorityStyles.Normal} text-sm font-bold px-4 py-2 rounded-xl shadow-md`}>
                 {(task?.priorityLabel || task?.priority || "Normal") + " Priority"}
               </ManagerBadge>
 
               <ManagerSeparator />
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
-                  <MapPin className="h-4 w-4 text-[#5f7ac0]" />
-                  <span className="text-[#dfe8ff]">{locationLabel}</span>
+              <div className="space-y-3 bg-white rounded-2xl p-5 border-2 border-gray-200 shadow-md">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Location</p>
+                    <span className="text-sm font-bold text-gray-900">{locationLabel}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
-                  <Calendar className="h-4 w-4 text-[#5f7ac0]" />
-                  <span className="text-[#dfe8ff]">{dueDateLabel}</span>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Due Date</p>
+                    <span className="text-sm font-bold text-gray-900">{dueDateLabel}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-[#a6b8e3]">
-                  <Clock className="h-4 w-4 text-[#5f7ac0]" />
-                  <span className="text-[#dfe8ff]">Estimated: {estimatedDurationLabel}</span>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium">Estimated Duration</p>
+                    <span className="text-sm font-bold text-gray-900">{estimatedDurationLabel}</span>
+                  </div>
                 </div>
               </div>
 
               <ManagerSeparator />
 
-              <div className="space-y-2 rounded-2xl border border-[#1b335f] bg-[#0e1f42] p-4 shadow-[0_12px_30px_rgba(8,14,29,0.55)]">
-                <h3 className="text-sm font-semibold text-[#f5f7ff]">Task Description</h3>
-                <p className="text-sm text-[#8ba3d0]">{description}</p>
+              <div className="space-y-3 rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-5 shadow-md">
+                <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-500 flex items-center justify-center">
+                    <User className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Task Description
+                </h3>
+                <p className="text-sm text-gray-700 leading-relaxed">{description}</p>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-[#facc15]" />
-                  <h3 className="font-semibold text-[#f5f7ff]">AI Staff Recommendations</h3>
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  <h3 className="font-black text-gray-900 text-lg">AI Staff Recommendations</h3>
                 </div>
 
                 {recommendedStaff.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-[#1b335f] bg-[#0f203f] p-3 text-sm text-[#8ba3d0]">
+                  <p className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
                     No recommendations available yet. Assignments will appear once staff suggestions are generated.
                   </p>
                 ) : (
@@ -367,8 +397,8 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
-                          className={`rounded-2xl border p-3 transition-all duration-300 hover:border-[#facc15]/60 hover:bg-[#13264a] ${
-                            isSelected ? "border-[#facc15] bg-[#13264a]" : "border-transparent bg-[#0f203f]"
+                          className={`rounded-2xl border-2 p-4 transition-all duration-300 hover:shadow-lg cursor-pointer ${
+                            isSelected ? "border-yellow-400 bg-yellow-50 shadow-lg" : "border-gray-200 bg-white hover:border-yellow-300"
                           }`}
                           onClick={() => handleSelectStaff(staff)}
                       >
@@ -379,13 +409,13 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                               <AvatarFallback>{staff.name?.[0] || "S"}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-[#f5f7ff]">{staff.name}</p>
-                              <p className="text-xs text-[#8ba3d0]">{staff.role || "Staff"}</p>
-                              {staff.email && <p className="text-xs text-[#526aab]">{staff.email}</p>}
+                              <p className="text-sm font-bold text-gray-900">{staff.name}</p>
+                              <p className="text-xs font-semibold text-cyan-600">{staff.role || "Staff"}</p>
+                              {staff.email && <p className="text-xs text-gray-500">{staff.email}</p>}
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-bold text-[#facc15]">{typeof staff.match === "number" ? `${staff.match}%` : "--"}</p>
-                              <p className="text-xs text-[#8ba3d0]">Match</p>
+                              <p className="text-lg font-black text-yellow-600">{typeof staff.match === "number" ? `${staff.match}%` : "--"}</p>
+                              <p className="text-xs font-bold text-gray-600">Match</p>
                             </div>
                           </div>
                           <Button
@@ -395,10 +425,10 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                               handleSelectStaff(staff);
                             }}
                             variant={isSelected ? "outline" : "default"}
-                            className={`flex items-center justify-center gap-2 border border-[#1b335f] text-[#d6e2ff] transition-colors ${
+                            className={`flex items-center justify-center gap-2 border-2 transition-all rounded-xl shadow-sm ${
                               isSelected
-                                ? "bg-[#1a3561]"
-                                : "bg-[#13264a] hover:bg-[#1a3561]"
+                                ? "bg-yellow-500 text-white border-yellow-600 shadow-md"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-yellow-50 hover:border-yellow-400"
                             }`}
                           >
                             {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
@@ -422,15 +452,17 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-[#38bdf8]" />
-                    <h3 className="font-semibold text-[#f5f7ff]">Department Team</h3>
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
+                      <Users className="h-4 w-4 text-white" />
+                    </div>
+                    <h3 className="font-black text-gray-900 text-lg">Department Team</h3>
                   </div>
                   {task?.department && (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={handleRefreshStaff}
-                      className="h-8 rounded-lg border border-transparent px-2 text-xs font-medium text-[#8ba3d0] transition-colors hover:border-[#1b335f] hover:bg-[#13264a]"
+                      className="h-8 rounded-xl border-2 border-gray-300 px-3 text-xs font-bold text-gray-700 transition-all hover:border-cyan-400 hover:bg-cyan-50 shadow-sm"
                     >
                       Refresh
                     </Button>
@@ -442,12 +474,12 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                     {[0, 1, 2].map((index) => (
                       <div
                         key={`dept-skeleton-${index}`}
-                        className="h-16 animate-pulse rounded-2xl border border-[#1b335f]/40 bg-[#0f203f]/80"
+                        className="h-16 animate-pulse rounded-2xl border-2 border-gray-200 bg-gray-100"
                       />
                     ))}
                   </div>
                 ) : departmentError ? (
-                  <p className="rounded-2xl border border-[#3f1b1b] bg-[#190d18] p-3 text-sm text-[#fca5a5]">
+                  <p className="rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-sm text-red-600 font-medium">
                     {departmentError}
                   </p>
                 ) : departmentOptions.length === 0 ? (
@@ -465,8 +497,8 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                       return (
                         <div
                           key={staff.staffId || staff.email || staff.name || index}
-                          className={`rounded-2xl border p-3 transition-all duration-300 hover:border-[#38bdf8]/50 hover:bg-[#13264a] ${
-                            isSelected ? "border-[#38bdf8] bg-[#13264a]" : "border-transparent bg-[#0f203f]"
+                          className={`rounded-2xl border-2 p-4 transition-all duration-300 hover:shadow-lg cursor-pointer ${
+                            isSelected ? "border-cyan-400 bg-cyan-50 shadow-lg" : "border-gray-200 bg-white hover:border-cyan-300"
                           }`}
                           onClick={() => handleSelectStaff(staff)}
                         >
@@ -477,9 +509,9 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                                 <AvatarFallback>{staff.name?.[0] || "S"}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
-                                <p className="text-sm font-medium text-[#f5f7ff]">{staff.name}</p>
-                                <p className="text-xs text-[#8ba3d0]">{staff.role || task?.department || "Staff"}</p>
-                                {staff.email && <p className="text-xs text-[#526aab]">{staff.email}</p>}
+                                <p className="text-sm font-bold text-gray-900">{staff.name}</p>
+                                <p className="text-xs font-semibold text-cyan-600">{staff.role || task?.department || "Staff"}</p>
+                                {staff.email && <p className="text-xs text-gray-500">{staff.email}</p>}
                               </div>
                             </div>
                             <Button
@@ -489,8 +521,8 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                                 handleSelectStaff(staff);
                               }}
                               variant={isSelected ? "outline" : "default"}
-                              className={`flex items-center justify-center gap-2 border border-[#1b335f] text-[#d6e2ff] transition-colors ${
-                                isSelected ? "bg-[#1a3561]" : "bg-[#13264a] hover:bg-[#1a3561]"
+                              className={`flex items-center justify-center gap-2 border-2 transition-all rounded-xl shadow-sm ${
+                                isSelected ? "bg-cyan-500 text-white border-cyan-600 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-cyan-50 hover:border-cyan-400"
                               }`}
                             >
                               {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
@@ -498,7 +530,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                             </Button>
                           </div>
                           {!staff.staffId && (
-                            <p className="mt-2 text-xs text-[#8ba3d0]">
+                            <p className="mt-2 text-xs text-gray-600 bg-gray-100 rounded-lg p-2">
                               This staff profile is missing an account. Ask them to activate their login before assignment.
                             </p>
                           )}
@@ -510,49 +542,49 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
               </div>
 
               {selectedStaff && (
-                <div className="space-y-3 rounded-2xl border border-[#1b335f] bg-[#0f203f] p-4 shadow-[0_12px_30px_rgba(8,14,29,0.45)]">
+                <div className="space-y-3 rounded-2xl border-2 border-cyan-300 bg-gradient-to-br from-cyan-50 to-blue-50 p-5 shadow-xl">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(selectedStaff.avatar || selectedStaff.name || "staff")}`} />
                       <AvatarFallback>{selectedStaff.name?.[0] || "S"}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-semibold text-[#f5f7ff]">{selectedStaff.name}</p>
-                      <p className="text-xs text-[#8ba3d0]">{selectedStaff.role || selectedStaff.department || task?.department || "Team Member"}</p>
+                      <p className="text-sm font-black text-gray-900">{selectedStaff.name}</p>
+                      <p className="text-xs font-bold text-cyan-600">{selectedStaff.role || selectedStaff.department || task?.department || "Team Member"}</p>
                     </div>
                     {typeof selectedStaff.match === "number" && (
                       <div className="ml-auto text-right">
-                        <p className="text-sm font-bold text-[#facc15]">{selectedStaff.match}%</p>
-                        <p className="text-xs text-[#8ba3d0]">Match</p>
+                        <p className="text-lg font-black text-yellow-600">{selectedStaff.match}%</p>
+                        <p className="text-xs font-bold text-gray-600">Match</p>
                       </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 gap-3 text-xs text-[#8ba3d0] sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 text-xs text-gray-700 sm:grid-cols-2">
                     {selectedStaff.email && (
                       <div>
-                        <p className="text-[#5f7ac0]">Email</p>
-                        <p className="text-[#dfe8ff]">{selectedStaff.email}</p>
+                        <p className="text-gray-500 font-bold">Email</p>
+                        <p className="text-gray-900 font-semibold">{selectedStaff.email}</p>
                       </div>
                     )}
                     {selectedStaff.phone && (
                       <div>
-                        <p className="text-[#5f7ac0]">Phone</p>
-                        <p className="text-[#dfe8ff]">{selectedStaff.phone}</p>
+                        <p className="text-gray-500 font-bold">Phone</p>
+                        <p className="text-gray-900 font-semibold">{selectedStaff.phone}</p>
                       </div>
                     )}
                     {selectedStaff.department && (
                       <div>
-                        <p className="text-[#5f7ac0]">Department</p>
-                        <p className="text-[#dfe8ff]">{selectedStaff.department}</p>
+                        <p className="text-gray-500 font-bold">Department</p>
+                        <p className="text-gray-900 font-semibold">{selectedStaff.department}</p>
                       </div>
                     )}
                     <div>
-                      <p className="text-[#5f7ac0]">Assignment Note</p>
-                      <p className="text-[#dfe8ff]">Confirm details before assigning this task.</p>
+                      <p className="text-gray-500 font-bold">Assignment Note</p>
+                      <p className="text-gray-900 font-semibold">Confirm details before assigning this task.</p>
                     </div>
                   </div>
                   {!selectedStaff.staffId && (
-                    <p className="mt-2 rounded-xl border border-dashed border-[#f87171]/60 bg-[#301720] p-3 text-xs text-[#fca5a5]">
+                    <p className="mt-2 rounded-xl border-2 border-dashed border-red-300 bg-red-50 p-3 text-xs text-red-600 font-medium">
                       This teammate is not linked to an active staff account. Pick someone from the department list below, or invite them to finish onboarding so you can assign tasks directly.
                     </p>
                   )}
@@ -562,7 +594,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
               <ManagerSeparator />
 
               <div className="space-y-3">
-                <h3 className="font-semibold text-[#f5f7ff]">Assignment History</h3>
+                <h3 className="font-black text-gray-900 text-lg">Assignment History</h3>
                 <div className="space-y-3">
                   {assignmentHistory.length === 0 && (
                     <div className="flex items-start gap-3">
@@ -570,8 +602,8 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                         <CheckCircle2 className="h-3 w-3 text-[#34d399]" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm text-[#f5f7ff]">Task Created</p>
-                        <p className="text-xs text-[#8ba3d0]">{formatDateTime(task?.rawTask?.createdAt)}</p>
+                        <p className="text-sm font-bold text-gray-900">Task Created</p>
+                        <p className="text-xs text-gray-600">{formatDateTime(task?.rawTask?.createdAt)}</p>
                       </div>
                     </div>
                   )}
@@ -585,17 +617,17 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                         <p className="text-sm text-[#f5f7ff]">
                           Assigned to {entry?.assignedName || entry?.assignedTo?.name || entry?.assignedTo?.fullName || entry?.assignedTo || "staff member"}
                         </p>
-                        <p className="text-xs text-[#8ba3d0]">{formatDateTime(entry?.assignedAt)}</p>
+                        <p className="text-xs text-gray-600">{formatDateTime(entry?.assignedAt)}</p>
                       </div>
                     </div>
                   ))}
 
                   {noteEntries.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-[#f5f7ff]">Notes</h4>
+                      <h4 className="text-sm font-bold text-gray-900">Notes</h4>
                       {noteEntries.map((item, index) => (
-                        <p key={index} className="text-xs text-[#8ba3d0]">
-                          <span className="font-medium text-[#d6e2ff]">{item.source}:</span> {item.content}
+                        <p key={index} className="text-xs text-gray-700">
+                          <span className="font-bold text-gray-900">{item.source}:</span> {item.content}
                         </p>
                       ))}
                     </div>
@@ -607,17 +639,42 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                 <Button
                   variant="outline"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 border border-[#1b335f] bg-[#0f2145] text-[#d6e2ff] transition-colors hover:bg-[#142b52]"
+                  className="flex-1 border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-xl font-bold shadow-sm transition-all"
                 >
                   Close
                 </Button>
+                {task?.assignedStaffName && task?.statusKey !== "completed" && task?.statusKey !== "inProgress" && onCancel && (
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      setIsCancelling(true);
+                      try {
+                        await onCancel(task, "Staff did not accept task");
+                        onOpenChange(false);
+                      } catch (error) {
+                        console.error("Cancel failed:", error);
+                      } finally {
+                        setIsCancelling(false);
+                      }
+                    }}
+                    disabled={isCancelling || assigningStaffId !== null}
+                    className="flex-1 border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-400 disabled:opacity-60 rounded-xl font-bold shadow-sm transition-all"
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="mr-2 h-4 w-4" />
+                    )}
+                    {isCancelling ? "Cancelling..." : "Cancel Assignment"}
+                  </Button>
+                )}
                 <div className="flex flex-1 flex-col gap-3 sm:flex-row">
                   {autoAssignCandidate && (
                     <Button
                       variant="outline"
                       onClick={handleQuickAssign}
                       disabled={assigningStaffId !== null}
-                      className="flex-1 border border-[#1b335f] bg-[#0f2145] text-[#d6e2ff] transition-colors hover:bg-[#142b52] disabled:opacity-60"
+                      className="flex-1 border-2 border-yellow-300 bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 hover:from-yellow-200 hover:to-amber-200 disabled:opacity-60 rounded-xl font-bold shadow-md transition-all"
                     >
                       {assigningStaffId === autoAssignKey ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -630,7 +687,7 @@ export const TaskDrawer = ({ task, open, onOpenChange, onAssign }) => {
                   <Button
                     onClick={handleConfirmAssign}
                     disabled={!selectedStaff?.staffId || assigningStaffId !== null}
-                    className="flex-1 bg-[#facc15] text-[#0b1b3c] transition-colors hover:bg-[#f9c513] disabled:opacity-60"
+                    className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700 disabled:opacity-60 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
                   >
                     {isAssigningSelected ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

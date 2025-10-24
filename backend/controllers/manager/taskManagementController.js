@@ -130,16 +130,103 @@ const parseDate = (value) => {
 
 const extractUserId = (user) => user?._id || user?.id || user?.userId;
 
-// For StaffTask we won't compute AI staff recommendations here; provide a simple placeholder
-const ensureRecommendations = (task) => {
-  const fallbackName = task.assignedTo?.name || "Available Staff";
-  return [
-    {
-      name: fallbackName,
-      role: task.department || "Staff Member",
-      match: 80,
-    },
-  ];
+// AI-powered staff recommendation system
+const computeStaffRecommendations = async (task) => {
+  try {
+    // If already assigned, return the assigned staff as the top recommendation
+    if (task.assignedTo && task.assignedTo._id) {
+      return [
+        {
+          name: task.assignedTo.name || "Assigned Staff",
+          staffId: String(task.assignedTo._id),
+          role: task.assignedTo.role || task.department || "Staff Member",
+          match: 100,
+          email: task.assignedTo.email,
+        },
+      ];
+    }
+
+    // Find staff members from the same department
+    const department = task.department;
+    const lookupKey = String(department).toLowerCase();
+    const profileDepartments = STAFF_PROFILE_DEPARTMENT_MAP[lookupKey] || [department];
+
+    // Get staff profiles for this department
+    const staffProfiles = await StaffProfile.find({
+      department: { $in: profileDepartments },
+      isActive: true,
+    })
+      .populate("userId", "name email role phone isActive")
+      .lean();
+
+    let availableStaff = staffProfiles
+      .filter((profile) => profile.userId && profile.userId.role === "staff" && profile.userId.isActive !== false)
+      .map((profile) => ({
+        staffId: String(profile.userId._id),
+        name: profile.userId.name,
+        email: profile.userId.email,
+        phone: profile.userId.phone || undefined,
+        role: profile.position || profile.department,
+        department: profile.department,
+      }));
+
+    // Fallback: if no profiles found, get all active staff
+    if (availableStaff.length === 0) {
+      const fallbackUsers = await User.find({ role: "staff", isActive: true })
+        .select("name email phone")
+        .lean();
+
+      availableStaff = fallbackUsers.map((user) => ({
+        staffId: String(user._id),
+        name: user.name,
+        email: user.email,
+        phone: user.phone || undefined,
+        role: toTitleCase(profileDepartments[0] || department || "Staff Member"),
+        department: profileDepartments[0] || toTitleCase(department),
+      }));
+    }
+
+    // If still no staff found, return empty array
+    if (availableStaff.length === 0) {
+      return [];
+    }
+
+    // Calculate match scores based on workload and priority
+    const staffWithScores = await Promise.all(
+      availableStaff.map(async (staff) => {
+        // Get current workload for this staff member
+        const activeTasksCount = await StaffTask.countDocuments({
+          assignedTo: staff.staffId,
+          status: { $in: ["pending", "assigned", "in_progress"] },
+        });
+
+        // Calculate match score (0-100)
+        // Lower workload = higher match score
+        let matchScore = 95 - activeTasksCount * 5; // Decrease score by 5 for each active task
+        matchScore = Math.max(60, Math.min(99, matchScore)); // Keep between 60-99
+
+        // Boost score for urgent/high priority tasks
+        if (task.priority === "urgent" || task.priority === "high") {
+          matchScore = Math.min(99, matchScore + 5);
+        }
+
+        return {
+          ...staff,
+          match: matchScore,
+          currentWorkload: activeTasksCount,
+        };
+      })
+    );
+
+    // Sort by match score (highest first)
+    staffWithScores.sort((a, b) => b.match - a.match);
+
+    // Return top 3 recommendations
+    return staffWithScores.slice(0, 3);
+  } catch (error) {
+    console.error("computeStaffRecommendations error:", error);
+    return [];
+  }
 };
 
 const formatAssignmentHistory = (history) =>
@@ -151,7 +238,7 @@ const formatAssignmentHistory = (history) =>
     notes: entry.notes,
   }));
 
-const buildTaskResponse = (taskDoc) => {
+const buildTaskResponse = async (taskDoc) => {
   if (!taskDoc) return null;
   const task = taskDoc.toObject ? taskDoc.toObject({ virtuals: true }) : taskDoc;
 
@@ -163,6 +250,9 @@ const buildTaskResponse = (taskDoc) => {
         role: task.assignedTo.role,
       }
     : null;
+
+  // Get AI-powered staff recommendations
+  const recommendedStaff = await computeStaffRecommendations({ ...task, assignedTo: assigned });
 
   return {
     _id: String(task._id),
@@ -177,8 +267,8 @@ const buildTaskResponse = (taskDoc) => {
     dueDate: task.dueDate,
     estimatedDuration: task.estimatedDuration,
     tags: task.tags || [],
-    recommendedStaff: ensureRecommendations({ ...task, assignedTo: assigned }),
-    aiRecommendationScore: undefined,
+    recommendedStaff,
+    aiRecommendationScore: recommendedStaff[0]?.match || undefined,
     assignedTo: assigned,
     assignmentHistory: formatAssignmentHistory(task.assignmentHistory),
     notes: Array.isArray(task.notes)
@@ -245,10 +335,13 @@ export const getAllTasks = async (req, res) => {
       StaffTask.countDocuments(filters),
     ]);
 
+    // Build task responses with AI recommendations (async)
+    const tasksWithRecommendations = await Promise.all(tasks.map(buildTaskResponse));
+
     res.status(200).json({
       success: true,
       data: {
-        tasks: tasks.map(buildTaskResponse),
+        tasks: tasksWithRecommendations,
         pagination: {
           current: safePage,
           pages: Math.max(Math.ceil(total / safeLimit), 1),
@@ -279,7 +372,7 @@ export const getTaskById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Task not found" });
     }
 
-    res.status(200).json({ success: true, data: buildTaskResponse(task) });
+    res.status(200).json({ success: true, data: await buildTaskResponse(task) });
   } catch (error) {
     console.error("manager:getTaskById", error);
     res.status(500).json({ success: false, message: "Failed to fetch task" });
@@ -357,7 +450,7 @@ export const createTask = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Task created successfully",
-      data: buildTaskResponse(populatedTask),
+      data: await buildTaskResponse(populatedTask),
     });
   } catch (error) {
     console.error("manager:createTask", error);
@@ -407,7 +500,7 @@ export const assignTask = async (req, res) => {
 
     await task.save();
     const populatedTaskDoc = await StaffTask.findById(task._id).populate("assignedTo", "name email role");
-    const responsePayload = buildTaskResponse(populatedTaskDoc);
+    const responsePayload = await buildTaskResponse(populatedTaskDoc);
 
     try {
       const io = getIO();
@@ -506,11 +599,109 @@ export const updateTaskStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Task status updated",
-      data: buildTaskResponse(populatedTask),
+      data: await buildTaskResponse(populatedTask),
     });
   } catch (error) {
     console.error("manager:updateTaskStatus", error);
     res.status(500).json({ success: false, message: "Failed to update status" });
+  }
+};
+
+export const cancelTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: "Invalid task ID" });
+    }
+
+    const task = await StaffTask.findOne({ _id: id });
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
+    const managerId = extractUserId(req.user);
+
+    // Check if task is in a state where it can be cancelled/unassigned
+    if (task.status === "completed") {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cannot cancel a completed task" 
+      });
+    }
+
+    // If task is assigned or in progress, unassign it and return to pending
+    if (task.assignedTo) {
+      const previousStaff = task.assignedTo;
+      
+      // Clear assignment
+      task.assignedTo = undefined;
+      task.status = "pending";
+      
+      // Add note about cancellation
+      task.notes = task.notes || [];
+      task.notes.push({
+        content: `Task unassigned from staff. Reason: ${reason || "Not accepted by staff"}`,
+        addedBy: managerId,
+      });
+
+      // Add to assignment history
+      task.assignmentHistory = task.assignmentHistory || [];
+      task.assignmentHistory.push({
+        assignedTo: previousStaff,
+        assignedBy: managerId,
+        source: "user",
+        assignedAt: new Date(),
+        status: "cancelled",
+        notes: reason || "Task unassigned - staff did not accept",
+      });
+
+      await task.save();
+
+      // Notify via socket
+      try {
+        const io = getIO();
+        io.to(`staff-${String(previousStaff)}`).emit("taskCancelled", {
+          taskId: String(task._id),
+          reason: reason || "Manager unassigned the task",
+        });
+      } catch (socketError) {
+        console.error("manager:cancelTask socket emit failed", socketError);
+      }
+
+      const populatedTask = await StaffTask.findById(task._id)
+        .populate("assignedTo", "name email role");
+
+      return res.status(200).json({
+        success: true,
+        message: "Task unassigned and returned to pending queue",
+        data: await buildTaskResponse(populatedTask),
+      });
+    }
+
+    // If task is pending (not assigned), just mark as cancelled
+    task.status = "cancelled";
+    task.notes = task.notes || [];
+    task.notes.push({
+      content: `Task cancelled. Reason: ${reason || "Cancelled by manager"}`,
+      addedBy: managerId,
+    });
+
+    await task.save();
+
+    const populatedTask = await StaffTask.findById(task._id)
+      .populate("assignedTo", "name email role");
+
+    res.status(200).json({
+      success: true,
+      message: "Task cancelled successfully",
+      data: await buildTaskResponse(populatedTask),
+    });
+  } catch (error) {
+    console.error("manager:cancelTask", error);
+    res.status(500).json({ success: false, message: "Failed to cancel task" });
   }
 };
 
@@ -546,7 +737,8 @@ export const getMyTasks = async (req, res) => {
       .populate("assignedTo", "name email role")
       .lean();
 
-    res.status(200).json({ success: true, data: tasks.map(buildTaskResponse) });
+    const tasksWithRecommendations = await Promise.all(tasks.map(buildTaskResponse));
+    res.status(200).json({ success: true, data: tasksWithRecommendations });
   } catch (error) {
     console.error("manager:getMyTasks", error);
     res.status(500).json({ success: false, message: "Failed to fetch your tasks" });

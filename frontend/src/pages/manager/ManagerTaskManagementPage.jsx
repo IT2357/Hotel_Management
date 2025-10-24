@@ -5,7 +5,7 @@ import { taskAPI } from "@/services/taskManagementAPI";
 import { ManagerLayout } from "@/components/manager";
 import { TaskQueueBoard } from "@/components/manager/TaskQueueBoard";
 import { Button } from "@/components/manager/ManagerButton";
-import { RotateCw, Plus } from "lucide-react";
+import { RotateCw, Plus, Sparkles } from "lucide-react";
 import ManagerPageHeader from "@/components/manager/ManagerPageHeader";
 import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS } from "./managerStyles";
 import { TaskCreateDialog } from "@/components/manager/TaskCreateDialog";
@@ -248,6 +248,8 @@ const ManagerTaskManagementPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [pendingTaskForAssignment, setPendingTaskForAssignment] = useState(null);
+  const [isAiAssigning, setIsAiAssigning] = useState(false);
 
   const handleSidebarToggle = useCallback((isCollapsed) => {
     toast.info(isCollapsed ? "Sidebar collapsed" : "Sidebar expanded", {
@@ -309,9 +311,8 @@ const ManagerTaskManagementPage = () => {
       }
     } catch (error) {
       console.error("Failed to load tasks", error);
-      setErrorMessage(error?.response?.data?.message || error.message || "Failed to load tasks");
       toast.error("Unable to fetch tasks", {
-        description: "Please check your connection or try again later.",
+        description: error?.response?.data?.message || error.message || "Please check your connection or try again later.",
       });
     } finally {
       setIsLoading(false);
@@ -383,13 +384,142 @@ const ManagerTaskManagementPage = () => {
     }
   }, [filters, loadTasks]);
 
+  const handleTaskCancel = useCallback(async (task, reason) => {
+    if (!task?.rawTask?._id) {
+      toast.error("Task identifier is missing");
+      return;
+    }
+
+    try {
+      await taskAPI.cancelTask(task.rawTask._id, reason || "Staff did not accept task");
+      
+      // Reload the tasks to show the updated state
+      await loadTasks(filters);
+      
+      toast.success("Task Unassigned", {
+        description: `${task.title} has been returned to the pending queue and is now available for reassignment.`,
+        duration: 4000,
+      });
+    } catch (error) {
+      console.error("Unable to cancel task", error);
+      const message = error?.response?.data?.message || error.message || "Failed to cancel task";
+      toast.error("Failed to cancel task", {
+        description: message,
+        duration: 3000,
+      });
+    }
+  }, [filters, loadTasks]);
+
+  const handleAiAutoAssign = useCallback(async () => {
+    const pendingTasks = boardData.pending;
+    
+    if (pendingTasks.length === 0) {
+      toast.info("No Pending Tasks", {
+        description: "All tasks are already assigned or there are no tasks waiting for assignment.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Check which tasks have recommended staff
+    const assignableTasks = pendingTasks.filter(
+      (task) => task.recommendedStaff && task.recommendedStaff.length > 0
+    );
+
+    if (assignableTasks.length === 0) {
+      toast.warning("No Staff Recommendations", {
+        description: "AI couldn't find suitable staff for pending tasks. Please assign manually.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsAiAssigning(true);
+    
+    const results = {
+      success: [],
+      failed: [],
+      total: assignableTasks.length,
+    };
+
+    toast.info("AI Assignment Started", {
+      description: `Processing ${assignableTasks.length} task(s)...`,
+      duration: 2000,
+    });
+
+    // Assign tasks one by one
+    for (const task of assignableTasks) {
+      try {
+        const bestStaff = task.recommendedStaff[0]; // Get the highest matched staff
+        
+        if (!bestStaff?.staffId) {
+          results.failed.push({
+            task: task.title,
+            reason: "No valid staff ID found",
+          });
+          continue;
+        }
+
+        await taskAPI.assignTask(task.rawTask._id, { staffId: bestStaff.staffId });
+        
+        results.success.push({
+          task: task.title,
+          staff: bestStaff.name,
+          match: bestStaff.match,
+        });
+      } catch (error) {
+        console.error(`Failed to assign task ${task.title}:`, error);
+        results.failed.push({
+          task: task.title,
+          reason: error?.response?.data?.message || error.message || "Unknown error",
+        });
+      }
+    }
+
+    // Reload tasks to reflect changes
+    await loadTasks(filters);
+    setIsAiAssigning(false);
+
+    // Show results
+    if (results.success.length > 0 && results.failed.length === 0) {
+      toast.success("AI Assignment Complete!", {
+        description: `Successfully assigned ${results.success.length} task(s) to optimal staff members.`,
+        duration: 5000,
+      });
+    } else if (results.success.length > 0 && results.failed.length > 0) {
+      toast.warning("Partial Assignment Complete", {
+        description: `Assigned ${results.success.length} task(s). ${results.failed.length} task(s) failed.`,
+        duration: 5000,
+      });
+    } else {
+      toast.error("AI Assignment Failed", {
+        description: `Could not assign any tasks. Please try manual assignment.`,
+        duration: 5000,
+      });
+    }
+  }, [boardData.pending, filters, loadTasks]);
+
   const handleTaskCreate = useCallback(
     async (values) => {
+      // Validate required fields
+      if (!values.title?.trim()) {
+        throw new Error("Task title is required");
+      }
+      if (!values.description?.trim()) {
+        throw new Error("Task description is required");
+      }
+      if (!values.location) {
+        throw new Error("Task location is required");
+      }
+
       const payload = {
         title: values.title.trim(),
+        description: values.description.trim(),
         department: values.department,
         priority: values.priority,
         status: "Pending",
+        location: values.location, // This is now a select value, no need to trim
+        category: values.department?.toLowerCase() || "general", // Use department as category
       };
 
       if (values.dueDate) {
@@ -404,16 +534,8 @@ const ManagerTaskManagementPage = () => {
         payload.estimatedDuration = Math.round(estimatedDuration);
       }
 
-      if (values.location?.trim()) {
-        payload.location = values.location.trim();
-      }
-
       if (values.roomNumber?.trim()) {
         payload.roomNumber = values.roomNumber.trim();
-      }
-
-      if (values.description?.trim()) {
-        payload.description = values.description.trim();
       }
 
       if (values.managerNote?.trim()) {
@@ -421,15 +543,39 @@ const ManagerTaskManagementPage = () => {
       }
 
       try {
-        await taskAPI.createTask(payload);
-        toast.success("Task Created", {
-          description: `${payload.title} has been added to the pending queue. You can now assign it to a staff member.`,
-          duration: 3500,
+        // Create the task
+        const response = await taskAPI.createTask(payload);
+        const createdTask = response?.data?.task || response?.data || response;
+        
+        toast.success("Task Created Successfully", {
+          description: `${payload.title} has been added. Opening assignment dialog...`,
+          duration: 3000,
         });
+        
+        // Reload tasks to get the latest data
         await loadTasks(filters);
+        
+        // Small delay to ensure UI updates and dialog closes
+        await new Promise(resolve => setTimeout(resolve, 400));
+        
+        // Transform the created task and set it for assignment
+        if (createdTask) {
+          const transformedTask = transformTaskForBoard(createdTask);
+          if (transformedTask) {
+            // This will automatically open the assignment drawer
+            setPendingTaskForAssignment(transformedTask);
+          } else {
+            toast.info("Task created", {
+              description: "Click on the task card to assign it to a staff member.",
+            });
+          }
+        }
       } catch (error) {
         console.error("Unable to create task", error);
         const message = error?.response?.data?.message || error.message || "Failed to create task";
+        toast.error("Failed to create task", {
+          description: message,
+        });
         throw new Error(message);
       }
     },
@@ -450,6 +596,15 @@ const ManagerTaskManagementPage = () => {
           accentChips={["AI-Powered", "Smart Assignment", "Real-Time Tracking"]}
           actions={(
             <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                onClick={handleAiAutoAssign}
+                disabled={isAiAssigning || boardData.pending.length === 0}
+                className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white shadow-xl transition-all duration-300 hover:from-purple-400 hover:via-pink-400 hover:to-orange-400 hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <Sparkles className={`mr-2 h-4 w-4 ${isAiAssigning ? "animate-pulse" : ""}`} />
+                {isAiAssigning ? "AI Assigning..." : "AI Assign All"}
+              </Button>
               <Button
                 type="button"
                 onClick={() => setIsCreateOpen(true)}
@@ -479,8 +634,11 @@ const ManagerTaskManagementPage = () => {
         <TaskQueueBoard
           tasksByStatus={boardData}
           onTaskAssign={handleTaskAssign}
+          onTaskCancel={handleTaskCancel}
           isLoading={isLoading}
           emptyMessage="No guest requests or tasks available"
+          pendingTaskForAssignment={pendingTaskForAssignment}
+          onClearPendingTask={() => setPendingTaskForAssignment(null)}
         />
       </div>
       <TaskCreateDialog

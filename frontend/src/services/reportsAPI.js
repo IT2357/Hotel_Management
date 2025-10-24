@@ -100,7 +100,15 @@ export const reportsAPI = {
 
   // Export report
   async exportReport(data = {}) {
-    const response = await api.post(`${BASE_PATH}/export`, data);
+    const response = await api.get(`${BASE_PATH}/export`, {
+      params: {
+        type: data.reportType,
+        format: data.format || 'json',
+        startDate: data.startDate,
+        endDate: data.endDate,
+        includeCharts: data.includeCharts,
+      },
+    });
     return response.data;
   },
 

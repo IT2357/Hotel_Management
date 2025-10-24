@@ -58,63 +58,54 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed inset-x-0 top-0 z-50 w-full bg-gradient-to-r from-white via-blue-50/30 to-indigo-50/30 text-gray-800 shadow-lg backdrop-blur-sm border-b border-gray-100"
+      className="fixed inset-x-0 top-0 z-50 w-full bg-white text-gray-800 shadow-md border-b border-gray-200"
     >
-      <div className="relative flex items-center justify-between px-6 py-4">
-        <div className="pointer-events-none absolute inset-x-12 inset-y-0 rounded-full bg-blue-50/60 blur-3xl" />
+      <div className="flex items-center justify-between px-4 py-3">
         {/* Left - Logo + Hamburger */}
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleSidebar}
-            className="rounded-xl border border-transparent text-gray-800 transition-all duration-300 hover:border-gray-200 hover:bg-gray-100"
+            className="rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <Menu className="h-5 w-5 text-blue-600" />
+            <Menu className="h-5 w-5 text-gray-700" />
           </Button>
           
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
-                <Hotel className="h-6 w-6 text-white" />
-              </div>
-              <motion.div
-                className="absolute -inset-1 rounded-xl bg-gradient-to-r from-blue-400 to-indigo-400 opacity-30 blur-lg"
-                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.5, 0.3] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600">
+              <Hotel className="h-5 w-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent uppercase tracking-wide">Valdor Hotel</h1>
-              <p className="text-xs text-gray-600 font-medium">Manager Portal</p>
+              <h1 className="text-base font-bold text-blue-600 uppercase tracking-wide">Valdor Hotel</h1>
+              <p className="text-xs text-gray-500 font-medium">Manager Portal</p>
             </div>
           </div>
         </div>
 
         {/* Center - Search */}
-        <div className="relative z-10 hidden flex-1 items-center md:flex">
-          <div className="group relative mx-8 w-full">
-            <div className="pointer-events-none absolute inset-0 rounded-full bg-gray-100 blur-xl" />
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <div className="hidden flex-1 items-center md:flex max-w-md mx-8">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <ManagerInput
               placeholder="Search tasks, staff, or rooms..."
-              className="rounded-full border-2 border-gray-200 bg-white pl-12 pr-6 text-gray-900 placeholder:text-gray-400 shadow-md transition-all duration-300 focus:border-indigo-500 focus:shadow-lg focus:ring-2 focus:ring-indigo-200 focus-visible:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
             />
           </div>
         </div>
 
         {/* Right - Actions */}
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="relative rounded-xl border border-transparent text-gray-800 transition-all duration-300 hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50"
+            className="rounded-lg hover:bg-gray-100 transition-colors"
           >
             {isDark ? (
-              <Sun className="h-5 w-5 text-indigo-600" />
+              <Sun className="h-5 w-5 text-gray-700" />
             ) : (
-              <Moon className="h-5 w-5 text-indigo-600" />
+              <Moon className="h-5 w-5 text-gray-700" />
             )}
           </Button>
 
@@ -123,32 +114,34 @@ export const ManagerNavbar = ({ onToggleSidebar }) => {
           <Button
             variant="ghost"
             onClick={handleLogout}
-            className="hidden items-center gap-2 rounded-xl border border-transparent px-4 py-2 text-gray-800 transition-all duration-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 sm:flex"
+            className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors sm:flex"
           >
-            <LogOut className="h-5 w-5 text-red-600" />
-            <span className="text-sm font-semibold">Logout</span>
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={handleLogout}
-            className="flex rounded-xl border border-transparent text-gray-800 transition-all duration-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 sm:hidden"
+            className="flex rounded-lg hover:bg-red-50 text-red-600 transition-colors sm:hidden"
           >
-            <LogOut className="h-5 w-5 text-red-600" />
+            <LogOut className="h-5 w-5" />
           </Button>
+
+          <div className="h-8 w-px bg-gray-300 mx-2"></div>
 
           <Link
             to="/manager/profile"
-            className="flex items-center gap-3 rounded-xl border-l border-gray-200 px-2 pl-3 text-left transition-all duration-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50"
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-gray-100 transition-colors"
           >
             <div className="hidden text-right sm:block">
               <p className="text-sm font-semibold text-gray-900">{managerProfile.name}</p>
-              <p className="text-xs text-indigo-600 font-medium">{managerProfile.role}</p>
+              <p className="text-xs text-gray-500">{managerProfile.role}</p>
             </div>
-            <Avatar className="border-2 border-indigo-500 shadow-lg ring-2 ring-indigo-100">
+            <Avatar className="h-9 w-9 border-2 border-blue-500">
               <AvatarImage src={avatarUrl} />
-              <AvatarFallback>{managerProfile.initials}</AvatarFallback>
+              <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-sm">{managerProfile.initials}</AvatarFallback>
             </Avatar>
           </Link>
         </div>

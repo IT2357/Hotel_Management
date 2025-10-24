@@ -36,6 +36,17 @@ export const managerReportsAPI = {
     });
     return response.data;
   },
+
+  async getStaffPerformance(params = {}) {
+    const token = localStorage.getItem("token");
+    const response = await api.get(`${BASE_PATH}/overview`, {
+      params: sanitizeParams(params),
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
 };
 
 export default managerReportsAPI;

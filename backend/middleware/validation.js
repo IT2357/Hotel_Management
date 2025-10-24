@@ -184,8 +184,8 @@ export const validateImageUpload = [
 export const validateReportRequest = [
   query('period')
     .optional()
-    .isIn(['today', 'week', 'month', 'year', 'custom'])
-    .withMessage('Period must be one of: today, week, month, year, custom'),
+    .isIn(['today', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'])
+    .withMessage('Period must be one of: daily, weekly, monthly, quarterly, yearly'),
   query('startDate')
     .optional()
     .isISO8601()

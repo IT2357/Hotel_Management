@@ -29,6 +29,11 @@ export const fetchManagerProfile = async () => {
   return data;
 };
 
+export const updateManagerProfile = async (payload) => {
+  const { data } = await api.put('/manager/profile/update', payload);
+  return data;
+};
+
 // Demo seed
 export const seedDemo = async () => {
   const { data } = await api.post('/manager/demo-seed');

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { TaskQueueCard } from "./TaskQueueCard";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { TaskDrawer } from "./TaskDrawer";
 import { AlertCircle, CheckCircle2, Clock, Flame, Filter, ListChecks, TrendingUp, Zap } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
@@ -30,8 +30,11 @@ const priorityOrder = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
 export const TaskQueueBoard = ({
   tasksByStatus,
   onTaskAssign,
+  onTaskCancel,
   isLoading = false,
   emptyMessage = "No tasks available",
+  pendingTaskForAssignment = null,
+  onClearPendingTask = null,
 }) => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -104,6 +107,18 @@ export const TaskQueueBoard = ({
       task.priorityLabel?.toLowerCase() === "urgent"
     ).length;
   }, [activeTasks]);
+
+  // Auto-open drawer when a new task is created and pending for assignment
+  useEffect(() => {
+    if (pendingTaskForAssignment) {
+      setSelectedTask(pendingTaskForAssignment);
+      setDrawerOpen(true);
+      setActiveTab("pending"); // Switch to pending tab
+      if (onClearPendingTask) {
+        onClearPendingTask();
+      }
+    }
+  }, [pendingTaskForAssignment, onClearPendingTask]);
 
   return (
     <div className="space-y-6">
@@ -297,6 +312,7 @@ export const TaskQueueBoard = ({
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         onAssign={handleAssign}
+        onCancel={onTaskCancel}
       />
     </div>
   );

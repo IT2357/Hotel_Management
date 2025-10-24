@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import useAuth from "@/hooks/useAuth";
 import { ManagerLayout, ManagerPageLoader, ManagerErrorState } from "@/components/manager";
 import ReportFilters from "@/components/manager/reports/ReportFilters";
 import KPICard from "@/components/manager/reports/KPICard";
@@ -21,7 +22,8 @@ import {
   UserCheck,
   FileText,
   BarChart3,
-  TrendingDown
+  TrendingDown,
+  RotateCw
 } from "lucide-react";
 import { 
   MANAGER_CONTENT_CLASS, 
@@ -43,10 +45,10 @@ const DAY_FORMAT_OPTIONS = { year: "numeric", month: "short", day: "numeric" };
 const toDateInputValue = (date) => date.toISOString().split("T")[0];
 
 const createDefaultFilters = () => {
-  // Use current date range
+  // Use current date range - 6 months to stay within 365-day API limit
   const end = new Date();
   const start = new Date();
-  start.setMonth(start.getMonth() - 3); // Last 3 months
+  start.setMonth(start.getMonth() - 6); // Last 6 months (~180 days)
 
   return {
     startDate: toDateInputValue(start),
@@ -89,6 +91,7 @@ const formatPercentage = (value) => {
 };
 
 const ManagerReportsPage = () => {
+  const { user } = useAuth();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -167,8 +170,12 @@ const ManagerReportsPage = () => {
       }
       
       const payload = rawData?.data ?? rawData;
+      console.log('📊 Report Data for', currentFilters.reportType, ':', payload);
+      console.log('📅 Filters:', currentFilters);
       setReportData(payload);
     } catch (err) {
+      console.error('❌ Fetch Reports Error:', err);
+      console.error('Error Response:', err?.response?.data);
       const message = err?.response?.data?.message || err?.message || "Unable to load manager reports";
       setError(message);
       toast.error("Unable to load manager reports", { description: message });
@@ -190,6 +197,11 @@ const ManagerReportsPage = () => {
     setFilters(prev => ({ ...prev, reportType: tabId }));
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    fetchReports(filters);
+    toast.success("Reports refreshed", { duration: 1500 });
+  }, [fetchReports, filters]);
+
   const handleExport = useCallback(async (exportOptions) => {
     try {
       const result = await reportsAPI.exportReport({
@@ -200,12 +212,19 @@ const ManagerReportsPage = () => {
         includeCharts: exportOptions.includeCharts
       });
 
+      console.log('Export result from API:', result);
+
+      // The API service already returns response.data, so result contains:
+      // { success, message, fileName, downloadUrl, format, generatedAt }
+      
       toast.success("Report exported successfully!", {
         description: "Your report is ready for download."
       });
 
-      return result.data;
+      // Return the result directly - it already has downloadUrl and fileName
+      return result;
     } catch (err) {
+      console.error('Export error:', err);
       const message = err?.response?.data?.message || err?.message || "Failed to export report";
       toast.error("Export failed", { description: message });
       throw new Error(message);
@@ -305,8 +324,14 @@ const ManagerReportsPage = () => {
   const staffStatusDistribution = reportData?.staff?.statusDistribution ?? [];
   const taskTrend = reportData?.staff?.taskTrend ?? [];
   const topPerformers = reportData?.staff?.topPerformers ?? [];
-  const bookingTrends = reportData?.bookings?.trends ?? [];
+  const bookingTrends = reportData?.bookings?.byDate ?? [];
   const bookingByChannel = reportData?.bookings?.byChannel ?? [];
+  
+  // Debug logging for bookings data
+  if (activeTab === 'bookings' && bookingTrends.length > 0) {
+    console.log('📊 Booking Trends Data:', bookingTrends.slice(0, 3));
+    console.log('📊 Booking By Channel:', bookingByChannel);
+  }
   const delayedTasksSummary = reportData?.data?.summary ?? {};
 
   const renderContent = () => {
@@ -588,9 +613,68 @@ const ManagerReportsPage = () => {
               />
             </div>
             
+            {/* Booking Summary Cards */}
+            {reportData?.bookings && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-bold text-purple-700 uppercase tracking-wider">Total Bookings</p>
+                    <BookOpen className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-900">{reportData.summary?.totalBookings || reportData.bookings.totalBookings || 0}</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-bold text-emerald-700 uppercase tracking-wider">Total Revenue</p>
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-900">LKR {formatNumber(reportData.summary?.totalRevenue || reportData.bookings.totalRevenue || 0)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-bold text-amber-700 uppercase tracking-wider">Avg. Booking Value</p>
+                    <TrendingUp className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-900">LKR {formatNumber(reportData.summary?.averageBookingValue || reportData.bookings.averageBookingValue || 0)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-bold text-blue-700 uppercase tracking-wider">Occupancy Rate</p>
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-900">{formatPercentage(reportData.summary?.occupancyRate || reportData.bookings.occupancyRate || 0)}</p>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
               <LineChartComponent
-                data={bookingTrends.map((entry) => ({ ...entry, date: new Date(entry.date).toISOString() }))}
+                data={bookingTrends
+                  .filter(entry => entry._id || entry.date) // Filter out entries without valid date
+                  .map((entry) => {
+                    try {
+                      // Handle date conversion safely
+                      let dateStr;
+                      if (entry._id) {
+                        const dateObj = new Date(entry._id);
+                        dateStr = isNaN(dateObj.getTime()) ? null : dateObj.toISOString();
+                      } else if (entry.date) {
+                        const dateObj = new Date(entry.date);
+                        dateStr = isNaN(dateObj.getTime()) ? null : dateObj.toISOString();
+                      }
+                      
+                      return dateStr ? {
+                        date: dateStr,
+                        bookings: entry.bookings || 0,
+                        revenue: entry.revenue || 0
+                      } : null;
+                    } catch (err) {
+                      console.warn('Invalid date in booking trend:', entry);
+                      return null;
+                    }
+                  })
+                  .filter(Boolean) // Remove null entries
+                }
                 xKey="date"
                 lines={[{ key: "bookings", name: "Bookings", color: "#60a5fa" }]}
                 title="Booking Trends"
@@ -636,53 +720,38 @@ const ManagerReportsPage = () => {
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {kpiCards.map((card) => (
-                <div key={card.title} className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-cyan-400/50">
-                  {/* Neon glow effect */}
-                  <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${
-                    card.iconColor === '#38bdf8' ? 'bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-cyan-500/20' :
-                    card.iconColor === '#f87171' ? 'bg-gradient-to-br from-red-500/20 via-rose-500/10 to-red-500/20' :
-                    card.iconColor === '#22c55e' ? 'bg-gradient-to-br from-green-500/20 via-emerald-500/10 to-green-500/20' :
-                    card.iconColor === '#facc15' ? 'bg-gradient-to-br from-yellow-500/20 via-amber-500/10 to-yellow-500/20' :
-                    card.iconColor === '#a855f7' ? 'bg-gradient-to-br from-purple-500/20 via-violet-500/10 to-purple-500/20' :
-                    card.iconColor === '#f97316' ? 'bg-gradient-to-br from-orange-500/20 via-red-500/10 to-orange-500/20' :
-                    'bg-gradient-to-br from-gray-500/20 via-slate-500/10 to-gray-500/20'
-                  }`} />
-                  
-                  {/* Animated border glow */}
-                  <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${
-                    card.iconColor === '#38bdf8' ? 'bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400' :
-                    card.iconColor === '#f87171' ? 'bg-gradient-to-r from-red-400 via-rose-500 to-red-400' :
-                    card.iconColor === '#22c55e' ? 'bg-gradient-to-r from-green-400 via-emerald-500 to-green-400' :
-                    card.iconColor === '#facc15' ? 'bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400' :
-                    card.iconColor === '#a855f7' ? 'bg-gradient-to-r from-purple-400 via-violet-500 to-purple-400' :
-                    card.iconColor === '#f97316' ? 'bg-gradient-to-r from-orange-400 via-red-500 to-orange-400' :
-                    'bg-gradient-to-r from-gray-400 via-slate-500 to-gray-400'
-                  } blur-sm`} style={{ padding: '1px' }}>
-                    <div className="w-full h-full rounded-3xl bg-slate-900" />
-                  </div>
+                <div key={card.title} className={`group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all duration-300 border-2 ${
+                  card.iconColor === '#38bdf8' ? 'border-cyan-200 hover:border-cyan-300' :
+                  card.iconColor === '#f87171' ? 'border-red-200 hover:border-red-300' :
+                  card.iconColor === '#22c55e' ? 'border-emerald-200 hover:border-emerald-300' :
+                  card.iconColor === '#facc15' ? 'border-amber-200 hover:border-amber-300' :
+                  card.iconColor === '#a855f7' ? 'border-purple-200 hover:border-purple-300' :
+                  card.iconColor === '#f97316' ? 'border-orange-200 hover:border-orange-300' :
+                  'border-gray-200 hover:border-gray-300'
+                }`}>
                   
                   <div className="relative flex items-start justify-between">
                     <div className="flex-1">
-                      <p className={`text-sm font-bold mb-4 tracking-wider uppercase ${
-                        card.iconColor === '#38bdf8' ? 'text-cyan-400' :
-                        card.iconColor === '#f87171' ? 'text-red-400' :
-                        card.iconColor === '#22c55e' ? 'text-green-400' :
-                        card.iconColor === '#facc15' ? 'text-yellow-400' :
-                        card.iconColor === '#a855f7' ? 'text-purple-400' :
-                        card.iconColor === '#f97316' ? 'text-orange-400' :
-                        'text-slate-400'
+                      <p className={`text-xs font-bold mb-3 tracking-wider uppercase ${
+                        card.iconColor === '#38bdf8' ? 'text-cyan-600' :
+                        card.iconColor === '#f87171' ? 'text-red-600' :
+                        card.iconColor === '#22c55e' ? 'text-emerald-600' :
+                        card.iconColor === '#facc15' ? 'text-amber-600' :
+                        card.iconColor === '#a855f7' ? 'text-purple-600' :
+                        card.iconColor === '#f97316' ? 'text-orange-600' :
+                        'text-gray-600'
                       }`}>
                         {card.title}
                       </p>
-                      <div className="flex items-baseline gap-3 mb-4">
-                        <span className="text-4xl font-black text-white tracking-tight">{formatNumber(card.value)}</span>
-                        {card.unit && <span className="text-sm font-bold text-slate-400 tracking-wider">{card.unit}</span>}
+                      <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-3xl font-black text-gray-900">{formatNumber(card.value)}</span>
+                        {card.unit && <span className="text-sm font-bold text-gray-500">{card.unit}</span>}
                       </div>
                       {card.trend && (
                         <div className="flex items-center gap-2">
-                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold tracking-wider ${
-                            card.trend.direction === 'up' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 
-                            card.trend.direction === 'down' ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-slate-500/20 text-slate-400 border border-slate-500/50'
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            card.trend.direction === 'up' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 
+                            card.trend.direction === 'down' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
                           }`}>
                             {card.trend.direction === 'up' ? (
                               <TrendingUp className="h-3 w-3" />
@@ -694,29 +763,18 @@ const ManagerReportsPage = () => {
                         </div>
                       )}
                     </div>
-                    <div className={`inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl ${
-                      card.iconColor === '#38bdf8' ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-cyan-500/50' :
-                      card.iconColor === '#f87171' ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/50' :
-                      card.iconColor === '#22c55e' ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/50' :
-                      card.iconColor === '#facc15' ? 'bg-gradient-to-br from-yellow-500 to-amber-600 shadow-yellow-500/50' :
-                      card.iconColor === '#a855f7' ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-purple-500/50' :
-                      card.iconColor === '#f97316' ? 'bg-gradient-to-br from-orange-500 to-red-600 shadow-orange-500/50' :
-                      'bg-gradient-to-br from-gray-500 to-slate-600 shadow-gray-500/50'
-                    } group-hover:shadow-lg group-hover:scale-110 transition-all duration-500`}>
-                      <card.icon className="h-6 w-6 text-white drop-shadow-lg" />
+                    <div className={`inline-flex items-center justify-center rounded-xl p-3 shadow-md ${
+                      card.iconColor === '#38bdf8' ? 'bg-gradient-to-br from-cyan-500 to-blue-600' :
+                      card.iconColor === '#f87171' ? 'bg-gradient-to-br from-red-500 to-rose-600' :
+                      card.iconColor === '#22c55e' ? 'bg-gradient-to-br from-green-500 to-emerald-600' :
+                      card.iconColor === '#facc15' ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
+                      card.iconColor === '#a855f7' ? 'bg-gradient-to-br from-purple-500 to-violet-600' :
+                      card.iconColor === '#f97316' ? 'bg-gradient-to-br from-orange-500 to-red-600' :
+                      'bg-gradient-to-br from-gray-500 to-slate-600'
+                    } group-hover:shadow-lg transition-all duration-300`}>
+                      <card.icon className="h-5 w-5 text-white" />
                     </div>
                   </div>
-                  
-                  {/* Cyberpunk grid pattern */}
-                  <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                    <div className="w-full h-full" style={{
-                      backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                      backgroundSize: '20px 20px'
-                    }} />
-                  </div>
-                  
-                  {/* Animated scan line */}
-                  <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
                 </div>
               ))}
             </div>
@@ -746,75 +804,48 @@ const ManagerReportsPage = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {taskCards.map((card) => (
-                <div key={card.title} className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-cyan-400/50">
-                  {/* Neon glow effect */}
-                  <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${
-                    card.iconColor === '#38bdf8' ? 'bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-cyan-500/20' :
-                    card.iconColor === '#f87171' ? 'bg-gradient-to-br from-red-500/20 via-rose-500/10 to-red-500/20' :
-                    card.iconColor === '#22c55e' ? 'bg-gradient-to-br from-green-500/20 via-emerald-500/10 to-green-500/20' :
-                    card.iconColor === '#facc15' ? 'bg-gradient-to-br from-yellow-500/20 via-amber-500/10 to-yellow-500/20' :
-                    card.iconColor === '#a855f7' ? 'bg-gradient-to-br from-purple-500/20 via-violet-500/10 to-purple-500/20' :
-                    card.iconColor === '#f97316' ? 'bg-gradient-to-br from-orange-500/20 via-red-500/10 to-orange-500/20' :
-                    'bg-gradient-to-br from-gray-500/20 via-slate-500/10 to-gray-500/20'
-                  }`} />
-                  
-                  {/* Animated border glow */}
-                  <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${
-                    card.iconColor === '#38bdf8' ? 'bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400' :
-                    card.iconColor === '#f87171' ? 'bg-gradient-to-r from-red-400 via-rose-500 to-red-400' :
-                    card.iconColor === '#22c55e' ? 'bg-gradient-to-r from-green-400 via-emerald-500 to-green-400' :
-                    card.iconColor === '#facc15' ? 'bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400' :
-                    card.iconColor === '#a855f7' ? 'bg-gradient-to-r from-purple-400 via-violet-500 to-purple-400' :
-                    card.iconColor === '#f97316' ? 'bg-gradient-to-r from-orange-400 via-red-500 to-orange-400' :
-                    'bg-gradient-to-r from-gray-400 via-slate-500 to-gray-400'
-                  } blur-sm`} style={{ padding: '1px' }}>
-                    <div className="w-full h-full rounded-3xl bg-slate-900" />
-                  </div>
-                  
-                  <div className="relative flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold mb-4 tracking-wider uppercase ${
-                        card.iconColor === '#38bdf8' ? 'text-cyan-400' :
-                        card.iconColor === '#f87171' ? 'text-red-400' :
-                        card.iconColor === '#22c55e' ? 'text-green-400' :
-                        card.iconColor === '#facc15' ? 'text-yellow-400' :
-                        card.iconColor === '#a855f7' ? 'text-purple-400' :
-                        card.iconColor === '#f97316' ? 'text-orange-400' :
-                        'text-slate-400'
-                      }`}>
-                        {card.title}
-                      </p>
-                      <div className="flex items-baseline gap-3 mb-4">
-                        <span className="text-4xl font-black text-white tracking-tight">{formatNumber(card.value)}</span>
-                        {card.unit && <span className="text-sm font-bold text-slate-400 tracking-wider">{card.unit}</span>}
+              {taskCards.map((card) => {
+                // Determine light theme colors based on icon color
+                const getCardColors = (color) => {
+                  switch (color) {
+                    case '#38bdf8': return { bg: 'from-cyan-50 to-blue-50', border: 'border-cyan-200', text: 'text-cyan-700', icon: 'from-cyan-500 to-blue-600' };
+                    case '#f87171': return { bg: 'from-red-50 to-rose-50', border: 'border-red-200', text: 'text-red-700', icon: 'from-red-500 to-rose-600' };
+                    case '#22c55e': return { bg: 'from-emerald-50 to-green-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: 'from-emerald-500 to-green-600' };
+                    case '#facc15': return { bg: 'from-amber-50 to-yellow-50', border: 'border-amber-200', text: 'text-amber-700', icon: 'from-amber-500 to-yellow-600' };
+                    case '#a855f7': return { bg: 'from-purple-50 to-violet-50', border: 'border-purple-200', text: 'text-purple-700', icon: 'from-purple-500 to-violet-600' };
+                    case '#f97316': return { bg: 'from-orange-50 to-red-50', border: 'border-orange-200', text: 'text-orange-700', icon: 'from-orange-500 to-red-600' };
+                    default: return { bg: 'from-gray-50 to-slate-50', border: 'border-gray-200', text: 'text-gray-700', icon: 'from-gray-500 to-slate-600' };
+                  }
+                };
+                const colors = getCardColors(card.iconColor);
+                
+                return (
+                  <div key={card.title} className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${colors.bg} p-6 shadow-lg border-2 ${colors.border} hover:shadow-xl hover:scale-105 transition-all duration-300`}>
+                    {/* Background decoration */}
+                    <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+                      <div className={`w-full h-full rounded-full bg-gradient-to-br ${colors.icon}`} />
+                    </div>
+                    
+                    <div className="relative flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className={`text-xs font-bold mb-3 tracking-wider uppercase ${colors.text}`}>
+                          {card.title}
+                        </p>
+                        <div className="flex items-baseline gap-3 mb-2">
+                          <span className="text-4xl font-black text-gray-900 tracking-tight">{formatNumber(card.value)}</span>
+                          {card.unit && <span className="text-sm font-semibold text-gray-600 tracking-wider">{card.unit}</span>}
+                        </div>
+                      </div>
+                      <div className={`inline-flex items-center justify-center rounded-2xl p-4 shadow-lg bg-gradient-to-br ${colors.icon} group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                        <card.icon className="h-6 w-6 text-white" />
                       </div>
                     </div>
-                    <div className={`inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl ${
-                      card.iconColor === '#38bdf8' ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-cyan-500/50' :
-                      card.iconColor === '#f87171' ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/50' :
-                      card.iconColor === '#22c55e' ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/50' :
-                      card.iconColor === '#facc15' ? 'bg-gradient-to-br from-yellow-500 to-amber-600 shadow-yellow-500/50' :
-                      card.iconColor === '#a855f7' ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-purple-500/50' :
-                      card.iconColor === '#f97316' ? 'bg-gradient-to-br from-orange-500 to-red-600 shadow-orange-500/50' :
-                      'bg-gradient-to-br from-gray-500 to-slate-600 shadow-gray-500/50'
-                    } group-hover:shadow-lg group-hover:scale-110 transition-all duration-500`}>
-                      <card.icon className="h-6 w-6 text-white drop-shadow-lg" />
-                    </div>
+                    
+                    {/* Bottom accent line */}
+                    <div className={`mt-4 h-1 w-full rounded-full bg-gradient-to-br ${colors.icon} opacity-20`} />
                   </div>
-                  
-                  {/* Cyberpunk grid pattern */}
-                  <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                    <div className="w-full h-full" style={{
-                      backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                      backgroundSize: '20px 20px'
-                    }} />
-                  </div>
-                  
-                  {/* Animated scan line */}
-                  <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
@@ -876,93 +907,69 @@ const ManagerReportsPage = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-red-400/50">
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-red-500/20 via-rose-500/10 to-red-500/20" />
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-red-400 via-rose-500 to-red-400 blur-sm" style={{ padding: '1px' }}>
-                  <div className="w-full h-full rounded-3xl bg-slate-900" />
+              {/* Critical Card - Light Theme */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-50 to-rose-50 p-6 shadow-lg border-2 border-red-200 hover:border-red-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-red-500 to-rose-600" />
                 </div>
                 <div className="relative flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-red-400 mb-4 tracking-wider uppercase">Critical</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{delayedTasksSummary.critical || 0}</p>
+                    <p className="text-xs font-bold text-red-700 mb-3 tracking-wider uppercase">Critical</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tight">{delayedTasksSummary.critical || 0}</p>
                   </div>
-                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/50 group-hover:shadow-lg group-hover:scale-110 transition-all duration-500">
-                    <TrendingDown className="h-6 w-6 text-white drop-shadow-lg" />
+                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-lg bg-gradient-to-br from-red-500 to-rose-600 group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <TrendingDown className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                  <div className="w-full h-full" style={{
-                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                    backgroundSize: '20px 20px'
-                  }} />
-                </div>
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-red-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
+                <div className="mt-4 h-1 w-full rounded-full bg-gradient-to-br from-red-500 to-rose-600 opacity-20" />
               </div>
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-yellow-400/50">
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-yellow-500/20 via-amber-500/10 to-yellow-500/20" />
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 blur-sm" style={{ padding: '1px' }}>
-                  <div className="w-full h-full rounded-3xl bg-slate-900" />
+              {/* High Card - Light Theme */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-lg border-2 border-amber-200 hover:border-amber-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-500 to-orange-600" />
                 </div>
                 <div className="relative flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-yellow-400 mb-4 tracking-wider uppercase">High</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{delayedTasksSummary.high || 0}</p>
+                    <p className="text-xs font-bold text-amber-700 mb-3 tracking-wider uppercase">High</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tight">{delayedTasksSummary.high || 0}</p>
                   </div>
-                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl bg-gradient-to-br from-yellow-500 to-amber-600 shadow-yellow-500/50 group-hover:shadow-lg group-hover:scale-110 transition-all duration-500">
-                    <AlertTriangle className="h-6 w-6 text-white drop-shadow-lg" />
+                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-lg bg-gradient-to-br from-amber-500 to-orange-600 group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <AlertTriangle className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                  <div className="w-full h-full" style={{
-                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                    backgroundSize: '20px 20px'
-                  }} />
-                </div>
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
+                <div className="mt-4 h-1 w-full rounded-full bg-gradient-to-br from-amber-500 to-orange-600 opacity-20" />
               </div>
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-blue-400/50">
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-blue-500/20 via-cyan-500/10 to-blue-500/20" />
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-blue-400 via-cyan-500 to-blue-400 blur-sm" style={{ padding: '1px' }}>
-                  <div className="w-full h-full rounded-3xl bg-slate-900" />
+              {/* Medium Card - Light Theme */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-lg border-2 border-blue-200 hover:border-blue-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-cyan-600" />
                 </div>
                 <div className="relative flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-blue-400 mb-4 tracking-wider uppercase">Medium</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{delayedTasksSummary.medium || 0}</p>
+                    <p className="text-xs font-bold text-blue-700 mb-3 tracking-wider uppercase">Medium</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tight">{delayedTasksSummary.medium || 0}</p>
                   </div>
-                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/50 group-hover:shadow-lg group-hover:scale-110 transition-all duration-500">
-                    <Activity className="h-6 w-6 text-white drop-shadow-lg" />
+                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-lg bg-gradient-to-br from-blue-500 to-cyan-600 group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <Activity className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                  <div className="w-full h-full" style={{
-                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                    backgroundSize: '20px 20px'
-                  }} />
-                </div>
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
+                <div className="mt-4 h-1 w-full rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 opacity-20" />
               </div>
-              <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-700 border border-slate-700/50 hover:border-green-400/50">
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-green-500/20 via-emerald-500/10 to-green-500/20" />
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-green-400 via-emerald-500 to-green-400 blur-sm" style={{ padding: '1px' }}>
-                  <div className="w-full h-full rounded-3xl bg-slate-900" />
+              {/* Low Card - Light Theme */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 p-6 shadow-lg border-2 border-emerald-200 hover:border-emerald-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-emerald-500 to-green-600" />
                 </div>
                 <div className="relative flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-green-400 mb-4 tracking-wider uppercase">Low</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{delayedTasksSummary.low || 0}</p>
+                    <p className="text-xs font-bold text-emerald-700 mb-3 tracking-wider uppercase">Low</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tight">{delayedTasksSummary.low || 0}</p>
                   </div>
-                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/50 group-hover:shadow-lg group-hover:scale-110 transition-all duration-500">
-                    <FileText className="h-6 w-6 text-white drop-shadow-lg" />
+                  <div className="inline-flex items-center justify-center rounded-2xl p-4 shadow-lg bg-gradient-to-br from-emerald-500 to-green-600 group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                    <FileText className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                  <div className="w-full h-full" style={{
-                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-                    backgroundSize: '20px 20px'
-                  }} />
-                </div>
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
+                <div className="mt-4 h-1 w-full rounded-full bg-gradient-to-br from-emerald-500 to-green-600 opacity-20" />
               </div>
             </div>
           </section>
@@ -978,43 +985,75 @@ const ManagerReportsPage = () => {
       contentClassName="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30"
     >
       <div className="mx-auto w-full max-w-[1440px] px-6 py-8 space-y-8">
-        {/* Modern Hero Header */}
-        <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8 text-white shadow-2xl">
-          {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/90 via-purple-600/90 to-pink-600/90" />
-          <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-white/10 blur-3xl animate-pulse" />
-          <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-white/10 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          
-          <div className="relative space-y-6">
-            {/* Status Badge */}
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center justify-center rounded-xl p-3 bg-white/20 backdrop-blur-sm">
-                <BarChart3 className="h-6 w-6 text-white" />
-              </div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white">
-                📊 Analytics Dashboard
+        {/* Modern Header - Task Management Style */}
+        <header className="relative overflow-hidden rounded-2xl bg-white p-8 shadow-lg border-2 border-gray-200">
+          <div className="space-y-6">
+            {/* Feature Badges */}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-cyan-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan-700 border border-cyan-200">
+                📊 REAL-TIME DATA
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-purple-700 border border-purple-200">
+                📈 AI INSIGHTS
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-700 border border-emerald-200">
+                ⚡ LIVE TRACKING
               </span>
             </div>
             
-            {/* Main Title */}
-            <div className="space-y-4">
-              <h1 className="text-5xl font-bold text-white md:text-6xl">
-                Manager Reports
-              </h1>
-              <p className="max-w-2xl text-xl text-white/90 leading-relaxed">
-                Advanced analytics and insights for comprehensive hotel performance monitoring.
-              </p>
+            {/* Title and Actions Row */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="space-y-3">
+                <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+                  Analytics & Reports Dashboard
+                </h1>
+                <p className="text-gray-600 font-medium max-w-2xl">
+                  {user?.name || 'Manager'}, monitor hotel performance with comprehensive analytics and real-time insights.
+                </p>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-100 border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-200 hover:border-gray-400 transition-all duration-200 disabled:opacity-50"
+                >
+                  <RotateCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={() => handleExport({ format: 'pdf', includeCharts: true })}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-sm hover:from-indigo-600 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+                >
+                  <FileText className="h-4 w-4" />
+                  Export Report
+                </button>
+              </div>
             </div>
             
-            {/* Period Info */}
-            {reportData?.period && (
-              <div className="flex items-center gap-2 text-sm text-white/80">
-                <Calendar className="h-4 w-4" />
-                <span className="font-medium">
-                  Reporting window: {new Date(reportData.period.start).toLocaleDateString(undefined, DAY_FORMAT_OPTIONS)} — {new Date(reportData.period.end).toLocaleDateString(undefined, DAY_FORMAT_OPTIONS)}
+            {/* Quick Stats */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 border-2 border-blue-200">
+                <span className="text-xs font-bold text-blue-600">Active Reports:</span>
+                <span className="text-sm font-black text-blue-700">{REPORT_TYPES.length}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border-2 border-emerald-200">
+                <span className="text-xs font-bold text-emerald-600">Period:</span>
+                <span className="text-sm font-black text-emerald-700">
+                  {filters.period === 'monthly' ? 'Monthly' : filters.period === 'weekly' ? 'Weekly' : 'Daily'}
                 </span>
               </div>
-            )}
+              {reportData?.period && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-50 border-2 border-purple-200">
+                  <Calendar className="h-3.5 w-3.5 text-purple-600" />
+                  <span className="text-xs font-bold text-purple-700">
+                    {new Date(reportData.period.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - {new Date(reportData.period.end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

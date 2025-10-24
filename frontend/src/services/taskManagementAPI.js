@@ -132,6 +132,12 @@ export const taskAPI = {
     return response.data;
   },
 
+  // Cancel or unassign task
+  cancelTask: async (taskId, reason) => {
+    const response = await api.put(`/tasks/${taskId}/cancel`, { reason });
+    return response.data;
+  },
+
   // Get available staff for department
   getAvailableStaff: async (department) => {
     const response = await api.get(`/tasks/staff/${encodeURIComponent(department)}`);

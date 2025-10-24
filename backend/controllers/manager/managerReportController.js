@@ -4,6 +4,7 @@ import Booking from "../../models/Booking.js";
 import Room from "../../models/Room.js";
 import StaffTask from "../../models/StaffTask.js";
 import ManagerTask from "../../models/ManagerTask.js";
+import { User } from "../../models/User.js";
 import { AppError } from "../../services/error/AppError.js";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -208,6 +209,11 @@ export const getManagerOverviewReport = async (req, res, next) => {
     };
 
     const now = new Date();
+
+    // Get staff counts
+    const totalStaffCount = await User.countDocuments({ role: 'staff' });
+    const activeStaffCount = await User.countDocuments({ role: 'staff', status: 'active' });
+    const onDutyCount = await User.countDocuments({ role: 'staff', status: 'active', isOnline: true });
 
     const [
       revenueSummaryAgg,
@@ -659,12 +665,17 @@ export const getManagerOverviewReport = async (req, res, next) => {
         },
         staff: {
           summary: {
+            totalStaff: totalStaffCount,
+            activeStaff: activeStaffCount,
+            onDuty: onDutyCount,
             totalTasks: totalStaffTasks,
             completedTasks: completedStaffTasks,
             tasksInProgress: inProgressTasks,
             completionRate: round(completionRate),
             averageCompletionTime,
+            avgResponseTime: averageCompletionTime, // Alias for frontend
             averageQualityScore,
+            guestSatisfaction: round(averageQualityScore),
             overdueTasks: safeNumber(overdueTasks),
           },
           departmentPerformance,

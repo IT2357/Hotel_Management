@@ -54,11 +54,12 @@ export const validateDateRange = (startDate, endDate) => {
   }
 
   // Limit date range to prevent excessive queries
+  // NOTE: Frontend should default to 6 months or less to stay under this limit
   const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
   if (daysDiff > 365) {
     return {
       isValid: false,
-      message: 'Date range cannot exceed 365 days.'
+      message: 'Date range cannot exceed 365 days. Please select a shorter date range.'
     };
   }
 

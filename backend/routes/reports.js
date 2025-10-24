@@ -120,15 +120,14 @@ router.get(
 );
 
 /**
- * @route   POST /api/reports/export
- * @desc    Export reports as PDF or Excel
+ * @route   GET /api/reports/export
+ * @desc    Export report data
  * @access  Manager, Admin
- * @body    reportType, format, startDate, endDate, includeCharts
+ * @query   type, format, startDate, endDate, includeCharts
  */
-router.post(
+router.get(
   '/export',
   authorizeRoles(['manager', 'admin']),
-  validateReportRequest,
   exportReport
 );
 

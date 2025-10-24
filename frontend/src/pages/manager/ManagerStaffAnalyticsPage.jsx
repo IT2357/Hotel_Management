@@ -8,7 +8,7 @@ import { SummaryCards } from "@/components/manager/SummaryCards";
 import { StaffPerformanceChart } from "@/components/manager/StaffPerformanceChart";
 import { StaffList } from "@/components/manager/StaffList";
 import { Button } from "@/components/manager/ManagerButton";
-import { Users, Activity, Clock, Award, TrendingUp, AlertTriangle, BarChart3 } from "lucide-react";
+import { Users, Activity, Clock, Award, TrendingUp, AlertTriangle, BarChart3, Star } from "lucide-react";
 import ManagerPageHeader from "@/components/manager/ManagerPageHeader";
 import { MANAGER_CONTENT_CLASS, MANAGER_PAGE_CONTAINER_CLASS, MANAGER_SECTION_CLASS, MANAGER_CARD_SURFACE_CLASS } from "./managerStyles";
 
@@ -112,12 +112,6 @@ const mapApiToAnalytics = (payload) => {
         }))
       : FALLBACK_ANALYTICS.riskAlerts,
   };
-};
-
-const severityStyles = {
-  high: "border border-rose-400/40 bg-rose-500/10 text-rose-200",
-  medium: "border border-amber-400/40 bg-amber-500/10 text-amber-200",
-  low: "border border-blue-400/40 bg-blue-500/10 text-blue-200",
 };
 
 const ManagerStaffAnalyticsPage = () => {
@@ -276,52 +270,60 @@ const ManagerStaffAnalyticsPage = () => {
         <SummaryCards cards={summaryCards} />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <div className={`${MANAGER_SECTION_CLASS} xl:col-span-2`}>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent">Performance Trends</h2>
-                <p className="text-sm text-slate-300">Task throughput, response times, and guest sentiment correlation.</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <StaffPerformanceChart />
-            </div>
+          <div className="xl:col-span-2">
+            <StaffPerformanceChart />
           </div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`${MANAGER_SECTION_CLASS} space-y-4`}
+            className="space-y-4"
           >
-            <div>
-              <h2 className="text-xl font-semibold text-white">Workforce Snapshot</h2>
-              <p className="text-sm text-white/70">Coverage by department and current load.</p>
-            </div>
-            <div className="space-y-3">
-              {departmentBreakdown.map((dept) => {
-                const completionPct = Math.min(100, Math.round((dept.completed / (dept.totalTasks || 1)) * 100));
-                return (
-                  <div
-                    key={dept.department}
-                    className={`${MANAGER_CARD_SURFACE_CLASS} p-4 text-white shadow-[0_18px_45px_rgba(8,14,29,0.45)]`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">{dept.department}</p>
-                        <p className="text-xs text-white/65">{dept.completed} / {dept.totalTasks} tasks closed</p>
+            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6">
+              <div className="mb-5">
+                <h2 className="text-xl font-black text-gray-900">Workforce Snapshot</h2>
+                <p className="text-sm text-gray-600 font-medium mt-1">Coverage by department and current load</p>
+              </div>
+              <div className="space-y-3">
+                {departmentBreakdown.map((dept, index) => {
+                  const completionPct = Math.min(100, Math.round((dept.completed / (dept.totalTasks || 1)) * 100));
+                  const colors = [
+                    { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", bar: "from-blue-400 to-cyan-400" },
+                    { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", bar: "from-purple-400 to-pink-400" },
+                    { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", bar: "from-emerald-400 to-green-400" },
+                    { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", bar: "from-orange-400 to-amber-400" },
+                    { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", bar: "from-pink-400 to-rose-400" },
+                  ];
+                  const color = colors[index % colors.length];
+                  return (
+                    <motion.div
+                      key={dept.department}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`${color.bg} ${color.border} border-2 rounded-xl p-4 hover:shadow-lg transition-all duration-300`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className={`text-sm font-bold ${color.text}`}>{dept.department}</p>
+                          <p className="text-xs text-gray-600 font-medium mt-0.5">{dept.completed} / {dept.totalTasks} tasks completed</p>
+                        </div>
+                        <span className={`text-lg font-black ${color.text}`}>{completionPct}%</span>
                       </div>
-                      <span className="text-sm font-semibold text-amber-200">{completionPct}%</span>
-                    </div>
-                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-300 via-amber-300 to-emerald-300"
-                        style={{ width: `${completionPct}%` }}
-                      />
-                    </div>
-                    <p className="mt-2 text-xs text-white/65">Guest satisfaction {dept.satisfaction ?? "-"}/5</p>
-                  </div>
-                );
-              })}
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-white/60 border border-gray-200">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${color.bar} transition-all duration-500`}
+                          style={{ width: `${completionPct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        <Star className="h-3.5 w-3.5 text-amber-500" fill="#f59e0b" />
+                        <p className="text-xs text-gray-700 font-bold">Satisfaction: {dept.satisfaction ?? "-"}/5</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         </div>
@@ -331,30 +333,49 @@ const ManagerStaffAnalyticsPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className={MANAGER_SECTION_CLASS}
+            className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6"
           >
-            <h2 className="text-xl font-semibold text-white">Top performers</h2>
-            <p className="mb-4 text-sm text-white/70">Completion rate and quality in the current period.</p>
+            <div className="mb-5">
+              <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                <Award className="h-6 w-6 text-amber-500" />
+                Top Performers
+              </h2>
+              <p className="text-sm text-gray-600 font-medium mt-1">Highest completion rate and quality scores</p>
+            </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-white/80">
-                <thead className="bg-white/10 text-white/70">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gradient-to-r from-gray-100 to-gray-50 border-y-2 border-gray-200">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium">Team member</th>
-                    <th className="px-4 py-2 text-left font-medium">Role</th>
-                    <th className="px-4 py-2 text-left font-medium">Tasks</th>
-                    <th className="px-4 py-2 text-left font-medium">Completion</th>
-                    <th className="px-4 py-2 text-left font-medium">Quality</th>
+                    <th className="px-4 py-3 text-left font-bold text-gray-700">Team member</th>
+                    <th className="px-4 py-3 text-left font-bold text-gray-700">Role</th>
+                    <th className="px-4 py-3 text-left font-bold text-gray-700">Tasks</th>
+                    <th className="px-4 py-3 text-left font-bold text-gray-700">Rate</th>
+                    <th className="px-4 py-3 text-left font-bold text-gray-700">Quality</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
-                  {topPerformers.map((member) => (
-                    <tr key={member.id} className="transition-colors hover:bg-white/5">
-                      <td className="px-4 py-3 font-medium text-white">{member.name}</td>
-                      <td className="px-4 py-3 text-white/70">{member.role || "-"}</td>
-                      <td className="px-4 py-3 text-white/80">{member.tasksCompleted}</td>
-                      <td className="px-4 py-3 text-amber-200">{member.completionRate}%</td>
-                      <td className="px-4 py-3 text-emerald-200">{member.avgQualityScore?.toFixed?.(1) ?? member.avgQualityScore ?? "-"}</td>
-                    </tr>
+                <tbody className="divide-y divide-gray-200">
+                  {topPerformers.map((member, index) => (
+                    <motion.tr 
+                      key={member.id} 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="transition-colors hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3 font-bold text-gray-900">{member.name}</td>
+                      <td className="px-4 py-3 text-gray-600 font-medium">{member.role || "-"}</td>
+                      <td className="px-4 py-3 text-gray-900 font-semibold">{member.tasksCompleted}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                          {member.completionRate}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          {member.avgQualityScore?.toFixed?.(1) ?? member.avgQualityScore ?? "-"}
+                        </span>
+                      </td>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>
@@ -365,27 +386,41 @@ const ManagerStaffAnalyticsPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className={`${MANAGER_SECTION_CLASS} space-y-4`}
+            className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6 space-y-4"
           >
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-white">Risk & readiness</h2>
-                <p className="text-sm text-white/70">Items that may need intervention this week.</p>
+                <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6 text-rose-500" />
+                  Risk & Readiness
+                </h2>
+                <p className="text-sm text-gray-600 font-medium mt-1">Items that may need intervention this week</p>
               </div>
             </div>
             <div className="space-y-3">
-              {riskAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`rounded-2xl px-4 py-3 text-sm ${severityStyles[alert.severity] || severityStyles.medium}`}
-                >
-                  <div className="flex items-center gap-2 font-semibold">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>{alert.title}</span>
-                  </div>
-                  <p className="mt-1 text-xs opacity-80">{alert.detail}</p>
-                </div>
-              ))}
+              {riskAlerts.map((alert, index) => {
+                const severityConfig = {
+                  high: { bg: "bg-red-50", border: "border-red-300", text: "text-red-700", icon: "text-red-600" },
+                  medium: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700", icon: "text-amber-600" },
+                  low: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-700", icon: "text-blue-600" },
+                };
+                const config = severityConfig[alert.severity] || severityConfig.medium;
+                return (
+                  <motion.div
+                    key={alert.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`rounded-xl ${config.bg} border-2 ${config.border} px-4 py-3 text-sm hover:shadow-md transition-all duration-300`}
+                  >
+                    <div className="flex items-center gap-2 font-bold">
+                      <AlertTriangle className={`h-4 w-4 ${config.icon}`} />
+                      <span className={config.text}>{alert.title}</span>
+                    </div>
+                    <p className={`mt-1.5 text-xs ${config.text} font-medium`}>{alert.detail}</p>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </div>
@@ -397,25 +432,43 @@ const ManagerStaffAnalyticsPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
-            className={`${MANAGER_SECTION_CLASS} space-y-4`}
+            className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-6 space-y-4"
           >
             <div>
-              <h2 className="text-xl font-semibold text-white">Engagement checkpoints</h2>
-              <p className="text-sm text-white/70">Upcoming 1:1s, training, and milestone reminders.</p>
+              <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                <Clock className="h-6 w-6 text-indigo-500" />
+                Engagement Checkpoints
+              </h2>
+              <p className="text-sm text-gray-600 font-medium mt-1">Upcoming 1:1s, training, and milestone reminders</p>
             </div>
-            <ul className="space-y-3 text-sm text-white/80">
-              <li className={`${MANAGER_CARD_SURFACE_CLASS} p-4`}>
-                <p className="font-semibold text-white">Kitchen quarterly skills audit</p>
-                <p className="text-xs text-white/65">Scheduled for Friday · Chef Martinez leading practical assessment.</p>
-              </li>
-              <li className={`${MANAGER_CARD_SURFACE_CLASS} p-4`}>
-                <p className="font-semibold text-white">Front desk empathy workshop</p>
-                <p className="text-xs text-white/65">Wednesday 3 PM · Guest relations team with 92% attendance confirmed.</p>
-              </li>
-              <li className={`${MANAGER_CARD_SURFACE_CLASS} p-4`}>
-                <p className="font-semibold text-white">Maintenance safety refresh</p>
-                <p className="text-xs text-white/65">All technicians to complete digital checklist before end of week.</p>
-              </li>
+            <ul className="space-y-3 text-sm">
+              <motion.li
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4 hover:shadow-md transition-all duration-300"
+              >
+                <p className="font-bold text-gray-900">Kitchen quarterly skills audit</p>
+                <p className="text-xs text-gray-600 font-medium mt-1">Scheduled for Friday · Chef Martinez leading practical assessment</p>
+              </motion.li>
+              <motion.li
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-200 rounded-xl p-4 hover:shadow-md transition-all duration-300"
+              >
+                <p className="font-bold text-gray-900">Front desk empathy workshop</p>
+                <p className="text-xs text-gray-600 font-medium mt-1">Wednesday 3 PM · Guest relations team with 92% attendance confirmed</p>
+              </motion.li>
+              <motion.li
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-4 hover:shadow-md transition-all duration-300"
+              >
+                <p className="font-bold text-gray-900">Maintenance safety refresh</p>
+                <p className="text-xs text-gray-600 font-medium mt-1">All technicians to complete digital checklist before end of week</p>
+              </motion.li>
             </ul>
           </motion.div>
         </div>

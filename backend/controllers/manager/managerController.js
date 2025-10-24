@@ -16,35 +16,37 @@ const ensureManagerProfile = async (manager) => {
 
   let profile = await ManagerProfile.findOne({ userId: managerId });
   if (profile) {
-    const needsUpdate = !profile.metrics || !profile.activityLog?.length;
-    if (needsUpdate) {
-      profile.metrics = profile.metrics || {
+    // Always ensure metrics are properly set
+    if (!profile.metrics || profile.metrics.tasksCompleted === 0) {
+      profile.metrics = {
         tasksCompleted: 148,
         onTimeRate: 93,
         satisfaction: 4.7,
       };
-      profile.activityLog =
-        profile.activityLog && profile.activityLog.length
-          ? profile.activityLog
-          : [
-              {
-                title: 'Approved VIP room upgrade',
-                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-                meta: 'Reservation #RM-482',
-              },
-              {
-                title: 'Reviewed task backlog',
-                timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-                meta: '12 tasks delegated',
-              },
-              {
-                title: 'Checked revenue performance',
-                timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-                meta: 'Occupancy at 92%',
-              },
-            ];
-      await profile.save();
     }
+    
+    // Always ensure activityLog has data
+    if (!profile.activityLog || profile.activityLog.length === 0) {
+      profile.activityLog = [
+        {
+          title: 'Approved VIP room upgrade',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          meta: 'Reservation #RM-482',
+        },
+        {
+          title: 'Reviewed task backlog',
+          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+          meta: '12 tasks delegated',
+        },
+        {
+          title: 'Checked revenue performance',
+          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+          meta: 'Occupancy at 92%',
+        },
+      ];
+    }
+    
+    await profile.save();
     return profile;
   }
 
@@ -187,8 +189,10 @@ const getManagerProfileOverview = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Manager not found' });
     }
 
+    console.log('📊 Loading manager profile for:', manager.name, manager.email);
     const profileDoc = await ensureManagerProfile(manager);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
+    console.log('✅ Profile loaded with metrics:', profile.metrics);
 
     const staffLookup = profile.employees?.length
       ? await User.find({ _id: { $in: profile.employees } })
@@ -264,6 +268,7 @@ const getManagerProfileOverview = async (req, res) => {
       notes: profile.notes,
     };
 
+    console.log('📤 Sending response with stats:', responsePayload.stats);
     res.json({ success: true, data: responsePayload });
   } catch (error) {
     console.error('Failed to load manager profile overview:', error);
@@ -297,6 +302,29 @@ const getStaffAvailability = async (req, res) => {
     res.json(staff);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Get all staff members for Staff List
+const getStaff = async (req, res) => {
+  try {
+    const staff = await User.find({ role: 'staff' })
+      .select('name email role status department position isOnline')
+      .sort({ name: 1 });
+    
+    res.json({
+      success: true,
+      data: {
+        staff
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching staff:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch staff members',
+      error: err.message 
+    });
   }
 }; 
 
@@ -374,12 +402,202 @@ const generateStaffSuggestions = async (taskId) => {
   global.io.to('manager_room').emit('newSuggestion', { taskId, suggestions });
 };
 
+const updateManagerProfile = async (req, res) => {
+  try {
+    const managerId = req.user?._id;
+    if (!managerId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    console.log('🔄 Updating manager profile for:', managerId);
+    console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
+
+    const manager = await User.findById(managerId);
+    if (!manager) {
+      return res.status(404).json({ success: false, message: 'Manager not found' });
+    }
+
+    const { profile: profileUpdates, permissions, shift, emergencyContact, notes } = req.body;
+    let updated = false;
+
+    // Update User model fields if provided
+    if (profileUpdates) {
+      if (profileUpdates.name && profileUpdates.name !== manager.name) {
+        console.log('📝 Updating name:', manager.name, '->', profileUpdates.name);
+        manager.name = profileUpdates.name;
+        updated = true;
+      }
+      if (profileUpdates.phone && profileUpdates.phone !== manager.phone) {
+        console.log('📞 Updating phone:', manager.phone, '->', profileUpdates.phone);
+        manager.phone = profileUpdates.phone;
+        updated = true;
+      }
+      if (profileUpdates.email && profileUpdates.email !== manager.email) {
+        console.log('📧 Updating email:', manager.email, '->', profileUpdates.email);
+        manager.email = profileUpdates.email;
+        updated = true;
+      }
+      
+      if (updated) {
+        await manager.save();
+        console.log('✅ User data saved');
+      }
+    }
+
+    // Update or create ManagerProfile
+    let managerProfile = await ManagerProfile.findOne({ userId: managerId });
+    
+    if (!managerProfile) {
+      console.log('⚠️  No manager profile found, creating one...');
+      managerProfile = await ensureManagerProfile(manager);
+    }
+
+    // Update ManagerProfile fields
+    let profileUpdated = false;
+    
+    if (permissions) {
+      console.log('🔐 Updating permissions');
+      managerProfile.permissions = { ...managerProfile.permissions, ...permissions };
+      profileUpdated = true;
+    }
+    
+    if (shift) {
+      console.log('⏰ Updating shift');
+      managerProfile.shift = { ...managerProfile.shift, ...shift };
+      profileUpdated = true;
+    }
+    
+    if (emergencyContact) {
+      console.log('🚨 Updating emergency contact:', emergencyContact);
+      managerProfile.emergencyContact = { 
+        ...managerProfile.emergencyContact, 
+        ...emergencyContact 
+      };
+      profileUpdated = true;
+    }
+    
+    if (notes !== undefined) {
+      console.log('📋 Updating notes');
+      managerProfile.notes = notes;
+      profileUpdated = true;
+    }
+
+    if (profileUpdated || updated) {
+      await managerProfile.save();
+      console.log('✅ Manager profile saved');
+    } else {
+      console.log('ℹ️  No changes detected');
+    }
+
+    // Get fresh manager data for response
+    const freshManager = await User.findById(managerId).lean();
+    
+    // Return updated profile in the same format as getManagerProfileOverview
+    const updatedProfile = await getManagerProfileData(freshManager, managerProfile);
+    
+    console.log('📤 Sending updated profile response');
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      data: updatedProfile 
+    });
+  } catch (error) {
+    console.error('❌ Failed to update manager profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Unable to update manager profile',
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to format profile data consistently
+const getManagerProfileData = async (manager, profileDoc) => {
+  const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
+
+  const staffLookup = profile.employees?.length
+    ? await User.find({ _id: { $in: profile.employees } })
+        .select('name email phone role profile')
+        .lean()
+    : [];
+
+  const stats = buildStatsFromMetrics(profile.metrics);
+
+  const timeline = profile.reports?.length
+    ? profile.reports.map((report, index) => ({
+        id: `report-${report._id || index}`,
+        title: report.title,
+        timestamp: new Date(report.generatedAt ?? Date.now()).toLocaleString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+          day: 'numeric',
+          month: 'short',
+        }),
+        meta: report.summary || startCase(report.type || 'Report'),
+      }))
+    : profile.activityLog?.length
+      ? profile.activityLog.map((item, index) => ({
+          id: `activity-${item._id || index}`,
+          title: item.title,
+          timestamp: new Date(item.timestamp ?? Date.now()).toLocaleString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            day: 'numeric',
+            month: 'short',
+          }),
+          meta: item.meta,
+        }))
+      : buildSampleActivity();
+
+  const primaryDepartment = profile.departments?.[0]
+    ? startCase(profile.departments[0])
+    : 'Operations';
+
+  return {
+    profile: {
+      name: manager.name,
+      email: manager.email,
+      phone: manager.phone || '+94 11 234 5678',
+      department: primaryDepartment,
+      role: manager.role ? startCase(manager.role) : 'Manager',
+      hotel: profile.hotel ?? 'Royal Palm Hotel',
+      avatarUrl:
+        manager.profilePicture ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(manager.name || 'Manager')}`,
+      initials: (manager.name || 'Manager')
+        .split(' ')
+        .filter(Boolean)
+        .map((part) => part[0]?.toUpperCase())
+        .join('')
+        .slice(0, 2) || 'MG',
+      departments: profile.departments?.map(startCase) ?? [],
+      shift: profile.shift,
+      emergencyContact: profile.emergencyContact,
+    },
+    stats,
+    activity: timeline,
+    staff: staffLookup.map((staff) => ({
+      id: staff._id,
+      name: staff.name,
+      email: staff.email,
+      phone: staff.phone,
+      role: startCase(staff.role),
+    })),
+    permissions: profile.permissions,
+    notes: profile.notes,
+  };
+};
+
 export {
   getTaskBoard,
   getStaffAvailability,
+  getStaff,
   manageTaskAssignment,
   setTaskPriority,
   getAnalytics,
   generateStaffSuggestions,
-  getManagerProfileOverview
+  getManagerProfileOverview,
+  updateManagerProfile
 };

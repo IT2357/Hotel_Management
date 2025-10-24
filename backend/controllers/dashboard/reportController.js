@@ -9,7 +9,7 @@ import ReportConfig from '../../models/ReportConfig.js';
 import { reportService } from '../../services/analytics/reportService.js';
 import { kpiService } from '../../services/analytics/kpiService.js';
 import { forecastService } from '../../services/analytics/forecastService.js';
-import { exportService } from '../../services/analytics/exportService.js';
+import { generatePDFReport, generateExcelReport } from '../../services/exportService.js';
 import { validateDateRange, validateReportFilters } from '../../utils/validators.js';
 import { AppError } from '../../services/error/AppError.js';
 
@@ -266,44 +266,6 @@ export const getBookingReports = async (req, res, next) => {
       groupBy
     });
 
-    // Get task statistics related to bookings
-    const taskStats = await reportService.getTaskStatistics({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-      groupBy: 'department'
-    });
-
-    // Get staff performance data
-    const staffPerformance = await reportService.getStaffPerformance({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate
-    });
-
-    // Get guest insights
-    const guestInsights = await reportService.getGuestInsights({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate
-    });
-
-    let comparisonData = null;
-    if (compare === 'true') {
-      comparisonData = await reportService.getComparisonData({
-        currentStart: dateRange.startDate,
-        currentEnd: dateRange.endDate,
-        comparePeriod,
-        type: 'booking'
-      });
-    }
-
-    let forecastData = null;
-    if (includeForecasting === 'true') {
-      forecastData = await forecastService.getBookingForecast({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        period
-      });
-    }
-
     const response = {
       success: true,
       data: {
@@ -312,35 +274,19 @@ export const getBookingReports = async (req, res, next) => {
           totalRevenue: bookingData.totalRevenue,
           averageBookingValue: bookingData.averageBookingValue,
           occupancyRate: bookingData.occupancyRate,
-          guestSatisfactionScore: guestInsights.averageRating,
+          confirmedBookings: bookingData.confirmedBookings,
+          cancelledBookings: bookingData.cancelledBookings
         },
         bookings: {
+          totalBookings: bookingData.totalBookings,
+          totalRevenue: bookingData.totalRevenue,
+          averageBookingValue: bookingData.averageBookingValue,
+          occupancyRate: bookingData.occupancyRate,
           byDate: bookingData.byDate,
           byChannel: bookingData.byChannel,
           byStatus: bookingData.byStatus,
           trends: bookingData.trends
         },
-        tasks: {
-          total: taskStats.total,
-          byDepartment: taskStats.byDepartment,
-          byStatus: taskStats.byStatus,
-          completionRate: taskStats.completionRate,
-          averageCompletionTime: taskStats.averageCompletionTime
-        },
-        staff: {
-          performance: staffPerformance.staffMetrics,
-          topPerformers: staffPerformance.topPerformers,
-          departmentStats: staffPerformance.departmentStats
-        },
-        guests: {
-          totalGuests: guestInsights.totalGuests,
-          newGuests: guestInsights.newGuests,
-          returningGuests: guestInsights.returningGuests,
-          frequentGuests: guestInsights.frequentGuests,
-          commonRequests: guestInsights.commonRequests
-        },
-        comparison: comparisonData,
-        forecast: forecastData,
         generatedAt: new Date(),
         period: {
           start: dateRange.startDate,
@@ -545,30 +491,41 @@ export const getKPIDashboard = async (req, res, next) => {
 export const exportReport = async (req, res, next) => {
   try {
     const {
-      reportType,
+      type,
       format = 'pdf',
       startDate,
       endDate,
-      includeCharts = true
-    } = req.body;
+      includeCharts = 'true'
+    } = req.query;
 
     if (!['pdf', 'excel'].includes(format)) {
-      throw new AppError('Invalid export format. Use pdf or excel.', 400);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid export format. Use pdf or excel.'
+      });
     }
 
-    if (!['booking', 'financial', 'kpi'].includes(reportType)) {
-      throw new AppError('Invalid report type.', 400);
+    const validTypes = ['booking', 'financial', 'kpi', 'overview', 'bookings', 'kpis', 'tasks', 'workload', 'delayed'];
+    if (!type || !validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid report type. Valid types: ${validTypes.join(', ')}`
+      });
     }
 
     const dateRange = validateDateRange(startDate, endDate);
     if (!dateRange.isValid) {
-      throw new AppError(dateRange.message, 400);
+      return res.status(400).json({
+        success: false,
+        message: dateRange.message
+      });
     }
 
     // Get report data based on type
     let reportData;
-    switch (reportType) {
+    switch (type) {
       case 'booking':
+      case 'bookings':
         reportData = await reportService.getBookingAnalytics({
           startDate: dateRange.startDate,
           endDate: dateRange.endDate
@@ -586,48 +543,221 @@ export const exportReport = async (req, res, next) => {
           })
         ]);
         reportData = {
-          revenue: revenueData,
-          expenses: expenseData,
-          summary: {
-            totalRevenue: revenueData.totalRevenue || 0,
-            totalExpenses: expenseData.totalExpenses || 0,
-            netProfit: (revenueData.totalRevenue || 0) - (expenseData.totalExpenses || 0)
+          financial: {
+            revenue: revenueData,
+            expenses: expenseData,
+            summary: {
+              totalRevenue: revenueData.totalRevenue || 0,
+              totalExpenses: expenseData.totalExpenses || 0,
+              netProfit: (revenueData.totalRevenue || 0) - (expenseData.totalExpenses || 0),
+              profitMargin: revenueData.totalRevenue ? (((revenueData.totalRevenue - expenseData.totalExpenses) / revenueData.totalRevenue) * 100).toFixed(2) : 0
+            }
           }
         };
         break;
       case 'kpi':
+      case 'kpis':
         reportData = await kpiService.getKPIReport({
           startDate: dateRange.startDate,
           endDate: dateRange.endDate
         });
         break;
+      case 'overview':
+        // Get comprehensive overview data
+        const [revenue, expense, kpiData, taskData] = await Promise.all([
+          reportService.getRevenueAnalytics({
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          }),
+          reportService.getExpenseAnalytics({
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          }),
+          kpiService.getKPIReport({
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          }).catch(() => null),
+          Task.aggregate([
+            {
+              $match: {
+                createdAt: {
+                  $gte: dateRange.startDate,
+                  $lte: dateRange.endDate
+                }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                totalTasks: { $sum: 1 },
+                completedTasks: {
+                  $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+                },
+                pendingTasks: {
+                  $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+                },
+                inProgressTasks: {
+                  $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] }
+                }
+              }
+            }
+          ]).then(result => {
+            if (result.length > 0) {
+              const { totalTasks, completedTasks, pendingTasks, inProgressTasks } = result[0];
+              return {
+                summary: {
+                  totalTasks,
+                  completedTasks,
+                  pendingTasks,
+                  inProgressTasks,
+                  completionRate: totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(2) : 0
+                }
+              };
+            }
+            return { summary: {} };
+          }).catch(() => ({ summary: {} }))
+        ]);
+        
+        reportData = {
+          financial: {
+            summary: {
+              totalRevenue: revenue.totalRevenue || 0,
+              totalExpenses: expense.totalExpenses || 0,
+              netProfit: (revenue.totalRevenue || 0) - (expense.totalExpenses || 0),
+              profitMargin: revenue.totalRevenue ? (((revenue.totalRevenue - expense.totalExpenses) / revenue.totalRevenue) * 100).toFixed(2) : 0
+            }
+          },
+          summary: taskData?.summary || {},
+          kpis: kpiData?.data?.kpis || null
+        };
+        break;
+      case 'tasks':
+        // Get task data
+        const taskStats = await Task.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: dateRange.startDate,
+                $lte: dateRange.endDate
+              }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              totalTasks: { $sum: 1 },
+              completedTasks: {
+                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+              },
+              pendingTasks: {
+                $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+              },
+              inProgressTasks: {
+                $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] }
+              }
+            }
+          }
+        ]);
+        
+        const tasksByDept = await Task.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: dateRange.startDate,
+                $lte: dateRange.endDate
+              }
+            }
+          },
+          {
+            $group: {
+              _id: '$department',
+              total: { $sum: 1 },
+              completed: {
+                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+              },
+              pending: {
+                $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+              }
+            }
+          }
+        ]);
+        
+        if (taskStats.length > 0) {
+          const { totalTasks, completedTasks, pendingTasks, inProgressTasks } = taskStats[0];
+          reportData = {
+            summary: {
+              totalTasks,
+              completedTasks,
+              pendingTasks,
+              inProgressTasks,
+              completionRate: totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(2) : 0
+            },
+            byDepartment: tasksByDept
+          };
+        } else {
+          reportData = {
+            summary: {
+              totalTasks: 0,
+              completedTasks: 0,
+              pendingTasks: 0,
+              inProgressTasks: 0,
+              completionRate: 0
+            },
+            byDepartment: []
+          };
+        }
+        break;
+      case 'workload':
+      case 'delayed':
+        // Simple data for now
+        reportData = {
+          summary: {
+            message: `${type} report data`,
+            type: type
+          }
+        };
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: `Report type ${type} not implemented for export`
+        });
     }
 
-    // Generate export file
-    const exportResult = await exportService.generateReport({
-      type: reportType,
-      format,
+    // Generate the actual file based on format
+    let exportResult;
+    const exportOptions = {
+      type,
       data: reportData,
-      includeCharts: includeCharts === 'true',
       dateRange: {
         start: dateRange.startDate,
         end: dateRange.endDate
       },
-      generatedBy: req.user.id
+      includeCharts: includeCharts === 'true'
+    };
+
+    if (format === 'pdf') {
+      exportResult = await generatePDFReport(exportOptions);
+    } else if (format === 'excel') {
+      exportResult = await generateExcelReport(exportOptions);
+    }
+
+    return res.json({
+      success: true,
+      message: `${type} report exported successfully`,
+      fileName: exportResult.fileName,
+      downloadUrl: exportResult.downloadUrl,
+      format,
+      generatedAt: new Date()
     });
 
-    res.json({
-      success: true,
-      data: {
-        downloadUrl: exportResult.downloadUrl,
-        fileName: exportResult.fileName,
-        fileSize: exportResult.fileSize,
-        format: format,
-        generatedAt: new Date()
-      }
-    });
   } catch (error) {
-    next(error);
+    console.error('Export report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting report',
+      error: error.message
+    });
   }
 };
 

@@ -9,6 +9,7 @@ import {
   getAllStaff,
   getMyTasks,
   deleteTask,
+  cancelTask,
   getTaskStats,
 } from "../controllers/manager/taskManagementController.js";
 import {
@@ -126,6 +127,16 @@ router.put(
   authenticateToken,
   authorizeRoles(["staff", "manager"]),
   updateTaskStatus
+);
+
+// @route   PUT /api/task-management/tasks/:id/cancel
+// @desc    Cancel or unassign task (returns to pending if assigned)
+// @access  Manager, Admin
+router.put(
+  "/tasks/:id/cancel",
+  authenticateToken,
+  authorizeRoles(["manager"]),
+  cancelTask
 );
 
 // @route   DELETE /api/task-management/tasks/:id

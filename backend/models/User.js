@@ -60,6 +60,23 @@ const userSchema = new mongoose.Schema(
       default: "guest",
       required: true,
     },
+    department: {
+      type: String,
+      enum: ["Housekeeping", "Maintenance", "Kitchen", "Service"],
+    },
+    position: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "on-leave"],
+      default: "active",
+    },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
     isActive: { type: Boolean, default: true },
     isApproved: { type: Boolean, default: false },
     approvedBy: {

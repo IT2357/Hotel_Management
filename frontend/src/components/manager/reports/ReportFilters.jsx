@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Filter, X } from 'lucide-react';
+import { ChevronDown, Filter, X, Calendar, Clock } from 'lucide-react';
 
 const THEMES = {
   light: {
@@ -19,20 +19,20 @@ const THEMES = {
     subLabel: 'text-sm text-gray-600',
   },
   manager: {
-    container: 'rounded-3xl bg-gradient-to-br from-indigo-600 via-blue-700 to-indigo-800 shadow-2xl border-0',
-    headerBorder: 'border-b border-white/10',
-    icon: 'text-yellow-300',
-    heading: 'text-xl font-black text-white tracking-tight',
-    buttonClear: 'text-sm text-blue-100 hover:text-yellow-300 flex items-center gap-2 transition-all font-bold hover:scale-110',
-    toggleButton: 'text-blue-100 hover:text-yellow-300 transition-all hover:scale-110',
+    container: 'relative overflow-hidden rounded-3xl bg-white shadow-lg border border-gray-100',
+    headerBorder: 'border-b border-gray-100',
+    icon: 'text-white',
+    heading: 'text-xl font-black text-gray-900 tracking-tight',
+    buttonClear: 'text-sm text-gray-600 hover:text-red-600 flex items-center gap-2 transition-all font-semibold hover:scale-105',
+    toggleButton: 'text-gray-600 hover:text-indigo-600 transition-all hover:scale-110',
     sectionSpacing: 'mb-6',
-    label: 'block text-xs font-black text-blue-200 mb-2.5 uppercase tracking-widest',
-    input: 'w-full px-4 py-3 border-0 bg-white/10 backdrop-blur-sm text-white placeholder-blue-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400 font-semibold transition-all hover:bg-white/15',
-    pill: 'px-5 py-2.5 text-sm font-bold rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all text-white hover:shadow-lg hover:-translate-y-0.5',
-    checkbox: 'mr-3 rounded-md border-white/30 bg-white/10 text-yellow-400 focus:ring-yellow-400 focus:ring-offset-0 w-4 h-4',
-    checkboxLabel: 'text-sm text-white font-semibold',
-    compareLabel: 'text-sm font-bold text-white',
-    subLabel: 'text-sm text-blue-200',
+    label: 'block text-xs font-bold text-gray-700 mb-3 uppercase tracking-wider',
+    input: 'w-full px-4 py-3 border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-medium transition-all hover:border-indigo-300',
+    pill: 'px-4 py-2.5 text-sm font-semibold rounded-xl bg-gradient-to-r from-gray-100 to-gray-50 hover:from-indigo-100 hover:to-purple-100 text-gray-700 hover:text-indigo-700 border border-gray-200 hover:border-indigo-300 transition-all hover:shadow-md hover:-translate-y-0.5',
+    checkbox: 'mr-3 rounded-md border-gray-300 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0 w-5 h-5 transition-all',
+    checkboxLabel: 'text-sm text-gray-700 font-medium hover:text-indigo-700 transition-colors',
+    compareLabel: 'text-sm font-semibold text-gray-900 hover:text-indigo-700 transition-colors',
+    subLabel: 'text-sm text-gray-500',
   },
 };
 
@@ -130,15 +130,23 @@ const ReportFilters = ({
 
   return (
     <div className={`${theme.container} ${className}`}>
-      <div className={`p-6 ${theme.headerBorder}`}>
+      {/* Background gradient overlay for manager theme */}
+      {variant === 'manager' && (
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 pointer-events-none" />
+      )}
+      
+      <div className={`relative p-6 ${theme.headerBorder}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-yellow-400/20 backdrop-blur-sm">
+            <div className="inline-flex items-center justify-center rounded-xl p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
               <Filter className={`w-5 h-5 ${theme.icon}`} />
             </div>
-            <h3 className={theme.heading}>Report Filters</h3>
+            <div>
+              <h3 className={theme.heading}>Report Filters</h3>
+              <p className="text-xs text-gray-500 font-medium">Customize your report data</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={clearFilters}
               className={theme.buttonClear}
@@ -148,23 +156,26 @@ const ReportFilters = ({
             </button>
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className={theme.toggleButton}
+              className={`p-2 rounded-lg hover:bg-gray-100 ${theme.toggleButton}`}
             >
-              <ChevronDown className={`w-6 h-6 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="relative p-6">
         {/* Date Range */}
         {showDateRange && (
           <div className={theme.sectionSpacing}>
-            <label className={theme.label}>
-              Date Range
-            </label>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-4 h-4 text-indigo-600" />
+              <label className={theme.label}>
+                Date Range
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="relative">
                 <input
                   type="date"
                   value={filters.startDate}
@@ -172,7 +183,7 @@ const ReportFilters = ({
                   className={theme.input}
                 />
               </div>
-              <div>
+              <div className="relative">
                 <input
                   type="date"
                   value={filters.endDate}
@@ -181,7 +192,7 @@ const ReportFilters = ({
                 />
               </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setQuickDateRange(7)}
                 className={theme.pill}
@@ -209,9 +220,12 @@ const ReportFilters = ({
             {/* Period */}
             {showPeriod && (
               <div className={theme.sectionSpacing}>
-                <label className={theme.label}>
-                  Group By Period
-                </label>
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  <label className={theme.label}>
+                    Group By Period
+                  </label>
+                </div>
                 <select
                   value={filters.period}
                   onChange={(e) => handleFilterChange('period', e.target.value)}
@@ -232,9 +246,9 @@ const ReportFilters = ({
                 <label className={theme.label}>
                   Departments
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {departments.map(dept => (
-                    <label key={dept.value} className="flex items-center">
+                    <label key={dept.value} className="flex items-center p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={filters.departments.includes(dept.value)}
@@ -254,9 +268,9 @@ const ReportFilters = ({
                 <label className={theme.label}>
                   Booking Channels
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {channels.map(channel => (
-                    <label key={channel.value} className="flex items-center">
+                    <label key={channel.value} className="flex items-center p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={filters.channels.includes(channel.value)}
@@ -273,14 +287,17 @@ const ReportFilters = ({
             {/* Comparison */}
             {showComparison && (
               <div className={theme.sectionSpacing}>
-                <label className="flex items-center mb-3">
+                <label className="flex items-center p-4 rounded-xl border-2 border-gray-200 hover:border-indigo-300 bg-gradient-to-r from-gray-50 to-white hover:from-indigo-50 hover:to-purple-50 transition-all cursor-pointer mb-3">
                   <input
                     type="checkbox"
                     checked={filters.compare}
                     onChange={(e) => handleFilterChange('compare', e.target.checked)}
                     className={theme.checkbox}
                   />
-                  <span className={theme.compareLabel}>Compare with previous period</span>
+                  <div className="flex-1">
+                    <span className={theme.compareLabel}>Compare with previous period</span>
+                    <p className="text-xs text-gray-500 mt-0.5">View trends and changes over time</p>
+                  </div>
                 </label>
                 
                 {filters.compare && (
