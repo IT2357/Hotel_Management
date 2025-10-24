@@ -2,11 +2,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/rooms/ui/button";
 import { Badge } from "@/components/rooms/ui/badge";
 import { Card, CardContent } from "@/components/rooms/ui/card";
-import { Calendar } from "@/components/rooms/ui/calendar";
 import Label from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/rooms/ui/popover";
+import Calendar from '../../components/ui/Calendar';
 import IntegratedBookingFlow from '../booking/IntegratedBookingFlow';
+import roomService from '../../services/roomService';
 import { 
   X, 
   Users, 
@@ -16,12 +16,10 @@ import {
   Coffee, 
   Car, 
   Bath,
-  CalendarIcon,
   MapPin,
   CheckCircle
 } from "lucide-react";
-import { useState } from "react";
-import { format } from "date-fns";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const amenityIcons = {
@@ -65,6 +63,51 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
   });
   
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  const [bookedDates, setBookedDates] = useState([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [activeCalendar, setActiveCalendar] = useState(null); // 'checkIn' or 'checkOut'
+
+  // Fetch existing bookings for this room
+  useEffect(() => {
+    const fetchRoomBookings = async () => {
+      if (!room?.id) return;
+      
+      setIsLoadingBookings(true);
+      try {
+        const response = await roomService.getRoomBookings(room.id);
+        if (response.success) {
+          setBookedDates(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching room bookings:', error);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+
+    if (isOpen && room?.id) {
+      fetchRoomBookings();
+    }
+  }, [isOpen, room?.id]);
+
+  // Helper function to check if a date is booked
+  const isDateBooked = (date) => {
+    if (!date || !bookedDates.length) return false;
+    
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    return bookedDates.some(booking => {
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
+      checkIn.setHours(0, 0, 0, 0);
+      checkOut.setHours(0, 0, 0, 0);
+      
+      // Check if the date falls within any booking period
+      return checkDate >= checkIn && checkDate < checkOut;
+    });
+  };
 
   const handleInputChange = (field, value) => {
     console.log(`Field changed - ${field}:`, value);
@@ -102,6 +145,27 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Handle calendar date selection
+  const handleCalendarDateSelect = (date) => {
+    if (activeCalendar === 'checkIn') {
+      handleInputChange('checkIn', date);
+      // If checkout is before checkin, clear it
+      if (bookingData.checkOut && new Date(bookingData.checkOut) <= new Date(date)) {
+        handleInputChange('checkOut', '');
+      }
+    } else if (activeCalendar === 'checkOut') {
+      handleInputChange('checkOut', date);
+    }
+    setShowCalendar(false);
+    setActiveCalendar(null);
+  };
+
+  // Open calendar for specific input
+  const openCalendar = (type) => {
+    setActiveCalendar(type);
+    setShowCalendar(true);
   };
    const calculateNights = () => {
     if (!bookingData.checkIn || !bookingData.checkOut) return 0;
@@ -399,29 +463,119 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
                   </div>
                   
                   <div className="space-y-4 flex-1">
+                    {/* Calendar Toggle */}
+                    <div className="flex justify-center mb-4">
+                      <button
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+                      </button>
+                    </div>
+
+                    {/* Calendar Component */}
+                    {showCalendar && (
+                      <div className="mb-6">
+                        <Calendar
+                          selectedDate={activeCalendar === 'checkIn' ? bookingData.checkIn : 
+                                       activeCalendar === 'checkOut' ? bookingData.checkOut : null}
+                          onDateSelect={handleCalendarDateSelect}
+                          bookedDates={bookedDates}
+                          minDate={activeCalendar === 'checkOut' ? bookingData.checkIn : undefined}
+                          disabled={isLoadingBookings}
+                        />
+                        <div className="mt-3 text-center">
+                          <p className="text-sm text-gray-600 mb-2">
+                            {activeCalendar === 'checkIn' && 'Select your check-in date'}
+                            {activeCalendar === 'checkOut' && 'Select your check-out date'}
+                            {!activeCalendar && 'Click on a date input below to select dates'}
+                          </p>
+                          {activeCalendar && (
+                            <button
+                              onClick={() => {
+                                setActiveCalendar(null);
+                                setShowCalendar(false);
+                              }}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Date Inputs */}
                     <div className="space-y-3">
                       <div>
                         <Label htmlFor="checkIn" className="text-sm font-semibold mb-2 block">Check-in Date</Label>
-                        <Input
-                          id="checkIn"
-                          type="date"
-                          value={bookingData.checkIn}
-                          onChange={(e) => handleInputChange('checkIn', e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
-                          className="w-full h-10 text-sm"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="checkIn"
+                            type="date"
+                            value={bookingData.checkIn}
+                            onChange={(e) => {
+                              const selectedDate = e.target.value;
+                              if (selectedDate && isDateBooked(new Date(selectedDate))) {
+                                alert('This date is already booked. Please select another date.');
+                                return;
+                              }
+                              handleInputChange('checkIn', selectedDate);
+                            }}
+                            onFocus={() => showCalendar && openCalendar('checkIn')}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full h-10 text-sm"
+                            disabled={isLoadingBookings}
+                          />
+                          {showCalendar && (
+                            <button
+                              type="button"
+                              onClick={() => openCalendar('checkIn')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              📅
+                            </button>
+                          )}
+                        </div>
+                        {bookedDates.length > 0 && (
+                          <div className="mt-1">
+                            <div className="flex items-center gap-2 text-xs text-red-600">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span>Some dates are unavailable due to existing bookings</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="checkOut" className="text-sm font-semibold mb-2 block">Check-out Date</Label>
-                        <Input
-                          id="checkOut"
-                          type="date"
-                          value={bookingData.checkOut}
-                          onChange={(e) => handleInputChange('checkOut', e.target.value)}
-                          min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
-                          className="w-full h-10 text-sm"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="checkOut"
+                            type="date"
+                            value={bookingData.checkOut}
+                            onChange={(e) => {
+                              const selectedDate = e.target.value;
+                              if (selectedDate && isDateBooked(new Date(selectedDate))) {
+                                alert('This date is already booked. Please select another date.');
+                                return;
+                              }
+                              handleInputChange('checkOut', selectedDate);
+                            }}
+                            onFocus={() => showCalendar && openCalendar('checkOut')}
+                            min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
+                            className="w-full h-10 text-sm"
+                            disabled={isLoadingBookings || !bookingData.checkIn}
+                          />
+                          {showCalendar && bookingData.checkIn && (
+                            <button
+                              type="button"
+                              onClick={() => openCalendar('checkOut')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              📅
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 

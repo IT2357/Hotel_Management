@@ -26,6 +26,7 @@ import checkInOutRoutes from "./routes/checkInOutRoutes.js";
 import guestServiceRoutes from "./routes/guestServiceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import keyCardRoutes from "./routes/keyCardRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
 import "./eventListeners/notificationListeners.js";
 import EmailService from "./services/notification/emailService.js";
 // Import SMS template seeder
@@ -261,6 +262,7 @@ const startServer = async () => {
   app.use("/api/guest-services", guestServiceRoutes);
   app.use("/api/tasks", taskRoutes);
   app.use("/api/key-cards", keyCardRoutes);
+  app.use("/api/reviews", reviewRoutes); // Hotel review routes
   app.use("/api/staff", staffRoutes);
   app.use("/api/staff", staffTaskRoutes); // Staff task routes
   app.use("/api/messages", messageRoutes);

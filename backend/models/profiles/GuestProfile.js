@@ -84,12 +84,14 @@ const guestProfileSchema = new mongoose.Schema(
       default: "unverified",
     },
     isFoodOnlyCustomer: { type: Boolean, default: false },
+
     favoriteRooms: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Room",
       },
     ],
+    
     bookings: [
       {
         type: mongoose.Schema.Types.ObjectId,

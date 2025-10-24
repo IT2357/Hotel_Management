@@ -3,6 +3,7 @@ import {
   createBooking,
   getUserBookings,
   getBookingDetails,
+  getBookingsForReview,
   cancelBooking,
   getAllBookings,
   getPendingApprovals,
@@ -16,6 +17,7 @@ import {
   bulkRejectBookings,
   bulkHoldBookings,
   processBookingPayment,
+  getRoomBookings,
 } from "../controllers/bookings/bookingController.js";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import BookingScheduler from "../services/booking/bookingScheduler.js";
@@ -29,6 +31,12 @@ router.post("/", authenticateToken, createBooking);
 
 // Get user's bookings
 router.get("/my-bookings", authenticateToken, getUserBookings);
+
+// Get bookings that need reviews
+router.get("/for-review", authenticateToken, getBookingsForReview);
+
+// Get room bookings for calendar display (public route)
+router.get("/room/:roomId/dates", getRoomBookings);
 
 // Get specific booking details
 router.get("/:bookingId", authenticateToken, getBookingDetails);

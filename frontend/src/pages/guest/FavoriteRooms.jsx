@@ -5,84 +5,43 @@ import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import { Heart, Star, Users, MapPin, Calendar, Wifi, Car, Utensils } from 'lucide-react';
-import roomService from '../../services/roomService';
+import { useFavorites } from '../../contexts/FavoritesContext';
 
 export default function FavoriteRooms() {
   const navigate = useNavigate();
+  const { favorites, removeFromFavorites, refreshFavorites } = useFavorites();
   const [favoriteRooms, setFavoriteRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchFavoriteRooms();
-  }, []);
+  }, [favorites]);
 
   const fetchFavoriteRooms = async () => {
     setLoading(true);
     setError(null);
     try {
-      // For now using mock data, but in production this would call:
-      // const response = await favoriteService.getUserFavorites();
-      // setFavoriteRooms(response.data);
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Transform the data to match the expected format
+      const transformedFavorites = favorites.map(room => ({
+        _id: room.id,
+        title: room.name,
+        description: room.description || `Beautiful ${room.name} with ${room.view} view`,
+        pricePerNight: room.price,
+        capacity: room.maxGuests,
+        roomNumber: room.floor ? `${room.floor}01` : "101",
+        type: room.bedType || "Standard",
+        rating: room.rating || 4.5,
+        images: room.images || [room.image],
+        amenities: room.amenities || ["WiFi", "Air Conditioning"],
+        available: room.status === 'available',
+        addedAt: room.addedAt
+      }));
 
-      const mockFavorites = [
-        {
-          _id: 1,
-          title: "Deluxe Ocean View Suite",
-          description: "Spacious suite with panoramic ocean views and private balcony",
-          pricePerNight: 15000,
-          capacity: 4,
-          roomNumber: "501",
-          type: "Suite",
-          rating: 4.9,
-          images: ["/api/placeholder/400/250"],
-          amenities: ["WiFi", "Ocean View", "Balcony", "Mini Bar", "Jacuzzi"],
-          available: true
-        },
-        {
-          _id: 2,
-          title: "Executive Business Room",
-          description: "Modern room designed for business travelers with work desk and city views",
-          pricePerNight: 8500,
-          capacity: 2,
-          roomNumber: "301",
-          type: "Executive",
-          rating: 4.7,
-          images: ["/api/placeholder/400/250"],
-          amenities: ["WiFi", "Work Desk", "City View", "Coffee Machine"],
-          available: true
-        },
-        {
-          _id: 3,
-          title: "Garden Villa",
-          description: "Private villa with garden access and luxury amenities",
-          pricePerNight: 25000,
-          capacity: 6,
-          roomNumber: "GV1",
-          type: "Villa",
-          rating: 4.8,
-          images: ["/api/placeholder/400/250"],
-          amenities: ["Garden Access", "Private Pool", "Kitchen", "WiFi", "Parking"],
-          available: false
-        },
-        {
-          _id: 4,
-          title: "Standard Room",
-          description: "Comfortable standard room with all essential amenities",
-          pricePerNight: 6500,
-          capacity: 2,
-          roomNumber: "201",
-          type: "Standard",
-          rating: 4.2,
-          images: ["/api/placeholder/400/250"],
-          amenities: ["WiFi", "TV", "Air Conditioning"],
-          available: true
-        }
-      ];
-
-      setFavoriteRooms(mockFavorites);
+      setFavoriteRooms(transformedFavorites);
     } catch (error) {
       console.error('Error fetching favorite rooms:', error);
       setError('Failed to load favorite rooms. Please try again.');
@@ -93,9 +52,13 @@ export default function FavoriteRooms() {
 
   const handleRemoveFavorite = async (roomId) => {
     try {
-      // In production, this would call:
-      // await favoriteService.removeFromFavorites(roomId);
-      setFavoriteRooms(prev => prev.filter(room => room._id !== roomId));
+      const result = removeFromFavorites(roomId);
+      if (result.success) {
+        console.log('Room removed from favorites');
+        // The favorites will be updated automatically through the context
+      } else {
+        throw new Error(result.message);
+      }
     } catch (error) {
       console.error('Error removing favorite:', error);
       alert('Failed to remove from favorites. Please try again.');
@@ -119,10 +82,7 @@ export default function FavoriteRooms() {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'LKR'
-    }).format(price);
+    return `LKR ${new Intl.NumberFormat('en-US').format(price)}`;
   };
 
   const getAmenityIcon = (amenity) => {
@@ -166,7 +126,10 @@ export default function FavoriteRooms() {
           </p>
           <div className="mt-4">
             <Button
-              onClick={fetchFavoriteRooms}
+              onClick={() => {
+                refreshFavorites();
+                fetchFavoriteRooms();
+              }}
               variant="outline"
               size="sm"
               disabled={loading}

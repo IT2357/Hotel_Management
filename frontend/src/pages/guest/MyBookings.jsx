@@ -1,12 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
-import { Calendar, MapPin, Users, CreditCard, Eye, Download, Star, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, CreditCard, Eye, Download, Star, Clock, ArrowLeft } from 'lucide-react';
 import bookingService from '../../services/bookingService';
 
 export default function MyBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,85 +33,24 @@ export default function MyBookings() {
         const bookingsData = response.data.bookings || response.data;
         setBookings(Array.isArray(bookingsData) ? bookingsData : []);
       } else {
-        // Fallback to mock data if API doesn't return expected format
-        setBookings(getMockBookings());
+        // No fallback to mock data - show empty state
+        setBookings([]);
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
 
       // Check if it's an authentication error
       if (error.response?.status === 401) {
-        setError('Please log in to view your bookings. Using sample data for demonstration.');
+        setError('Please log in to view your bookings.');
       } else {
         setError('Failed to load bookings. Please try again.');
       }
 
-      // Fallback to mock data on error
-      setBookings(getMockBookings());
+      // Show empty state instead of mock data
+      setBookings([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getMockBookings = () => {
-    return [
-      {
-        id: 1,
-        bookingNumber: "BK2025001",
-        roomTitle: "Deluxe Ocean View Suite",
-        roomNumber: "501",
-        checkIn: "2025-02-15",
-        checkOut: "2025-02-18",
-        guests: 2,
-        totalPrice: 45000,
-        status: "Accepted",
-        paymentStatus: "completed",
-        paymentMethod: "card",
-        specialRequests: "Late check-out if possible"
-      },
-      {
-        id: 2,
-        bookingNumber: "BK2025002",
-        roomTitle: "Executive Business Room",
-        roomNumber: "301",
-        checkIn: "2025-03-10",
-        checkOut: "2025-03-12",
-        guests: 1,
-        totalPrice: 17000,
-        status: "On Hold",
-        paymentStatus: "pending",
-        paymentMethod: "cash",
-        specialRequests: "High floor preferred"
-      },
-      {
-        id: 3,
-        bookingNumber: "BK2024008",
-        roomTitle: "Garden Villa",
-        roomNumber: "GV1",
-        checkIn: "2024-12-20",
-        checkOut: "2024-12-25",
-        guests: 4,
-        totalPrice: 110000,
-        status: "Accepted",
-        paymentStatus: "completed",
-        paymentMethod: "card",
-        specialRequests: "Anniversary celebration setup"
-      },
-      {
-        id: 4,
-        bookingNumber: "BK2024005",
-        roomTitle: "Standard Room",
-        roomNumber: "201",
-        checkIn: "2024-08-10",
-        checkOut: "2024-08-12",
-        guests: 2,
-        totalPrice: 16000,
-        status: "Cancelled",
-        paymentStatus: "Failed",
-        paymentMethod: "cash",
-        specialRequests: "Quiet room requested"
-      }
-    ];
   };
 
   const handleCancelBooking = async (bookingId) => {
@@ -132,27 +74,27 @@ export default function MyBookings() {
   };
 
   const getStatusColor = (status) => {
-    // Handle consolidated status values
-    if (status === 'Approved - Payment Pending') return 'bg-green-100 text-green-800';
-    if (status === 'Approved - Payment Processing') return 'bg-blue-100 text-blue-800';
-    if (status === 'Confirmed') return 'bg-green-100 text-green-800';
-    if (status === 'Completed') return 'bg-blue-100 text-blue-800';
-    if (status === 'Pending Approval') return 'bg-yellow-100 text-yellow-800';
-    if (status === 'On Hold') return 'bg-orange-100 text-orange-800';
-    if (status === 'Rejected') return 'bg-red-100 text-red-800';
-    if (status === 'Cancelled') return 'bg-red-100 text-red-800';
-    if (status === 'No Show') return 'bg-gray-100 text-gray-800';
+    // Handle consolidated status values with UserManagementPage color scheme
+    if (status === 'Approved - Payment Pending') return 'bg-orange-50 text-orange-800 border-orange-200';
+    if (status === 'Approved - Payment Processing') return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white';
+    if (status === 'Confirmed') return 'bg-green-50 text-green-800 border-green-200';
+    if (status === 'Completed') return 'bg-gradient-to-r from-emerald-500 to-green-500 text-white';
+    if (status === 'Pending Approval') return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+    if (status === 'On Hold') return 'bg-orange-50 text-orange-800 border-orange-200';
+    if (status === 'Rejected') return 'bg-red-50 text-red-800 border-red-200';
+    if (status === 'Cancelled') return 'bg-red-50 text-red-800 border-red-200';
+    if (status === 'No Show') return 'bg-gradient-to-r from-gray-500 to-slate-500 text-white';
 
-    // Legacy support
+    // Legacy support with updated colors
     const colors = {
-      'Accepted': 'bg-green-100 text-green-800',
-      'Confirmed': 'bg-green-100 text-green-800',
-      'Pending Approval': 'bg-yellow-100 text-yellow-800',
-      'On Hold': 'bg-orange-100 text-orange-800',
-      'Rejected': 'bg-red-100 text-red-800',
-      'Cancelled': 'bg-red-100 text-red-800'
+      'Accepted': 'bg-green-50 text-green-800 border-green-200',
+      'Confirmed': 'bg-green-50 text-green-800 border-green-200',
+      'Pending Approval': 'bg-yellow-50 text-yellow-800 border-yellow-200',
+      'On Hold': 'bg-orange-50 text-orange-800 border-orange-200',
+      'Rejected': 'bg-red-50 text-red-800 border-red-200',
+      'Cancelled': 'bg-red-50 text-red-800 border-red-200'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gradient-to-r from-gray-500 to-slate-500 text-white';
   };
 
   const getStatusDisplayText = (status) => {
@@ -228,29 +170,43 @@ export default function MyBookings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center py-12">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center py-12">
         <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-12">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
+        {/* Header with Back Button */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-indigo-800 mb-2">
-            My Bookings
-          </h1>
-          <p className="text-gray-600">
-            View and manage all your reservations
-          </p>
-          <div className="mt-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Button
+              onClick={() => navigate('/guest/dashboard')}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 hover:border-indigo-500 hover:text-indigo-600"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </Button>
+          </div>
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl p-6 shadow-xl">
+            <h1 className="text-3xl font-bold mb-2">
+              My Bookings
+            </h1>
+            <p className="text-indigo-100">
+              View and manage all your reservations
+            </p>
+          </div>
+          <div className="mt-6">
             <Button
               onClick={fetchBookings}
               variant="outline"
               size="sm"
               disabled={loading}
+              className="hover:border-indigo-500 hover:text-indigo-600"
             >
               {loading ? 'Loading...' : 'Refresh'}
             </Button>
@@ -259,13 +215,16 @@ export default function MyBookings() {
 
         {/* Error Message */}
         {error && (
-          <Card className="p-4 mb-6 bg-blue-50 border-blue-200">
+          <Card className="p-4 mb-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <div className="flex items-start space-x-3">
               <div className="flex-1">
-                <p className="text-blue-800">{error}</p>
+                <p className="text-gray-800">{error}</p>
                 {error.includes('log in') && (
                   <div className="mt-3">
-                    <Button onClick={() => window.location.href = '/login'}>
+                    <Button 
+                      onClick={() => window.location.href = '/login'}
+                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                    >
                       Sign In to View Your Bookings
                     </Button>
                   </div>
@@ -292,6 +251,11 @@ export default function MyBookings() {
               variant={filter === status.key ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter(status.key)}
+              className={
+                filter === status.key 
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white" 
+                  : "hover:border-indigo-500 hover:text-indigo-600"
+              }
             >
               {status.label}
             </Button>
@@ -300,9 +264,9 @@ export default function MyBookings() {
 
         {/* Empty State */}
         {filteredBookings.length === 0 ? (
-          <Card className="p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="h-8 w-8 text-gray-400" />
+          <Card className="p-12 text-center bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200">
+            <div className="w-16 h-16 bg-gradient-to-r from-gray-500 to-slate-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="h-8 w-8 text-white" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               No {filter === 'all' ? '' : filter.toLowerCase()} Bookings
@@ -314,7 +278,10 @@ export default function MyBookings() {
               }
             </p>
             {filter === 'all' && (
-              <Button onClick={() => window.location.href = '/booking'}>
+              <Button 
+                onClick={() => window.location.href = '/booking'}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              >
                 Make Your First Booking
               </Button>
             )}
@@ -323,172 +290,168 @@ export default function MyBookings() {
           /* Bookings List */
           <div className="space-y-6">
             {filteredBookings.map((booking) => (
-              <Card key={booking._id || booking.id} className="overflow-hidden">
-                <div className="md:flex">
+              <Card key={booking._id || booking.id} className="overflow-hidden h-auto">
+                <div className="md:flex md:h-64">
                   {/* Image */}
-                  <div className="md:w-1/4">
+                  <div className="md:w-1/3 h-40 md:h-full">
                     <img
-                      src={booking.image}
-                      alt={booking.roomTitle}
-                      className="w-full h-48 md:h-full object-cover"
+                      src={booking.roomId?.images?.[0]?.url || booking.room?.images?.[0]?.url || `https://source.unsplash.com/600x400?hotel,room,${booking.roomTitle?.replace(/\s+/g, ',')}`}
+                      alt={booking.roomTitle || booking.roomId?.title || 'Hotel Room'}
+                      className="w-full h-full object-cover"
                     />
                   </div>
 
                   {/* Content */}
-                  <div className="p-6 md:w-3/4">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-800 mb-1">
-                          {booking.roomTitle}
-                        </h3>
-                        <p className="text-gray-600 text-sm">
-                          Booking #{booking.bookingNumber}
-                        </p>
+                  <div className="p-6 md:w-2/3 flex flex-col justify-between min-h-full">
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-semibold text-gray-800 mb-1 truncate">
+                            {booking.roomTitle}
+                          </h3>
+                          <p className="text-gray-600 text-sm">
+                            Booking #{booking.bookingNumber}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 ml-4 flex-shrink-0">
+                          <Badge className={getStatusColor(booking.status)}>
+                            {getStatusDisplayText(booking.status)}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Badge className={getStatusColor(booking.status)}>
-                          {getStatusDisplayText(booking.status)}
-                        </Badge>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <div key={`checkin-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
+                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-800">Check-in</p>
+                            <p className="text-sm text-gray-600 truncate">{formatDate(booking.checkIn)}</p>
+                          </div>
+                        </div>
+
+                        <div key={`checkout-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
+                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-800">Check-out</p>
+                            <p className="text-sm text-gray-600 truncate">{formatDate(booking.checkOut)}</p>
+                          </div>
+                        </div>
+
+                        <div key={`guests-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
+                          <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-800">Guests</p>
+                            <p className="text-sm text-gray-600">{booking.guests || booking.guestCount?.adults || 1}</p>
+                          </div>
+                        </div>
+
+                        <div key={`room-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
+                          <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-800">Room</p>
+                            <p className="text-sm text-gray-600 truncate">{booking.roomNumber || booking?.roomId?.roomNumber || 'N/A'}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div key={`checkin-${booking._id || booking.id}`} className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">Check-in</p>
-                          <p className="text-sm text-gray-600">{formatDate(booking.checkIn)}</p>
+                    <div className="mt-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div key={`total-${booking._id || booking.id}`}>
+                            <p className="text-sm text-gray-600">
+                              {booking.status === 'Completed' || booking.status === 'Confirmed'
+                                ? 'Total Paid'
+                                : booking.paymentMethod === 'cash' && (booking.status === 'Approved - Payment Pending' || booking.status === 'Pending Approval')
+                                  ? 'Amount Due (Pay at Hotel)'
+                                  : 'Total Amount'}
+                            </p>
+                            <p className="text-lg font-semibold text-gray-800">
+                              {formatPrice(
+                                (booking?.costBreakdown?.total ?? booking?.totalPrice ?? 0)
+                              )}
+                            </p>
+                          </div>
+                          <div key={`nights-${booking._id || booking.id}`}>
+                            <p className="text-sm text-gray-600">Nights</p>
+                            <p className="text-sm font-medium text-gray-800">
+                              {booking.costBreakdown?.nights || getNights(booking.checkIn, booking.checkOut)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
+                            <Button 
+                              key={`receipt-${booking._id || booking.id}`} 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => window.location.href = '/guest/receipts'}
+                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Receipt
+                            </Button>
+                          )}
+                          {booking.status === 'Pending Approval' ||
+                           booking.status === 'On Hold' ? (
+                            <Button
+                              key={`cancel-${booking._id || booking.id}`}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelBooking(booking._id || booking.id)}
+                              className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0"
+                            >
+                              Cancel
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
 
-                      <div key={`checkout-${booking._id || booking.id}`} className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">Check-out</p>
-                          <p className="text-sm text-gray-600">{formatDate(booking.checkOut)}</p>
-                        </div>
-                      </div>
-
-                      <div key={`guests-${booking._id || booking.id}`} className="flex items-center space-x-2">
-                        <Users className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">Guests</p>
-                          <p className="text-sm text-gray-600">{booking.guests || booking.guestCount?.adults || 1}</p>
-                        </div>
-                      </div>
-
-                      <div key={`room-${booking._id || booking.id}`} className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">Room</p>
-                          <p className="text-sm text-gray-600">{booking.roomNumber || booking?.roomId?.roomNumber || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center space-x-4">
-                        <div key={`total-${booking._id || booking.id}`}>
+                      {booking.specialRequests && (
+                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200 p-3 rounded-lg">
+                          <p className="text-sm font-medium text-gray-800 mb-1">
+                            Special Requests:
+                          </p>
                           <p className="text-sm text-gray-600">
-                            {booking.status === 'Completed' || booking.status === 'Confirmed'
-                              ? 'Total Paid'
-                              : booking.paymentMethod === 'cash' && (booking.status === 'Approved - Payment Pending' || booking.status === 'Pending Approval')
-                                ? 'Amount Due (Pay at Hotel)'
-                                : 'Total Amount'}
-                          </p>
-                          <p className="text-lg font-semibold text-gray-800">
-                            {formatPrice(
-                              (booking?.costBreakdown?.total ?? booking?.totalPrice ?? 0)
-                            )}
+                            {booking.specialRequests}
                           </p>
                         </div>
-                        <div key={`nights-${booking._id || booking.id}`}>
-                          <p className="text-sm text-gray-600">Nights</p>
-                          <p className="text-sm font-medium text-gray-800">
-                            {booking.costBreakdown?.nights || getNights(booking.checkIn, booking.checkOut)}
-                          </p>
-                        </div>
-                      </div>
+                      )}
 
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          key={`view-${booking._id || booking.id}`}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewDetails(booking._id || booking.id)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </Button>
-                        {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
-                          <Button 
-                            key={`receipt-${booking._id || booking.id}`} 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => window.location.href = '/guest/receipts'}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Receipt
-                          </Button>
-                        )}
-                        {booking.status === 'Pending Approval' ||
-                         booking.status === 'On Hold' ? (
-                          <Button
-                            key={`cancel-${booking._id || booking.id}`}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCancelBooking(booking._id || booking.id)}
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                          >
-                            Cancel
-                          </Button>
-                        ) : null}
-                      </div>
+                      {booking.status === 'Pending Approval' && (
+                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-yellow-800" />
+                            <p className="text-sm text-yellow-800">
+                              Your booking is pending approval from our team. We'll notify you once it's confirmed.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {booking.status === 'On Hold' && (
+                        <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-orange-800" />
+                            <p className="text-sm text-orange-800">
+                              Your booking is currently on hold. Please check back later or contact our team for updates.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {booking.status === 'Approved - Payment Processing' && (
+                        <div className="mt-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 rounded-lg">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-blue-800" />
+                            <p className="text-sm text-gray-800">
+                              Your booking is approved and payment is being processed. We'll notify you once payment is confirmed.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {booking.specialRequests && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm font-medium text-gray-800 mb-1">
-                          Special Requests:
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {booking.specialRequests}
-                        </p>
-                      </div>
-                    )}
-
-                    {booking.status === 'Pending Approval' && (
-                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-yellow-600" />
-                          <p className="text-sm text-yellow-800">
-                            Your booking is pending approval from our team. We'll notify you once it's confirmed.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {booking.status === 'On Hold' && (
-                      <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-orange-600" />
-                          <p className="text-sm text-orange-800">
-                            Your booking is currently on hold. Please check back later or contact our team for updates.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {booking.status === 'Approved - Payment Processing' && (
-                      <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-indigo-600" />
-                          <p className="text-sm text-indigo-800">
-                            Your booking is approved and payment is being processed. We'll notify you once payment is confirmed.
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </Card>
@@ -497,43 +460,52 @@ export default function MyBookings() {
         )}
 
         {/* Summary Stats */}
-        {[
-          {
-            key: 'confirmed-stat',
-            value: bookings.filter(b => b.status === 'Confirmed').length,
-            label: 'Confirmed',
-            color: 'text-indigo-600'
-          },
-          {
-            key: 'paid-stat',
-            value: bookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length,
-            label: 'Paid',
-            color: 'text-green-600'
-          },
-          {
-            key: 'completed-stat',
-            value: bookings.filter(b => b.status === 'Completed').length,
-            label: 'Completed',
-            color: 'text-blue-600'
-          },
-          {
-            key: 'total-spent-stat',
-            value: formatPrice(
-              bookings
-                .filter(b => typeof b.totalPrice === 'number' && !isNaN(b.totalPrice))
-                .reduce((sum, b) => sum + b.totalPrice, 0)
-            ),
-            label: 'Total Spent',
-            color: 'text-purple-600'
-          }
-        ].map((stat) => (
-          <Card key={stat.key} className="p-6 text-center">
-            <div className={`text-2xl font-bold ${stat.color} mb-2`}>
-              {stat.value}
-            </div>
-            <div className="text-gray-600">{stat.label}</div>
-          </Card>
-        ))}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+          {[
+            {
+              key: 'confirmed-stat',
+              value: bookings.filter(b => b.status === 'Confirmed').length,
+              label: 'Confirmed',
+              gradient: 'bg-gradient-to-br from-green-50 to-green-100 border-green-200',
+              iconBg: 'bg-green-500'
+            },
+            {
+              key: 'paid-stat',
+              value: bookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length,
+              label: 'Paid',
+              gradient: 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200',
+              iconBg: 'bg-emerald-500'
+            },
+            {
+              key: 'completed-stat',
+              value: bookings.filter(b => b.status === 'Completed').length,
+              label: 'Completed',
+              gradient: 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200',
+              iconBg: 'bg-blue-500'
+            },
+            {
+              key: 'total-spent-stat',
+              value: formatPrice(
+                bookings
+                  .filter(b => typeof b.totalPrice === 'number' && !isNaN(b.totalPrice))
+                  .reduce((sum, b) => sum + b.totalPrice, 0)
+              ),
+              label: 'Total Spent',
+              gradient: 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200',
+              iconBg: 'bg-purple-500'
+            }
+          ].map((stat) => (
+            <Card key={stat.key} className={`p-6 text-center ${stat.gradient}`}>
+              <div className={`w-12 h-12 ${stat.iconBg} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900 mb-2">
+                {stat.value}
+              </div>
+              <div className="text-gray-600">{stat.label}</div>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -71,7 +71,7 @@ const roomService = {
   },
 
   // Update room status (for admin)
-  updateRoomStatus: async (roomId, status, reason = '') => {
+  updateRoomStatus: async (roomId, status, reason) => {
     try {
       const response = await api.put(`/rooms/admin/${roomId}/status`, {
         status,
@@ -80,6 +80,17 @@ const roomService = {
       return response.data;
     } catch (error) {
       console.error('Error updating room status:', error);
+      throw error;
+    }
+  },
+
+  // Get existing bookings for a specific room (for calendar display)
+  getRoomBookings: async (roomId) => {
+    try {
+      const response = await api.get(`/bookings/room/${roomId}/dates`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching room bookings:', error);
       throw error;
     }
   }

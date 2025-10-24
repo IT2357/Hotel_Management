@@ -320,14 +320,14 @@ export default function HomePage() {
                         <Settings className="w-4 h-4" />
                         <span>Dashboard</span>
                       </Link>
-                      <Link
+                      {/* <Link
                         to="/user/profile"
                         className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                         onClick={() => setUserDropdownOpen(false)}
                       >
                         <User className="w-4 h-4" />
                         <span>Profile</span>
-                      </Link>
+                      </Link> */}
                       <hr className="my-1 border-gray-200" />
                       <button
                         onClick={() => {
@@ -658,7 +658,7 @@ export default function HomePage() {
             </motion.div>
 
             {/* My Bookings */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -686,7 +686,7 @@ export default function HomePage() {
                   Login Required
                 </Link>
               )}
-            </motion.div>
+            </motion.div> */}
 
             {/* Order Food */}
             <motion.div
@@ -782,7 +782,7 @@ export default function HomePage() {
             </motion.div>
 
             {/* Favorite Rooms */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -810,7 +810,7 @@ export default function HomePage() {
                   Login Required
                 </Link>
               )}
-            </motion.div>
+            </motion.div> */}
 
             {/* Service Requests */}
             <motion.div
@@ -844,7 +844,7 @@ export default function HomePage() {
             </motion.div>
 
             {/* My Reviews */}
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -872,7 +872,7 @@ export default function HomePage() {
                   Login Required
                 </Link>
               )}
-            </motion.div>
+            </motion.div> */}
           </div>
         </div>
       </section>

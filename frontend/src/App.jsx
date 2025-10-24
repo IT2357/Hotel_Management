@@ -5,6 +5,7 @@ import { SettingsProvider } from './context/SettingsContext.jsx';
 import { BookingProvider } from './context/BookingContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { ReactQueryProvider } from './context/QueryProvider.jsx';
+import { FavoritesProvider } from './contexts/FavoritesContext.jsx';
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/shared/ProtectedRoute.jsx';
 import { SnackbarProvider } from 'notistack';
 import { NotificationProvider } from './context/NotificationContext.jsx';
@@ -29,7 +30,7 @@ import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
-import UserProfile from './pages/UserProfile.jsx';
+import UserProfile from './pages/GuestDashboard.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
@@ -119,536 +120,538 @@ const AppContent = () => {
           <SettingsProvider>
             <BookingProvider>
               <CartProvider>
-              <ReactQueryProvider>
-                <ToastContainer position="top-right" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
-                <GlobalChatbot />
-                <AnimatePresence mode="wait">
-                  <Routes>
-                    {/* Home Page */}
-                    <Route path="/" element={wrapWithTransition(<HomePage />)} />
+                <ReactQueryProvider>
+                  <FavoritesProvider>
+                    <ToastContainer position="top-right" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+                    <GlobalChatbot />
+                    <AnimatePresence mode="wait">
+                      <Routes>
+                      {/* Home Page */}
+                      <Route path="/" element={wrapWithTransition(<HomePage />)} />
 
-                      {/* Booking Routes */}
-                      <Route path="/booking" element={wrapWithTransition(<GuestBookingFlow />)} />
-                      <Route path="/booking/guest" element={wrapWithTransition(<GuestBookingFlow />)} />
-                      <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
-                      <Route path="/about" element={wrapWithTransition(<About />)} />
-                      <Route path="/contact" element={wrapWithTransition(<Contact />)} />
-                      <Route path="/menu" element={wrapWithTransition(<GuestMenuPage />)} />
-                      <Route path="/food" element={wrapWithTransition(<FoodOrderingPage />)} />
-                      {/* Removed routes for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage */}
-                      <Route path="/my-orders" element={wrapWithTransition(<MyOrdersPage />)} />
-                      <Route
-                        path="/login"
-                        element={
-                          <RedirectIfAuthenticated>
-                            {wrapWithTransition(<LoginPage />)}
-                          </RedirectIfAuthenticated>
-                        }
-                      />
-                      <Route
-                        path="/register"
-                        element={
-                          <RedirectIfAuthenticated>
-                            {wrapWithTransition(<RegisterPage />)}
-                          </RedirectIfAuthenticated>
-                        }
-                      />
-                      <Route
-                        path="/verify-email"
-                        element={
-                          wrapWithTransition(<OTPVerificationPage />)
-                        }
-                      />
-                      <Route
-                        path="/forgot-password"
-                        element={
-                          <RedirectIfAuthenticated>
-                            {wrapWithTransition(<ForgotPasswordPage />)}
-                          </RedirectIfAuthenticated>
-                        }
-                      />
-                      <Route
-                        path="/reset-password"
-                        element={
-                          <RedirectIfAuthenticated>
-                            {wrapWithTransition(<ResetPasswordPage />)}
-                          </RedirectIfAuthenticated>
-                        }
-                      />
-                      <Route
-                        path="/accept-invitation"
-                        element={
-                          <RedirectIfAuthenticated>
-                            {wrapWithTransition(<InviteRegisterPage />)}
-                          </RedirectIfAuthenticated>
-                        }
-                      />
+                        {/* Booking Routes */}
+                        <Route path="/booking" element={wrapWithTransition(<GuestBookingFlow />)} />
+                        <Route path="/booking/guest" element={wrapWithTransition(<GuestBookingFlow />)} />
+                        <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
+                        <Route path="/about" element={wrapWithTransition(<About />)} />
+                        <Route path="/contact" element={wrapWithTransition(<Contact />)} />
+                        <Route path="/menu" element={wrapWithTransition(<GuestMenuPage />)} />
+                        <Route path="/food" element={wrapWithTransition(<FoodOrderingPage />)} />
+                        {/* Removed routes for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage */}
+                        <Route path="/my-orders" element={wrapWithTransition(<MyOrdersPage />)} />
+                        <Route
+                          path="/login"
+                          element={
+                            <RedirectIfAuthenticated>
+                              {wrapWithTransition(<LoginPage />)}
+                            </RedirectIfAuthenticated>
+                          }
+                        />
+                        <Route
+                          path="/register"
+                          element={
+                            <RedirectIfAuthenticated>
+                              {wrapWithTransition(<RegisterPage />)}
+                            </RedirectIfAuthenticated>
+                          }
+                        />
+                        <Route
+                          path="/verify-email"
+                          element={
+                            wrapWithTransition(<OTPVerificationPage />)
+                          }
+                        />
+                        <Route
+                          path="/forgot-password"
+                          element={
+                            <RedirectIfAuthenticated>
+                              {wrapWithTransition(<ForgotPasswordPage />)}
+                            </RedirectIfAuthenticated>
+                          }
+                        />
+                        <Route
+                          path="/reset-password"
+                          element={
+                            <RedirectIfAuthenticated>
+                              {wrapWithTransition(<ResetPasswordPage />)}
+                            </RedirectIfAuthenticated>
+                          }
+                        />
+                        <Route
+                          path="/accept-invitation"
+                          element={
+                            <RedirectIfAuthenticated>
+                              {wrapWithTransition(<InviteRegisterPage />)}
+                            </RedirectIfAuthenticated>
+                          }
+                        />
 
-                    {/* Protected Routes */}
-                    <Route
-                      path="/guest/dashboard"
-                      element={wrapWithTransition(
-                        <ProtectedRoute roles={['guest']}>
-                          <UserProfile />
-                        </ProtectedRoute>
-                      )}
-                    />
-                    <Route
-                      path="/guest/my-bookings"
-                      element={wrapWithTransition(
-                        <ProtectedRoute roles={['guest']}>
-                          <GuestLayout>
-                            <MyBookings />
-                          </GuestLayout>
-                        </ProtectedRoute>
-                      )}
-                    />
-
-                    <Route
-                      path="/guest/receipts"
-                      element={wrapWithTransition(
-                        <ProtectedRoute roles={['guest']}>
-                          <GuestLayout>
-                            <BookingReceipts />
-                          </GuestLayout>
-                        </ProtectedRoute>
-                      )}
-                    />
-
-                    <Route
-                      path="/guest/my-requests"
-                      element={wrapWithTransition(
-                        <ProtectedRoute roles={['guest']}>
-                          <GuestLayout>
-                            <GuestServiceRequestsPage />
-                          </GuestLayout>
-                        </ProtectedRoute>
-                      )}
-                    />
-
+                      {/* Protected Routes */}
                       <Route
-                        path="/guest/check-in"
+                        path="/guest/dashboard"
                         element={wrapWithTransition(
                           <ProtectedRoute roles={['guest']}>
-                            <GuestLayout>
-                              <GuestCheckInOutPage />
-                            </GuestLayout>
+                            <UserProfile />
                           </ProtectedRoute>
                         )}
                       />
                       <Route
-                        path="/guest/favorite-rooms"
+                        path="/guest/my-bookings"
                         element={wrapWithTransition(
                           <ProtectedRoute roles={['guest']}>
                             <GuestLayout>
-                              <FavoriteRooms />
-                            </GuestLayout>
-                          </ProtectedRoute>
-                        )}
-                      />
-                      <Route
-                        path="/guest/reviews"
-                        element={wrapWithTransition(
-                          <ProtectedRoute roles={['guest']}>
-                            <GuestLayout>
-                              <MyReviews />
+                              <MyBookings />
                             </GuestLayout>
                           </ProtectedRoute>
                         )}
                       />
 
                       <Route
-                        path="/guest/food-orders"
+                        path="/guest/receipts"
                         element={wrapWithTransition(
                           <ProtectedRoute roles={['guest']}>
                             <GuestLayout>
-                              <FoodOrderHistoryPage />
+                              <BookingReceipts />
                             </GuestLayout>
                           </ProtectedRoute>
                         )}
                       />
 
                       <Route
-                        path="/guest/menu"
+                        path="/guest/my-requests"
                         element={wrapWithTransition(
                           <ProtectedRoute roles={['guest']}>
                             <GuestLayout>
-                              <GuestMenuPage />
+                              <GuestServiceRequestsPage />
                             </GuestLayout>
                           </ProtectedRoute>
                         )}
                       />
 
-                      <Route
-                        path="/admin/profile"
-                        element={
-                          <ProtectedRoute>
-                            <ProfilePage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/guest/check-in"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <GuestCheckInOutPage />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
+                        <Route
+                          path="/guest/favorite-rooms"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <FavoriteRooms />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
+                        <Route
+                          path="/guest/reviews"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <MyReviews />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
 
-                      <Route
-                        path="/staff/dashboard"
-                        element={
-                          <ProtectedRoute roles={['staff']}>
-                            <StaffDashboardPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/guest/food-orders"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <FoodOrderHistoryPage />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
 
-                      {/* Admin Routes */}
-                      <Route
-                        path="/admin/dashboard"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminDashboardPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/guest/menu"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <GuestMenuPage />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
 
-                      <Route
-                        path="/admin/invitations"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["invitations:read"]}>
-                            <AdminInvitationPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/profile"
+                          element={
+                            <ProtectedRoute>
+                              <ProfilePage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/notifications"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["notification:read"]}>
-                            <AdminNotificationPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/staff/dashboard"
+                          element={
+                            <ProtectedRoute roles={['staff']}>
+                              <StaffDashboardPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/users"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["users:read"]}>
-                              <UserManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Admin Routes */}
+                        <Route
+                          path="/admin/dashboard"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminDashboardPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/rooms"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminRoomsPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/invitations"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["invitations:read"]}>
+                              <AdminInvitationPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/add-room"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminAddRooms />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/notifications"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["notification:read"]}>
+                              <AdminNotificationPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/edit-room/:id"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminEditRoomsPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/users"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["users:read"]}>
+                                <UserManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/bookings"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
-                            <AdminBookingsPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/rooms"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminRoomsPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/invoices"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["invoices:read"]}>
-                            <AdminInvoicesPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/add-room"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminAddRooms />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Admin Reports Page - REMOVED: Placeholder functionality */}
-                      {/* <Route
-                        path="/admin/reports"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["reports:read"]}>
-                            <DefaultAdminLayout>
-                              <AdminReportsPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      /> */}
+                        <Route
+                          path="/admin/edit-room/:id"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminEditRoomsPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/settings"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["settings:read"]}>
-                            <DefaultAdminLayout>
-                              <AdminSettingsPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/bookings"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["bookings:read"]}>
+                              <AdminBookingsPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/view-room/:id"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminviewPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/admin/refunds"
-                        element={
-                          <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
-                            <AdminRefundManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/invoices"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["invoices:read"]}>
+                              <AdminInvoicesPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Admin Food Management Routes */}
-                      <Route
-                        path="/admin/food"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <EnhancedFoodManagementPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Admin Reports Page - REMOVED: Placeholder functionality */}
+                        {/* <Route
+                          path="/admin/reports"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["reports:read"]}>
+                              <DefaultAdminLayout>
+                                <AdminReportsPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        /> */}
 
-                      <Route
-                        path="/admin/food/menu"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <EnhancedFoodMenuManagementPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/settings"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["settings:read"]}>
+                              <DefaultAdminLayout>
+                                <AdminSettingsPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/food/orders"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <FoodOrderManagementPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/view-room/:id"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminviewPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/admin/refunds"
+                          element={
+                            <ProtectedRoute roles={['admin']} permissions={["refunds:read"]}>
+                              <AdminRefundManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/food/ai-menu"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <CompleteAIMenuGenerator />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Admin Food Management Routes */}
+                        <Route
+                          path="/admin/food"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <EnhancedFoodManagementPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/food/categories"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <FoodCategoryManagementPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/food/menu"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <EnhancedFoodMenuManagementPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/admin/food/offers"
-                        element={
-                          <ProtectedRoute roles={['admin']}>
-                            <DefaultAdminLayout>
-                              <AdminFoodOffersPage />
-                            </DefaultAdminLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/food/orders"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <FoodOrderManagementPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Manager Routes - Restructured with Layout */}
-                      <Route
-                        path="/manager"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerHomePage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/manager/tasks"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerTaskManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/manager/staff"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerStaffAnalyticsPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/manager/feedback"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerFeedbackPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/manager/profile"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerProfilePage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/manager/reports"
-                        element={
-                          <ProtectedRoute roles={['manager']}>
-                            <ManagerReportsPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/food/ai-menu"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <CompleteAIMenuGenerator />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Staff Task Routes */}
-                      <Route
-                        path="/staff/tasks"
-                        element={
-                          <ProtectedRoute roles={['staff']}>
-                            <StaffTasks />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/food/categories"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <FoodCategoryManagementPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/logout"
-                        element={
-                          <ProtectedRoute>
-                            <LogoutHandler />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/admin/food/offers"
+                          element={
+                            <ProtectedRoute roles={['admin']}>
+                              <DefaultAdminLayout>
+                                <AdminFoodOffersPage />
+                              </DefaultAdminLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Guest Service Request Routes */}
-                      <Route
-                        path="/guest/services"
-                        element={
-                          <ProtectedRoute roles={['guest']}>
-                            <GuestLayout>
-                              <GuestServiceRequestForm />
-                            </GuestLayout>
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Manager Routes - Restructured with Layout */}
+                        <Route
+                          path="/manager"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerHomePage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/manager/tasks"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerTaskManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/manager/staff"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerStaffAnalyticsPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/manager/feedback"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerFeedbackPage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/manager/profile"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerProfilePage />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/manager/reports"
+                          element={
+                            <ProtectedRoute roles={['manager']}>
+                              <ManagerReportsPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      <Route
-                        path="/staff/service-requests"
-                        element={
-                          <ProtectedRoute roles={['staff', 'manager']}>
-                            <ServiceRequestManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Staff Task Routes */}
+                        <Route
+                          path="/staff/tasks"
+                          element={
+                            <ProtectedRoute roles={['staff']}>
+                              <StaffTasks />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Task Management Routes */}
-                      <Route
-                        path="/staff/tasks"
-                        element={
-                          <ProtectedRoute roles={['staff', 'manager']}>
-                            <TaskManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/logout"
+                          element={
+                            <ProtectedRoute>
+                              <LogoutHandler />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* New Check-in/Check-out Routes */}
-                      <Route
-                        path="/staff/check-in"
-                        element={
-                          <ProtectedRoute roles={['staff', 'manager']}>
-                            <CheckInPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Guest Service Request Routes */}
+                        <Route
+                          path="/guest/services"
+                          element={
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <GuestServiceRequestForm />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Room Status Route */}
-                      <Route
-                        path="/staff/rooms"
-                        element={
-                          <ProtectedRoute roles={['staff', 'manager']}>
-                            <RoomStatusPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        <Route
+                          path="/staff/service-requests"
+                          element={
+                            <ProtectedRoute roles={['staff', 'manager']}>
+                              <ServiceRequestManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Key Card Management Route */}
-                      <Route
-                        path="/staff/key-cards"
-                        element={
-                          <ProtectedRoute roles={['staff', 'manager']}>
-                            <KeyCardManagementPage />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Task Management Routes */}
+                        <Route
+                          path="/staff/tasks"
+                          element={
+                            <ProtectedRoute roles={['staff', 'manager']}>
+                              <TaskManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Error Routes */}
-                      <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                      <Route path="*" element={<NotFoundPage />} />
+                        {/* New Check-in/Check-out Routes */}
+                        <Route
+                          path="/staff/check-in"
+                          element={
+                            <ProtectedRoute roles={['staff', 'manager']}>
+                              <CheckInPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Compare Rooms Route */}
-                      <Route
-                        path="/compare-rooms"
-                        element={
-                          <ProtectedRoute roles={['guest']}>
-                            <CompareRooms />
-                          </ProtectedRoute>
-                        }
-                      />
+                        {/* Room Status Route */}
+                        <Route
+                          path="/staff/rooms"
+                          element={
+                            <ProtectedRoute roles={['staff', 'manager']}>
+                              <RoomStatusPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
-                      {/* Staff Notifications Page - REMOVED: Functionality now integrated into StaffDashboardPage */}
-                      {/* <Route
-                        path="/staff/notifications"
-                        element={
-                          <ProtectedRoute roles={['staff']}>
-                            <StaffNotificationsPage />
-                          </ProtectedRoute>
-                        }
-                      /> */}
-                    </Routes>
-                  </AnimatePresence>
+                        {/* Key Card Management Route */}
+                        <Route
+                          path="/staff/key-cards"
+                          element={
+                            <ProtectedRoute roles={['staff', 'manager']}>
+                              <KeyCardManagementPage />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Error Routes */}
+                        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                        <Route path="*" element={<NotFoundPage />} />
+
+                        {/* Compare Rooms Route */}
+                        <Route
+                          path="/compare-rooms"
+                          element={
+                            <ProtectedRoute roles={['guest']}>
+                              <CompareRooms />
+                            </ProtectedRoute>
+                          }
+                        />
+
+                        {/* Staff Notifications Page - REMOVED: Functionality now integrated into StaffDashboardPage */}
+                        {/* <Route
+                          path="/staff/notifications"
+                          element={
+                            <ProtectedRoute roles={['staff']}>
+                              <StaffNotificationsPage />
+                            </ProtectedRoute>
+                          }
+                        /> */}
+                      </Routes>
+                    </AnimatePresence>
+                  </FavoritesProvider>
                 </ReactQueryProvider>
               </CartProvider>
             </BookingProvider>

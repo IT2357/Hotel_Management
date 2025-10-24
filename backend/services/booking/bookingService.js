@@ -400,7 +400,7 @@ class BookingService {
       
       console.log('✅ Final booking status:', finalStatus);
 
-      // Create booking
+      // Create booking ****************************************************************
       let booking = new Booking({
         ...bookingData,
         userId,
@@ -487,7 +487,7 @@ class BookingService {
         booking.status = 'On Hold';
         booking.holdUntil = new Date(Date.now() + approvalHours * 60 * 60 * 1000);
       }
-
+//**************************************************************************************************** */
       await booking.save();
 
       // ✅ ALWAYS create invoice for ALL bookings - critical for check-in/out flow

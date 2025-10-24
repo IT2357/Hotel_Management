@@ -274,6 +274,17 @@ export const getUserBookings = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
+    // Check for existing reviews for each booking
+    // for (let booking of bookings) {
+    //   const existingReview = await '[HotelReview]'.findOne({
+    //     booking: booking._id,
+    //     user: userId
+    //   });
+      
+    //   booking.hasReview = !!existingReview;
+    //   booking.reviewId = existingReview ? existingReview._id : null;
+    // }
+
     const total = await Booking.countDocuments(query);
 
     sendSuccess(res, {
@@ -321,6 +332,43 @@ export const getBookingDetails = async (req, res) => {
 
   } catch (error) {
     handleError(res, error, "Failed to get booking details");
+  }
+};
+
+// Get bookings that need reviews (completed bookings without reviews)
+export const getBookingsForReview = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+
+    // Find completed bookings that don't have reviews yet
+    const query = {
+      userId,
+      status: 'Completed',
+      hasReview: false
+    };
+
+    const bookings = await Booking.find(query)
+      .populate('roomId', 'title roomNumber type images')
+      .sort({ checkOut: -1 }) // Sort by checkout date (most recent first)
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+
+    sendSuccess(res, {
+      bookings,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalBookings: total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
+    });
+
+  } catch (error) {
+    handleError(res, error, "Failed to get bookings for review");
   }
 };
 
@@ -1466,5 +1514,45 @@ export const processBookingPayment = async (req, res) => {
 
   } catch (error) {
     handleError(res, error, "Failed to process booking payment");
+  }
+};
+
+// Get existing bookings for a specific room (for calendar display)
+export const getRoomBookings = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: "Room ID is required"
+      });
+    }
+
+    // Get all active bookings for this room (excluding cancelled and rejected)
+    const bookings = await Booking.find({
+      roomId: roomId,
+      status: { 
+        $nin: ['Cancelled', 'Rejected'] 
+      }
+    })
+    .select('checkIn checkOut status')
+    .sort({ checkIn: 1 });
+
+    // Format the bookings to include date ranges
+    const bookedDates = bookings.map(booking => ({
+      checkIn: booking.checkIn,
+      checkOut: booking.checkOut,
+      status: booking.status
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: bookedDates,
+      message: "Room bookings fetched successfully"
+    });
+
+  } catch (error) {
+    handleError(res, error, "Failed to fetch room bookings");
   }
 };

@@ -126,6 +126,10 @@ const bookingSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     requiresReview: { type: Boolean, default: true },
     autoCancelled: { type: Boolean, default: false },
+    
+    // Review tracking
+    hasReview: { type: Boolean, default: false },
+   // reviewId: { type: mongoose.Schema.Types.ObjectId, ref: "HotelReview" },
 
     // Additional booking details
     roomTitle: String, // Room name/title for reference

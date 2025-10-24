@@ -3,6 +3,7 @@ import { Heart, Star, Users, Wifi, Car, Coffee, Bath, Ruler, Bed, MapPin, Eye } 
 import { useState } from "react";
 import RoomModal from "./ViewDetails";
 import IntegratedBookingFlow from "../booking/IntegratedBookingFlow";
+import { useFavorites } from "../../contexts/FavoritesContext";
 
 const amenityIcons = {
   WiFi: Wifi,
@@ -97,7 +98,7 @@ const RoomCard = ({
   view,
   amenities = [],
   size,
-  //status = 'available',
+  status = 'available',
   rating,
   isInComparison = false,
   onWishlist,
@@ -112,10 +113,15 @@ const RoomCard = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBookingFlowOpen, setIsBookingFlowOpen] = useState(false);
+  
+  // Use favorites context
+  const { isFavorite, toggleFavorite } = useFavorites();
   const gradientClass = getRoomGradient(name);
   const backgroundGradient = getRoomBackgroundGradient(name);
   const borderColor = getRoomBorderColor(name);
   const statusStyles = getStatusStyles(status);
+  
+  const isRoomFavorite = isFavorite(id);
 
   const roomData = {
     id,
@@ -155,6 +161,50 @@ const RoomCard = ({
     setIsBookingFlowOpen(false);
   };
 
+  const handleToggleFavorite = () => {
+    console.log('🔧 Toggle favorite clicked for room ID:', id);
+    console.log('🔧 Current favorite status:', isRoomFavorite);
+    
+    // Validate room ID
+    if (!id) {
+      console.error('❌ Room ID is missing!');
+      return;
+    }
+    
+    const roomData = {
+      id,
+      name,
+      image,
+      price,
+      maxGuests,
+      bedType,
+      view,
+      amenities,
+      size,
+      status,
+      rating,
+      description,
+      floor,
+      images: images.length > 0 ? images : [image],
+      reviews: reviews || { rating: rating || 0, count: 0, recent: [] },
+    };
+
+    console.log('🔧 Room data being sent:', roomData);
+    
+    try {
+      const result = toggleFavorite(roomData);
+      console.log('🔧 Toggle result:', result);
+      
+      if (result.success) {
+        console.log('✅ Success:', result.message);
+      } else {
+        console.error('❌ Error:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Exception in toggleFavorite:', error);
+    }
+  };
+
   return (
     <div 
       className={`relative group overflow-hidden rounded-xl transition-all duration-500 
@@ -172,10 +222,22 @@ const RoomCard = ({
           className={`w-full h-full object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'}`} 
         />
         
-        {/* Status Badge */}
-        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium border ${statusStyles} backdrop-blur-sm shadow-sm`}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </div>
+        {/* Wishlist / Favorite Button */}
+        <button 
+          onClick={(e) => {
+            console.log('🔧 Button clicked!', e);
+            e.stopPropagation(); // Prevent any parent click handlers
+            handleToggleFavorite();
+          }}
+          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm hover:scale-110 transition-all duration-200 shadow-sm z-10 cursor-pointer ${
+            isRoomFavorite 
+              ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+              : 'bg-white/80 text-gray-700 hover:bg-white'
+          }`}
+          title={isRoomFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <Heart className={`w-4 h-4 transition-colors ${isRoomFavorite ? 'fill-red-500 text-red-500' : 'hover:text-red-400'}`} />
+        </button>
         
         {/* Room Type Badge */}
         <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r ${gradientClass} shadow-sm`}>
@@ -185,12 +247,16 @@ const RoomCard = ({
         {/* Glassmorphic Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Wishlist / Compare Button */}
+        {/* Compare Rooms Button */}
         <button 
           onClick={() => onCompare?.(id)}
-          className="absolute bottom-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-white hover:scale-110 transition-all duration-200 shadow-sm"
+          className={`absolute bottom-3 right-3 px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200 backdrop-blur-sm shadow-sm hover:scale-105 ${
+            isInComparison 
+              ? 'bg-red-50 text-red-800 border-red-200' 
+              : 'bg-white/80 text-gray-700 border-gray-200 hover:bg-white'
+          }`}
         >
-          <Heart className={`w-4 h-4 transition-colors ${isInComparison ? 'fill-red-500 text-red-500' : 'hover:text-red-400'}`} />
+          {isInComparison ? 'In Comparison' : 'Compare'}
         </button>
         
         {/* Price Tag */}

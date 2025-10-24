@@ -52,83 +52,83 @@ export default function BookingReceipts() {
     }
   };
 
-  const getMockReceiptBookings = () => {
-    return [
-      {
-        id: 1,
-        bookingNumber: "BK2025001",
-        roomTitle: "Deluxe Ocean View Suite",
-        roomNumber: "501",
-        checkIn: "2025-02-15",
-        checkOut: "2025-02-18",
-        guests: 2,
-        totalPrice: 45000,
-        status: "Completed",
-        paymentStatus: "completed",
-        paymentMethod: "card",
-        specialRequests: "Late check-out if possible",
-        createdAt: "2025-02-10T10:30:00Z",
-        costBreakdown: {
-          nights: 3,
-          roomCost: 36900,
-          taxes: 5400,
-          serviceCharge: 2700,
-          total: 45000
-        }
-      },
-      {
-        id: 3,
-        bookingNumber: "BK2024008",
-        roomTitle: "Garden Villa",
-        roomNumber: "GV1",
-        checkIn: "2024-12-20",
-        checkOut: "2024-12-25",
-        guests: 4,
-        totalPrice: 110000,
-        status: "Completed",
-        paymentStatus: "completed",
-        paymentMethod: "card",
-        specialRequests: "Anniversary celebration setup",
-        createdAt: "2024-12-15T14:20:00Z",
-        costBreakdown: {
-          nights: 5,
-          roomCost: 90200,
-          taxes: 13200,
-          serviceCharge: 6600,
-          total: 110000
-        }
-      },
-      {
-        id: 5,
-        bookingNumber: "BK2024012",
-        roomTitle: "Executive Business Room",
-        roomNumber: "301",
-        checkIn: "2024-11-10",
-        checkOut: "2024-11-12",
-        guests: 1,
-        totalPrice: 17000,
-        status: "Confirmed",
-        paymentStatus: "completed",
-        paymentMethod: "card",
-        specialRequests: "High floor preferred",
-        createdAt: "2024-11-05T09:15:00Z",
-        costBreakdown: {
-          nights: 2,
-          roomCost: 13940,
-          taxes: 2040,
-          serviceCharge: 1020,
-          total: 17000
-        }
-      }
-    ];
-  };
+  // const getMockReceiptBookings = () => {
+  //   return [
+  //     {
+  //       id: 1,
+  //       bookingNumber: "BK2025001",
+  //       roomTitle: "Deluxe Ocean View Suite",
+  //       roomNumber: "501",
+  //       checkIn: "2025-02-15",
+  //       checkOut: "2025-02-18",
+  //       guests: 2,
+  //       totalPrice: 45000,
+  //       status: "Completed",
+  //       paymentStatus: "completed",
+  //       paymentMethod: "card",
+  //       specialRequests: "Late check-out if possible",
+  //       createdAt: "2025-02-10T10:30:00Z",
+  //       costBreakdown: {
+  //         nights: 3,
+  //         roomCost: 36900,
+  //         taxes: 5400,
+  //         serviceCharge: 2700,
+  //         total: 45000
+  //       }
+  //     },
+  //     {
+  //       id: 3,
+  //       bookingNumber: "BK2024008",
+  //       roomTitle: "Garden Villa",
+  //       roomNumber: "GV1",
+  //       checkIn: "2024-12-20",
+  //       checkOut: "2024-12-25",
+  //       guests: 4,
+  //       totalPrice: 110000,
+  //       status: "Completed",
+  //       paymentStatus: "completed",
+  //       paymentMethod: "card",
+  //       specialRequests: "Anniversary celebration setup",
+  //       createdAt: "2024-12-15T14:20:00Z",
+  //       costBreakdown: {
+  //         nights: 5,
+  //         roomCost: 90200,
+  //         taxes: 13200,
+  //         serviceCharge: 6600,
+  //         total: 110000
+  //       }
+  //     },
+  //     {
+  //       id: 5,
+  //       bookingNumber: "BK2024012",
+  //       roomTitle: "Executive Business Room",
+  //       roomNumber: "301",
+  //       checkIn: "2024-11-10",
+  //       checkOut: "2024-11-12",
+  //       guests: 1,
+  //       totalPrice: 17000,
+  //       status: "Confirmed",
+  //       paymentStatus: "completed",
+  //       paymentMethod: "card",
+  //       specialRequests: "High floor preferred",
+  //       createdAt: "2024-11-05T09:15:00Z",
+  //       costBreakdown: {
+  //         nights: 2,
+  //         roomCost: 13940,
+  //         taxes: 2040,
+  //         serviceCharge: 1020,
+  //         total: 17000
+  //       }
+  //     }
+  //   ];
+  // };
 
   const generateReceipt = (booking) => {
     const receiptData = {
       // Hotel Information
-      hotelName: " Jeyanash Valdore Hotel & Resort",
+      hotelName: "  Valdore HMS",
       hotelAddress: "Punnalakadduvan, Jaffna 03, Sri Lanka",
-      hotelPhone: "+94 11 234 5678",
+      hotelPhone: "+94 77 234 5678",
       hotelEmail: "reservations@valdorehotel.lk",
       hotelWebsite: "www.valdorehotel.lk",
 

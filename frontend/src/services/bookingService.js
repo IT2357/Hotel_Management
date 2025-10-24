@@ -124,6 +124,22 @@ const bookingService = {
       console.error('Error fetching user booking stats:', error);
       throw error;
     }
+  },
+
+  // Get bookings that are pending review (completed bookings without reviews)
+  getPendingReviewBookings: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams({
+        page: filters.page || 1,
+        limit: filters.limit || 10
+      });
+
+      const response = await api.get(`/bookings/for-review?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching pending review bookings:', error);
+      throw error;
+    }
   }
 };
 
