@@ -19,14 +19,25 @@ export const createPreCheckInRecord = async (bookingId) => {
       throw new Error('Booking not found');
     }
 
-    // Check if pre-check-in record already exists
+    // Don't create pre-check-in for completed or cancelled bookings
+    if (booking.status === 'Completed' || booking.status === 'Cancelled') {
+      console.log('⚠️ Booking status is', booking.status, '- not creating pre-check-in record');
+      return null;
+    }
+
+    // Check if check-in record already exists (including checked_out to prevent duplicate creation)
     const existingRecord = await CheckInOut.findOne({
       booking: bookingId,
-      status: { $in: ['pre_checkin', 'checked_in'] }
+      status: { $in: ['pre_checkin', 'checked_in', 'checked_out'] }
     });
 
     if (existingRecord) {
-      console.log('⚠️ Pre-check-in record already exists for booking:', bookingId);
+      console.log('⚠️ Check-in record already exists for booking:', bookingId, 'with status:', existingRecord.status);
+      // Only return the record if it's not checked_out (to prevent reusing completed stays)
+      if (existingRecord.status === 'checked_out') {
+        console.log('⚠️ Booking already has a completed check-out record. Not creating new pre-check-in.');
+        return null; // Return null to indicate the booking is already completed
+      }
       return existingRecord;
     }
 
@@ -457,17 +468,17 @@ export const getEligibleBookingsForGuest = async (req, res) => {
       return res.status(200).json([]);
     }
 
-    // Filter out bookings that already have an active check-in
+    // Filter out bookings that already have an active check-in OR checked out
     const bookingIds = confirmedBookings.map(b => b._id);
-    const activeCheckIns = await CheckInOut.find({
+    const allCheckIns = await CheckInOut.find({
       booking: { $in: bookingIds },
-      status: { $in: ['pre_checkin', 'checked_in'] },
+      status: { $in: ['pre_checkin', 'checked_in', 'checked_out'] },
     }).select('booking status');
 
     // Build maps for quick lookup of status and pre_checkin id
     const statusByBookingId = new Map();
     const preCheckInIdByBookingId = new Map();
-    for (const ci of activeCheckIns) {
+    for (const ci of allCheckIns) {
       const key = ci.booking.toString();
       statusByBookingId.set(key, ci.status);
       if (ci.status === 'pre_checkin') {
@@ -475,8 +486,17 @@ export const getEligibleBookingsForGuest = async (req, res) => {
       }
     }
 
+    // Only show bookings that:
+    // - Have no check-in record at all, OR
+    // - Have a pre_checkin record (guest can complete check-in)
+    // Do NOT show bookings with checked_in or checked_out records
     const eligible = confirmedBookings
-      .filter(b => !statusByBookingId.has(b._id.toString()) || statusByBookingId.get(b._id.toString()) === 'pre_checkin')
+      .filter(b => {
+        const bookingIdStr = b._id.toString();
+        const status = statusByBookingId.get(bookingIdStr);
+        // Include if: no record OR has pre_checkin only
+        return !status || status === 'pre_checkin';
+      })
       .map(b => ({
         id: b._id,
         bookingNumber: b.bookingNumber,
@@ -576,13 +596,19 @@ export const getGuestCheckInStatus = async (req, res) => {
       .populate('room', 'roomNumber type basePrice floor') // Added basePrice for overstay charge calculation
       .populate('booking', 'checkIn checkOut bookingNumber status')
       .populate('keyCard', 'cardNumber status expirationDate')
-      .sort({ checkInTime: -1 });
+      .sort({ checkInTime: -1, createdAt: -1 }); // Sort by checkInTime first, then creation time
 
     console.log('📊 Backend: Found check-in record:', checkInStatus ? checkInStatus._id : 'None found');
     console.log('📊 Backend: Record status:', checkInStatus?.status);
 
     if (!checkInStatus) {
       console.log('❌ Backend: No active check-in found for guest:', guestId);
+      return res.status(404).json({ message: 'No active check-in found' });
+    }
+
+    // Additional validation: Ensure the booking is not Completed
+    if (checkInStatus.booking && checkInStatus.booking.status === 'Completed') {
+      console.log('⚠️ Backend: Check-in record found but booking is Completed. Treating as no active check-in.');
       return res.status(404).json({ message: 'No active check-in found' });
     }
 

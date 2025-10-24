@@ -371,38 +371,57 @@ class BookingService {
       // Determine booking status based on payment method and settings
       let finalStatus = bookingData.status || 'Pending Approval'; // Respect status passed from controller
       
-      // Check settings for approval requirements
+      // Check settings for approval requirements (support both new root-level and old nested fields)
       const bookingSettings = settings && settings.bookingSettings ? settings.bookingSettings : {};
+      
+      // New root-level fields (preferred)
+      const cashApprovalRequired = settings?.cashPaymentApprovalRequired ?? bookingSettings.requireCashApproval ?? true;
+      const bankApprovalRequired = settings?.bankTransferApprovalRequired ?? bookingSettings.requireBankApproval ?? true;
+      const cardApprovalRequired = settings?.cardPaymentApprovalRequired ?? bookingSettings.requireCardApproval ?? false;
+      
+      // Global override
+      const requireApprovalForAll = settings?.requireApprovalForAllBookings ?? false;
       
       console.log('🔍 Booking creation debug:', {
         paymentMethod: bookingData.paymentMethod,
         initialStatus: bookingData.status,
         finalStatusBeforeLogic: finalStatus,
         settingsExist: !!settings,
-        bookingSettings: bookingSettings,
-        oldRequireApproval: settings ? settings.requireApprovalForAllBookings : 'undefined'
+        approvalSettings: {
+          cashApprovalRequired,
+          bankApprovalRequired,
+          cardApprovalRequired,
+          requireApprovalForAll
+        }
       });
       
-      // Always require admin approval for cash payments - this overrides all other settings
-      if (bookingData.paymentMethod === 'cash') {
+      // Global override: if requireApprovalForAllBookings is true, everything needs approval
+      if (requireApprovalForAll) {
         finalStatus = 'Pending Approval';
-        console.log('💰 Cash payment detected - FORCED Pending Approval status');
+        console.log('🔒 Require approval for all bookings enabled - FORCED Pending Approval status');
+      }
+      // Check payment method specific approval requirements
+      else if (bookingData.paymentMethod === 'cash') {
+        finalStatus = cashApprovalRequired ? 'Pending Approval' : 'Confirmed';
+        console.log(`💰 Cash payment - Approval ${cashApprovalRequired ? 'REQUIRED' : 'NOT required'}`);
       } else if (bookingData.paymentMethod === 'bank') {
-        // For bank transfers, check if approval is required
-        finalStatus = bookingSettings.requireBankApproval !== false ? 'Pending Approval' : 'Confirmed';
-        console.log(`🏦 Bank payment, approval required: ${bookingSettings.requireBankApproval !== false}`);
+        finalStatus = bankApprovalRequired ? 'Pending Approval' : 'Confirmed';
+        console.log(`🏦 Bank payment - Approval ${bankApprovalRequired ? 'REQUIRED' : 'NOT required'}`);
       } else if (bookingData.paymentMethod === 'card' || bookingData.paymentMethod === 'paypal') {
-        // For card payments, check auto-approval settings
-        if (bookingSettings.autoApprovalEnabled && bookingSettings.requireCardApproval === false && 
-            costBreakdown.total <= (bookingSettings.autoApprovalThreshold || 0)) {
-          finalStatus = 'Confirmed';
-          console.log('💳 Card payment auto-approved');
-        } else if (bookingSettings.requireCardApproval) {
+        // For card payments, check card approval setting
+        if (cardApprovalRequired) {
           finalStatus = 'Pending Approval';
-          console.log('💳 Card payment requires approval');
+          console.log('💳 Card payment - Approval REQUIRED');
         } else {
-          finalStatus = 'Confirmed'; // Default to confirmed for card payments
-          console.log('💳 Card payment default to confirmed');
+          // Check auto-approval threshold if enabled
+          if (bookingSettings.autoApprovalEnabled && 
+              costBreakdown.total <= (bookingSettings.autoApprovalThreshold || Infinity)) {
+            finalStatus = 'Confirmed';
+            console.log(`💳 Card payment - Auto-approved (amount ${costBreakdown.total} <= threshold ${bookingSettings.autoApprovalThreshold})`);
+          } else {
+            finalStatus = 'Confirmed'; // Default: card payments are auto-confirmed
+            console.log('💳 Card payment - Auto-confirmed (default)');
+          }
         }
       }
       

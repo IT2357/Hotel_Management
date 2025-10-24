@@ -77,7 +77,7 @@ const initializeTransporter = async (forceReinitialize = false) => {
       }
 
       // Remove auth if credentials are not provided
-      if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
+      if (!smtpConfig.auth?.user || !smtpConfig.auth?.pass) {
         console.warn("⚠️ SMTP credentials not provided, email sending will be disabled");
         smtpConfig.auth = undefined;
       }

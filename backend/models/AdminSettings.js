@@ -37,6 +37,13 @@ try {
 
 const adminSettingsSchema = new mongoose.Schema(
   {
+    // Singleton guard key to ensure only one document exists logically
+    singletonKey: {
+      type: String,
+      default: "ADMIN_SETTINGS",
+      immutable: true,
+      index: true,
+    },
     siteName: { type: String, default: "Hotel Management System", trim: true },
     hotelName: { type: String, default: "Grand Hotel", trim: true },
     description: {
@@ -180,12 +187,211 @@ const adminSettingsSchema = new mongoose.Schema(
     
     // Social Authentication Settings
     googleClientId: { type: String, default: "", trim: true },
-    googleClientSecret: { type: String, default: "", trim: true },
+    googleClientSecret: {
+      type: String,
+      default: "",
+      set: function(value) {
+        if (!value) {
+          console.log("googleClientSecret is empty, skipping encryption");
+          return "";
+        }
+        
+        // If the value is already in the encrypted format, return as-is
+        if (value.includes(':')) {
+          console.log("Value appears to be already encrypted, skipping re-encryption");
+          return value;
+        }
+        
+        try {
+          console.log("🔒 Encrypting Google Client Secret...");
+          
+          if (!encryptionKey) {
+            throw new Error("ENCRYPTION_KEY is not defined");
+          }
+          
+          const keyBuffer = Buffer.from(encryptionKey, "hex");
+          if (keyBuffer.length !== 32) {
+            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
+          }
+          
+          const iv = crypto.randomBytes(16);
+          const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
+          
+          let encrypted = cipher.update(value, 'utf8', 'hex');
+          encrypted += cipher.final('hex');
+          
+          const result = `${iv.toString('hex')}:${encrypted}`;
+          console.log("✅ Google Client Secret encrypted successfully");
+          return result;
+          
+        } catch (error) {
+          console.error("❌ Failed to encrypt Google Client Secret:", error.message);
+          return value;
+        }
+      },
+      get: function(value) {
+        if (!value) {
+          console.log("googleClientSecret is empty, skipping decryption");
+          return "";
+        }
+        
+        // If the value doesn't contain a colon, it's likely not encrypted
+        if (!value.includes(':')) {
+          console.log("Value doesn't appear to be encrypted, returning as-is");
+          return value;
+        }
+        
+        try {
+          if (!encryptionKey) {
+            throw new Error("ENCRYPTION_KEY is not defined");
+          }
+          
+          const keyBuffer = Buffer.from(encryptionKey, "hex");
+          if (keyBuffer.length !== 32) {
+            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
+          }
+          
+          const parts = value.split(':');
+          if (parts.length !== 2) {
+            throw new Error("Invalid encrypted format: expected 'iv:encryptedData'");
+          }
+          
+          const iv = Buffer.from(parts[0], 'hex');
+          const encrypted = parts[1];
+          
+          if (iv.length !== 16) {
+            throw new Error(`Invalid IV length: expected 16 bytes, got ${iv.length} bytes`);
+          }
+          
+          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+          decipher.setAutoPadding(true);
+          
+          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+          try {
+            decrypted += decipher.final('utf8');
+          } catch (finalError) {
+            console.error("Error during final decryption:", finalError.message);
+            throw new Error("Failed to finalize decryption - incorrect key or corrupted data");
+          }
+          
+          console.log("🔓 Google Client Secret decrypted successfully");
+          return decrypted;
+          
+        } catch (error) {
+          console.error("❌ Decryption failed for googleClientSecret:", error.message);
+          return "";
+        }
+      }
+    },
     facebookAppId: { type: String, default: "", trim: true },
-    facebookAppSecret: { type: String, default: "", trim: true },
+    facebookAppSecret: {
+      type: String,
+      default: "",
+      set: function(value) {
+        if (!value) {
+          console.log("facebookAppSecret is empty, skipping encryption");
+          return "";
+        }
+        
+        // If the value is already in the encrypted format, return as-is
+        if (value.includes(':')) {
+          console.log("Value appears to be already encrypted, skipping re-encryption");
+          return value;
+        }
+        
+        try {
+          console.log("🔒 Encrypting Facebook App Secret...");
+          
+          if (!encryptionKey) {
+            throw new Error("ENCRYPTION_KEY is not defined");
+          }
+          
+          const keyBuffer = Buffer.from(encryptionKey, "hex");
+          if (keyBuffer.length !== 32) {
+            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
+          }
+          
+          const iv = crypto.randomBytes(16);
+          const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
+          
+          let encrypted = cipher.update(value, 'utf8', 'hex');
+          encrypted += cipher.final('hex');
+          
+          const result = `${iv.toString('hex')}:${encrypted}`;
+          console.log("✅ Facebook App Secret encrypted successfully");
+          return result;
+          
+        } catch (error) {
+          console.error("❌ Failed to encrypt Facebook App Secret:", error.message);
+          return value;
+        }
+      },
+      get: function(value) {
+        if (!value) {
+          console.log("facebookAppSecret is empty, skipping decryption");
+          return "";
+        }
+        
+        // If the value doesn't contain a colon, it's likely not encrypted
+        if (!value.includes(':')) {
+          console.log("Value doesn't appear to be encrypted, returning as-is");
+          return value;
+        }
+        
+        try {
+          if (!encryptionKey) {
+            throw new Error("ENCRYPTION_KEY is not defined");
+          }
+          
+          const keyBuffer = Buffer.from(encryptionKey, "hex");
+          if (keyBuffer.length !== 32) {
+            throw new Error(`ENCRYPTION_KEY must be 32 bytes, got ${keyBuffer.length} bytes`);
+          }
+          
+          const parts = value.split(':');
+          if (parts.length !== 2) {
+            throw new Error("Invalid encrypted format: expected 'iv:encryptedData'");
+          }
+          
+          const iv = Buffer.from(parts[0], 'hex');
+          const encrypted = parts[1];
+          
+          if (iv.length !== 16) {
+            throw new Error(`Invalid IV length: expected 16 bytes, got ${iv.length} bytes`);
+          }
+          
+          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+          decipher.setAutoPadding(true);
+          
+          let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+          try {
+            decrypted += decipher.final('utf8');
+          } catch (finalError) {
+            console.error("Error during final decryption:", finalError.message);
+            throw new Error("Failed to finalize decryption - incorrect key or corrupted data");
+          }
+          
+          console.log("🔓 Facebook App Secret decrypted successfully");
+          return decrypted;
+          
+        } catch (error) {
+          console.error("❌ Decryption failed for facebookAppSecret:", error.message);
+          return "";
+        }
+      }
+    },
     enableGoogleAuth: { type: Boolean, default: false },
     enableFacebookAuth: { type: Boolean, default: false },
     enableSocialRegistration: { type: Boolean, default: true },
+    
+    // Payment Approval Settings (root level for backward compatibility)
+    cashPaymentApprovalRequired: { type: Boolean, default: true },
+    bankTransferApprovalRequired: { type: Boolean, default: true },
+    cardPaymentApprovalRequired: { type: Boolean, default: false },
+    allowGuestBookingModifications: { type: Boolean, default: true },
+    showApprovalStatusToGuests: { type: Boolean, default: true },
+    enableBookingReminders: { type: Boolean, default: true },
+    reminderHoursBeforeCheckIn: { type: Number, default: 48, min: 1, max: 168 },
     
     enableEmailNotifications: { type: Boolean, default: true },
     autoApprovalThreshold: { type: Number, default: 5000, min: 0 }, // Auto-approve bookings below this amount
@@ -197,6 +403,8 @@ const adminSettingsSchema = new mongoose.Schema(
     sessionTimeout: { type: Number, default: 30, min: 5, max: 120 },
     maxLoginAttempts: { type: Number, default: 5, min: 3, max: 10 },
     twoFactorRequired: { type: Boolean, default: false },
+  // Whether to enforce session inactivity timeout (in addition to JWT exp)
+  enforceSessionInactivity: { type: Boolean, default: false },
     allowGuestBooking: { type: Boolean, default: true },
     requireApprovalForAllBookings: { type: Boolean, default: false },
     maxAdvanceBooking: { type: Number, default: 365, min: 1, max: 730 },
@@ -301,6 +509,9 @@ const adminSettingsSchema = new mongoose.Schema(
       },
       webhookSecret: { type: String, default: "", trim: true },
       testMode: { type: Boolean, default: true },
+      returnUrl: { type: String, default: "", trim: true },
+      cancelUrl: { type: String, default: "", trim: true },
+      notifyUrl: { type: String, default: "", trim: true },
       supportedCurrencies: [{ type: String, default: ["USD", "EUR", "GBP"] }],
       autoCapture: { type: Boolean, default: true },
       refundPolicy: { type: String, default: "full", enum: ["full", "partial", "none"] }

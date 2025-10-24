@@ -155,6 +155,8 @@ export default function AdminBookingsPage() {
           totalPages: pagination.totalPages || 1,
           totalBookings: pagination.total || 0
         });
+        // Return fetched data so callers can use it to sync nested modal state
+        return { bookings, pagination };
       } else {
         console.error('API returned success:false', data);
         throw new Error(data.message || 'Failed to fetch bookings');
@@ -201,7 +203,12 @@ export default function AdminBookingsPage() {
         setAlert({ type: 'success', message: 'Hold released successfully' });
         // Refresh both lists
         fetchHeldBookings();
-        fetchBookings();
+        const refreshed = await fetchBookings();
+        // If details modal is open for this booking, update it in-place
+        if (showDetailsModal && selectedBooking?._id === bookingId) {
+          const updated = refreshed?.bookings?.find(b => b._id === bookingId);
+          if (updated) setSelectedBooking(updated);
+        }
       } else {
         setAlert({ type: 'error', message: data.message || 'Failed to release hold' });
       }
@@ -381,8 +388,14 @@ export default function AdminBookingsPage() {
       const data = await response.json();
       if (data.success) {
         setAlert({ type: 'success', message: `Booking ${newStatus.toLowerCase()} successfully` });
-        fetchBookings();
+        // Close the action modal first to avoid overlay issues
         closeActionModal();
+        // Refresh list and sync the open details modal if needed
+        const refreshed = await fetchBookings();
+        if (showDetailsModal && selectedBooking?._id === bookingId) {
+          const updated = refreshed?.bookings?.find(b => b._id === bookingId);
+          if (updated) setSelectedBooking(updated);
+        }
       } else {
         setAlert({ type: 'error', message: data.message || 'Failed to update booking status' });
       }
@@ -483,8 +496,13 @@ export default function AdminBookingsPage() {
       if (data.success) {
         setAlert({ type: 'success', message: `Bulk action completed successfully` });
         setSelectedBookings([]);
-        fetchBookings();
         closeBulkModal();
+        const refreshed = await fetchBookings();
+        // If details modal is open and selected booking is in the affected list, update it
+        if (showDetailsModal && selectedBooking) {
+          const updated = refreshed?.bookings?.find(b => b._id === selectedBooking._id);
+          if (updated) setSelectedBooking(updated);
+        }
       } else {
         setAlert({ type: 'error', message: data.message || 'Failed to perform bulk action' });
       }
@@ -622,9 +640,10 @@ export default function AdminBookingsPage() {
           </div>
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200 shadow-sm">
             <div className="flex items-center justify-between">
-              <div>
+              {/* Prevent long currency text from overflowing */}
+              <div className="min-w-0">
                 <p className="text-purple-600 text-sm font-medium">Revenue</p>
-                <p className="text-2xl font-bold text-purple-900">{stats.revenue}</p>
+                <p className="text-2xl font-bold text-purple-900 truncate" title={stats.revenue}>{stats.revenue}</p>
               </div>
               <div className="p-3 bg-purple-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

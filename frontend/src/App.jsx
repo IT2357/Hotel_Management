@@ -39,6 +39,10 @@ import RoomsPage from './pages/guest/RoomsPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import MyBookings from './pages/guest/MyBookings.jsx';
 import BookingReceipts from './pages/guest/BookingReceipts.jsx';
+import BookingSuccess from './pages/guest/BookingSuccess.jsx';
+import BookingCancelled from './pages/guest/BookingCancelled.jsx';
+import PaymentSuccessPage from './pages/PaymentSuccessPage.jsx';
+import PaymentCancelPage from './pages/PaymentCancelPage.jsx';
 import MyReviews from './pages/guest/MyReviews.jsx';
 import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
 import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx';
@@ -135,6 +139,11 @@ const AppContent = () => {
                           <Route path="/booking" element={wrapWithTransition(<GuestBookingFlow />)} />
                           <Route path="/booking/guest" element={wrapWithTransition(<GuestBookingFlow />)} />
                           <Route path="/rooms" element={wrapWithTransition(<RoomsPage />)} />
+                          
+                          {/* Payment Routes */}
+                          <Route path="/payment/success" element={wrapWithTransition(<PaymentSuccessPage />)} />
+                          <Route path="/payment/cancel" element={wrapWithTransition(<PaymentCancelPage />)} />
+                          
                           <Route path="/about" element={wrapWithTransition(<About />)} />
                           <Route path="/contact" element={wrapWithTransition(<Contact />)} />
                           <Route path="/menu" element={wrapWithTransition(<GuestMenuPage />)} />
@@ -214,6 +223,29 @@ const AppContent = () => {
                             <ProtectedRoute roles={['guest']}>
                               <GuestLayout>
                                 <BookingReceipts />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
+
+                        {/* PayHere return URLs */}
+                        <Route
+                          path="/booking/success"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <BookingSuccess />
+                              </GuestLayout>
+                            </ProtectedRoute>
+                          )}
+                        />
+
+                        <Route
+                          path="/booking/cancelled"
+                          element={wrapWithTransition(
+                            <ProtectedRoute roles={['guest']}>
+                              <GuestLayout>
+                                <BookingCancelled />
                               </GuestLayout>
                             </ProtectedRoute>
                           )}

@@ -46,18 +46,19 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
     const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+    // Inactivity timeout enforcement is controlled by admin settings (with env fallback)
     const settings = await getSettings();
-    
-    // Check session timeout based on settings
-    const sessionTimeoutMs = (settings?.sessionTimeout || 30) * 60 * 1000;
-    const tokenAge = Date.now() - (decoded.iat * 1000);
-    
-    if (tokenAge > sessionTimeoutMs) {
-      return res.status(401).json({
-        success: false,
-        message: "Session expired due to inactivity",
-        sessionExpired: true
-      });
+    const enforceInactivity = settings?.enforceSessionInactivity === true || process.env.ENFORCE_SESSION_INACTIVITY === "true";
+    if (enforceInactivity) {
+      const sessionTimeoutMs = (settings?.sessionTimeout || 30) * 60 * 1000;
+      const tokenAge = Date.now() - (decoded.iat * 1000);
+      if (tokenAge > sessionTimeoutMs) {
+        return res.status(401).json({
+          success: false,
+          message: "Session expired due to inactivity",
+          sessionExpired: true
+        });
+      }
     }
     
     const user = await User.findById(decoded.userId).select(

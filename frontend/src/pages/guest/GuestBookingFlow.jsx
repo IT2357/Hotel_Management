@@ -893,75 +893,26 @@ const GuestBookingFlow = () => {
               </div>
             )}
             {paymentData.paymentMethod === 'card' && (
-              <div className="space-y-4 border-t pt-4">
-                <h4 className="font-semibold">Card Details</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="cardNumber">Card Number</Label>
-                    <Input
-                      id="cardNumber"
-                      placeholder="1234 5678 9012 3456"
-                      value={paymentData.cardNumber}
-                      onChange={(e) => setPaymentData({ ...paymentData, cardNumber: e.target.value })}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 text-green-600 mt-0.5">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </div>
-                  <div>
-                    <Label htmlFor="cardholderName">Cardholder Name</Label>
-                    <Input
-                      id="cardholderName"
-                      placeholder="John Doe"
-                      value={paymentData.cardholderName}
-                      onChange={(e) => setPaymentData({ ...paymentData, cardholderName: e.target.value })}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="expiryMonth">Expiry Date</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Select
-                        id="expiryMonth"
-                        value={paymentData.expiryMonth}
-                        onChange={(e) => setPaymentData({ ...paymentData, expiryMonth: e.target.value })}
-                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                      >
-                        <option value="">MM</option>
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const month = i + 1;
-                          return (
-                            <option key={month} value={month.toString().padStart(2, '0')}>
-                              {month.toString().padStart(2, '0')}
-                            </option>
-                          );
-                        })}
-                      </Select>
-                      <Select
-                        id="expiryYear"
-                        value={paymentData.expiryYear}
-                        onChange={(e) => setPaymentData({ ...paymentData, expiryYear: e.target.value })}
-                        className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                      >
-                        <option value="">YY</option>
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const year = new Date().getFullYear() + i;
-                          return (
-                            <option key={year} value={year.toString().slice(-2)}>
-                              {year.toString().slice(-2)}
-                            </option>
-                          );
-                        })}
-                      </Select>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-800 mb-1">Secure Payment via PayHere</h4>
+                    <p className="text-sm text-green-700 mb-3">
+                      You will be redirected to PayHere's secure payment gateway to complete your payment. Your booking will be confirmed immediately after successful payment.
+                    </p>
+                    <div className="bg-white/60 p-3 rounded border border-green-300">
+                      <p className="text-xs font-semibold text-green-900 mb-2">✅ Accepted Cards:</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded font-medium">VISA</span>
+                        <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded font-medium">MASTERCARD</span>
+                        <span className="px-2 py-1 bg-blue-800 text-white text-xs rounded font-medium">AMEX</span>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="123"
-                      value={paymentData.cvv}
-                      onChange={(e) => setPaymentData({ ...paymentData, cvv: e.target.value })}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
                   </div>
                 </div>
               </div>
@@ -1007,18 +958,13 @@ const GuestBookingFlow = () => {
             // Only disable if booking is confirmed AND payment method is card/bank (not cash)
             (bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
             (bookingResult?.status === 'Approved - Payment Processing') ||
-            (paymentData.paymentMethod === 'card' &&
-              (!paymentData.cardNumber ||
-                !paymentData.cardholderName ||
-                !paymentData.expiryMonth ||
-                !paymentData.expiryYear ||
-                !paymentData.cvv)) ||
-            (paymentData.paymentMethod === 'bank' && !paymentData.bankDetails) ||
-            (paymentData.paymentMethod === 'cash' && false) // Cash payment doesn't require additional fields
+            (paymentData.paymentMethod === 'bank' && !paymentData.bankDetails)
           }
           className="px-8 py-3"
         >
-          {processingPayment ? 'Processing...' : paymentData.paymentMethod === 'cash' ? 'Submit Booking Request' : 'Complete Payment'}
+          {processingPayment ? 'Processing...' : 
+           paymentData.paymentMethod === 'cash' ? 'Submit Booking Request' : 
+           paymentData.paymentMethod === 'card' ? 'Proceed to PayHere Payment' : 'Complete Payment'}
         </Button>
         {/* Debug info - remove in production */}
         <div className="mt-4 p-4 bg-gray-100 rounded text-sm">
@@ -1258,8 +1204,27 @@ const GuestBookingFlow = () => {
 
     if (data.data && data.data.success) {
       console.log('Payment processed successfully, updating booking result:', data.data.data);
-      setBookingResult(data.data.data);
-      setStep(6);
+      
+      // For card payments, submit to PayHere
+      if (paymentData.paymentMethod === 'card' && data.data.data.paymentSession) {
+        console.log('Card payment detected - redirecting to PayHere with session:', data.data.data.paymentSession);
+        
+        // Store booking info for potential return
+        sessionStorage.setItem('pendingPaymentBooking', JSON.stringify({
+          bookingNumber: bookingResult.bookingNumber,
+          totalAmount: data.data.data.amount
+        }));
+        
+        // Submit to PayHere (this will redirect the page)
+        await paymentService.submitToPayHere(data.data.data.paymentSession);
+        
+        // Note: User will be redirected to PayHere, so we won't reach here
+        // The return URL will handle the post-payment flow
+      } else {
+        // For cash/bank payments, update booking result and show confirmation
+        setBookingResult(data.data.data);
+        setStep(6);
+      }
     } else {
       console.error('Payment failed:', data);
       window.alert(data.data?.message || data.message || 'Payment update failed.');

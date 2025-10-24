@@ -284,12 +284,6 @@ const IntegratedBookingFlow = ({
         paymentData: paymentData
       });
 
-      // Check if payment is already being processed or completed
-      if ((bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
-          bookingResult?.status === 'Approved - Payment Processing') {
-        throw new Error('Payment is already being processed or has been completed for this booking.');
-      }
-
       // Use the payment service to process booking payment
       const data = await paymentService.processBookingPayment(bookingResult.bookingNumber, {
         paymentMethod: paymentData.paymentMethod
@@ -299,13 +293,31 @@ const IntegratedBookingFlow = ({
 
       if (data.data && data.data.success) {
         console.log('Payment processed successfully, updating booking result:', data.data.data);
-        // Update booking result with payment method for consistent display
-        const updatedBookingResult = {
-          ...data.data.data,
-          paymentMethod: paymentData.paymentMethod
-        };
-        setBookingResult(updatedBookingResult);
-        setStep(6); // Move to confirmation step
+        
+        // For card payments, submit to PayHere
+        if (paymentData.paymentMethod === 'card' && data.data.data.paymentSession) {
+          console.log('Card payment detected - redirecting to PayHere with session:', data.data.data.paymentSession);
+          
+          // Store booking info for potential return
+          sessionStorage.setItem('pendingPaymentBooking', JSON.stringify({
+            bookingNumber: bookingResult.bookingNumber,
+            totalAmount: calculateTotalCost().total
+          }));
+          
+          // Submit to PayHere (this will redirect the page)
+          await paymentService.submitToPayHere(data.data.data.paymentSession);
+          
+          // Note: User will be redirected to PayHere, so we won't reach here
+          // The return URL will handle the post-payment flow
+        } else {
+          // For cash/bank payments, update booking result and show confirmation
+          const updatedBookingResult = {
+            ...data.data.data,
+            paymentMethod: paymentData.paymentMethod
+          };
+          setBookingResult(updatedBookingResult);
+          setStep(6); // Move to confirmation step
+        }
       } else {
         console.error('Payment failed:', data);
         window.alert(data.data?.message || data.message || 'Payment update failed.');
@@ -313,10 +325,15 @@ const IntegratedBookingFlow = ({
     } catch (error) {
       console.error('Payment processing failed:', error);
       
+      // Extract backend error message if available
+      const backendError = error.response?.data?.message || error.response?.data?.error;
+      
       // Provide more specific error messages
       let errorMessage = 'Payment processing failed. Please try again.';
       
-      if (error.message.includes('No booking found')) {
+      if (backendError) {
+        errorMessage = `Payment failed: ${backendError}`;
+      } else if (error.message.includes('No booking found')) {
         errorMessage = 'No booking found to process payment. Please try creating the booking again.';
       } else if (error.message.includes('service') || error.message.includes('available')) {
         errorMessage = 'Payment service is temporarily unavailable. Please try again later.';
@@ -782,11 +799,19 @@ const IntegratedBookingFlow = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-green-800 mb-1">Instant Confirmation</h4>
-                    <p className="text-sm text-green-700">
-                      Your booking will be confirmed immediately after successful payment processing.
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-800 mb-1">Secure Payment via PayHere</h4>
+                    <p className="text-sm text-green-700 mb-3">
+                      You will be redirected to PayHere's secure payment gateway to complete your payment. Your booking will be confirmed immediately after successful payment.
                     </p>
+                    <div className="bg-white/60 p-3 rounded border border-green-300">
+                      <p className="text-xs font-semibold text-green-900 mb-2">✅ Accepted Cards:</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded font-medium">VISA</span>
+                        <span className="px-2 py-1 bg-orange-600 text-white text-xs rounded font-medium">MASTERCARD</span>
+                        <span className="px-2 py-1 bg-blue-800 text-white text-xs rounded font-medium">AMEX</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -823,80 +848,6 @@ const IntegratedBookingFlow = ({
                     <p className="text-sm text-blue-700">
                       Your booking requires admin approval. Pay the full amount at the hotel reception upon arrival.
                     </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Card Details Form */}
-            {paymentData.paymentMethod === 'card' && (
-              <div className="space-y-4 border-t pt-4">
-                <h4 className="font-semibold">Card Details</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="cardNumber" className="text-sm font-medium mb-1 block">Card Number</Label>
-                    <Input
-                      id="cardNumber"
-                      placeholder="1234 5678 9012 3456"
-                      value={paymentData.cardNumber}
-                      onChange={(e) => handlePaymentChange('cardNumber', e.target.value)}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cardholderName" className="text-sm font-medium mb-1 block">Cardholder Name</Label>
-                    <Input
-                      id="cardholderName"
-                      placeholder="John Doe"
-                      value={paymentData.cardholderName}
-                      onChange={(e) => handlePaymentChange('cardholderName', e.target.value)}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium mb-1 block">Expiry Date</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={paymentData.expiryMonth}
-                        onChange={(e) => handlePaymentChange('expiryMonth', e.target.value)}
-                        className="p-2 border rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                      >
-                        <option value="">MM</option>
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const month = i + 1;
-                          return (
-                            <option key={month} value={month.toString().padStart(2, '0')}>
-                              {month.toString().padStart(2, '0')}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <select
-                        value={paymentData.expiryYear}
-                        onChange={(e) => handlePaymentChange('expiryYear', e.target.value)}
-                        className="p-2 border rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                      >
-                        <option value="">YY</option>
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const year = new Date().getFullYear() + i;
-                          return (
-                            <option key={year} value={year.toString().slice(-2)}>
-                              {year.toString().slice(-2)}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="cvv" className="text-sm font-medium mb-1 block">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="123"
-                      value={paymentData.cvv}
-                      onChange={(e) => handlePaymentChange('cvv', e.target.value)}
-                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
-                    />
                   </div>
                 </div>
               </div>
@@ -944,21 +895,13 @@ const IntegratedBookingFlow = ({
           onClick={processPayment}
           disabled={
             processingPayment ||
-            !paymentData.paymentMethod ||
-            (bookingResult?.status === 'Confirmed' && paymentData.paymentMethod !== 'cash') ||
-            (bookingResult?.status === 'Approved - Payment Processing') ||
-            (paymentData.paymentMethod === 'card' &&
-              (!paymentData.cardNumber ||
-                !paymentData.cardholderName ||
-                !paymentData.expiryMonth ||
-                !paymentData.expiryYear ||
-                !paymentData.cvv)) ||
             (paymentData.paymentMethod === 'bank' && !paymentData.bankDetails)
           }
           className="px-8 py-3 bg-primary hover:bg-primary/90"
         >
           {processingPayment ? 'Processing...' : 
-           paymentData.paymentMethod === 'cash' ? 'Submit Booking Request' : 'Complete Payment'}
+           paymentData.paymentMethod === 'cash' ? 'Submit Booking Request' : 
+           paymentData.paymentMethod === 'card' ? 'Proceed to PayHere Payment' : 'Complete Payment'}
         </Button>
       </div>
     </div>

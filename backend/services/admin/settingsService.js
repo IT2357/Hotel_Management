@@ -11,11 +11,22 @@ const settingsService = {
       if (mongoose.connection.readyState !== 1) {
         throw new Error("MongoDB connection not ready");
       }
-      let settings = await AdminSettings.findOne().lean();
-      if (!settings) {
-        settings = await AdminSettings.create({});
+      // Ensure singleton: keep newest, remove older duplicates
+      const all = await AdminSettings.find({}).sort({ updatedAt: -1 });
+      let doc;
+      if (all.length === 0) {
+        doc = await AdminSettings.create({ singletonKey: "ADMIN_SETTINGS" });
+      } else {
+        doc = all[0];
+        if (all.length > 1) {
+          const toDelete = all.slice(1).map((d) => d._id);
+          if (toDelete.length) {
+            await AdminSettings.deleteMany({ _id: { $in: toDelete } });
+            console.warn(`AdminSettings singleton cleanup: removed ${toDelete.length} duplicates`);
+          }
+        }
       }
-      return settings;
+      return doc.toObject();
     } catch (error) {
       console.error("Error fetching admin settings:", {
         message: error.message,
@@ -60,11 +71,27 @@ const settingsService = {
         "smsAccountSid",
         "smsAuthToken",
         "smsPhoneNumber",
+        
+        // Social Authentication settings
+        "googleClientId",
+        "googleClientSecret",
+        "facebookAppId",
+        "facebookAppSecret",
         "enableGoogleAuth",
         "enableFacebookAuth",
         "enableSocialRegistration",
+        
         "autoApprovalThreshold",
         "approvalTimeoutHours",
+        
+        // Payment approval settings (root level)
+        "cashPaymentApprovalRequired",
+        "bankTransferApprovalRequired",
+        "cardPaymentApprovalRequired",
+        "allowGuestBookingModifications",
+        "showApprovalStatusToGuests",
+        "enableBookingReminders",
+        "reminderHoursBeforeCheckIn",
         
         // Security settings
         "passwordMinLength",
@@ -72,6 +99,7 @@ const settingsService = {
         "sessionTimeout",
         "maxLoginAttempts",
         "twoFactorRequired",
+  "enforceSessionInactivity",
         "allowGuestBooking",
         "requireApprovalForAllBookings",
         "maxAdvanceBooking",
@@ -83,6 +111,10 @@ const settingsService = {
         
         // Operational settings
         "operationalSettings",
+        
+        // Booking settings (nested object)
+        "bookingSettings",
+        "autoApprovalSettings",
         
         // Payment Gateway settings
         "paymentGateway",
@@ -112,8 +144,13 @@ const settingsService = {
         "guestSettings",
       ];
 
+      // If the client mistakenly sent a wrapped response (success/message/data), unwrap it
+      const incoming = (updates && updates.data && updates.success !== undefined)
+        ? updates.data
+        : updates;
+
       const filteredUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => allowedFields.includes(key))
+        Object.entries(incoming).filter(([key]) => allowedFields.includes(key))
       );
 
       if (Object.keys(filteredUpdates).length === 0) {
@@ -169,12 +206,54 @@ const settingsService = {
         throw new Error("approvalTimeoutHours must be a number");
       }
 
+      // Build a $set update to support partial nested updates (e.g., operationalSettings.enabled)
+      const setUpdate = {};
+      const flatten = (obj, parentKey = "") => {
+        Object.entries(obj).forEach(([key, value]) => {
+          const path = parentKey ? `${parentKey}.${key}` : key;
+          
+          // Skip undefined or null values to preserve existing data
+          if (value === undefined || value === null) {
+            return;
+          }
+          
+          // For strings, skip empty strings unless explicitly updating to empty
+          // This prevents accidentally clearing existing values
+          if (typeof value === "string" && value === "" && parentKey) {
+            // Skip empty strings for nested objects (like paymentGateway.returnUrl)
+            // to avoid clearing existing values
+            return;
+          }
+          
+          if (
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            // Do not flatten Date instances or mongoose ObjectIds
+            !(value instanceof Date)
+          ) {
+            flatten(value, path);
+          } else {
+            setUpdate[path] = value;
+          }
+        });
+      };
+
+      flatten(filteredUpdates);
+
+      // Ensure singleton exists and target it explicitly
+      const latest = await AdminSettings.findOne({}).sort({ updatedAt: -1 });
+      const filter = latest ? { _id: latest._id } : { singletonKey: "ADMIN_SETTINGS" };
+
       const settings = await AdminSettings.findOneAndUpdate(
-        {},
+        filter,
         {
-          ...filteredUpdates,
-          lastUpdatedBy: adminId,
-          lastUpdatedAt: new Date(),
+          $set: {
+            ...setUpdate,
+            lastUpdatedBy: adminId,
+            lastUpdatedAt: new Date(),
+          },
+          $setOnInsert: { singletonKey: "ADMIN_SETTINGS" },
         },
         { new: true, runValidators: true, upsert: true }
       );
@@ -255,13 +334,20 @@ const settingsService = {
 
       // Remove backup metadata
       const { backupDate, version, _id, createdAt, updatedAt, __v, ...settingsData } = backupData;
-      
+
+      // Ensure singleton target
+      const latest = await AdminSettings.findOne({}).sort({ updatedAt: -1 });
+      const filter = latest ? { _id: latest._id } : { singletonKey: "ADMIN_SETTINGS" };
+
       const settings = await AdminSettings.findOneAndUpdate(
-        {},
+        filter,
         {
-          ...settingsData,
-          lastUpdatedBy: adminId,
-          lastUpdatedAt: new Date(),
+          $set: {
+            ...settingsData,
+            singletonKey: "ADMIN_SETTINGS",
+            lastUpdatedBy: adminId,
+            lastUpdatedAt: new Date(),
+          },
         },
         { new: true, runValidators: true, upsert: true }
       );
@@ -278,6 +364,7 @@ const settingsService = {
     try {
       await AdminSettings.deleteMany({});
       const defaultSettings = await AdminSettings.create({
+        singletonKey: "ADMIN_SETTINGS",
         lastUpdatedBy: adminId,
         lastUpdatedAt: new Date(),
       });

@@ -76,25 +76,55 @@ const SettingsToggle = ({
   description, 
   checked, 
   onChange, 
-  disabled = false 
+  disabled = false,
+  children // Support for nested content
 }) => {
   return (
-    <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-      <div className="flex-1">
-        <label className="text-sm font-semibold text-gray-700 block">
-          {label}
-        </label>
-        {description && (
-          <p className="text-xs text-gray-500 mt-1">{description}</p>
-        )}
+    <div className="space-y-3">
+      <div
+        onClick={() => !disabled && onChange(!checked)}
+        className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+          checked 
+            ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 shadow-sm' 
+            : 'bg-gray-50 border-2 border-transparent hover:border-gray-300 hover:bg-gray-100'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <div className="flex-1 pointer-events-none select-none">
+          <label className={`text-sm font-semibold block ${
+            checked ? 'text-indigo-700' : 'text-gray-700'
+          }`}>
+            {label}
+          </label>
+          {description && (
+            <p className={`text-xs mt-1 ${
+              checked ? 'text-indigo-600' : 'text-gray-500'
+            }`}>
+              {description}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {checked && (
+            <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full animate-fade-in">
+              Enabled
+            </span>
+          )}
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => {}} // Handled by parent onClick
+            disabled={disabled}
+            className="h-5 w-5 text-indigo-600 focus:ring-2 focus:ring-indigo-500 border-gray-300 rounded pointer-events-none transition-all"
+          />
+        </div>
       </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled}
-        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-      />
+      
+      {/* Conditional content rendering with animation */}
+      {children && checked && (
+        <div className="ml-4 pl-6 border-l-4 border-indigo-300 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-4 rounded-r-xl animate-slide-in">
+          {children}
+        </div>
+      )}
     </div>
   );
 };

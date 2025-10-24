@@ -5,11 +5,11 @@ import AdminProfile from './models/profiles/AdminProfile.js';
 async function fixAdminProfile() {
   try {
     console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel-management');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel_management');
     console.log('✅ Connected to MongoDB\n');
     
     console.log('🔍 Looking for admin user...');
-    const admin = await User.findOne({ email: 'admin@hotel.com' });
+    const admin = await User.findOne({ email: 'admin.lk@example.com' });
     
     if (!admin) {
       console.log('❌ Admin user not found');
@@ -25,11 +25,20 @@ async function fixAdminProfile() {
       console.log('📝 Creating new AdminProfile...');
       adminProfile = new AdminProfile({
         userId: admin._id,
-        permissions: {
-          modules: ['users', 'food', 'ai', 'menu', 'reports', 'bookings', 'invoices'],
-          actions: ['create', 'read', 'update', 'delete', 'manage']
-        },
-        accessLevel: 'full',
+        permissions: [
+          { module: 'invitations', actions: ['create', 'read', 'update', 'delete', 'approve', 'reject', 'export', 'manage'] },
+          { module: 'notification', actions: ['create', 'read', 'update', 'delete', 'manage'] },
+          { module: 'users', actions: ['create', 'read', 'update', 'delete', 'manage'] },
+          { module: 'rooms', actions: ['create', 'read', 'update', 'delete', 'manage'] },
+          { module: 'bookings', actions: ['create', 'read', 'update', 'delete', 'approve', 'reject', 'export', 'manage'] },
+          { module: 'inventory', actions: ['create', 'read', 'update', 'delete', 'manage'] },
+          { module: 'staff', actions: ['create', 'read', 'update', 'delete', 'manage'] },
+          { module: 'finance', actions: ['create', 'read', 'update', 'delete', 'export', 'manage'] },
+          { module: 'reports', actions: ['read', 'export', 'manage'] },
+          { module: 'system', actions: ['read', 'update', 'manage'] },
+          { module: 'settings', actions: ['read', 'update', 'manage'] },
+        ],
+        accessLevel: 'Full',
         lastActive: new Date()
       });
       await adminProfile.save();
@@ -44,7 +53,7 @@ async function fixAdminProfile() {
     console.log('✅ Admin user updated with profile reference');
     
     // Verify the setup
-    const updatedAdmin = await User.findOne({ email: 'admin@hotel.com' }).populate('adminProfile');
+    const updatedAdmin = await User.findOne({ email: 'admin.lk@example.com' }).populate('adminProfile');
     console.log('🔍 Verification - Admin has profile:', !!updatedAdmin.adminProfile);
     
     console.log('🎉 AdminProfile setup completed successfully!');

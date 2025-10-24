@@ -24,6 +24,8 @@ export default function AdminSettingsPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+  const [originalSettings, setOriginalSettings] = useState({});
 
   const tabs = [
     { id: "general", label: "General", icon: "⚙️", description: "Basic hotel information and contact details" },
@@ -31,7 +33,7 @@ export default function AdminSettingsPage() {
     //{ id: "sms", label: "SMS Settings", icon: "📱", description: "SMS configuration and notifications" },
     { id: "social", label: "Social Auth", icon: "🔐", description: "Social authentication settings" },
     { id: "notifications", label: "Notifications", icon: "🔔", description: "Notification preferences and alerts" },
-    //{ id: "security", label: "Security", icon: "🔒", description: "Authentication and security policies" },
+  { id: "security", label: "Security", icon: "🔒", description: "Authentication and security policies" },
     { id: "booking", label: "Booking Settings", icon: "📅", description: "Reservation and booking configurations" },
     { id: "payment", label: "Payment Gateway", icon: "💳", description: "Payment processing and gateway settings" },
     // { id: "rooms", label: "Room Management", icon: "🏨", description: "Room assignment and housekeeping settings" },
@@ -48,8 +50,12 @@ export default function AdminSettingsPage() {
     setLoading(true);
     try {
       const response = await adminService.getAdminSettings();
-      setSettings(response.data || {});
+      // Unwrap standard API envelope { success, message, data }
+      const fetchedSettings = response?.data?.data ?? response?.data ?? {};
+      setSettings(fetchedSettings);
+      setOriginalSettings(JSON.parse(JSON.stringify(fetchedSettings))); // Deep copy
       setLastUpdated(new Date());
+      setIsDirty(false);
     } catch (error) {
       console.error("Failed to fetch settings:", error);
       setAlert({
@@ -64,6 +70,19 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -95,15 +114,66 @@ export default function AdminSettingsPage() {
       const keys = path.split('.');
       return updateNestedValue(prev, keys, value);
     });
+    setIsDirty(true);
   }, []);
 
   const handleSaveSettings = useCallback(async () => {
     setLoading(true);
     setAlert(null);
     try {
-      const response = await adminService.updateAdminSettings(settings);
-      setSettings(response.data);
+      // Helper to compute deep changes between original and current settings
+      const getChangedFields = (original, current, path = '') => {
+        const changes = {};
+        
+        Object.keys(current).forEach(key => {
+          const currentPath = path ? `${path}.${key}` : key;
+          const currentValue = current[key];
+          const originalValue = original?.[key];
+          
+          // Skip internal fields
+          if (key === '_id' || key === '__v' || key === 'lastUpdatedAt' || key === 'lastUpdatedBy') {
+            return;
+          }
+          
+          // Handle nested objects
+          if (currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue) && !(currentValue instanceof Date)) {
+            const nestedChanges = getChangedFields(originalValue || {}, currentValue, '');
+            if (Object.keys(nestedChanges).length > 0) {
+              changes[key] = nestedChanges;
+            }
+          } else {
+            // Compare values - include if changed OR if it's a new non-empty value
+            if (JSON.stringify(currentValue) !== JSON.stringify(originalValue)) {
+              // Only include non-empty strings for nested paths, or all changes for root level
+              if (!path || currentValue !== '') {
+                changes[key] = currentValue;
+              }
+            }
+          }
+        });
+        
+        return changes;
+      };
+      
+      // Get only changed fields to avoid overwriting existing data
+      const changedFields = getChangedFields(originalSettings, settings);
+      
+      if (Object.keys(changedFields).length === 0) {
+        setAlert({ type: "info", message: "No changes to save" });
+        setLoading(false);
+        return;
+      }
+      
+      console.log("Saving only changed fields:", changedFields);
+      
+      // Send only the changed fields to preserve existing data
+      const response = await adminService.updateAdminSettings(changedFields);
+      // Unwrap response envelope
+      const updatedSettings = response?.data?.data ?? response?.data ?? {};
+      setSettings(updatedSettings);
+      setOriginalSettings(JSON.parse(JSON.stringify(updatedSettings))); // Deep copy
       setLastUpdated(new Date());
+      setIsDirty(false);
       setAlert({ type: "success", message: "Settings saved successfully!" });
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -114,7 +184,7 @@ export default function AdminSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [settings]);
+  }, [settings, originalSettings]);
 
   const testSMSConfiguration = useCallback(async () => {
     setLoading(true);
@@ -189,8 +259,9 @@ export default function AdminSettingsPage() {
 
   const handleBackupSettings = useCallback(async () => {
     try {
-      const response = await adminService.backupSettings();
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+  const response = await adminService.backupSettings();
+  const backup = response?.data?.data ?? response?.data ?? {};
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -216,8 +287,8 @@ export default function AdminSettingsPage() {
     try {
       const text = await file.text();
       const backupData = JSON.parse(text);
-      const response = await adminService.restoreSettings(backupData);
-      setSettings(response.data);
+  const response = await adminService.restoreSettings(backupData);
+  setSettings(response?.data?.data ?? response?.data ?? {});
       setLastUpdated(new Date());
       setAlert({ type: "success", message: "Settings restored successfully!" });
     } catch (error) {
@@ -235,8 +306,8 @@ export default function AdminSettingsPage() {
     }
 
     try {
-      const response = await adminService.resetToDefaults();
-      setSettings(response.data);
+  const response = await adminService.resetToDefaults();
+  setSettings(response?.data?.data ?? response?.data ?? {});
       setLastUpdated(new Date());
       setAlert({ type: "success", message: "Settings reset to defaults successfully!" });
     } catch (error) {
@@ -516,7 +587,7 @@ export default function AdminSettingsPage() {
                 <SettingsToggle
                   label="Enable Social Registration"
                   description="Allow new user registration via social login"
-                  checked={settings.enableSocialRegistration || true}
+                  checked={settings.enableSocialRegistration ?? true}
                   onChange={(value) => handleSettingChange("enableSocialRegistration", value)}
                 />
               </div>
@@ -715,6 +786,12 @@ export default function AdminSettingsPage() {
                 checked={settings.twoFactorRequired || false}
                 onChange={(value) => handleSettingChange("twoFactorRequired", value)}
               />
+              <SettingsToggle
+                label="Enforce Session Inactivity Timeout"
+                description="Log users out after no. of minutes set in Session Timeout (uses JWT exp if disabled)"
+                checked={settings.enforceSessionInactivity ?? false}
+                onChange={(value) => handleSettingChange("enforceSessionInactivity", value)}
+              />
             </div>
           </SettingsSection>
         );
@@ -801,26 +878,34 @@ export default function AdminSettingsPage() {
                 onChange={(value) => handleSettingChange("requireApprovalForAllBookings", value)}
               />
               <div className="border-t pt-4">
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">Payment Method Approval Settings</h4>
-                <div className="space-y-3">
-                  <SettingsToggle
-                    label="Require Approval for Cash Payments"
-                    description="Bookings with cash payment require admin approval"
-                    checked={settings.cashPaymentApprovalRequired || true}
-                    onChange={(value) => handleSettingChange("cashPaymentApprovalRequired", value)}
-                  />
-                  <SettingsToggle
-                    label="Require Approval for Bank Transfer Payments"
-                    description="Bookings with bank transfer payment require admin approval"
-                    checked={settings.bankTransferApprovalRequired || true}
-                    onChange={(value) => handleSettingChange("bankTransferApprovalRequired", value)}
-                  />
-                  <SettingsToggle
-                    label="Require Approval for Card Payments"
-                    description="Bookings with card payment require admin approval"
-                    checked={settings.cardPaymentApprovalRequired || false}
-                    onChange={(value) => handleSettingChange("cardPaymentApprovalRequired", value)}
-                  />
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Payment Method Approval Settings
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">Configure which payment methods require admin approval before booking confirmation</p>
+                  <div className="space-y-3">
+                    <SettingsToggle
+                      label="Require Approval for Cash Payments"
+                      description="Bookings with cash payment require admin approval"
+                      checked={settings.cashPaymentApprovalRequired ?? true}
+                      onChange={(value) => handleSettingChange("cashPaymentApprovalRequired", value)}
+                    />
+                    <SettingsToggle
+                      label="Require Approval for Bank Transfer Payments"
+                      description="Bookings with bank transfer payment require admin approval"
+                      checked={settings.bankTransferApprovalRequired ?? true}
+                      onChange={(value) => handleSettingChange("bankTransferApprovalRequired", value)}
+                    />
+                    <SettingsToggle
+                      label="Require Approval for Card Payments"
+                      description="Bookings with card payment require admin approval"
+                      checked={settings.cardPaymentApprovalRequired || false}
+                      onChange={(value) => handleSettingChange("cardPaymentApprovalRequired", value)}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="border-t pt-4">
@@ -830,10 +915,8 @@ export default function AdminSettingsPage() {
                   description="Enforce operational hours and check-in/check-out time windows"
                   checked={settings.operationalSettings?.enabled ?? true}
                   onChange={(value) => handleSettingChange("operationalSettings.enabled", value)}
-                />
-                
-                {(settings.operationalSettings?.enabled ?? true) && (
-                  <div className="space-y-4 mt-4 bg-gray-50 p-4 rounded-xl">
+                >
+                  <div className="space-y-4">
                     <SettingsGrid>
                       <SettingsField label="Operational Start Time" description="Hotel operational hours start (24h format)">
                         <Input
@@ -943,7 +1026,7 @@ export default function AdminSettingsPage() {
                       </SettingsGrid>
                     </div>
                   </div>
-                )}
+                </SettingsToggle>
               </div>
               
               <div className="border-t pt-4">
@@ -976,19 +1059,19 @@ export default function AdminSettingsPage() {
                   <SettingsToggle
                     label="Allow Guest Booking Modifications"
                     description="Guests can modify their bookings while pending approval"
-                    checked={settings.allowGuestBookingModifications || true}
+                    checked={settings.allowGuestBookingModifications ?? true}
                     onChange={(value) => handleSettingChange("allowGuestBookingModifications", value)}
                   />
                   <SettingsToggle
                     label="Show Approval Status to Guests"
                     description="Guests can see their booking approval status"
-                    checked={settings.showApprovalStatusToGuests || true}
+                    checked={settings.showApprovalStatusToGuests ?? true}
                     onChange={(value) => handleSettingChange("showApprovalStatusToGuests", value)}
                   />
                   <SettingsToggle
                     label="Enable Booking Reminders"
                     description="Send reminders to guests about their bookings"
-                    checked={settings.enableBookingReminders || true}
+                    checked={settings.enableBookingReminders ?? true}
                     onChange={(value) => handleSettingChange("enableBookingReminders", value)}
                   />
                   <SettingsField label="Reminder Hours Before Check-in">
@@ -1017,6 +1100,22 @@ export default function AdminSettingsPage() {
             onSave={handleSaveSettings}
             loading={loading}
           >
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                PayHere Configuration Guide
+              </h4>
+              <ul className="text-sm text-blue-800 space-y-1 ml-7">
+                <li><strong>Merchant ID:</strong> Get from PayHere Dashboard → Settings → Domains & Credentials</li>
+                <li><strong>Merchant Secret:</strong> MD5 hash salt from PayHere Dashboard</li>
+                <li><strong>Return URL:</strong> Where customers are redirected after successful payment (e.g., https://yourdomain.com/payment/success)</li>
+                <li><strong>Cancel URL:</strong> Where customers are redirected when they cancel (e.g., https://yourdomain.com/payment/cancel)</li>
+                <li><strong>Notify URL:</strong> Backend webhook endpoint for PayHere notifications (e.g., https://yourdomain.com/api/payment/notify)</li>
+                <li><strong>Test Mode:</strong> Enable to use PayHere Sandbox for testing with test cards</li>
+              </ul>
+            </div>
             <SettingsGrid>
               <SettingsField label="Payment Provider" required>
                 <Select
@@ -1035,20 +1134,20 @@ export default function AdminSettingsPage() {
                   </optgroup>
                 </Select>
               </SettingsField>
-              <SettingsField label="Public Key" required>
+              <SettingsField label="Merchant ID / Public Key" required>
                 <Input
                   value={settings.paymentGateway?.publicKey || ""}
                   onChange={(e) => handleSettingChange("paymentGateway.publicKey", e.target.value)}
-                  placeholder="pk_test_..."
+                  placeholder="For PayHere: Merchant ID (e.g., 1234567)"
                   className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </SettingsField>
-              <SettingsField label="Secret Key" required>
+              <SettingsField label="Merchant Secret / Secret Key" required>
                 <Input
                   type="password"
                   value={settings.paymentGateway?.secretKey || ""}
                   onChange={(e) => handleSettingChange("paymentGateway.secretKey", e.target.value)}
-                  placeholder="sk_test_..."
+                  placeholder="For PayHere: Merchant Secret"
                   className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </SettingsField>
@@ -1061,18 +1160,45 @@ export default function AdminSettingsPage() {
                   className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </SettingsField>
+              <SettingsField label="Return URL" required>
+                <Input
+                  type="url"
+                  value={settings.paymentGateway?.returnUrl || ""}
+                  onChange={(e) => handleSettingChange("paymentGateway.returnUrl", e.target.value)}
+                  placeholder="https://yourdomain.com/payment/success"
+                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </SettingsField>
+              <SettingsField label="Cancel URL" required>
+                <Input
+                  type="url"
+                  value={settings.paymentGateway?.cancelUrl || ""}
+                  onChange={(e) => handleSettingChange("paymentGateway.cancelUrl", e.target.value)}
+                  placeholder="https://yourdomain.com/payment/cancel"
+                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </SettingsField>
+              <SettingsField label="Notify URL" required>
+                <Input
+                  type="url"
+                  value={settings.paymentGateway?.notifyUrl || ""}
+                  onChange={(e) => handleSettingChange("paymentGateway.notifyUrl", e.target.value)}
+                  placeholder="https://yourdomain.com/api/payment/notify"
+                  className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </SettingsField>
             </SettingsGrid>
             <div className="space-y-4">
               <SettingsToggle
                 label="Test Mode"
                 description="Use test/sandbox environment"
-                checked={settings.paymentGateway?.testMode || true}
+                checked={settings.paymentGateway?.testMode ?? true}
                 onChange={(value) => handleSettingChange("paymentGateway.testMode", value)}
               />
               <SettingsToggle
                 label="Auto Capture"
                 description="Automatically capture payments"
-                checked={settings.paymentGateway?.autoCapture || true}
+                checked={settings.paymentGateway?.autoCapture ?? true}
                 onChange={(value) => handleSettingChange("paymentGateway.autoCapture", value)}
               />
             </div>
@@ -1111,7 +1237,17 @@ export default function AdminSettingsPage() {
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">⚙️ System Settings</h1>
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+              ⚙️ System Settings
+              {isDirty && (
+                <span className="inline-flex items-center gap-1 text-sm font-normal bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full animate-pulse">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 001 1h3a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                  </svg>
+                  Unsaved Changes
+                </span>
+              )}
+            </h1>
             <p className="text-indigo-100 text-lg">
               Configure your hotel management system, {user?.name?.split(" ")[0]}!
             </p>

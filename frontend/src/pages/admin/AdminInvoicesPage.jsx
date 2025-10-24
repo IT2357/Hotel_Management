@@ -432,7 +432,8 @@ export default function AdminInvoicesPage() {
       card: { label: 'Credit/Debit Card', color: 'bg-blue-100 text-blue-800', icon: '💳' },
       cash: { label: 'Cash', color: 'bg-green-100 text-green-800', icon: '💵' },
       bank: { label: 'Bank Transfer', color: 'bg-purple-100 text-purple-800', icon: '🏦' },
-      Online: { label: 'Online Payment', color: 'bg-indigo-100 text-indigo-800', icon: '💻' },
+      // support lowercase 'online'
+      online: { label: 'Online Payment', color: 'bg-indigo-100 text-indigo-800', icon: '💻' },
     };
     return methods[paymentMethod] || methods[String(paymentMethod || '').trim()] || { label: 'Unknown', color: 'bg-gray-100 text-gray-800', icon: '❓' };
   };
@@ -506,6 +507,16 @@ export default function AdminInvoicesPage() {
       );
       
       setInvoices(updatedInvoices);
+      // Also optimistically update selected invoice if its details modal is open
+      setSelectedInvoice(prev => {
+        if (!prev || prev._id !== invoiceId) return prev;
+        return {
+          ...prev,
+          status: newStatus,
+          paymentStatus: newStatus,
+          ...(newStatus === 'Paid' ? { paidAt: new Date().toISOString() } : {})
+        };
+      });
       
       // Close the modal immediately
       closeActionModal();
@@ -548,8 +559,12 @@ export default function AdminInvoicesPage() {
       }
       
       if (data.success) {
-        // Refresh the data from server to ensure consistency
-        await fetchInvoices(false);
+        // Refresh the data from server to ensure consistency and sync details modal
+        const refreshed = await fetchInvoices(false);
+        if (showDetailsModal && selectedInvoice?._id === invoiceId && refreshed?.invoices) {
+          const updated = (refreshed.invoices || []).find(inv => inv._id === invoiceId);
+          if (updated) setSelectedInvoice(updated);
+        }
         
         setAlert({ 
           type: 'success', 
@@ -717,8 +732,12 @@ export default function AdminInvoicesPage() {
         );
       }
       
-      // Refresh data from server
-      await fetchInvoices(false);
+      // Refresh data from server and sync details modal if open
+      const refreshed = await fetchInvoices(false);
+      if (showDetailsModal && selectedInvoice?._id) {
+        const updated = (refreshed?.invoices || []).find(inv => inv._id === selectedInvoice._id);
+        if (updated) setSelectedInvoice(updated);
+      }
       
       setAlert({
         type: 'success',
@@ -849,9 +868,10 @@ export default function AdminInvoicesPage() {
           </div>
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200 shadow-sm">
             <div className="flex items-center justify-between">
-              <div>
+              {/* Allow text to shrink and truncate nicely inside flex */}
+              <div className="min-w-0">
                 <p className="text-purple-600 text-sm font-medium">Revenue</p>
-                <p className="text-2xl font-bold text-purple-900">{stats.revenue}</p>
+                <p className="text-2xl font-bold text-purple-900 truncate" title={stats.revenue}>{stats.revenue}</p>
               </div>
               <div className="p-3 bg-purple-500 rounded-full">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

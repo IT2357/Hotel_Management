@@ -29,12 +29,15 @@ export const createServiceRequest = async (req, res) => {
     // Enforce that the requester is an authenticated guest with an active check-in
     // Derive the room/booking/checkInOut from the active check-in record
     try {
-      if (!requestData.isAnonymous) {
-        const userId = req.user?._id || req.user?.id;
-        if (!userId) {
-          return res.status(401).json({ message: 'Authentication required' });
-        }
+      const userId = req.user?._id || req.user?.id;
+      
+      // For authenticated requests, validate user exists
+      if (!requestData.isAnonymous && !userId) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
 
+      // Always try to derive room/booking from active check-in if user is authenticated
+      if (userId) {
         const activeCheckIn = await CheckInOut.findOne({
           guest: userId,
           status: 'checked_in'
@@ -44,7 +47,12 @@ export const createServiceRequest = async (req, res) => {
           return res.status(400).json({ message: 'No active check-in found. Please check in to your room before requesting services.' });
         }
 
-        requestData.guest = userId;
+        // Set guest only if not anonymous
+        if (!requestData.isAnonymous) {
+          requestData.guest = userId;
+        }
+        
+        // Always set room, booking, and checkInOut from active check-in
         requestData.room = activeCheckIn.room?._id || null;
         requestData.booking = activeCheckIn.booking?._id || null;
         requestData.checkInOut = activeCheckIn._id;
@@ -75,6 +83,16 @@ export const createServiceRequest = async (req, res) => {
       ...requestData,
       attachments,
       guest: requestData.isAnonymous ? null : requestData.guest
+    });
+
+    console.log('Creating service request with data:', {
+      guest: request.guest,
+      room: request.room,
+      booking: request.booking,
+      checkInOut: request.checkInOut,
+      isAnonymous: request.isAnonymous,
+      requestType: request.requestType,
+      title: request.title
     });
 
     await request.save();
@@ -264,14 +282,29 @@ export const getMyServiceRequests = async (req, res) => {
   try {
     const guestId = req.user._id;
     
-    const requests = await GuestServiceRequest.find({ guest: guestId })
+    // Get all check-ins for this guest to include anonymous requests
+    const checkIns = await CheckInOut.find({ guest: guestId }).select('_id');
+    const checkInIds = checkIns.map(ci => ci._id);
+    
+    // Find requests where either:
+    // 1. guest field matches (non-anonymous)
+    // 2. checkInOut matches one of user's check-ins (anonymous)
+    const requests = await GuestServiceRequest.find({
+      $or: [
+        { guest: guestId },
+        { checkInOut: { $in: checkInIds } }
+      ]
+    })
       .populate('room', 'roomNumber type floor')
+      .populate('guest', 'name email phone')
       .populate('assignedTo', 'name email phone profilePicture role department')
       .populate('notes.addedBy', 'name email')
       .sort({ createdAt: -1 });
     
+    console.log(`Found ${requests.length} service requests for guest ${guestId}`);
     res.status(200).json(requests);
   } catch (error) {
+    console.error('Error fetching guest service requests:', error);
     res.status(500).json({ message: error.message });
   }
 };

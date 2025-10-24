@@ -8,6 +8,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node scripts/seedDatabase.js",
+    "seed:all": "node seed/index.js",
     "seed:menu": "node scripts/seedMenuItems.js",
     "seed:manager-tasks": "node scripts/manager/seedManagerTasks.js",
     "seed:guest-requests": "node scripts/manager/seedGuestRequests.js",

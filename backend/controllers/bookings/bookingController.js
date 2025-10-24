@@ -147,13 +147,14 @@ export const createBooking = async (req, res) => {
         },
         booking: {
           requireApprovalForAllBookings: false,
-          cardPaymentApprovalRequired: false,
-          bankTransferApprovalRequired: true,
-          cashPaymentApprovalRequired: true,
           autoApprovalThreshold: 50000,
           approvalTimeoutHours: 24,
           allowGuestBooking: false // Default to false for security
         },
+        // Root-level payment approval settings (new approach)
+        cashPaymentApprovalRequired: true,
+        bankTransferApprovalRequired: true,
+        cardPaymentApprovalRequired: false,
         email: {
           smtpHost: 'smtp.gmail.com',
           smtpPort: 587,
@@ -1409,7 +1410,7 @@ export const processBookingPayment = async (req, res) => {
         });
       }
 
-      // Create invoice for the booking when payment begins
+      // Create invoice for the booking when payment begins (optional)
       try {
         const InvoiceService = (await import("../../services/payment/invoiceService.js")).default;
         const invoice = await InvoiceService.createInvoiceFromBooking(booking._id);
@@ -1417,14 +1418,11 @@ export const processBookingPayment = async (req, res) => {
         await booking.save();
         console.log(`✅ Invoice created for booking ${booking.bookingNumber}`);
       } catch (invoiceError) {
-        console.error('❌ Failed to create invoice for payment:', invoiceError);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to create invoice for payment processing"
-        });
+        console.warn('⚠️ Failed to create invoice for payment (continuing anyway):', invoiceError.message);
+        // Continue with payment processing even if invoice creation fails
       }
 
-      const paymentSession = payHereService.createPaymentSession({
+      const paymentSession = await payHereService.createPaymentSession({
         orderId: booking.bookingNumber,
         amount: booking.totalPrice,
         currency: 'LKR',

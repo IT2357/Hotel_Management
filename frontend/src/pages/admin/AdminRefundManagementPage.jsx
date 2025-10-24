@@ -133,6 +133,7 @@ const AdminRefundManagementPage = () => {
 
       console.log('📋 State updated - refunds length:', filteredRefunds.length);
       console.log('📋 Current refunds state after update:', refunds);
+      return filteredRefunds;
     } catch (error) {
       console.error('Failed to load refunds:', error);
       alert(error.response?.data?.message || 'Failed to load refunds.');
@@ -194,7 +195,18 @@ const AdminRefundManagementPage = () => {
       }
       alert(`Refund ${actionType} successful`);
       setShowActionModal(false);
-      loadRefunds();
+      const updatedList = await loadRefunds();
+      // If details modal is open for this refund, refresh its details to reflect changes
+      if (showDetailsModal && selectedRefund?._id) {
+        try {
+          const details = await adminService.getRefundDetails(selectedRefund._id);
+          setSelectedRefund(details.data?.data || details.data || selectedRefund);
+        } catch (e) {
+          // As a fallback, sync from the refreshed list
+          const fallback = (updatedList || []).find(r => r._id === selectedRefund._id);
+          if (fallback) setSelectedRefund(fallback);
+        }
+      }
     } catch (error) {
       console.error(`Failed to ${actionType} refund:`, error);
       alert(error.response?.data?.message || `Failed to ${actionType} refund.`);
@@ -574,7 +586,7 @@ function RefundDetailsModal({ isOpen, refund, onClose, formatAmount, getStatusCo
   if (!refund) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Refund Request Details" className="rounded-2xl shadow-xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Refund Request Details" className="rounded-2xl shadow-xl" zIndex={1000}>
       <div className="space-y-6 p-6">
         <div>
           <h3 className="text-lg font-bold text-gray-800 mb-3">Refund Information</h3>
@@ -683,6 +695,7 @@ function RefundActionModal({
       onClose={onClose}
       title={`${actionType.charAt(0).toUpperCase() + actionType.slice(1)} Refund`}
       className="rounded-2xl shadow-xl"
+      zIndex={1100}
     >
       <div className="space-y-6 p-6">
         <div className="bg-gray-50 p-4 rounded-xl">

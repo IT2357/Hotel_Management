@@ -1,8 +1,10 @@
 import crypto from 'crypto';
 import axios from 'axios';
+import AdminSettings from '../models/AdminSettings.js';
 
 class PayHereService {
   constructor() {
+    // Fallback to environment variables (will be overridden by DB settings)
     this.merchantId = process.env.PAYHERE_MERCHANT_ID;
     this.merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
     this.apiUrl = process.env.PAYHERE_API_URL || 'https://sandbox.payhere.lk/pay/checkout';
@@ -10,12 +12,72 @@ class PayHereService {
     this.returnUrl = process.env.PAYHERE_RETURN_URL;
     this.cancelUrl = process.env.PAYHERE_CANCEL_URL;
     this.isSandbox = process.env.NODE_ENV !== 'production';
+    
+    // Flag to track if settings are loaded
+    this.settingsLoaded = false;
+  }
+
+  /**
+   * Load PayHere configuration from database
+   */
+  async loadSettings() {
+    try {
+      const settings = await AdminSettings.findOne().select('paymentGateway').lean();
+      
+      if (settings && settings.paymentGateway) {
+        const pg = settings.paymentGateway;
+        
+        // Only update if PayHere is the selected provider
+        if (pg.provider === 'payhere') {
+          this.merchantId = pg.publicKey || this.merchantId;
+          this.merchantSecret = pg.secretKey || this.merchantSecret;
+          this.webhookSecret = pg.webhookSecret || this.merchantSecret;
+          
+          // Update sandbox mode if provided in settings
+          if (pg.testMode !== undefined) {
+            this.isSandbox = pg.testMode;
+          }
+          
+          // Update URLs from settings (fallback to environment if not set)
+          this.returnUrl = pg.returnUrl || this.returnUrl;
+          this.cancelUrl = pg.cancelUrl || this.cancelUrl;
+          this.notifyUrl = pg.notifyUrl || this.notifyUrl;
+          
+          this.settingsLoaded = true;
+          console.log('✅ PayHere settings loaded from database:', {
+            merchantId: this.merchantId ? `${this.merchantId.substring(0, 4)}...` : 'not set',
+            testMode: this.isSandbox,
+            returnUrl: this.returnUrl,
+            cancelUrl: this.cancelUrl,
+            notifyUrl: this.notifyUrl
+          });
+        } else {
+          console.warn(`⚠️ Payment gateway provider is ${pg.provider}, not PayHere`);
+        }
+      } else {
+        console.warn('⚠️ No payment gateway settings found in database, using environment variables');
+      }
+    } catch (error) {
+      console.error('❌ Failed to load PayHere settings from database:', error);
+      console.log('⚠️ Falling back to environment variables');
+    }
+  }
+
+  /**
+   * Ensure settings are loaded before operations
+   */
+  async ensureSettings() {
+    if (!this.settingsLoaded) {
+      await this.loadSettings();
+    }
   }
 
   /**
    * Generate PayHere payment form data
    */
-  generatePaymentData(orderData) {
+  async generatePaymentData(orderData) {
+    await this.ensureSettings();
+    
     const {
       orderId,
       amount,
@@ -36,11 +98,11 @@ class PayHereService {
       order_id: orderId,
       items: items.length > 0 ? items[0].name : 'Hotel Booking',
       currency: currency,
-      amount: amount,
-      first_name: customerName.split(' ')[0] || '',
-      last_name: customerName.split(' ').slice(1).join(' ') || '',
+      amount: parseFloat(amount).toFixed(2), // Ensure 2 decimal places
+      first_name: customerName.split(' ')[0] || 'Guest',
+      last_name: customerName.split(' ').slice(1).join(' ') || 'User',
       email: customerEmail,
-      phone: customerPhone,
+      phone: customerPhone || '',
       address: '',
       city: '',
       country: 'Sri Lanka',
@@ -54,7 +116,9 @@ class PayHereService {
   /**
    * Generate PayHere payment hash for security
    */
-  generateHash(paymentData) {
+  async generateHash(paymentData) {
+    await this.ensureSettings();
+    
     const {
       merchant_id,
       order_id,
@@ -70,7 +134,9 @@ class PayHereService {
   /**
    * Verify PayHere payment notification
    */
-  verifyPaymentNotification(notificationData) {
+  async verifyPaymentNotification(notificationData) {
+    await this.ensureSettings();
+    
     const {
       merchant_id,
       order_id,
@@ -159,20 +225,50 @@ class PayHereService {
   /**
    * Create PayHere payment session
    */
-  createPaymentSession(orderData) {
-    const paymentData = this.generatePaymentData(orderData);
-    const hash = this.generateHash({
+  async createPaymentSession(orderData) {
+    await this.ensureSettings();
+    
+    // Validate required settings
+    if (!this.merchantId) {
+      throw new Error('PayHere Merchant ID is not configured. Please configure payment settings in Admin Settings.');
+    }
+    
+    if (!this.merchantSecret) {
+      throw new Error('PayHere Merchant Secret is not configured. Please configure payment settings in Admin Settings.');
+    }
+    
+    if (!this.returnUrl || !this.cancelUrl || !this.notifyUrl) {
+      console.warn('⚠️ PayHere URLs not fully configured:', {
+        returnUrl: this.returnUrl,
+        cancelUrl: this.cancelUrl,
+        notifyUrl: this.notifyUrl
+      });
+    }
+    
+    const paymentData = await this.generatePaymentData(orderData);
+    const hash = await this.generateHash({
       merchant_id: paymentData.merchant_id,
       order_id: paymentData.order_id,
       amount: paymentData.amount,
       currency: paymentData.currency,
     });
 
-    return {
+    const session = {
       ...paymentData,
       hash,
       action: this.getCheckoutUrl(),
     };
+    
+    console.log('✅ PayHere payment session created:', {
+      order_id: session.order_id,
+      amount: session.amount,
+      currency: session.currency,
+      merchant_id: session.merchant_id ? `${session.merchant_id.substring(0, 4)}...` : 'not set',
+      action: session.action,
+      hash: hash ? `${hash.substring(0, 8)}...` : 'not generated'
+    });
+    
+    return session;
   }
 }
 
