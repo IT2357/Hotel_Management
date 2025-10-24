@@ -69,12 +69,12 @@ const ServiceRequestForm = ({ guest, room, onSuccess }) => {
         formData.append('specialInstructions', String(data.specialInstructions));
       }
       
-      // Add guest and room if available
+      // Add guest and room if available (server also derives from active check-in)
       const guestId = guest?.userId || guest?._id;
       if (guestId && !isAnonymous) {
         formData.append('guest', String(guestId));
       }
-      
+      // Always try to pass room to aid backend population
       if (room?._id) {
         formData.append('room', String(room._id));
       }

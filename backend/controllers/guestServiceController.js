@@ -1,4 +1,5 @@
 import GuestServiceRequest from "../models/GuestServiceRequest.js";
+import CheckInOut from "../models/CheckInOut.js";
 import { validateServiceRequest } from "../validations/guestServiceValidation.js";
 import environment from '../config/environment.js';
 
@@ -11,8 +12,9 @@ export const createServiceRequest = async (req, res) => {
     const requestData = {
       ...req.body,
       isAnonymous: req.body.isAnonymous === 'true' || req.body.isAnonymous === true,
-      guest: req.body.guest || null,
-      room: req.body.room || null,
+      // Always take guest from auth context unless anonymous
+      guest: null,
+      room: null,
       specialInstructions: req.body.specialInstructions || '',
       status: 'pending'
     };
@@ -22,6 +24,34 @@ export const createServiceRequest = async (req, res) => {
     if (error) {
       console.error('Validation error:', error);
       return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid request data' });
+    }
+
+    // Enforce that the requester is an authenticated guest with an active check-in
+    // Derive the room/booking/checkInOut from the active check-in record
+    try {
+      if (!requestData.isAnonymous) {
+        const userId = req.user?._id || req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const activeCheckIn = await CheckInOut.findOne({
+          guest: userId,
+          status: 'checked_in'
+        }).populate('room booking');
+
+        if (!activeCheckIn) {
+          return res.status(400).json({ message: 'No active check-in found. Please check in to your room before requesting services.' });
+        }
+
+        requestData.guest = userId;
+        requestData.room = activeCheckIn.room?._id || null;
+        requestData.booking = activeCheckIn.booking?._id || null;
+        requestData.checkInOut = activeCheckIn._id;
+      }
+    } catch (deriveErr) {
+      console.error('Failed to derive active check-in for service request:', deriveErr);
+      return res.status(500).json({ message: 'Unable to verify check-in status' });
     }
 
     // Handle file uploads if any
@@ -61,8 +91,9 @@ export const getServiceRequests = async (req, res) => {
     const filter = status ? { status } : {};
     
     const requests = await GuestServiceRequest.find(filter)
-      .populate('guest', 'firstName lastName')
-      .populate('room', 'number')
+      .populate('guest', 'name email phone')
+      .populate('room', 'roomNumber type floor')
+      .populate('assignedTo', 'name email phone profilePicture role department')
       .sort({ createdAt: -1 });
     
     res.status(200).json(requests);
@@ -76,9 +107,10 @@ export const getRequestDetails = async (req, res) => {
     const { id } = req.params;
     
     const request = await GuestServiceRequest.findById(id)
-      .populate('guest', 'firstName lastName email phone')
-      .populate('room', 'number type')
-      .populate('assignedTo', 'firstName lastName');
+      .populate('guest', 'name email phone')
+      .populate('room', 'roomNumber type floor')
+      .populate('assignedTo', 'name email phone profilePicture role department')
+      .populate('notes.addedBy', 'name email');
     
     if (!request) {
       return res.status(404).json({ message: 'Service request not found' });
@@ -233,7 +265,9 @@ export const getMyServiceRequests = async (req, res) => {
     const guestId = req.user._id;
     
     const requests = await GuestServiceRequest.find({ guest: guestId })
-      .populate('room', 'number')
+      .populate('room', 'roomNumber type floor')
+      .populate('assignedTo', 'name email phone profilePicture role department')
+      .populate('notes.addedBy', 'name email')
       .sort({ createdAt: -1 });
     
     res.status(200).json(requests);

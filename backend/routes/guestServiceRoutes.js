@@ -18,7 +18,14 @@ import {
 const router = express.Router();
 
 // Guest-facing routes
-router.post('/request', upload.array('attachments'), createServiceRequest);
+// Require authentication and guest role to create a service request
+router.post(
+  '/request',
+  authenticate,
+  authorize(['guest']),
+  upload.array('attachments'),
+  createServiceRequest
+);
 
 // Get guest's own requests
 router.get('/my-requests', authenticate, authorize(['guest']), getMyServiceRequests);

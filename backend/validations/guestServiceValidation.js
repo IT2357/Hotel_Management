@@ -63,7 +63,8 @@ export const validateServiceRequest = (data) => {
 
 const validStatuses = ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'];
 
-export const validateStatusUpdate = (data) => {
+// Pure validator for status update
+export const validateStatusUpdateData = (data) => {
   const errors = [];
   
   if (!validStatuses.includes(data.status)) {
@@ -80,7 +81,8 @@ export const validateStatusUpdate = (data) => {
   };
 };
 
-export const validateNoteAddition = (data) => {
+// Pure validator for note addition
+export const validateNoteAdditionData = (data) => {
   const errors = [];
   
   if (!data.content || typeof data.content !== 'string' || data.content.trim().length === 0) {
@@ -93,4 +95,21 @@ export const validateNoteAddition = (data) => {
     error: errors.length > 0 ? errors.join(', ') : null,
     value: errors.length === 0 ? { content: data.content.trim() } : null
   };
+};
+
+// Express middleware wrappers
+export const validateStatusUpdate = (req, res, next) => {
+  const { error } = validateStatusUpdateData(req.body || {});
+  if (error) {
+    return res.status(400).json({ success: false, message: error });
+  }
+  next();
+};
+
+export const validateNoteAddition = (req, res, next) => {
+  const { error } = validateNoteAdditionData(req.body || {});
+  if (error) {
+    return res.status(400).json({ success: false, message: error });
+  }
+  next();
 };

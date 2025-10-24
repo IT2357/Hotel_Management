@@ -12,12 +12,33 @@ import Spinner from '../../components/ui/Spinner'; // Added Spinner import
 import moment from 'moment';
 
 const socket = io( import.meta.env.VITE_API_BASE_URL);
-const statusColors = {
+// Badge variants for statuses and priorities
+const statusVariants = {
   pending: 'warning',
   assigned: 'info',
-  in_progress: 'purple',
+  in_progress: 'secondary',
   completed: 'success',
-  cancelled: 'failure'
+  cancelled: 'danger'
+};
+
+const priorityVariants = {
+  low: 'secondary',
+  medium: 'info',
+  high: 'warning',
+  urgent: 'danger'
+};
+
+const requestTypeLabels = {
+  room_service: 'Room Service',
+  housekeeping: 'Housekeeping',
+  concierge: 'Concierge',
+  transport: 'Transport',
+  maintenance: 'Maintenance',
+  laundry: 'Laundry',
+  wakeup_call: 'Wake-up Call',
+  dining: 'Dining',
+  spa: 'Spa',
+  other: 'Other'
 };
 
 const GuestServiceRequestsPage = () => {
@@ -143,12 +164,22 @@ const GuestServiceRequestsPage = () => {
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-medium text-gray-900">{request.title}</h3>
                     <Badge
-                      color={statusColors[request.status]}
+                      variant={statusVariants[request.status]}
                       className="inline-flex items-center"
                     >
                       {getStatusIcon(request.status)}
                       {request.status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </Badge>
+                    {request.priority && (
+                      <Badge variant={priorityVariants[request.priority]} className="inline-flex items-center">
+                        🔥 {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
+                      </Badge>
+                    )}
+                    {request.requestType && (
+                      <Badge variant="secondary" className="inline-flex items-center">
+                        🧩 {requestTypeLabels[request.requestType] || request.requestType}
+                      </Badge>
+                    )}
                     {request.attachments && request.attachments.length > 0 && (
                       <span className="text-gray-400" title="Has attachments">📎</span>
                     )}
@@ -162,7 +193,15 @@ const GuestServiceRequestsPage = () => {
 
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <span>Submitted {moment(request.createdAt).fromNow()}</span>
-                    {request.room && <span>Room {request.room.number}</span>}
+                    {request.room && <span>Room {request.room.roomNumber}</span>}
+                    {request.estimatedCompletionTime && (
+                      <span>ETA {moment(request.estimatedCompletionTime).fromNow()}</span>
+                    )}
+                    {request.assignedTo && (
+                      <span>
+                        Assigned to {request.assignedTo?.name || 'Unassigned'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -217,7 +256,7 @@ const GuestServiceRequestsPage = () => {
                     <Label>Status</Label>
                     <div className="mt-1">
                       <Badge
-                        color={statusColors[selectedRequest.status]}
+                        variant={statusVariants[selectedRequest.status]}
                         className="inline-flex items-center"
                       >
                         {getStatusIcon(selectedRequest.status)}
@@ -227,7 +266,22 @@ const GuestServiceRequestsPage = () => {
                   </div>
                   <div>
                     <Label>Room</Label>
-                    <p className="mt-1 text-gray-700">{selectedRequest.room?.number || 'N/A'}</p>
+                    <p className="mt-1 text-gray-700">{selectedRequest.room?.roomNumber || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Priority</Label>
+                    <div className="mt-1">
+                      <Badge variant={priorityVariants[selectedRequest.priority]} className="inline-flex items-center">
+                        🔥 {selectedRequest.priority?.charAt(0).toUpperCase() + selectedRequest.priority?.slice(1) || 'Medium'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Type</Label>
+                    <p className="mt-1 text-gray-700">{requestTypeLabels[selectedRequest.requestType] || selectedRequest.requestType}</p>
                   </div>
                 </div>
 
@@ -239,6 +293,35 @@ const GuestServiceRequestsPage = () => {
                   <div>
                     <Label>Last Updated</Label>
                     <p className="mt-1 text-gray-700">{moment(selectedRequest.updatedAt).format('MMM D, YYYY h:mm A')}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Assigned To</Label>
+                    <p className="mt-1 text-gray-700">{selectedRequest.assignedTo?.name || 'Unassigned'}</p>
+                  </div>
+                  <div>
+                    <Label>Estimated Completion</Label>
+                    <p className="mt-1 text-gray-700">{selectedRequest.estimatedCompletionTime ? moment(selectedRequest.estimatedCompletionTime).format('MMM D, YYYY h:mm A') : 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Timeline</Label>
+                  <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="bg-gray-50 p-3 rounded">
+                      <div className="text-gray-500">Created</div>
+                      <div className="font-medium">{moment(selectedRequest.createdAt).format('MMM D, YYYY h:mm A')}</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <div className="text-gray-500">Assigned</div>
+                      <div className="font-medium">{selectedRequest.assignedAt ? moment(selectedRequest.assignedAt).format('MMM D, YYYY h:mm A') : '—'}</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded">
+                      <div className="text-gray-500">Completed</div>
+                      <div className="font-medium">{selectedRequest.completedAt ? moment(selectedRequest.completedAt).format('MMM D, YYYY h:mm A') : '—'}</div>
+                    </div>
                   </div>
                 </div>
 
@@ -256,6 +339,9 @@ const GuestServiceRequestsPage = () => {
                       {selectedRequest.notes.map((note, index) => (
                         <div key={index} className="bg-gray-50 p-3 rounded-md">
                           <p className="text-sm text-gray-700">{note.content}</p>
+                          {note.addedBy && (
+                            <p className="text-xs text-gray-600 mt-1">By {note.addedBy.name}</p>
+                          )}
                           <p className="text-xs text-gray-500 mt-1">
                             {moment(note.addedAt).fromNow()}
                           </p>
