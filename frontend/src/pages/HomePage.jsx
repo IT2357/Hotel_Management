@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, Info, Image, Phone, ChefHat, ShoppingCart, Bed, Calendar, Menu, X, User, Heart, FileText, MessageSquare, Star, CheckCircle, Clock, MapPin, LogIn, LogOut, ChevronDown, Settings } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import SharedNavbar from '../components/shared/SharedNavbar';
 import foodService from '../services/foodService';
 import roomService from '../services/roomService';
 
 export default function HomePage() {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
@@ -63,57 +64,6 @@ export default function HomePage() {
       title: 'Fresh Seafood Delicacies',
       subtitle: 'Caught Daily from Jaffna Waters',
       description: 'Savor the freshest seafood prepared with traditional Jaffna methods at VALDOR'
-    }
-  ];
-
-  const jaffnaSpecialties = [
-    {
-      name: 'Jaffna Crab Curry',
-      tamil: 'யாழ் நண்டு கறி',
-      description: 'Fresh crab from Jaffna lagoon cooked in traditional spices',
-      price: 'LKR 2,250',
-      image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
-      spice: '🌶️🌶️🌶️'
-    },
-    {
-      name: 'Kachal Rice Meal',
-      tamil: 'கச்சல் சோறு',
-      description: 'Fragrant rice with mixed vegetables and Jaffna spices',
-      price: 'LKR 1,850',
-      image: 'https://images.unsplash.com/photo-1563379091339-03246963d96c?w=400',
-      spice: '🌶️🌶️'
-    },
-    {
-      name: 'Mutton Varuval',
-      tamil: 'மட்டன் வருவல்',
-      description: 'Tender mutton marinated in Jaffna masala and grilled',
-      price: 'LKR 2,150',
-      image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-      spice: '🌶️🌶️🌶️🌶️'
-    },
-    {
-      name: 'Fish Ambul Thiyal',
-      tamil: 'மீன் அம்புள் தியல்',
-      description: 'Sour fish curry with goraka and Jaffna coastal spices',
-      price: 'LKR 1,950',
-      image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400',
-      spice: '🌶️🌶️🌶️'
-    },
-    {
-      name: 'Pani Walalu',
-      tamil: 'பனி வலலு',
-      description: 'Traditional Jaffna sweet made with rice flour and honey',
-      price: 'LKR 650',
-      image: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400',
-      spice: '🍯'
-    },
-    {
-      name: 'Jaffna Mango Curry',
-      tamil: 'யாழ் மாங்காய் கறி',
-      description: 'Seasonal mango curry with coconut milk and Jaffna spices',
-      price: 'LKR 1,450',
-      image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400',
-      spice: '🌶️🌶️'
     }
   ];
 
@@ -250,8 +200,8 @@ export default function HomePage() {
         setMenuItems(response.data || []);
       } catch (error) {
         console.error('Error fetching menu items:', error);
-        // Fallback to static data if API fails
-        setMenuItems(jaffnaSpecialties.slice(0, 6));
+        // Show empty state if API fails
+        setMenuItems([]);
       } finally {
         setMenuLoading(false);
       }
@@ -1227,6 +1177,33 @@ export default function HomePage() {
                   roomNumber: '312',
                   description: 'Comfortable room with all essential amenities for a pleasant stay',
                   amenities: ['WiFi', 'AC', 'TV', 'Mini Fridge']
+                },
+                {
+                  title: 'Premium Garden View',
+                  type: 'Premium',
+                  basePrice: 20000,
+                  capacity: 3,
+                  roomNumber: '208',
+                  description: 'Elegant room overlooking our beautiful garden with premium facilities',
+                  amenities: ['WiFi', 'AC', 'Garden View', 'Balcony']
+                },
+                {
+                  title: 'Family Suite',
+                  type: 'Suite',
+                  basePrice: 28000,
+                  capacity: 6,
+                  roomNumber: '301',
+                  description: 'Spacious suite perfect for families with multiple beds and living area',
+                  amenities: ['WiFi', 'AC', 'Kitchenette', '2 Bedrooms']
+                },
+                {
+                  title: 'Deluxe City View',
+                  type: 'Deluxe',
+                  basePrice: 16000,
+                  capacity: 2,
+                  roomNumber: '405',
+                  description: 'Modern room with panoramic city views and contemporary design',
+                  amenities: ['WiFi', 'AC', 'City View', 'Smart TV']
                 }
               ].map((room, index) => (
                 <motion.div

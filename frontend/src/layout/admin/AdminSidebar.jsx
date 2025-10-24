@@ -33,6 +33,8 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
         { label: 'Overview', to: '/admin/food', icon: '📊' },
         { label: 'Menu Items', to: '/admin/food/menu', icon: '📋' },
         { label: 'Food Orders', to: '/admin/food/orders', icon: '🛒' },
+        { label: 'Categories', to: '/admin/food/categories', icon: '📁' },
+        { label: 'Offers & Discounts', to: '/admin/food/offers', icon: '🎁' },
         { label: 'AI Menu Generator', to: '/admin/food/ai-menu', icon: '🤖' }
       ]
     },

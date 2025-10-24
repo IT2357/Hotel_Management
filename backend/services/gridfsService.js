@@ -16,20 +16,27 @@ class GridFSService {
    */
   initializeBucket() {
     try {
-      if (mongoose.connection.readyState === 1) {
+      console.log('🔧 Initializing GridFS...');
+      console.log('🔗 Connection readyState:', mongoose.connection.readyState);
+      console.log('🗄️ Database object:', mongoose.connection.db ? 'available' : 'NOT available');
+      
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
         this.bucket = new GridFSBucket(mongoose.connection.db, {
           bucketName: 'menu.Images'
         });
         this.initialized = true;
-        console.log('✅ GridFS bucket initialized');
+        console.log('✅ GridFS bucket initialized (immediate)');
+        console.log('🪣 Bucket name:', this.bucket.s.options.bucketName);
       } else {
+        console.log('⏳ Waiting for mongoose connection...');
         // Wait for mongoose connection
-        mongoose.connection.on('connected', () => {
+        mongoose.connection.once('connected', () => {
           this.bucket = new GridFSBucket(mongoose.connection.db, {
             bucketName: 'menu.Images'
           });
           this.initialized = true;
-          console.log('✅ GridFS bucket initialized');
+          console.log('✅ GridFS bucket initialized (deferred)');
+          console.log('🪣 Bucket name:', this.bucket.s.options.bucketName);
         });
       }
     } catch (error) {
@@ -154,11 +161,34 @@ class GridFSService {
         throw new Error('GridFS not initialized');
       }
 
+      console.log('🔍 Looking for GridFS image with ID:', fileId);
+      console.log('🪣 Bucket name:', this.bucket?.s?.options?.bucketName || 'unknown');
+      
       const objectId = new mongoose.Types.ObjectId(fileId);
+      console.log('🔑 ObjectId:', objectId);
+      console.log('🔑 ObjectId string:', objectId.toString());
+      console.log('🔑 ObjectId type:', typeof objectId);
+      console.log('🗄️ DB name:', this.bucket.s.db.databaseName);
+      console.log('🪣 Bucket name:', this.bucket.s.options.bucketName);
       
       // Get file metadata
+      console.log('🔍 Querying bucket.find({ _id: objectId })...');
       const files = await this.bucket.find({ _id: objectId }).toArray();
+      console.log('📁 Files found:', files.length);
+      
       if (files.length === 0) {
+        // Try alternate query to debug
+        console.log('🔍 Trying to list all files in bucket...');
+        const allFiles = await this.bucket.find().limit(3).toArray();
+        console.log('📁 Sample files in bucket:', allFiles.length);
+        if (allFiles.length > 0) {
+          console.log('   First file ID:', allFiles[0]._id.toString());
+          console.log('   First file name:', allFiles[0].filename);
+        }
+      }
+      
+      if (files.length === 0) {
+        console.error('❌ No files found with ObjectId:', objectId.toString());
         throw new Error('Image not found');
       }
 

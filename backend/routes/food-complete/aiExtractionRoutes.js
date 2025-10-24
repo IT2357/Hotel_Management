@@ -10,6 +10,7 @@ import { authenticateToken } from '../../middleware/auth.js';
 import { authorizeRoles } from '../../middleware/roleAuth.js';
 import {
   extractMenuFromImage,
+  extractMenuFromUrl,
   getSupportedLanguages
 } from '../../controllers/food-complete/aiExtractionController.js';
 
@@ -64,6 +65,14 @@ router.post(
   upload.single('image'),
   handleMulterError,
   extractMenuFromImage
+);
+
+// POST /api/food-complete/ai/extract-from-url - Extract menu from website URL
+router.post(
+  '/extract-from-url',
+  authenticateToken,
+  authorizeRoles('admin'),
+  extractMenuFromUrl
 );
 
 // GET /api/food-complete/ai/supported-languages - Get supported OCR languages

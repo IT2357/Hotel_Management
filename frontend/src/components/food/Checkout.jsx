@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -19,7 +21,8 @@ import {
   Shield,
   Truck,
   Star,
-  Heart
+  Heart,
+  Loader2
 } from 'lucide-react';
 import FoodButton from './FoodButton';
 import FoodInput from './FoodInput';
@@ -27,9 +30,14 @@ import FoodLabel from './FoodLabel';
 import FoodSelect from './FoodSelect';
 import FoodTextarea from './FoodTextarea';
 import { useCart } from '../../context/CartContext';
+import { toast } from 'sonner';
+import foodService from '../../services/foodService';
+import { validateField, guestInfoValidation, validateForm as validateFormUtil } from '../../utils/validation';
 
 const Checkout = ({ onClose, onOrderComplete }) => {
-  const { items, getTotal, clearCart } = useCart();
+  const { items, getTotal, clearCart, getItemCount } = useCart();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     // Guest details
@@ -53,8 +61,11 @@ const Checkout = ({ onClose, onOrderComplete }) => {
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [touchedFields, setTouchedFields] = useState(new Set());
+  const [fieldValidation, setFieldValidation] = useState({});
+  const [appliedOffer, setAppliedOffer] = useState(null);
 
   // Load saved form data from localStorage
   useEffect(() => {
@@ -64,6 +75,16 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         setFormData(JSON.parse(savedFormData));
       } catch (error) {
         console.error('Error loading saved form data:', error);
+      }
+    }
+
+    // Load applied offer from localStorage
+    const savedOffer = localStorage.getItem('appliedOffer');
+    if (savedOffer) {
+      try {
+        setAppliedOffer(JSON.parse(savedOffer));
+      } catch (error) {
+        console.error('Error loading applied offer:', error);
       }
     }
   }, []);
@@ -80,6 +101,15 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       [field]: value
     }));
     
+    // Real-time validation for guest info fields
+    if (['firstName', 'lastName', 'email', 'phone'].includes(field)) {
+      const error = validateField(field, value, guestInfoValidation);
+      setFieldValidation(prev => ({
+        ...prev,
+        [field]: error
+      }));
+    }
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
@@ -87,6 +117,10 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         [field]: ''
       }));
     }
+  };
+
+  const handleFieldBlur = (field) => {
+    setTouchedFields(prev => new Set([...prev, field]));
   };
 
   // Validation
@@ -118,16 +152,98 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       newErrors.pickupTime = 'Pickup time is required for takeaway orders';
     }
 
-    // Payment method specific validation
-    if (formData.paymentMethod === 'cod' && !formData.deliveryAddress.trim()) {
-      newErrors.deliveryAddress = 'Delivery address is required for cash on delivery';
+    // Cart validation
+    if (items.length === 0) {
+      newErrors.cart = 'Your cart is empty. Please add items before checkout.';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
+  // React Query mutation for submitting order
+  const submitOrderMutation = useMutation({
+    mutationFn: async (orderData) => {
+      const response = await foodService.createOrder(orderData);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Clear cart and form data
+      clearCart();
+      localStorage.removeItem('jaffna_checkout_form');
+      localStorage.removeItem('appliedOffer'); // Clear applied offer
+      
+      // Invalidate related queries
+      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries(['orders']);
+      
+      // Show success message
+      toast.success('Order placed successfully!');
+      
+      // Call success callback
+      onOrderComplete?.(data);
+    },
+    onError: (error) => {
+      console.error('Order submission error:', error);
+      toast.error(error.message || 'Failed to place order. Please try again.');
+      setErrors({ submit: 'Failed to place order. Please try again.' });
+    }
+  });
+
+  // Redirect to PayHere payment gateway
+  const redirectToPayHere = (payHereData) => {
+    // Create a form to submit to PayHere
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://sandbox.payhere.lk/pay/checkout';
+    form.target = '_blank';
+    
+    // Add all PayHere form fields
+    Object.keys(payHereData).forEach(key => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = payHereData[key];
+      form.appendChild(input);
+    });
+    
+    // Add form to page and submit
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  };
+
+  // Handle PayHere payment callback
+  const handlePayHereCallback = async (paymentData) => {
+    try {
+      // This would be called by PayHere return URL
+      console.log('PayHere payment callback:', paymentData);
+      
+      // Verify payment status with backend
+      const verification = await foodService.verifyPayment(
+        paymentData.orderId, 
+        paymentData.paymentId
+      );
+      
+      if (verification.success && verification.data.paymentStatus === 'Paid') {
+        toast.success('Payment successful!');
+        
+        // Navigate to order tracking page
+        navigate('/my-orders');
+        
+        // Clear cart and close checkout
+        clearCart();
+        onClose();
+      } else {
+        toast.error('Payment verification failed');
+      }
+    } catch (error) {
+      console.error('PayHere callback error:', error);
+      toast.error('Payment processing failed. Please contact support.');
+    }
+  };
+
+  // Handle form submission with React Query
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -136,13 +252,40 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       return;
     }
 
-    setIsSubmitting(true);
+    setIsProcessing(true);
 
     try {
-      // Create order object
+      // Calculate totals
+      const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      // Calculate offer discount if applied
+      let offerDiscount = 0;
+      if (appliedOffer) {
+        if (appliedOffer.type === 'percentage') {
+          offerDiscount = subtotal * (appliedOffer.discountValue / 100);
+        } else if (appliedOffer.type === 'fixed_amount') {
+          offerDiscount = Math.min(appliedOffer.discountValue, subtotal);
+        }
+      }
+      
+      const tax = subtotal * 0.1; // 10% tax
+      const deliveryFee = 0; // No delivery feature (only dine-in and takeaway)
+      const totalPrice = subtotal - offerDiscount + tax + deliveryFee;
+
+      // Create order object with FoodOrder schema - matching backend expectations
       const order = {
-        _id: `ORD-${Date.now()}`,
-        items: items,
+        items: items.map(item => ({
+          foodId: item._id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          totalPrice: item.price * item.quantity
+        })),
+        customerDetails: {
+          customerName: `${formData.firstName} ${formData.lastName}`,
+          customerEmail: formData.email,
+          customerPhone: formData.phone
+        },
         guest: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -151,31 +294,46 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         },
         orderType: formData.orderType,
         tableNumber: formData.tableNumber || null,
-        pickupTime: formData.pickupTime || null,
+        pickupTime: formData.pickupTime ? parseInt(formData.pickupTime, 10) : null,
         specialInstructions: formData.specialInstructions,
-        paymentMethod: formData.paymentMethod,
+        paymentMethod: formData.paymentMethod === 'cash' ? 'cash' : formData.paymentMethod === 'card' ? 'card' : 'cash',
+        currency: 'LKR',
         deliveryAddress: formData.deliveryAddress || null,
         deliveryInstructions: formData.deliveryInstructions || null,
-        total: getTotal(),
+        subtotal: subtotal,
+        tax: tax,
+        deliveryFee: deliveryFee, // Backend requires this field (0 for non-delivery orders)
+        totalPrice: totalPrice, // Backend expects 'totalPrice', not 'total'
+        total: totalPrice, // Keep for compatibility
         status: 'pending',
         createdAt: new Date().toISOString()
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Clear form and cart
-      localStorage.removeItem('jaffna_checkout_form');
-        clearCart();
-
-      // Call success callback
-      onOrderComplete(order);
-
+      // Handle different payment methods
+      if (formData.paymentMethod === 'card') {
+        // For card payments, redirect to PayHere
+        toast.info('Redirecting to secure payment gateway...');
+        
+        // Create order first to get order ID
+        const orderResponse = await submitOrderMutation.mutateAsync(order);
+        
+        if (orderResponse.data && orderResponse.data.paymentResult?.payHereData) {
+          // Redirect to PayHere with payment data
+          const payHereData = orderResponse.data.paymentResult.payHereData;
+          redirectToPayHere(payHereData);
+        } else {
+          throw new Error('Failed to initialize payment');
+        }
+      } else {
+        // For other payment methods, submit order directly
+        submitOrderMutation.mutate(order);
+      }
     } catch (error) {
-      console.error('Order submission error:', error);
-      setErrors({ submit: 'Failed to place order. Please try again.' });
+      console.error('Checkout error:', error);
+      toast.error('Checkout failed. Please try again.');
+      setErrors({ submit: 'Checkout failed. Please try again.' });
     } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
     }
   };
 
@@ -203,59 +361,77 @@ const Checkout = ({ onClose, onOrderComplete }) => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full h-full sm:max-w-6xl mx-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-white sm:min-h-0 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4 sm:mb-8 sticky top-0 bg-white dark:bg-gray-800 z-10 pb-4 border-b sm:border-b-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Checkout</h1>
-          <p className="text-gray-600 mt-1">Complete your order in just a few steps</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white">Checkout</h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">Complete your order in just a few steps</p>
         </div>
         <button
           onClick={onClose}
-          className="p-3 hover:bg-gray-100 rounded-2xl transition-colors"
+          className="p-2 sm:p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl sm:rounded-2xl transition-colors flex-shrink-0"
         >
-          <X className="w-6 h-6 text-gray-500" />
+          <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500 dark:text-gray-400" />
         </button>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-12">
-        <div className="flex items-center justify-between">
+      {/* Progress Bar - Compact on mobile */}
+      <div className="mb-6 sm:mb-12">
+        {/* Mobile Progress (Simple dots) */}
+        <div className="flex sm:hidden items-center justify-center gap-2 mb-4">
+          {steps.map((step, index) => (
+            <React.Fragment key={step.number}>
+              <div
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  step.number < currentStep
+                    ? 'bg-green-500 w-2.5'
+                    : step.number === currentStep
+                    ? 'bg-indigo-600 w-8'
+                    : 'bg-gray-300 dark:bg-gray-600 w-2.5'
+                }`}
+              />
+            </React.Fragment>
+          ))}
+        </div>
+        
+        {/* Desktop Progress (Full) */}
+        <div className="hidden sm:flex items-center justify-between">
           {steps.map((step, index) => {
             const Icon = step.icon;
             return (
               <React.Fragment key={step.number}>
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
                       step.number < currentStep
                         ? 'bg-green-500 text-white'
                         : step.number === currentStep
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
                     }`}
                   >
                     {step.number < currentStep ? (
-                      <CheckCircle className="w-6 h-6" />
+                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                     ) : (
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </div>
-                  <div className="text-center mt-3">
-                    <div className={`text-sm font-semibold ${
-                      step.number <= currentStep ? 'text-orange-500' : 'text-gray-500'
+                  <div className="text-center mt-2 sm:mt-3">
+                    <div className={`text-xs sm:text-sm font-semibold ${
+                      step.number <= currentStep ? 'text-indigo-600' : 'text-gray-500 dark:text-gray-400'
                     }`}>
                       {step.title}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1 hidden md:block">
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 hidden lg:block">
                       {step.description}
                     </div>
                   </div>
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`flex-1 h-1 mx-4 transition-colors duration-300 ${
-                      step.number < currentStep ? 'bg-green-500' : 'bg-gray-200'
+                    className={`flex-1 h-0.5 sm:h-1 mx-2 sm:mx-4 transition-colors duration-300 ${
+                      step.number < currentStep ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-600'
                     }`}
                   />
                 )}
@@ -263,7 +439,13 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             );
           })}
         </div>
-              </div>
+
+        {/* Mobile Step Title */}
+        <div className="sm:hidden text-center mt-3">
+          <h2 className="text-base font-bold text-gray-800 dark:text-white">{steps[currentStep - 1]?.title}</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{steps[currentStep - 1]?.description}</p>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Step 1: Guest Details */}
@@ -274,65 +456,86 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             className="space-y-8"
           >
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-orange-500" />
+              <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="w-8 h-8 text-indigo-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Guest Information</h2>
-              <p className="text-gray-600">Please provide your contact details for order confirmation</p>
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Guest Information</h2>
+              <p className="text-gray-600 dark:text-gray-400">Please provide your contact details for order confirmation</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+              <div>
                 <FoodLabel htmlFor="firstName">First Name *</FoodLabel>
-              <FoodInput
+                <FoodInput
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  onBlur={() => handleFieldBlur('firstName')}
                   placeholder="Enter your first name"
-                  className={errors.firstName ? 'border-red-500' : ''}
+                  className={errors.firstName || (fieldValidation.firstName && touchedFields.has('firstName')) ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
                 />
-                {errors.firstName && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                {(errors.firstName || (fieldValidation.firstName && touchedFields.has('firstName'))) && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-2 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.firstName}
+                    {errors.firstName || fieldValidation.firstName}
                   </p>
                 )}
-            </div>
+                {!fieldValidation.firstName && touchedFields.has('firstName') && formData.firstName && (
+                  <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Looks good!
+                  </p>
+                )}
+              </div>
 
-            <div>
+              <div>
                 <FoodLabel htmlFor="lastName">Last Name *</FoodLabel>
-              <FoodInput
+                <FoodInput
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  onBlur={() => handleFieldBlur('lastName')}
                   placeholder="Enter your last name"
-                  className={errors.lastName ? 'border-red-500' : ''}
+                  className={errors.lastName || (fieldValidation.lastName && touchedFields.has('lastName')) ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
                 />
-                {errors.lastName && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                {(errors.lastName || (fieldValidation.lastName && touchedFields.has('lastName'))) && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-2 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.lastName}
+                    {errors.lastName || fieldValidation.lastName}
                   </p>
                 )}
-            </div>
+                {!fieldValidation.lastName && touchedFields.has('lastName') && formData.lastName && (
+                  <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Looks good!
+                  </p>
+                )}
+              </div>
 
               <div>
                 <FoodLabel htmlFor="email">Email Address *</FoodLabel>
-              <FoodInput
+                <FoodInput
                   id="email"
-                type="email"
+                  type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
+                  onBlur={() => handleFieldBlur('email')}
                   placeholder="your.email@example.com"
-                  className={errors.email ? 'border-red-500' : ''}
+                  className={errors.email || (fieldValidation.email && touchedFields.has('email')) ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
                 />
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                {(errors.email || (fieldValidation.email && touchedFields.has('email'))) && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-2 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.email}
+                    {errors.email || fieldValidation.email}
                   </p>
                 )}
-            </div>
+                {!fieldValidation.email && touchedFields.has('email') && formData.email && (
+                  <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Valid email!
+                  </p>
+                )}
+              </div>
 
               <div>
                 <FoodLabel htmlFor="phone">Phone Number *</FoodLabel>
@@ -341,13 +544,20 @@ const Checkout = ({ onClose, onOrderComplete }) => {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onBlur={() => handleFieldBlur('phone')}
                   placeholder="+94 77 123 4567"
-                  className={errors.phone ? 'border-red-500' : ''}
+                  className={errors.phone || (fieldValidation.phone && touchedFields.has('phone')) ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
                 />
-                {errors.phone && (
-                  <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                {(errors.phone || (fieldValidation.phone && touchedFields.has('phone'))) && (
+                  <p className="text-red-500 dark:text-red-400 text-sm mt-2 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.phone}
+                    {errors.phone || fieldValidation.phone}
+                  </p>
+                )}
+                {!fieldValidation.phone && touchedFields.has('phone') && formData.phone && (
+                  <p className="text-green-600 dark:text-green-400 text-sm mt-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Valid phone number!
                   </p>
                 )}
               </div>
@@ -363,8 +573,8 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             className="space-y-8"
           >
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ChefHat className="w-8 h-8 text-orange-500" />
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ChefHat className="w-8 h-8 text-indigo-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Order Type</h2>
               <p className="text-gray-600">Choose how you'd like to receive your order</p>
@@ -375,14 +585,14 @@ const Checkout = ({ onClose, onOrderComplete }) => {
               <div
                 className={`p-8 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
                   formData.orderType === 'dine-in'
-                    ? 'border-orange-500 bg-orange-50 shadow-lg'
-                    : 'border-gray-200 hover:border-orange-300'
+                    ? 'border-indigo-600 bg-indigo-50 shadow-lg'
+                    : 'border-gray-200 hover:border-indigo-300'
                 }`}
                 onClick={() => handleInputChange('orderType', 'dine-in')}
               >
                 <div className="text-center">
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                    formData.orderType === 'dine-in' ? 'bg-orange-500' : 'bg-gray-100'
+                    formData.orderType === 'dine-in' ? 'bg-indigo-500' : 'bg-gray-100'
                   }`}>
                     <ChefHat className={`w-8 h-8 ${
                       formData.orderType === 'dine-in' ? 'text-white' : 'text-gray-600'
@@ -401,14 +611,14 @@ const Checkout = ({ onClose, onOrderComplete }) => {
               <div
                 className={`p-8 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
                   formData.orderType === 'takeaway'
-                    ? 'border-orange-500 bg-orange-50 shadow-lg'
-                    : 'border-gray-200 hover:border-orange-300'
+                    ? 'border-indigo-600 bg-indigo-50 shadow-lg'
+                    : 'border-gray-200 hover:border-indigo-300'
                 }`}
                 onClick={() => handleInputChange('orderType', 'takeaway')}
               >
                 <div className="text-center">
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                    formData.orderType === 'takeaway' ? 'bg-orange-500' : 'bg-gray-100'
+                    formData.orderType === 'takeaway' ? 'bg-indigo-500' : 'bg-gray-100'
                   }`}>
                     <ShoppingBag className={`w-8 h-8 ${
                       formData.orderType === 'takeaway' ? 'text-white' : 'text-gray-600'
@@ -506,42 +716,57 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             className="space-y-8"
           >
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CreditCard className="w-8 h-8 text-orange-500" />
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="w-8 h-8 text-indigo-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Payment Method</h2>
               <p className="text-gray-600">Choose how you'd like to pay</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {[
                 { value: 'cash', label: 'Pay at Restaurant', icon: '💵', description: 'Pay when you arrive', color: 'bg-green-50 border-green-200' },
-                { value: 'cod', label: 'Cash on Delivery', icon: '🚚', description: 'Pay when food is delivered', color: 'bg-blue-50 border-blue-200' },
-                { value: 'card', label: 'Credit/Debit Card', icon: '💳', description: 'Pay online now', color: 'bg-purple-50 border-purple-200' },
-                { value: 'bank', label: 'Bank Transfer', icon: '🏦', description: 'Transfer to our account', color: 'bg-gray-50 border-gray-200' }
+                { value: 'card', label: 'Credit/Debit Card', icon: '💳', description: 'Pay online now (PayHere)', color: 'bg-purple-50 border-purple-200' }
               ].map((method) => (
                 <div
                   key={method.value}
-                  className={`p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                  className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
                     formData.paymentMethod === method.value
-                      ? 'border-orange-500 bg-orange-50 shadow-lg'
-                      : `border-gray-200 hover:border-orange-300 ${method.color}`
+                      ? 'border-indigo-500 bg-indigo-50 shadow-lg'
+                      : `border-gray-200 hover:border-indigo-300 ${method.color}`
                   }`}
                   onClick={() => handleInputChange('paymentMethod', method.value)}
                 >
-                  <div className="flex items-center gap-4">
-                    <span className="text-3xl">{method.icon}</span>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <span className="text-2xl sm:text-3xl">{method.icon}</span>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-800">{method.label}</h3>
-                      <p className="text-gray-600">{method.description}</p>
+                      <h3 className="text-base sm:text-lg font-bold text-gray-800">{method.label}</h3>
+                      <p className="text-sm sm:text-base text-gray-600">{method.description}</p>
                     </div>
                   </div>
                 </div>
               ))}
-          </div>
+            </div>
 
-            {/* Delivery Address for COD */}
-            {formData.paymentMethod === 'cod' && (
+            {/* Card Payment Info */}
+            {formData.paymentMethod === 'card' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 sm:mt-8 p-4 sm:p-6 bg-purple-50 rounded-xl sm:rounded-2xl border border-purple-200"
+              >
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm sm:text-base font-bold text-gray-800 mb-2">Secure Payment via PayHere</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">You'll be redirected to PayHere's secure payment gateway to complete your purchase.</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Hidden div to maintain layout structure */}
+            {false && formData.paymentMethod === 'never' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -549,7 +774,7 @@ const Checkout = ({ onClose, onOrderComplete }) => {
               >
                 <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                   <MapPin className="w-6 h-6 text-blue-500" />
-                  Delivery Address
+                  Placeholder
                 </h3>
                 
                 <div className="space-y-6">
@@ -595,8 +820,8 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             className="space-y-8"
           >
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-orange-500" />
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-indigo-600" />
               </div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Review Your Order</h2>
               <p className="text-gray-600">Please confirm all details before placing your order</p>
@@ -637,11 +862,56 @@ const Checkout = ({ onClose, onOrderComplete }) => {
               <div className="space-y-3 border-t border-gray-200 pt-6">
                 <div className="flex justify-between text-lg">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="text-gray-800 font-semibold">LKR {items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</span>
+                  <span className="text-gray-800 font-semibold">
+                    LKR {items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                  </span>
                 </div>
-                <div className="flex justify-between text-lg font-bold">
+                
+                {/* Show applied offer discount */}
+                {appliedOffer && (
+                  <div className="flex justify-between text-lg">
+                    <span className="text-green-600 flex items-center gap-2">
+                      <Star className="w-4 h-4" fill="currentColor" />
+                      Offer Discount ({appliedOffer.type === 'percentage' ? `${appliedOffer.discountValue}%` : `LKR ${appliedOffer.discountValue}`})
+                    </span>
+                    <span className="text-green-600 font-semibold">
+                      - LKR {(appliedOffer.type === 'percentage' 
+                        ? (items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (appliedOffer.discountValue / 100))
+                        : Math.min(appliedOffer.discountValue, items.reduce((sum, item) => sum + (item.price * item.quantity), 0))
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between text-lg">
+                  <span className="text-gray-600">Tax (10%)</span>
+                  <span className="text-gray-800 font-semibold">
+                    LKR {(items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg">
+                  <span className="text-gray-600">Delivery Fee</span>
+                  <span className="text-gray-800 font-semibold">
+                    LKR 0.00
+                  </span>
+                </div>
+                <div className="flex justify-between text-xl font-bold border-t border-gray-300 pt-3 mt-3">
                   <span className="text-gray-800">Total</span>
-                  <span className="text-orange-500">LKR {getTotal().toFixed(2)}</span>
+                  <span className="text-indigo-600">
+                    LKR {(() => {
+                      const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                      let discount = 0;
+                      if (appliedOffer) {
+                        if (appliedOffer.type === 'percentage') {
+                          discount = subtotal * (appliedOffer.discountValue / 100);
+                        } else if (appliedOffer.type === 'fixed_amount') {
+                          discount = Math.min(appliedOffer.discountValue, subtotal);
+                        }
+                      }
+                      const tax = subtotal * 0.1;
+                      return (subtotal - discount + tax).toFixed(2);
+                    })()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -673,59 +943,99 @@ const Checkout = ({ onClose, onOrderComplete }) => {
                   {formData.orderType === 'takeaway' && (
                     <div><strong>Pickup:</strong> {formData.pickupTime} minutes</div>
                   )}
-                  <div><strong>Payment:</strong> {formData.paymentMethod === 'cod' ? 'Cash on Delivery' : formData.paymentMethod}</div>
+                  <div><strong>Payment:</strong> {formData.paymentMethod === 'cod' ? 'Cash on Delivery' : 
+                    formData.paymentMethod === 'card' ? 'Credit/Debit Card' :
+                    formData.paymentMethod === 'bank' ? 'Bank Transfer' : 'Pay at Restaurant'}</div>
                   {formData.paymentMethod === 'cod' && formData.deliveryAddress && (
                     <div><strong>Delivery Address:</strong> {formData.deliveryAddress}</div>
                   )}
                   {formData.specialInstructions && (
                     <div><strong>Instructions:</strong> {formData.specialInstructions}</div>
-            )}
-          </div>
+                  )}
+                </div>
               </div>
-        </div>
+            </div>
           </motion.div>
-      )}
+        )}
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between pt-8 border-t border-gray-200">
-        <FoodButton
+        {/* Navigation Buttons - Mobile responsive */}
+        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 pt-6 sm:pt-8 border-t border-gray-200 sticky bottom-0 bg-white dark:bg-gray-800 pb-4 sm:pb-0 -mx-4 sm:mx-0 px-4 sm:px-0">
+          <FoodButton
             type="button"
             onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-          variant="outline"
-            className="px-8 py-4 rounded-2xl font-semibold"
+            variant="outline"
+            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-base order-2 sm:order-1"
             disabled={currentStep === 1}
           >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Previous
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">Back</span>
           </FoodButton>
 
           {currentStep < 4 ? (
             <FoodButton
               type="button"
-              onClick={() => setCurrentStep(currentStep + 1)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-2xl font-semibold"
+              onClick={() => {
+                // Validate current step before proceeding
+                if (currentStep === 1) {
+                  const guestErrors = {};
+                  if (!formData.firstName.trim()) guestErrors.firstName = 'First name is required';
+                  if (!formData.lastName.trim()) guestErrors.lastName = 'Last name is required';
+                  if (!formData.email.trim()) guestErrors.email = 'Email is required';
+                  if (!formData.phone.trim()) guestErrors.phone = 'Phone number is required';
+                  if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+                    guestErrors.email = 'Please enter a valid email address';
+                  }
+                  if (formData.phone && !/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
+                    guestErrors.phone = 'Please enter a valid phone number';
+                  }
+                  
+                  if (Object.keys(guestErrors).length > 0) {
+                    setErrors(guestErrors);
+                    return;
+                  }
+                }
+                
+                if (currentStep === 2) {
+                  const orderErrors = {};
+                  if (formData.orderType === 'dine-in' && !formData.tableNumber) {
+                    orderErrors.tableNumber = 'Table number is required for dine-in orders';
+                  }
+                  if (formData.orderType === 'takeaway' && !formData.pickupTime) {
+                    orderErrors.pickupTime = 'Pickup time is required for takeaway orders';
+                  }
+                  
+                  if (Object.keys(orderErrors).length > 0) {
+                    setErrors(orderErrors);
+                    return;
+                  }
+                }
+                
+                setCurrentStep(currentStep + 1);
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-base shadow-lg hover:shadow-xl transition-all order-1 sm:order-2"
             >
               Next
-              <ArrowRight className="w-5 h-5 ml-2" />
-        </FoodButton>
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2 inline" />
+            </FoodButton>
           ) : (
-        <FoodButton
+            <FoodButton
               type="submit"
-              disabled={isSubmitting}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-12 py-4 rounded-2xl font-bold text-lg disabled:opacity-50"
+              disabled={isProcessing || submitOrderMutation.isLoading}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 sm:px-12 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg disabled:opacity-50 shadow-lg hover:shadow-xl transition-all order-1 sm:order-2"
             >
-              {isSubmitting ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Placing Order...
+              {isProcessing || submitOrderMutation.isLoading ? (
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                  <span className="text-sm sm:text-base">{formData.paymentMethod === 'card' ? 'Processing...' : 'Placing Order...'}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5" />
-                  Place Order
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base">{formData.paymentMethod === 'card' ? 'Pay Now' : 'Place Order'}</span>
                 </div>
               )}
-        </FoodButton>
+            </FoodButton>
           )}
         </div>
 
@@ -739,7 +1049,20 @@ const Checkout = ({ onClose, onOrderComplete }) => {
             <div className="flex items-center gap-3 text-red-700">
               <AlertCircle className="w-6 h-6" />
               <span className="font-semibold">{errors.submit}</span>
-      </div>
+            </div>
+          </motion.div>
+        )}
+        
+        {errors.cart && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-200 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-3 text-red-700">
+              <AlertCircle className="w-6 h-6" />
+              <span className="font-semibold">{errors.cart}</span>
+            </div>
           </motion.div>
         )}
       </form>

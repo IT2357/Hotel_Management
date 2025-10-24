@@ -96,14 +96,14 @@ const KitchenDashboard = () => {
 
   if (!userRole || !staffId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       {/* Navigation */}
       <SharedNavbar showBackButton={true} backPath="/dashboard" />
 
@@ -124,7 +124,7 @@ const KitchenDashboard = () => {
                 <FoodButton
                   variant="outline"
                   onClick={() => window.location.reload()}
-                  className="text-[#FF9933] border-[#FF9933] hover:bg-[#FF9933]/10"
+                  className="text-indigo-600 border-indigo-600 hover:bg-indigo-50"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh
@@ -195,7 +195,7 @@ const KitchenDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-r from-[#FF9933] to-[#CC7A29] text-white">
+            <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -225,31 +225,31 @@ const KitchenDashboard = () => {
                       <input
                         type="text"
                         placeholder="Search orders by ID, customer name, or items..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-[#FF9933] focus:border-transparent"
-                      />
-                    </div>
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      className="px-4 py-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-[#FF9933] focus:border-transparent"
-                    >
-                      <option value="all">All Orders</option>
-                      <option value="pending">Pending</option>
-                      <option value="preparing">Preparing</option>
-                      <option value="ready">Ready</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                    <FoodButton
-                      variant="outline"
-                      className="border-[#FF9933] text-[#FF9933] hover:bg-[#FF9933]/10"
-                    >
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filter
-                    </FoodButton>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="px-4 py-3 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                  >
+                    <option value="all">All Orders</option>
+                    <option value="pending">Pending</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="ready">Ready</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  <FoodButton
+                    variant="outline"
+                    className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                  >
+                    <Filter className="w-4 h-4 mr-2" />
+                    Filter
+                  </FoodButton>
                   </div>
                 </div>
               </CardContent>

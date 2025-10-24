@@ -35,7 +35,7 @@ export const confirmFoodOrder = catchAsync(async (req, res) => {
   
   // Set priority for room orders
   if (isRoomService) {
-    order.status = 'Pending'; // Will be handled with high priority
+    order.status = 'pending'; // Will be handled with high priority
   }
 
   // Create initial task queue entry for kitchen prep

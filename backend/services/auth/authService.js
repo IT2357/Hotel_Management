@@ -291,7 +291,7 @@ class AuthService {
         isApproved: user.isApproved,
       });
 
-      if (user.authProviders.length > 0) {
+      if (user.authProviders.length > 0 && !user.authProviders.includes('local')) {
         console.error("🔐 Social login account:", email);
         throw new Error(
           "This account uses social login. Please use Google or Apple."

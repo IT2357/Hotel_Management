@@ -6,9 +6,68 @@
 
 import { createWorker } from 'tesseract.js';
 import sharp from 'sharp';
+import axios from 'axios';
 import Category from '../../models/Category.js';
 import config from '../../config/environment.js';
 import visionMenuService from '../../services/ai/visionMenuService.js';
+import menuScraperService from '../../services/menuScraperService.js';
+import imageStorageService from '../../services/imageStorageService.js';
+
+/**
+ * Check if URL points to an image
+ * @param {string} url - URL to check
+ * @returns {boolean} - True if URL appears to be an image
+ */
+function isImageUrl(url) {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
+  const urlLower = url.toLowerCase();
+  return imageExtensions.some(ext => urlLower.includes(ext));
+}
+
+/**
+ * Download image from URL
+ * @param {string} url - Image URL
+ * @returns {Promise<{buffer: Buffer, contentType: string}>} - Image buffer and content type
+ */
+async function downloadImageFromUrl(url) {
+  try {
+    console.log('📥 Downloading image from URL:', url);
+    
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 30000, // 30 second timeout
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      maxRedirects: 5
+    });
+
+    const contentType = response.headers['content-type'] || 'image/jpeg';
+    
+    // Verify it's actually an image
+    if (!contentType.startsWith('image/')) {
+      throw new Error(`URL does not point to an image (Content-Type: ${contentType})`);
+    }
+
+    const buffer = Buffer.from(response.data);
+    console.log('✅ Image downloaded:', (buffer.length / 1024).toFixed(2), 'KB');
+    console.log('📊 Content-Type:', contentType);
+
+    return { buffer, contentType };
+  } catch (error) {
+    if (error.code === 'ENOTFOUND') {
+      throw new Error('Image URL not found - please check the URL is correct');
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+      throw new Error('Download timeout - image URL may be slow or unreachable');
+    } else if (error.response?.status === 403 || error.response?.status === 401) {
+      throw new Error('Access denied - image URL may require authentication');
+    } else if (error.response?.status === 404) {
+      throw new Error('Image not found at URL - please verify the link');
+    } else {
+      throw new Error(`Failed to download image: ${error.message}`);
+    }
+  }
+}
 
 /**
  * Preprocess image for better OCR accuracy
@@ -208,28 +267,21 @@ function calculateConfidence(name_tamil, name_english, price, ingredients) {
 }
 
 /**
- * @route   POST /api/food-complete/ai/extract
- * @desc    Extract menu items from uploaded image
- * @access  Private/Admin
+ * Shared function to process image buffer and extract menu items
+ * @param {Buffer} imageBuffer - Image buffer to process
+ * @param {string} mimeType - Image MIME type
+ * @param {string} fileName - Optional file name for logging
+ * @returns {Promise<Object>} - Extracted menu items and metadata
  */
-export const extractMenuFromImage = async (req, res) => {
+async function processImageBuffer(imageBuffer, mimeType, fileName = 'image') {
   let worker = null;
   
   try {
-    // Validate file upload
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No image file uploaded'
-      });
-    }
-
-    // Log extraction start
-    console.log('🤖 Starting menu extraction from image:', req.file.originalname);
-    console.log('📦 File size:', (req.file.size / 1024).toFixed(2), 'KB');
+    console.log('🤖 Starting menu extraction from image:', fileName);
+    console.log('📦 File size:', (imageBuffer.length / 1024).toFixed(2), 'KB');
 
     // Preprocess image
-    const processedImage = await preprocessImage(req.file.buffer);
+    const processedImage = await preprocessImage(imageBuffer);
     console.log('✅ Image preprocessed for OCR');
 
     // Initialize Tesseract worker
@@ -295,7 +347,7 @@ export const extractMenuFromImage = async (req, res) => {
       try {
         enrichedItems = await visionMenuService.analyze({
           imageBuffer: processedImage,
-          mimeType: req.file.mimetype || 'image/jpeg',
+          mimeType: mimeType || 'image/jpeg',
           ocrText: text,
         });
         console.log(`✨ Vision AI (${aiProvider}) returned ${enrichedItems.length} items`);
@@ -365,7 +417,7 @@ export const extractMenuFromImage = async (req, res) => {
 
     // Map category guesses to actual category IDs
     menuItems.forEach(item => {
-      const guessLower = item.categoryGuess.toLowerCase();
+      const guessLower = (item.categoryGuess || 'other').toLowerCase();
       // Try exact match first
       if (categoryMap[guessLower]) {
         item.category = categoryMap[guessLower];
@@ -382,25 +434,16 @@ export const extractMenuFromImage = async (req, res) => {
     });
 
     // Terminate worker
-    await worker.terminate();
-    worker = null;
+    if (worker) {
+      await worker.terminate();
+    }
 
     // Return results
-    res.status(200).json({
-      success: true,
-      message: `Extracted ${menuItems.length} menu items from image`,
-      data: {
-        // Align property name for frontend table that expects item.confidence
-        menuItems: menuItems.map(it => ({ ...it, confidence: it.aiConfidence })),
-        rawText: text,
-        ocrConfidence: confidence,
-        metadata: {
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          processedAt: new Date().toISOString()
-        }
-      }
-    });
+    return {
+      menuItems: menuItems.map(it => ({ ...it, confidence: it.aiConfidence })),
+      rawText: text,
+      ocrConfidence: confidence
+    };
 
   } catch (error) {
     console.error('❌ Menu extraction error:', error);
@@ -413,6 +456,79 @@ export const extractMenuFromImage = async (req, res) => {
         console.error('❌ Worker termination error:', terminateError);
       }
     }
+
+    throw error;
+  }
+}
+
+/**
+ * @route   POST /api/food-complete/ai/extract
+ * @desc    Extract menu items from uploaded image
+ * @access  Private/Admin
+ */
+export const extractMenuFromImage = async (req, res) => {
+  try {
+    // Validate file upload
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file uploaded'
+      });
+    }
+
+    // Upload the image to storage (GridFS or Cloudinary)
+    console.log('📤 Uploading extracted menu image to storage...');
+    const imageId = await imageStorageService.uploadImage(
+      req.file.buffer,
+      req.file.originalname,
+      {
+        type: 'menu_item',
+        source: 'ai_extraction',
+        uploadedBy: req.user?._id || 'system'
+      }
+    );
+    console.log('✅ Image uploaded with ID:', imageId);
+
+    // Build the image URL for API access
+    const imageUrl = `/api/images/${imageId}`;
+    console.log('🔗 Image URL:', imageUrl);
+
+    // Process the image for menu extraction
+    const result = await processImageBuffer(
+      req.file.buffer,
+      req.file.mimetype,
+      req.file.originalname
+    );
+
+    // Attach the image URL to all extracted menu items
+    const menuItemsWithImage = result.menuItems.map(item => ({
+      ...item,
+      image: imageUrl,
+      imageId: imageId
+    }));
+
+    // Return results
+    res.status(200).json({
+      success: true,
+      message: `Extracted ${result.menuItems.length} menu items from image`,
+      data: {
+        menuItems: menuItemsWithImage,
+        rawText: result.rawText,
+        ocrConfidence: result.ocrConfidence,
+        uploadedImage: {
+          url: imageUrl,
+          id: imageId
+        },
+        metadata: {
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          processedAt: new Date().toISOString()
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Menu extraction error:', error);
 
     // Send detailed error for debugging
     res.status(500).json({
@@ -448,7 +564,138 @@ export const getSupportedLanguages = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   POST /api/food-complete/ai/extract-from-url
+ * @desc    Extract menu items from a website URL OR image URL
+ * @access  Private/Admin
+ */
+export const extractMenuFromUrl = async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    // Validate URL
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL is required'
+      });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid URL format'
+      });
+    }
+
+    console.log('🌐 Extracting menu from URL:', url);
+
+    // Check if URL points to an image
+    if (isImageUrl(url)) {
+      console.log('🖼️ URL detected as image - downloading and analyzing...');
+      
+      try {
+        // Download image from URL
+        const { buffer, contentType } = await downloadImageFromUrl(url);
+        
+        // Process the downloaded image
+        const result = await processImageBuffer(buffer, contentType, url);
+        
+        // Return results with image URL metadata
+        return res.status(200).json({
+          success: true,
+          message: `Extracted ${result.menuItems.length} menu items from image URL`,
+          data: {
+            menuItems: result.menuItems,
+            rawText: result.rawText,
+            ocrConfidence: result.ocrConfidence,
+            totalExtracted: result.menuItems.length,
+            source: url,
+            sourceType: 'image_url',
+            extractedAt: new Date().toISOString()
+          }
+        });
+      } catch (downloadError) {
+        console.error('❌ Image download/processing error:', downloadError);
+        return res.status(500).json({
+          success: false,
+          message: downloadError.message || 'Failed to download or process image from URL',
+          error: config.NODE_ENV === 'development' ? downloadError.stack : undefined
+        });
+      }
+    }
+
+    // Not an image URL - scrape as website
+    console.log('🌐 URL detected as website - scraping HTML content...');
+    const result = await menuScraperService.scrapeMenuFromUrl(url);
+
+    // Get categories for mapping
+    const categories = await Category.find({ isActive: true });
+
+    // Map scraped items to our menu schema
+    const menuItems = result.items.map(item => {
+      // Try to match category
+      let matchedCategory = categories.find(cat => 
+        item.category?.toLowerCase().includes(cat.name.toLowerCase()) ||
+        cat.name.toLowerCase().includes(item.category?.toLowerCase())
+      );
+
+      // Default to first category if no match
+      if (!matchedCategory && categories.length > 0) {
+        matchedCategory = categories[0];
+      }
+
+      return {
+        name_tamil: item.name_tamil || '',
+        name_english: item.name_english || item.name || '',
+        description_english: item.description_english || '',
+        price: item.price || 0,
+        currency: item.currency || 'LKR',
+        ingredients: item.ingredients || [],
+        dietaryTags: item.dietaryTags || [],
+        isVeg: item.isVeg || false,
+        isSpicy: item.isSpicy || false,
+        culturalContext: item.culturalContext || 'jaffna',
+        imageUrl: item.imageUrl || '',
+        category: matchedCategory?._id || null,
+        categoryName: matchedCategory?.name || 'Uncategorized',
+        aiConfidence: item.aiConfidence || 70,
+        confidence: item.aiConfidence || 70, // Add for frontend compatibility
+        source: 'url_extraction',
+        sourceType: 'website',
+        sourceUrl: url
+      };
+    });
+
+    console.log(`✅ Successfully extracted ${menuItems.length} items from website`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        menuItems,
+        totalExtracted: menuItems.length,
+        source: url,
+        sourceType: 'website',
+        extractedAt: new Date().toISOString()
+      },
+      message: `Successfully extracted ${menuItems.length} menu items from website`
+    });
+
+  } catch (error) {
+    console.error('❌ Error extracting menu from URL:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to extract menu from URL',
+      error: config.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
 export default {
   extractMenuFromImage,
+  extractMenuFromUrl,
   getSupportedLanguages
 };

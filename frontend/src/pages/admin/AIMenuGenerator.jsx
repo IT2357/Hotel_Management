@@ -139,32 +139,17 @@ const AIMenuGenerator = () => {
 
       let response;
 
-      if (activeTab === 'image' && (imageFile || formData.imageUrl || formData.imagePath)) {
-        // Image-based generation
+      if (activeTab === 'image' && imageFile) {
+        // Image-based extraction using AI Menu Extractor - requires actual file
         const imageFormData = new FormData();
+        imageFormData.append('image', imageFile);
 
-        if (imageFile) {
-          imageFormData.append('image', imageFile);
-        }
-
-        // Backend expects 'cuisine' not 'cuisineType'
-        imageFormData.append('cuisine', formData.cuisineType);
-        imageFormData.append('mealType', 'Main Course'); // Default meal type
-        
-        // Send dietaryRestrictions as array (FormData handles arrays properly)
-        if (formData.dietaryRestrictions) {
-          imageFormData.append('dietaryRestrictions[]', formData.dietaryRestrictions);
-        }
-
-        if (formData.imageUrl) {
-          imageFormData.append('imageUrl', formData.imageUrl);
-        }
-
-        if (formData.imagePath) {
-          imageFormData.append('imagePath', formData.imagePath);
-        }
-
-        response = await api.post('/food/items/ai/generate', imageFormData);
+        // Don't set Content-Type - let browser/axios set it automatically with boundary
+        response = await api.post('/food-complete/ai/extract', imageFormData);
+      } else if (activeTab === 'image' && !imageFile) {
+        // No image file selected for image tab
+        toast.error('Please select an image file first');
+        return;
       } else {
         // Text-based generation
         response = await api.post('/food/items/ai/generate', {
@@ -175,9 +160,20 @@ const AIMenuGenerator = () => {
         });
       }
 
-      // Backend returns { success: true, data: [...items...] }
-      setGeneratedItems(response.data.data || []);
-      toast.success('Menu generated successfully!');
+      // Handle different response formats:
+      // AI Extractor: { success: true, data: { menuItems: [...] } }
+      // AI Generator: { success: true, data: [...items...] }
+      const menuItems = activeTab === 'image' 
+        ? (response.data.data?.menuItems || [])
+        : (response.data.data || []);
+      
+      setGeneratedItems(menuItems);
+      
+      if (activeTab === 'image') {
+        toast.success(`Extracted ${menuItems.length} items from menu image!`);
+      } else {
+        toast.success('Menu generated successfully!');
+      }
     } catch (error) {
       console.error('Generation error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to generate menu';
@@ -290,7 +286,7 @@ const AIMenuGenerator = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 lg:p-8">
+    <div className="min-h-screen p-6 lg:p-8 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -307,9 +303,9 @@ const AIMenuGenerator = () => {
 
         {/* Form Card */}
         <div>
-          <Card className="mb-6">
+          <Card className="mb-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
                 <ChefHat className="h-5 w-5 mr-2" />
                 Generate Menu Items
               </CardTitle>
@@ -330,10 +326,10 @@ const AIMenuGenerator = () => {
                 <TabsContent value="text" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cuisineType">Cuisine Type</Label>
+                      <FoodLabel htmlFor="cuisineType">Cuisine Type</FoodLabel>
                       <FoodSelect
                         value={formData.cuisineType}
-                        onChange={(e) => setFormData({ ...formData, cuisineType: e.target.value })}
+                        onValueChange={(value) => setFormData({ ...formData, cuisineType: value })}
                       >
                         <option value="">Select cuisine</option>
                         {cuisines.map(cuisine => (
@@ -345,10 +341,10 @@ const AIMenuGenerator = () => {
                     </div>
 
                     <div className="space-y-2">
-                       <Label>Dietary Restrictions</Label>
+                       <FoodLabel>Dietary Restrictions</FoodLabel>
                        <FoodSelect
                          value={formData.dietaryRestrictions}
-                         onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
+                         onValueChange={(value) => setFormData({ ...formData, dietaryRestrictions: value })}
                        >
                          <option value="">Select restrictions</option>
                          {dietaryOptions.map(option => (
@@ -360,8 +356,8 @@ const AIMenuGenerator = () => {
                      </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="numberOfItems">Number of Items</Label>
-                      <Input
+                      <FoodLabel htmlFor="numberOfItems">Number of Items</FoodLabel>
+                      <FoodInput
                         id="numberOfItems"
                         type="number"
                         min="1"
@@ -376,10 +372,10 @@ const AIMenuGenerator = () => {
                 <TabsContent value="image" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cuisineType">Cuisine Type</Label>
+                      <FoodLabel htmlFor="cuisineType">Cuisine Type</FoodLabel>
                       <FoodSelect
                         value={formData.cuisineType}
-                        onChange={(e) => setFormData({ ...formData, cuisineType: e.target.value })}
+                        onValueChange={(value) => setFormData({ ...formData, cuisineType: value })}
                       >
                         <option value="">Select cuisine</option>
                         {cuisines.map(cuisine => (
@@ -391,10 +387,10 @@ const AIMenuGenerator = () => {
                     </div>
 
                     <div className="space-y-2">
-                       <Label>Dietary Restrictions</Label>
+                       <FoodLabel>Dietary Restrictions</FoodLabel>
                        <FoodSelect
                          value={formData.dietaryRestrictions}
-                         onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
+                         onValueChange={(value) => setFormData({ ...formData, dietaryRestrictions: value })}
                        >
                          <option value="">Select restrictions</option>
                          {dietaryOptions.map(option => (
@@ -408,7 +404,7 @@ const AIMenuGenerator = () => {
 
                   {/* Image Input Options */}
                   <div className="space-y-4">
-                    <Label>Image Input Method</Label>
+                    <FoodLabel>Image Input Method</FoodLabel>
                     <Tabs defaultValue="upload" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="upload" className="flex items-center gap-2">
@@ -427,7 +423,7 @@ const AIMenuGenerator = () => {
 
                       <TabsContent value="upload" className="space-y-4">
                         <div className="flex items-center gap-4">
-                          <Input
+                          <FoodInput
                             ref={fileInputRef}
                             type="file"
                             accept="image/*"
@@ -438,7 +434,7 @@ const AIMenuGenerator = () => {
                       </TabsContent>
 
                       <TabsContent value="url" className="space-y-4">
-                        <Input
+                        <FoodInput
                           type="url"
                           placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
                           value={formData.imageUrl}
@@ -447,7 +443,7 @@ const AIMenuGenerator = () => {
                       </TabsContent>
 
                       <TabsContent value="path" className="space-y-4">
-                        <Input
+                        <FoodInput
                           type="text"
                           placeholder="Enter file path (e.g., /path/to/image.jpg)"
                           value={formData.imagePath}
@@ -460,7 +456,7 @@ const AIMenuGenerator = () => {
                   {/* Image Preview */}
                   {imagePreview && (
                     <div className="relative">
-                      <Label>Image Preview</Label>
+                      <FoodLabel>Image Preview</FoodLabel>
                       <div className="relative mt-2 border-2 border-dashed border-gray-300 rounded-lg p-4">
                         <img
                           src={imagePreview}
@@ -483,18 +479,18 @@ const AIMenuGenerator = () => {
 
               <Button
                 onClick={onGenerate}
-                disabled={loading || (activeTab === 'image' && !imageFile && !formData.imageUrl && !formData.imagePath)}
+                disabled={loading || (activeTab === 'image' && !imageFile)}
                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 mt-6"
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
+                    {activeTab === 'image' ? 'Extracting from Image...' : 'Generating...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Menu
+                    {activeTab === 'image' ? 'Extract from Image' : 'Generate Menu'}
                   </>
                 )}
               </Button>
@@ -505,10 +501,10 @@ const AIMenuGenerator = () => {
         {/* Generated Items */}
         {generatedItems.length > 0 && (
           <div>
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle>Generated Menu Items</CardTitle>
+                  <CardTitle className="text-gray-900 dark:text-white">Generated Menu Items</CardTitle>
                   {selectedItems.length > 0 && (
                     <Button
                       onClick={onSaveToMenu}
@@ -535,17 +531,17 @@ const AIMenuGenerator = () => {
                   {generatedItems.map((item, index) => (
                     <div
                       key={index}
-                      className={`p-4 rounded-lg border transition-all ${
+                      className={`p-4 rounded-lg border border-gray-200 dark:border-gray-600 transition-all ${
                         selectedItems.some(i => i.name === item.name)
                           ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800'
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
                       }`}
                     >
                       {editingItem === item.name ? (
                         // Edit Mode
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">Edit Item</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Item</h3>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -568,28 +564,29 @@ const AIMenuGenerator = () => {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label>Name *</Label>
-                              <Input
+                              <FoodLabel>Name *</FoodLabel>
+                              <FoodInput
                                 value={editForm.name || ''}
                                 onChange={(e) => updateEditForm('name', e.target.value)}
                                 placeholder="Item name"
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label>Price *</Label>
-                              <Input
+                              <FoodLabel>Price *</FoodLabel>
+                              <FoodInput
                                 type="number"
                                 step="0.01"
                                 value={editForm.price || ''}
                                 onChange={(e) => updateEditForm('price', e.target.value)}
                                 placeholder="0.00"
+                                formatPrice={true}
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label>Category</Label>
+                              <FoodLabel>Category</FoodLabel>
                               <FoodSelect
                                 value={editForm.category || ''}
-                                onChange={(e) => updateEditForm('category', e.target.value)}
+                                onValueChange={(value) => updateEditForm('category', value)}
                               >
                                 <option value="">Select category</option>
                                 <option value="Appetizers">Appetizers</option>
@@ -600,8 +597,8 @@ const AIMenuGenerator = () => {
                               </FoodSelect>
                             </div>
                             <div className="space-y-2">
-                              <Label>Cooking Time (minutes)</Label>
-                              <Input
+                              <FoodLabel>Cooking Time (minutes)</FoodLabel>
+                              <FoodInput
                                 type="number"
                                 value={editForm.cookingTime || ''}
                                 onChange={(e) => updateEditForm('cookingTime', e.target.value)}
@@ -611,8 +608,8 @@ const AIMenuGenerator = () => {
                           </div>
 
                           <div className="space-y-2">
-                            <Label>Description</Label>
-                            <Input
+                            <FoodLabel>Description</FoodLabel>
+                            <FoodInput
                               value={editForm.description || ''}
                               onChange={(e) => updateEditForm('description', e.target.value)}
                               placeholder="Item description"
@@ -620,8 +617,8 @@ const AIMenuGenerator = () => {
                           </div>
 
                           <div className="space-y-2">
-                            <Label>Ingredients (comma-separated)</Label>
-                            <Input
+                            <FoodLabel>Ingredients (comma-separated)</FoodLabel>
+                            <FoodInput
                               value={editForm.ingredients || ''}
                               onChange={(e) => updateEditForm('ingredients', e.target.value)}
                               placeholder="ingredient1, ingredient2, ingredient3"
@@ -654,8 +651,8 @@ const AIMenuGenerator = () => {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 cursor-pointer" onClick={() => toggleItemSelection(item)}>
                             <div className="flex items-center mb-2 flex-wrap">
-                              <h3 className="text-lg font-semibold mr-3">{item.name}</h3>
-                              <span className="text-green-600 font-medium">${item.price}</span>
+                              <h3 className="text-lg font-semibold mr-3 text-gray-900 dark:text-white">{item.name}</h3>
+                              <span className="text-green-600 dark:text-green-400 font-medium">${item.price}</span>
                             </div>
                             {item.description && (
                               <p className="text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">{item.description}</p>

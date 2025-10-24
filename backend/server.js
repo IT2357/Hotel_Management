@@ -45,11 +45,13 @@ import menuRoutes from "./routes/food/menuRoutes.js"; // Food menu routes
 import foodRoutes from "./routes/food.js"; // Food routes (items, orders, reviews)
 import foodCategoryRoutes from "./routes/foodCategories.js"; // Food category routes
 import foodReviewRoutes from "./routes/foodReviews.js"; // Food review routes
+import offerRoutes from "./routes/offerRoutes.js"; // Food offer routes
 import kitchenRoutes from "./routes/kitchen.js"; // Kitchen dashboard routes
 // 2025 Enhanced Food System (Modular /food-complete/)
 import menuEnhancedRoutes from "./routes/food-complete/menuEnhancedRoutes.js"; // Enhanced CRUD with bilingual support
 import aiExtractionRoutes from "./routes/food-complete/aiExtractionRoutes.js"; // AI/OCR menu extraction
 import orderEnhancedRoutes from "./routes/food-complete/orderEnhancedRoutes.js"; // Order modification & reviews
+import imageRoutes from "./routes/imageRoutes.js"; // Image serving routes (GridFS/Cloudinary)
 
 const app = express();
 const server = http.createServer(app);
@@ -217,6 +219,11 @@ const startServer = async () => {
     await connectDB();
     console.log("✅ Database connection established");
 
+    // Initialize GridFS for image storage
+    const gridfsService = (await import('./services/gridfsService.js')).default;
+    gridfsService.initializeBucket();
+    console.log("✅ GridFS initialized");
+
     // Add this line to initialize the email transporter
     await EmailService.reinitializeTransporter();
 
@@ -267,11 +274,15 @@ const startServer = async () => {
   app.use("/api/food", foodRoutes); // Food routes (items, orders, reviews)
   app.use("/api/menu/categories", foodCategoryRoutes); // Food category management routes
   app.use("/api/food/reviews", foodReviewRoutes); // Food review routes
+  app.use("/api/food/offers", offerRoutes); // Food offer routes
   app.use("/api/kitchen", kitchenRoutes); // Kitchen dashboard routes
   // 2025 Enhanced Food System (Feature-flagged, modular)
   app.use("/api/food-complete/menu", menuEnhancedRoutes); // Enhanced menu CRUD with bilingual support
   app.use("/api/food-complete/ai", aiExtractionRoutes); // AI-powered menu extraction
   app.use("/api/food-complete/orders", orderEnhancedRoutes); // Order modification, cancellation & reviews
+  
+  // Image serving routes (MUST be before the catch-all)
+  app.use("/api/images", imageRoutes); // Serve images from GridFS or Cloudinary
 
   app.use("/api", (req, res) => {
     console.warn(`🔍 Unknown API route: ${req.originalUrl}`);

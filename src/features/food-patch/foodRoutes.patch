@@ -1,0 +1,32 @@
+diff --git a/backend/routes/foodRoutes.js b/backend/routes/foodRoutes.js
+index 1234567..89abcde 100644
+--- a/backend/routes/foodRoutes.js
++++ b/backend/routes/foodRoutes.js
+@@ -1,10 +1,12 @@
+ import express from "express";
++import rateLimit from "express-rate-limit";
+ import {
+   getAllFoodItems,
+   getFoodItem,
+   createFoodItem,
+   updateFoodItem,
+   deleteFoodItem,
++  searchFoodItems,
+   getAllCategories,
+   generateAIMenu
+ } from "../controllers/food/foodController.js";
+@@ -12,6 +14,12 @@ import { authenticateToken as protect, requireRole as authorize } from "../middl
+ const router = express.Router();
+ 
++// Rate limiting for search endpoint
++const searchLimiter = rateLimit({
++  windowMs: 15 * 60 * 1000, // 15 minutes
++  max: 100, // limit each IP to 100 requests per windowMs
++  message: "Too many search requests, please try again later."
++});
++
+ // Public routes (for guests and customers)
+ router.get('/', getAllFoodItems);
++router.get('/search', searchLimiter, searchFoodItems);
+ router.get('/categories', getAllCategories);
+ router.get('/:id', getFoodItem);

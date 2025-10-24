@@ -38,8 +38,9 @@ const MyOrdersPage = () => {
   const fetchMyOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/food/orders/my-orders');
-      setOrders(response.data.data || []);
+      const response = await api.get('/food/orders/customer'); // Correct endpoint
+      console.log('Orders response:', response.data); // Debug log
+      setOrders(response.data.data || response.data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to load your orders');

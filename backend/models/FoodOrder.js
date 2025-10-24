@@ -10,7 +10,7 @@ const foodOrderSchema = new mongoose.Schema(
     },
     items: [
       {
-        foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food" },
+        foodId: { type: mongoose.Schema.Types.ObjectId, ref: "MenuItem" },
         quantity: { type: Number, default: 1 },
         price: { type: Number },
         name: { type: String },
@@ -75,8 +75,8 @@ const foodOrderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Paid", "Refunded", "Failed"],
-      default: "Pending",
+      enum: ["pending", "paid", "refunded", "failed"],
+      default: "pending",
     },
     paymentMethod: {
       type: String,

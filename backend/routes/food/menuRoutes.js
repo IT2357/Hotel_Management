@@ -75,6 +75,7 @@ router.put("/orders/:id/status", authenticateToken, updateOrderStatus);
 
 // Customer food order routes
 router.post("/orders", createFoodOrder); // Public for customers
+router.get("/orders/customer", authenticateToken, getCustomerOrders); // Get current user's orders
 router.get("/orders/customer/:customerEmail", getCustomerOrders);
 router.get("/orders/customer/status/:orderNumber", getCustomerOrders);
 

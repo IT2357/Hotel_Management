@@ -90,8 +90,22 @@ export default function FoodManagementPage() {
       features: [
         "Add/edit menu items",
         "Upload food images",
-        "Manage categories",
-        "Set pricing & availability"
+        "Set pricing & availability",
+        "Manage item details"
+      ]
+    },
+    {
+      title: "Category Management",
+      description: "Organize menu items into categories for better navigation",
+      icon: FolderOpen,
+      color: "from-amber-500 to-orange-500",
+      stats: "Categories",
+      to: "/admin/food/categories",
+      features: [
+        "Create food categories",
+        "Add category icons",
+        "Organize menu structure",
+        "Toggle active/inactive"
       ]
     },
     {
@@ -120,15 +134,15 @@ export default function FoodManagementPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl p-8 text-white shadow-2xl">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
             <div className="flex items-center justify-center mb-4">
-              <ChefHat className="w-16 h-16 text-orange-200 mr-4" />
+              <ChefHat className="w-16 h-16 text-indigo-200 mr-4" />
               <h1 className="text-5xl font-bold">🍽️ Food Management Hub</h1>
             </div>
-            <p className="text-orange-100 text-xl mb-6 max-w-3xl mx-auto">
+            <p className="text-indigo-100 text-xl mb-6 max-w-3xl mx-auto">
               Complete control over your restaurant's menu, orders, and AI-powered menu extraction system
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-orange-200">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-indigo-200">
               <div className="flex items-center space-x-2">
                 <Package className="w-4 h-4" />
                 <span>{stats.totalMenuItems} Menu Items</span>
@@ -172,10 +186,10 @@ export default function FoodManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-1">Pending Orders</p>
-                <p className="text-3xl font-bold text-orange-600">{loading ? "..." : stats.pendingOrders}</p>
+                <p className="text-3xl font-bold text-indigo-600">{loading ? "..." : stats.pendingOrders}</p>
               </div>
-              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
-                <Clock className="h-6 w-6 text-orange-600" />
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-full">
+                <Clock className="h-6 w-6 text-indigo-600" />
               </div>
             </div>
           </Card>
@@ -294,8 +308,8 @@ export default function FoodManagementPage() {
               <p className="text-sm text-muted-foreground">Cultural and historical menu context with AI</p>
             </div>
 
-            <div className="text-center p-6 rounded-xl bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 border border-orange-200 dark:border-orange-800">
-              <FolderOpen className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+            <div className="text-center p-6 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800">
+              <FolderOpen className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
               <h3 className="font-semibold mb-2">File Processing</h3>
               <p className="text-sm text-muted-foreground">Process menu files from local storage or paths</p>
             </div>

@@ -1,6 +1,6 @@
 import api from './api.js';
 
-const FOOD_API_BASE = '/menu';
+const FOOD_API_BASE = '/food/items';
 
 class FoodService {
   // Get all menu items with optional filters
@@ -25,7 +25,7 @@ class FoodService {
       }
 
       const queryString = queryParams.toString();
-      const url = `${FOOD_API_BASE}/items${queryString ? `?${queryString}` : ''}`;
+      const url = `${FOOD_API_BASE}${queryString ? `?${queryString}` : ''}`;
 
       const response = await api.get(url);
       // Handle different response formats
@@ -48,7 +48,7 @@ class FoodService {
   // Get categories
   async getCategories() {
     try {
-      const response = await api.get('/menu/categories');
+      const response = await api.get('/food/categories');
       return response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -59,7 +59,7 @@ class FoodService {
   // Get single menu item by ID
   async getMenuItem(id) {
     try {
-      const response = await api.get(`${FOOD_API_BASE}/items/${id}`);
+      const response = await api.get(`${FOOD_API_BASE}/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching menu item:', error);
@@ -81,7 +81,12 @@ class FoodService {
               formData.append(`${key}[]`, item);
             });
           } else if (typeof menuItemData[key] === 'object') {
-            formData.append(key, JSON.stringify(menuItemData[key]));
+            // For category field, extract the ID if it's an object
+            if (key === 'category') {
+              formData.append(key, menuItemData[key]._id || menuItemData[key].id || menuItemData[key]);
+            } else {
+              formData.append(key, JSON.stringify(menuItemData[key]));
+            }
           } else {
             formData.append(key, menuItemData[key]);
           }
@@ -93,11 +98,7 @@ class FoodService {
         formData.append('file', menuItemData.image);
       }
 
-      const response = await api.post(`${FOOD_API_BASE}/items`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(`${FOOD_API_BASE}`, formData);
 
       return response.data;
     } catch (error) {
@@ -120,7 +121,12 @@ class FoodService {
               formData.append(`${key}[]`, item);
             });
           } else if (typeof menuItemData[key] === 'object') {
-            formData.append(key, JSON.stringify(menuItemData[key]));
+            // For category field, extract the ID if it's an object
+            if (key === 'category') {
+              formData.append(key, menuItemData[key]._id || menuItemData[key].id || menuItemData[key]);
+            } else {
+              formData.append(key, JSON.stringify(menuItemData[key]));
+            }
           } else {
             formData.append(key, menuItemData[key]);
           }
@@ -132,11 +138,7 @@ class FoodService {
         formData.append('file', menuItemData.image);
       }
 
-      const response = await api.put(`${FOOD_API_BASE}/items/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.put(`${FOOD_API_BASE}/${id}`, formData);
 
       return response.data;
     } catch (error) {
@@ -148,7 +150,7 @@ class FoodService {
   // Delete menu item
   async deleteMenuItem(id) {
     try {
-      const response = await api.delete(`${FOOD_API_BASE}/items/${id}`);
+      const response = await api.delete(`${FOOD_API_BASE}/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting menu item:', error);
@@ -162,11 +164,7 @@ class FoodService {
       const formData = new FormData();
       formData.append('image', imageFile);
 
-      const response = await api.post(`${FOOD_API_BASE}/process-image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/food/process-image', formData);
 
       return response.data;
     } catch (error) {
@@ -178,7 +176,7 @@ class FoodService {
   // Generate menu items with AI
   async generateMenuItems(cuisineType, dietaryRestrictions = [], numberOfItems = 5) {
     try {
-      const response = await api.post(`${FOOD_API_BASE}/generate`, {
+      const response = await api.post('/food/ai/generate', {
         cuisineType,
         dietaryRestrictions,
         numberOfItems
@@ -204,11 +202,7 @@ class FoodService {
         });
       }
 
-      const response = await api.post(`${FOOD_API_BASE}/generate-from-image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post('/food/ai/generate-from-image', formData);
 
       return response.data;
     } catch (error) {
@@ -220,7 +214,7 @@ class FoodService {
   // Create multiple menu items at once
   async createBatchMenuItems(items) {
     try {
-      const response = await api.post(`${FOOD_API_BASE}/batch`, { items });
+      const response = await api.post('/food/batch', { items });
       return response.data;
     } catch (error) {
       console.error('Error creating batch menu items:', error);
@@ -231,7 +225,7 @@ class FoodService {
   // Get menu item image
   async getMenuItemImage(id) {
     try {
-      const response = await api.get(`${FOOD_API_BASE}/items/${id}/image`, {
+      const response = await api.get(`/food/image/${id}`, {
         responseType: 'blob'
       });
       return response.data;
@@ -270,7 +264,7 @@ class FoodService {
   async createOrder(orderData) {
     try {
       console.log('Creating food order with data:', orderData);
-      const response = await api.post('/food/orders/create', orderData);
+      const response = await api.post('/food/orders', orderData);
       console.log('Order creation response:', response);
       return response;
     } catch (error) {
@@ -282,7 +276,7 @@ class FoodService {
   // Get user's food orders
   async getUserOrders() {
     try {
-      const response = await api.get('/food/orders/my-orders');
+      const response = await api.get('/food/orders/customer');
       return response;
     } catch (error) {
       console.error('Error fetching user orders:', error);
@@ -400,6 +394,70 @@ class FoodService {
     } catch (error) {
       console.error('Error assigning order:', error);
       throw new Error(error.response?.data?.message || 'Failed to assign order');
+    }
+  }
+
+  // AI Menu Extraction (Admin Only)
+  async extractMenuFromImage(imageFile) {
+    try {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      const response = await api.post('/food-complete/ai/extract', formData);
+
+      return response.data;
+    } catch (error) {
+      console.error('Error extracting menu from image:', error);
+      throw new Error(error.response?.data?.message || 'Failed to extract menu from image');
+    }
+  }
+
+  // Get supported languages for AI extraction
+  async getSupportedLanguages() {
+    try {
+      const response = await api.get('/food-complete/ai/supported-languages');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching supported languages:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch supported languages');
+    }
+  }
+
+  // Payment methods
+  async initializePayment(orderId, amount, customerDetails) {
+    try {
+      const response = await api.post('/food/payment/initialize', {
+        orderId,
+        amount,
+        customerDetails
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error initializing payment:', error);
+      throw new Error(error.response?.data?.message || 'Failed to initialize payment');
+    }
+  }
+
+  async verifyPayment(orderId, paymentId) {
+    try {
+      const response = await api.post('/food/payment/verify', {
+        orderId,
+        paymentId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      throw new Error(error.response?.data?.message || 'Failed to verify payment');
+    }
+  }
+
+  async getPaymentStatus(orderId) {
+    try {
+      const response = await api.get(`/food/payment/status/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting payment status:', error);
+      throw new Error(error.response?.data?.message || 'Failed to get payment status');
     }
   }
 }

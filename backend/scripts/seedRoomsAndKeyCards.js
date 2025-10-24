@@ -190,7 +190,7 @@ async function seedRoomsAndKeyCards({ reset = false } = {}) {
   dotenv.config();
 
   const uri =
-    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel_management";
+    process.env.MONGODB_URI || "mongodb://localhost:27017/hotel-management";
 
   try {
     await mongoose.connect(uri);

@@ -4,9 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import SharedNavbar from '../components/shared/SharedNavbar';
 import FoodButton from '../components/food/FoodButton';
 import FoodCard from '../components/food/FoodCard';
-import Cart from '../components/food/Cart';
+import { SwiggyCart as Cart } from '../features/food-modernize/components';
 import FoodBadge from '../components/food/FoodBadge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/food/FoodDialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '../components/food/FoodDialog';
 import { 
   CheckCircle, ArrowLeft, ShoppingCart, Search, Filter, Plus, Minus, Trash2, 
   ChefHat, Clock, Star, Leaf, Flame, MapPin, Phone, Mail, Loader2, AlertCircle,
@@ -14,7 +19,7 @@ import {
 } from 'lucide-react';
 import Checkout from '../components/food/Checkout';
 import OrderConfirmationPage from './OrderConfirmationPage';
-import { useCart } from '../context/CartContext';
+import { useCart, CartProvider } from '../context/CartContext';
 import foodService from '../services/foodService';
 
 // Get API base URL for images
@@ -34,8 +39,19 @@ const ModernFoodOrderingPageContent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [featuredItems, setFeaturedItems] = useState([]);
-  const { addToCart, getItemCount } = useCart();
+  const { addToCart, getItemCount, items } = useCart();
   const navigate = useNavigate();
+
+  // Debugging: Log cart state changes
+  useEffect(() => {
+    console.log('Cart items changed:', items);
+    console.log('Cart item count:', getItemCount());
+  }, [items, getItemCount]);
+
+  // Debugging: Log showCart state changes
+  useEffect(() => {
+    console.log('showCart state changed:', showCart);
+  }, [showCart]);
 
   // Fetch menu items from backend
   useEffect(() => {
@@ -160,7 +176,7 @@ const ModernFoodOrderingPageContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white" data-testid="food-ordering-page">
+    <div className="min-h-screen bg-white pb-20 sm:pb-0" data-testid="food-ordering-page">
       <SharedNavbar showBackButton={true} backPath="/" />
       
       {/* Hero Section */}
@@ -395,7 +411,7 @@ const ModernFoodOrderingPageContent = () => {
                   <span className="text-gray-600 text-lg font-medium">Loading delicious Jaffna dishes...</span>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {[...Array(8)].map((_, index) => (
                   <div key={index} className="bg-white rounded-3xl overflow-hidden shadow-lg animate-pulse">
                     <div className="h-56 bg-gray-200"></div>
@@ -413,7 +429,7 @@ const ModernFoodOrderingPageContent = () => {
           <>
             {/* Menu Items Grid */}
             <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -593,12 +609,13 @@ const ModernFoodOrderingPageContent = () => {
         whileTap={{ scale: 0.9 }}
         onClick={() => setShowCart(true)}
         className="fixed bottom-6 right-6 bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-full shadow-2xl z-50 transition-all duration-300"
-        style={{ display: getItemCount() > 0 ? 'flex' : 'none' }}
       >
         <ShoppingCart className="w-6 h-6" />
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
-          {getItemCount()}
-        </span>
+        {getItemCount() > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+            {getItemCount()}
+          </span>
+        )}
       </motion.button>
 
       {/* Modern Cart Dialog */}
@@ -641,6 +658,50 @@ const ModernFoodOrderingPageContent = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg sm:hidden z-40">
+        <div className="flex items-center justify-around py-2">
+          <button
+            onClick={() => setShowCart(true)}
+            className="flex flex-col items-center py-2 px-4 text-gray-600 hover:text-orange-500 transition-colors"
+          >
+            <div className="relative">
+              <ShoppingCart className="w-6 h-6" />
+              {getItemCount() > 0 && (
+                <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {getItemCount()}
+                </span>
+              )}
+            </div>
+            <span className="text-xs mt-1">Cart</span>
+          </button>
+          
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex flex-col items-center py-2 px-4 text-gray-600 hover:text-orange-500 transition-colors"
+          >
+            <Filter className="w-6 h-6" />
+            <span className="text-xs mt-1">Filter</span>
+          </button>
+          
+          <button
+            onClick={() => setSearchTerm('')}
+            className="flex flex-col items-center py-2 px-4 text-gray-600 hover:text-orange-500 transition-colors"
+          >
+            <Search className="w-6 h-6" />
+            <span className="text-xs mt-1">Search</span>
+          </button>
+          
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex flex-col items-center py-2 px-4 text-gray-600 hover:text-orange-500 transition-colors"
+          >
+            <ChefHat className="w-6 h-6" />
+            <span className="text-xs mt-1">Menu</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

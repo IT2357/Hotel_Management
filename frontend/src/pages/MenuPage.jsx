@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import SharedNavbar from '../components/shared/SharedNavbar';
 import FoodButton from '../components/food/FoodButton';
 import FoodCard from '../components/food/FoodCard';
+import EnhancedFoodCard from '../components/food/EnhancedFoodCard';
+import OfferBanner from '../components/food/OfferBanner';
 import FoodBadge from '../components/food/FoodBadge';
 import { 
   Search, ChefHat, Clock, Star, Loader2, AlertCircle,
@@ -11,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import foodService from '../services/foodService';
+import offerService from '../services/offerService';
 
 // Get API base URL for images
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -26,6 +29,7 @@ const MenuPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDietary, setSelectedDietary] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [activeOffer, setActiveOffer] = useState(null);
   const { addToCart, getItemCount } = useCart();
   const navigate = useNavigate();
 
@@ -66,6 +70,16 @@ const MenuPage = () => {
 
         setMenuItems(itemsWithImages);
         setCategories(categoriesResponse.data?.data || categoriesResponse.data || []);
+
+        // Fetch active offers
+        try {
+          const offersResponse = await offerService.getPersonalizedOffers();
+          if (offersResponse.success && offersResponse.data && offersResponse.data.length > 0) {
+            setActiveOffer(offersResponse.data[0]);
+          }
+        } catch (offerError) {
+          console.log('ℹ️ No active offers available');
+        }
       } catch (err) {
         console.error('Error fetching menu data:', err);
         setError('Failed to load menu items');
@@ -329,6 +343,9 @@ const MenuPage = () => {
       {/* Menu Items Grid */}
       <section className="py-12 bg-gray-50">
         <div className="container mx-auto px-6">
+          {/* Offer Banner */}
+          {activeOffer && <OfferBanner offer={activeOffer} />}
+
           {/* Results Count */}
           {!loading && !error && (
             <div className="mb-6">
@@ -400,84 +417,13 @@ const MenuPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ delay: index * 0.03 }}
-                    className="group relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-100"
                     data-testid="menu-item"
                   >
-                    {/* Item Image */}
-                    <div className="relative h-56 overflow-hidden">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500';
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                      {/* Badges */}
-                      <div className="absolute top-3 left-3 flex flex-col gap-2">
-                        {item.isPopular && (
-                          <FoodBadge variant="popular" size="sm">⭐ Popular</FoodBadge>
-                        )}
-                        {item.isVeg && (
-                          <FoodBadge variant="success" size="sm">🥬 Veg</FoodBadge>
-                        )}
-                        {item.isSpicy && (
-                          <FoodBadge variant="spicy" size="sm">🌶️ Spicy</FoodBadge>
-                        )}
-                      </div>
-
-                      {/* Price Tag */}
-                      <div className="absolute bottom-3 left-3">
-                        <span className="text-xl font-bold text-white bg-orange-500 px-3 py-1 rounded-lg shadow-lg">
-                          LKR {parseFloat(item.price || 0).toFixed(2)}
-                        </span>
-                      </div>
-
-                      {/* Cooking Time */}
-                      <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
-                        <Clock className="w-3 h-3 text-white" />
-                        <span className="text-white text-xs">{item.cookingTime || 15} min</span>
-                      </div>
-                    </div>
-
-                    {/* Item Details */}
-                    <div className="p-6">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2 group-hover:text-orange-500 transition-colors">
-                        {item.name}
-                      </h3>
-                      
-                      <p className="text-gray-600 text-sm mb-4 leading-relaxed line-clamp-2">
-                        {item.description}
-                      </p>
-
-                      {/* Ingredients Preview */}
-                      {item.ingredients && item.ingredients.length > 0 && (
-                        <div className="mb-4 flex flex-wrap gap-1">
-                          {item.ingredients.slice(0, 3).map((ingredient, idx) => (
-                            <FoodBadge key={idx} variant="default" size="sm">
-                              {ingredient}
-                            </FoodBadge>
-                          ))}
-                          {item.ingredients.length > 3 && (
-                            <FoodBadge variant="default" size="sm">
-                              +{item.ingredients.length - 3}
-                            </FoodBadge>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Add to Cart Button */}
-                      <FoodButton
-                        onClick={() => handleAddToCart(item)}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105"
-                        data-testid="add-to-cart-btn"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </FoodButton>
-                    </div>
+                    <EnhancedFoodCard
+                      item={item}
+                      onAddToCart={handleAddToCart}
+                      showDiscount={true}
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>

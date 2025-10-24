@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Menu, X, User, LogIn, LogOut, ArrowLeft } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import NotificationDropdown from '../../components/common/NotificationDropdown.jsx';
+import EnhancedProfileDropdown from './EnhancedProfileDropdown';
 
 export default function SharedNavbar({ showBackButton = false, backPath = '/' }) {
   const { user, logout } = useContext(AuthContext);
@@ -94,18 +95,8 @@ export default function SharedNavbar({ showBackButton = false, backPath = '/' })
               <div className="hidden lg:flex items-center space-x-3">
                 {/* Notifications Bell for authenticated users */}
                 <NotificationDropdown />
-                <Link
-                  to="/user/dashboard"
-                  className="text-gray-700 hover:text-indigo-600 transition-colors font-medium px-4 py-2 rounded-lg hover:bg-indigo-50"
-                >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={logout}
-                  className="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-medium rounded-lg hover:bg-red-50"
-                >
-                  Logout
-                </button>
+                {/* Enhanced Profile Dropdown with Stats */}
+                <EnhancedProfileDropdown user={user} logout={logout} />
               </div>
             ) : (
               <Link

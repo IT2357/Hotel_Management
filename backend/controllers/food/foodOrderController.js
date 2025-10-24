@@ -1,25 +1,11 @@
-// Notify kitchen staff (Socket.io/email stub)
-export const notifyStaff = async (req, res) => {
-  // TODO: Emit to Socket.io 'kitchen-room', send email, etc.
-  res.json({ success: true, message: "Staff notified" });
-};
-
-// Assign order to staff
-export const assignOrder = async (req, res) => {
-  // TODO: Assign order to kitchen staff, update kitchenStatus, assignedTo
-  res.json({ success: true, message: "Order assigned" });
-};
-
-// Update kitchen status (preparing, ready, etc.)
-export const updateKitchenStatus = async (req, res) => {
-  // TODO: Update kitchenStatus, log to taskHistory, notify guest if needed
-  res.json({ success: true, message: "Order status updated" });
-};
 import FoodOrder from '../../models/FoodOrder.js';
 import MenuItem from '../../models/MenuItem.js';
+import Food from '../../models/Food.js'; // Legacy Food model support
 import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/appError.js';
 import paymentService from '../../services/payment/paymentService.js';
+import payHereService from '../../services/payHereService.js';
+import foodEmailService from '../../services/food/foodEmailService.js';
 import logger from '../../utils/logger.js';
 
 // Get all food orders (Admin/Staff view)
@@ -168,6 +154,33 @@ export const updateOrderStatus = catchAsync(async (req, res) => {
     throw new AppError('Food order not found', 404);
   }
 
+  // Send status update email
+  try {
+    const customer = {
+      name: order.customerDetails?.name || `${order.customerDetails?.firstName || ''} ${order.customerDetails?.lastName || ''}`.trim(),
+      firstName: order.customerDetails?.firstName || order.customerDetails?.name?.split(' ')[0] || '',
+      lastName: order.customerDetails?.lastName || order.customerDetails?.name?.split(' ').slice(1).join(' ') || '',
+      email: order.customerDetails?.email || order.userId?.email,
+      phone: order.customerDetails?.phone || ''
+    };
+    
+    if (customer.email) {
+      if (finalStatus === 'ready') {
+        await foodEmailService.sendOrderReady(order, customer);
+      } else {
+        await foodEmailService.sendStatusUpdate(order, customer, finalStatus);
+      }
+      logger.info('Status update email sent', { orderId: order._id, status: finalStatus });
+    }
+  } catch (emailError) {
+    logger.error('Failed to send status update email', { 
+      orderId: order._id, 
+      status: finalStatus,
+      error: emailError.message 
+    });
+    // Don't fail the status update if email fails
+  }
+
   res.status(200).json({
     success: true,
     data: order,
@@ -191,10 +204,10 @@ export const getOrderStats = catchAsync(async (req, res) => {
   ] = await Promise.all([
     FoodOrder.countDocuments(),
     FoodOrder.countDocuments({ createdAt: { $gte: today, $lt: tomorrow } }),
-    FoodOrder.countDocuments({ status: 'Pending' }),
-    FoodOrder.countDocuments({ status: 'Delivered' }),
+    FoodOrder.countDocuments({ status: 'pending' }),
+    FoodOrder.countDocuments({ status: 'delivered' }),
     FoodOrder.aggregate([
-      { $match: { status: 'Delivered' } },
+      { $match: { status: 'delivered' } },
       { $group: { _id: null, total: { $sum: '$totalPrice' } } }
     ])
   ]);
@@ -240,7 +253,9 @@ const {
   customerDetails,
   paymentMethod,
   specialInstructions,
-  scheduledTime
+  scheduledTime,
+  pickupTime,
+  tableNumber
 } = req.body;
 
  // Validate required fields
@@ -282,35 +297,51 @@ const {
    const foodId = item.foodId || item.id;
    let menuItem = null;
 
-   // Try multiple lookup strategies
-   if (foodId) {
-     // Strategy 1: Try to find by _id (MongoDB ObjectId)
-     try {
-       if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
-         menuItem = await MenuItem.findById(foodId);
-       }
-    } catch {
-      // Ignore cast errors
+  // Try multiple lookup strategies across both MenuItem and Food models
+  if (foodId) {
+    // Strategy 1: Try to find by _id (MongoDB ObjectId) in MenuItem
+    try {
+      if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
+        menuItem = await MenuItem.findById(foodId);
+      }
+   } catch {
+     // Ignore cast errors
+   }
+
+    // Strategy 2: Try to find by _id in Food model (legacy support)
+    if (!menuItem) {
+      try {
+        if (typeof foodId === 'string' && foodId.length === 24 && /^[0-9a-fA-F]{24}$/.test(foodId)) {
+          menuItem = await Food.findById(foodId);
+        }
+      } catch {
+        // Ignore cast errors
+      }
     }
 
-     // Strategy 2: Try to find by id field (numeric ID)
-     if (!menuItem) {
-       const numericId = typeof foodId === 'string' ? parseInt(foodId, 10) : foodId;
-       if (!isNaN(numericId)) {
-         menuItem = await MenuItem.findOne({ id: numericId });
-       }
-     }
+    // Strategy 3: Try to find by id field (numeric ID) in MenuItem
+    if (!menuItem) {
+      const numericId = typeof foodId === 'string' ? parseInt(foodId, 10) : foodId;
+      if (!isNaN(numericId)) {
+        menuItem = await MenuItem.findOne({ id: numericId });
+      }
+    }
 
-     // Strategy 3: Try to find by slug
-     if (!menuItem && typeof foodId === 'string') {
-       menuItem = await MenuItem.findOne({ slug: foodId });
-     }
+    // Strategy 4: Try to find by slug in MenuItem
+    if (!menuItem && typeof foodId === 'string') {
+      menuItem = await MenuItem.findOne({ slug: foodId });
+    }
 
-     // Strategy 4: Try to find by name (fallback)
-     if (!menuItem && typeof foodId === 'string') {
-       menuItem = await MenuItem.findOne({ name: { $regex: new RegExp(`^${foodId}$`, 'i') } });
-     }
-   }
+    // Strategy 5: Try to find by name in MenuItem (fallback)
+    if (!menuItem && typeof foodId === 'string') {
+      menuItem = await MenuItem.findOne({ name: { $regex: new RegExp(`^${foodId}$`, 'i') } });
+    }
+
+    // Strategy 6: Try to find by name in Food model (legacy fallback)
+    if (!menuItem && typeof foodId === 'string') {
+      menuItem = await Food.findOne({ name: { $regex: new RegExp(`^${foodId}$`, 'i') } });
+    }
+  }
 
    if (!menuItem) {
      throw new AppError(`Menu item with ID ${foodId} not found`, 404);
@@ -320,17 +351,19 @@ const {
      throw new AppError(`Menu item "${menuItem.name}" is not available`, 400);
    }
 
-   const quantity = item.quantity || 1;
-   const itemTotal = menuItem.price * quantity;
-   calculatedSubtotal += itemTotal;
+  const quantity = item.quantity || 1;
+  const itemTotal = menuItem.price * quantity;
+  calculatedSubtotal += itemTotal;
 
-   validatedItems.push({
-     foodId: menuItem._id,
-     quantity: quantity,
-     price: menuItem.price,
-     name: menuItem.name
-   });
- }
+  validatedItems.push({
+    foodId: menuItem._id,
+    quantity: quantity,
+    price: menuItem.price,
+    name: menuItem.name,
+    // Handle both MenuItem (image) and Food (imageUrl) models
+    image: menuItem.image || menuItem.imageUrl || null
+  });
+}
 
  // Validate subtotal matches calculated subtotal
  if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
@@ -369,47 +402,77 @@ const {
      message: "Cash on delivery payment registered"
    };
  } else {
-   // Process online payment
-   paymentResult = await paymentService.processOrderPayment({
+   // Generate PayHere payment data
+   const payHereData = payHereService.generatePaymentData({
      orderId,
      amount: totalPrice,
      currency: "LKR",
-     paymentMethod,
-     customerDetails,
-     returnUrl: `${process.env.FRONTEND_URL}/food/order/success`,
-     cancelUrl: `${process.env.FRONTEND_URL}/food/order/cancel`,
-     notifyUrl: `${process.env.BACKEND_URL}/api/webhooks/payhere`
+     customerName: customerDetails.customerName,
+     customerEmail: customerDetails.customerEmail,
+     customerPhone: customerDetails.customerPhone,
+     items: validatedItems.map(item => ({
+       name: item.name,
+       quantity: item.quantity,
+       price: item.price
+     })),
+     custom1: req.user ? req.user.id : null,
+     custom2: orderId
    });
+
+   const hash = payHereService.generateHash(payHereData);
+   
+   paymentResult = {
+     success: true,
+     paymentId: orderId,
+     status: "PENDING",
+     paymentMethod: "PAYHERE",
+     message: "PayHere payment initialized",
+     payHereData: {
+       ...payHereData,
+       hash: hash
+     }
+   };
  }
 
- if (!paymentResult.success && paymentMethod !== 'cash') {
-   throw new AppError(`Payment processing failed: ${paymentResult.error}`, 400);
- }
+// Generate pickup code for takeaway orders
+const pickupCode = orderType === 'takeaway' 
+  ? `PICKUP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+  : undefined;
 
- // Create order object
- const orderData = {
-   items: validatedItems,
-   totalPrice: totalPrice,
-   currency: currency,
-   subtotal: subtotal,
-   tax: tax,
-   deliveryFee: deliveryFee,
-   orderType: orderType,
-   isTakeaway: Boolean(isTakeaway),
-   customerDetails: {
-     name: customerDetails.customerName,
-     email: customerDetails.customerEmail,
-     phone: customerDetails.customerPhone,
-     deliveryAddress: customerDetails.deliveryAddress || '',
-     specialInstructions: specialInstructions || ''
-   },
-   paymentMethod: paymentMethod.toUpperCase(),
-   paymentStatus: paymentMethod === 'cash' ? 'Pending' : 'Paid',
-   paymentId: paymentResult.paymentId,
-   status: 'Pending',
-   scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
-   deliveryLocation: isTakeaway ? customerDetails.deliveryAddress : `Table/Room: ${customerDetails.deliveryAddress || 'N/A'}`
- };
+// Create order object
+const orderData = {
+  items: validatedItems,
+  totalPrice: totalPrice,
+  currency: currency,
+  subtotal: subtotal,
+  tax: tax,
+  deliveryFee: deliveryFee,
+  orderType: orderType,
+  isTakeaway: Boolean(isTakeaway),
+  customerDetails: {
+    name: customerDetails.customerName,
+    email: customerDetails.customerEmail,
+    phone: customerDetails.customerPhone,
+    deliveryAddress: customerDetails.deliveryAddress || '',
+    specialInstructions: specialInstructions || ''
+  },
+  paymentMethod: paymentMethod.toUpperCase(),
+  paymentStatus: paymentMethod === 'cash' ? 'pending' : 'paid',
+  paymentId: paymentResult.paymentId,
+  status: 'pending',
+  scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
+  deliveryLocation: isTakeaway ? customerDetails.deliveryAddress : `Table/Room: ${customerDetails.deliveryAddress || 'N/A'}`
+};
+
+// Add order-type specific fields
+if (orderType === 'dine-in' && tableNumber) {
+  orderData.tableNumber = tableNumber;
+}
+
+if (orderType === 'takeaway') {
+  orderData.pickupTime = pickupTime || 30; // Default 30 minutes if not specified
+  orderData.pickupCode = pickupCode;
+}
 
  // Only add userId if user is authenticated
  if (req.user && req.user.id) {
@@ -422,6 +485,26 @@ const {
  // Populate the order with food details
  await order.populate('items.foodId', 'name price imageUrl');
  await order.populate('userId', 'name email');
+
+ // Send confirmation email
+ try {
+   const customer = {
+     name: customerDetails.customerName,
+     firstName: customerDetails.customerName.split(' ')[0],
+     lastName: customerDetails.customerName.split(' ').slice(1).join(' '),
+     email: customerDetails.customerEmail,
+     phone: customerDetails.customerPhone
+   };
+   
+   await foodEmailService.sendOrderConfirmation(order, customer);
+   logger.info('Order confirmation email sent', { orderId: order._id });
+ } catch (emailError) {
+   logger.error('Failed to send order confirmation email', { 
+     orderId: order._id, 
+     error: emailError.message 
+   });
+   // Don't fail the order creation if email fails
+ }
 
  logger.info('Food order created successfully', {
    orderId: order._id,
@@ -442,7 +525,8 @@ const {
      paymentId: paymentResult.paymentId,
      status: paymentResult.status,
      redirectUrl: paymentResult.redirectUrl,
-     message: paymentResult.message
+     message: paymentResult.message,
+     payHereData: paymentResult.payHereData || null
    },
    message: 'Food order created successfully'
  });

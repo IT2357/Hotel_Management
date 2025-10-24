@@ -1,0 +1,137 @@
+diff --git a/frontend/src/pages/MenuPage.jsx b/frontend/src/pages/MenuPage.jsx
+index 1234567..89abcde 100644
+--- a/frontend/src/pages/MenuPage.jsx
++++ b/frontend/src/pages/MenuPage.jsx
+@@ -1,10 +1,12 @@
+ import React, { useState, useEffect, useMemo } from 'react';
+ import { motion, AnimatePresence } from 'framer-motion';
+ import { useNavigate } from 'react-router-dom';
++import { useQuery } from '@tanstack/react-query';
+ import SharedNavbar from '../components/shared/SharedNavbar';
+ import FoodButton from '../components/food/FoodButton';
+ import FoodCard from '../components/food/FoodCard';
+ import FoodBadge from '../components/food/FoodBadge';
++import useDebounce from '../features/food-patch/useDebounce';
+ import { 
+   Search, ChefHat, Clock, Star, Loader2, AlertCircle,
+   Plus, ShoppingCart, Award, Eye, Filter, X
+@@ -15,6 +17,7 @@ const MenuPage = () => {
+   const [searchTerm, setSearchTerm] = useState('');
+   const [selectedCategory, setSelectedCategory] = useState('all');
+   const [selectedDietary, setSelectedDietary] = useState('all');
++  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+   const [showFilters, setShowFilters] = useState(false);
+   const { addToCart, getItemCount } = useCart();
+   const navigate = useNavigate();
+@@ -22,35 +25,6 @@ const MenuPage = () => {
+   // Fetch menu items and categories
+   useEffect(() => {
+     const fetchMenuData = async () => {
+-      try {
+-        setLoading(true);
+-        setError(null);
+-        
+-        // Fetch both menu items and categories
+-        const [itemsResponse, categoriesResponse] = await Promise.all([
+-          foodService.getMenuItems({ isAvailable: true }),
+-          foodService.getCategories()
+-        ]);
+-
+-        // Handle items response (check for pagination format)
+-        let items = [];
+-        if (itemsResponse.data && itemsResponse.data.items) {
+-          // Paginated response format
+-          items = itemsResponse.data.items;
+-        } else if (Array.isArray(itemsResponse.data)) {
+-          // Direct array format
+-          items = itemsResponse.data;
+-        } else {
+-          items = [];
+-        }
+-
+-        // Add proper image URLs
+-        const itemsWithImages = items.map(item => ({
+-          ...item,
+-          imageUrl: item.imageUrl || 
+-                    (item.imageId ? `${API_BASE_URL}/api/menu/image/${item.imageId}` : null) ||
+-                    (item.image && item.image.startsWith('http') ? item.image : null) ||
+-                    `${API_BASE_URL}${item.image}` ||
+-                    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500'
+-        }));
+-
+-        setMenuItems(itemsWithImages);
+-        setCategories(categoriesResponse.data?.data || categoriesResponse.data || []);
+-      } catch (err) {
+-        console.error('Error fetching menu data:', err);
+-        setError('Failed to load menu items');
+-        setMenuItems([]);
+-        setCategories([]);
+-      } finally {
+-        setLoading(false);
+-      }
+-    };
+-
+-    fetchMenuData();
+-  }, []);
++  const { data: menuData, isLoading, error, refetch } = useQuery({
++    queryKey: ['menuItems', debouncedSearchTerm, selectedCategory],
++    queryFn: async () => {
++      const [itemsResponse, categoriesResponse] = await Promise.all([
++        foodService.getMenuItems({ 
++          isAvailable: true,
++          search: debouncedSearchTerm || undefined,
++          category: selectedCategory !== 'all' ? selectedCategory : undefined
++        }),
++        foodService.getCategories()
++      ]);
++
++      // Handle items response (check for pagination format)
++      let items = [];
++      if (itemsResponse.data && itemsResponse.data.items) {
++        // Paginated response format
++        items = itemsResponse.data.items;
++      } else if (Array.isArray(itemsResponse.data)) {
++        // Direct array format
++        items = itemsResponse.data;
++      } else {
++        items = [];
++      }
++
++      // Add proper image URLs and apply Jaffna pricing adjustment
++      const itemsWithImages = items.map(item => ({
++        ...item,
++        price: parseFloat((item.price * 0.95).toFixed(2)), // Apply -5% LKR adjustment
++        originalPrice: item.price,
++        imageUrl: item.imageUrl || 
++                  (item.imageId ? `${API_BASE_URL}/api/menu/image/${item.imageId}` : null) ||
++                  (item.image && item.image.startsWith('http') ? item.image : null) ||
++                  `${API_BASE_URL}${item.image}` ||
++                  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500'
++      }));
++
++      return {
++        items: itemsWithImages,
++        categories: categoriesResponse.data?.data || categoriesResponse.data || []
++      };
++    },
++    staleTime: 1000 * 60 * 5, // 5 minutes
++    cacheTime: 1000 * 60 * 30 // 30 minutes
++  });
++
++  // Update local state when data changes
++  useEffect(() => {
++    if (menuData) {
++      setMenuItems(menuData.items);
++      setCategories(menuData.categories);
++    }
++  }, [menuData]);
++
++  // Refetch when search term or category changes
++  useEffect(() => {
++    refetch();
++  }, [debouncedSearchTerm, selectedCategory, refetch]);
++
++  const loading = isLoading;
+ 
+   // Filter menu items based on search, category, and dietary preferences
+   const filteredItems = useMemo(() => {

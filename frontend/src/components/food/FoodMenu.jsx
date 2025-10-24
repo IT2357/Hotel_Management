@@ -1,13 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Search, Filter, Plus, Grid, List, RefreshCw } from 'lucide-react';
+import { Search, Filter, Plus, Grid, List, RefreshCw, ShoppingCart } from 'lucide-react';
 import foodService from '../../services/foodService';
 import PropTypes from 'prop-types';
+import { FoodItemCard } from './FoodCard';
+import { useCart } from '../../context/CartContext';
+
+// Debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 const FoodMenu = ({
   onEditItem,
@@ -16,54 +36,53 @@ const FoodMenu = ({
   onAddToCart,
   showManagementActions = false
 }) => {
-FoodMenu.propTypes = {
-  onEditItem: PropTypes.func,
-  onAddItem: PropTypes.func,
-  onOrderItem: PropTypes.func,
-  onAddToCart: PropTypes.func,
-  showManagementActions: PropTypes.bool
-};
-  const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  FoodMenu.propTypes = {
+    onEditItem: PropTypes.func,
+    onAddItem: PropTypes.func,
+    onOrderItem: PropTypes.func,
+    onAddToCart: PropTypes.func,
+    showManagementActions: PropTypes.bool
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { getItemCount, addToCart } = useCart();
+
+  // Debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // React Query for menu items with debounced search
+  const { data: menuItems = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['menu', debouncedSearchTerm, selectedCategory, showAvailableOnly],
+    queryFn: async () => {
+      const filters = {
+        search: debouncedSearchTerm,
+        category: selectedCategory,
+        isAvailable: showAvailableOnly
+      };
+      const response = await foodService.getMenuItems(filters);
+      return response.data.data || [];
+    },
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: false
+  });
 
   // Get unique categories from menu items
-  const categories = ['all', ...new Set(menuItems.map(item => item.category).filter(Boolean))];
-
-  useEffect(() => {
-    loadMenuItems();
-  }, []);
-
-  const loadMenuItems = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await foodService.getMenuItems();
-      setMenuItems(response.data.data || []);
-    } catch (err) {
-      setError(err.message || 'Failed to load menu items');
-      console.error('Error loading menu items:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadMenuItems();
-    setRefreshing(false);
-  };
+  const categories = useMemo(() => {
+    const uniqueCategories = ['all', ...new Set(menuItems.map(item => item.category).filter(Boolean))];
+    return uniqueCategories;
+  }, [menuItems]);
 
   const handleDeleteItem = async (item) => {
     if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
       try {
         await foodService.deleteMenuItem(item._id);
-        setMenuItems(prev => prev.filter(menuItem => menuItem._id !== item._id));
+        // Invalidate the query to refetch the data
+        queryClient.invalidateQueries(['menu']);
       } catch (error) {
         console.error('Error deleting menu item:', error);
         alert('Failed to delete menu item. Please try again.');
@@ -72,45 +91,93 @@ FoodMenu.propTypes = {
   };
 
   // Filter menu items based on search term, category, and availability
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = !searchTerm ||
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchesSearch = !debouncedSearchTerm ||
+        item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        item.category?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
 
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesAvailability = !showAvailableOnly || item.isAvailable;
+      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      const matchesAvailability = !showAvailableOnly || item.isAvailable;
 
-    return matchesSearch && matchesCategory && matchesAvailability;
-  });
+      return matchesSearch && matchesCategory && matchesAvailability;
+    });
+  }, [menuItems, debouncedSearchTerm, selectedCategory, showAvailableOnly]);
 
   // Group items by category for better organization
-  const groupedItems = filteredItems.reduce((groups, item) => {
-    const category = item.category || 'Uncategorized';
-    if (!groups[category]) {
-      groups[category] = [];
-    }
-    groups[category].push(item);
-    return groups;
-  }, {});
+  const groupedItems = useMemo(() => {
+    return filteredItems.reduce((groups, item) => {
+      const category = item.category || 'Uncategorized';
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(item);
+      return groups;
+    }, {});
+  }, [filteredItems]);
 
-  if (loading) {
+  // Handle add to cart
+  const handleAddToCart = (item) => {
+    // Add item to cart context
+    addToCart(item);
+    // Also call the onAddToCart prop if provided (for backward compatibility)
+    onAddToCart?.(item);
+  };
+
+  // Handle order item
+  const handleOrderItem = (item) => {
+    onOrderItem?.(item);
+  };
+
+  // Handle view item details
+  const handleViewItemDetails = (item) => {
+    // In a real app, this would navigate to a detail page
+    console.log('View item details:', item);
+  };
+
+  // Navigate to cart
+  const handleViewCart = () => {
+    navigate('/food/cart');
+  };
+
+  // Loading skeletons
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading menu items...</p>
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="animate-pulse">
+          <div className="h-12 bg-gray-200 rounded-lg mb-6"></div>
+          <div className="flex gap-4 mb-6">
+            <div className="h-10 bg-gray-200 rounded-lg flex-1"></div>
+            <div className="h-10 bg-gray-200 rounded-lg w-48"></div>
+            <div className="h-10 bg-gray-200 rounded-lg w-32"></div>
+          </div>
+        </div>
+        
+        {/* Grid skeletons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, index) => (
+            <div key={index} className="animate-pulse">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="h-40 bg-gray-200 rounded-lg mb-4"></div>
+                <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded mb-4 w-3/4"></div>
+                <div className="h-8 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <Card className="p-6">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={handleRefresh} variant="outline">
+          <p className="text-red-600 mb-4">Failed to load menu items: {error?.message}</p>
+          <Button onClick={() => refetch()} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Try Again
           </Button>
@@ -119,8 +186,6 @@ FoodMenu.propTypes = {
     );
   }
 
-  // ...existing code...
-  // (No changes needed, as the file already matches the accurate version from nofood-with-food-manual)
   return (
     <div className="space-y-6">
       {/* Header with search and filters */}
@@ -133,12 +198,11 @@ FoodMenu.propTypes = {
             </CardTitle>
             <div className="flex flex-wrap gap-2">
               <Button
-                onClick={handleRefresh}
+                onClick={() => refetch()}
                 variant="outline"
                 size="sm"
-                disabled={refreshing}
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
               {showManagementActions && (
@@ -147,6 +211,15 @@ FoodMenu.propTypes = {
                   Add Item
                 </Button>
               )}
+              <Button onClick={handleViewCart} size="sm" className="relative">
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                View Cart
+                {getItemCount() > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {getItemCount()}
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -234,14 +307,13 @@ FoodMenu.propTypes = {
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {items.map(item => (
-                    <FoodCard
+                    <FoodItemCard
                       key={item._id}
                       item={item}
-                      onEdit={showManagementActions ? onEditItem : null}
-                      onDelete={showManagementActions ? handleDeleteItem : null}
-                      onOrder={onOrderItem}
-                      onAddToCart={onAddToCart}
-                      showActions={showManagementActions}
+                      onAddToCart={handleAddToCart}
+                      onOrder={handleOrderItem}
+                      onViewDetails={handleViewItemDetails}
+                      showActions={!showManagementActions}
                     />
                   ))}
                 </div>
@@ -252,7 +324,7 @@ FoodMenu.propTypes = {
                       <div className="flex gap-4">
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                           <img
-                            src={item.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCAzM0M0NC4xNjYgMzMgNDcuNSAzNS4zNDQgNDcuNSAzOEM0Ny41IDQwLjY1NiA0NC4xNjYgNDMgNDAgNDNDMzUuODM0IDQzIDMyLjUgNDAuNjU2IDMyLjUgMzhDMzIuNSAzNS4zNDQgMzUuODM0IDMzIDQwIDMzWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4='}
+                            src={item.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCAzM3M0LjE2NiA0LjE2NiA0LjE2NiAxMC44MzQgMCAxNS00LjE2NiAxMC44MzQtNC4xNjYgNC4xNjYtMTA4MzQgMC0xMC44MzQtNC4xNjYtMTAuODM0LTEwLjgzNC4wLTE1eiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4='}
                             alt={item.name}
                             className="w-full h-full object-cover"
                           />
@@ -261,7 +333,7 @@ FoodMenu.propTypes = {
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-semibold text-lg">{item.name}</h4>
                             <span className="font-bold text-lg text-primary">
-                              ${item.price}
+                              LKR {item.price}
                             </span>
                           </div>
                           {item.description && (

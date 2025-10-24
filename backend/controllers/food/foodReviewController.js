@@ -84,6 +84,95 @@ export const getMenuItemReviews = async (req, res) => {
   }
 };
 
+// Get all reviews (for admin panel)
+export const getAllReviews = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      sort = 'recent', 
+      rating, 
+      flagged = 'all',
+      search
+    } = req.query;
+
+    // Build query
+    let query = {};
+    
+    if (rating) {
+      query.rating = parseInt(rating);
+    }
+
+    if (flagged !== 'all') {
+      if (flagged === 'flagged') {
+        query['reports.0'] = { $exists: true };
+      } else if (flagged === 'unflagged') {
+        query['reports.0'] = { $exists: false };
+      }
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { comment: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Build sort options
+    let sortOptions = {};
+    switch (sort) {
+      case 'recent':
+        sortOptions = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'highest':
+        sortOptions = { rating: -1, createdAt: -1 };
+        break;
+      case 'lowest':
+        sortOptions = { rating: 1, createdAt: -1 };
+        break;
+      case 'most_helpful':
+        sortOptions = { helpfulVotes: -1, createdAt: -1 };
+        break;
+      default:
+        sortOptions = { createdAt: -1 };
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const reviews = await Review.find(query)
+      .populate('customer', 'firstName lastName email')
+      .populate('menuItem', 'name')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select('-__v');
+
+    const totalReviews = await Review.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: reviews,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalReviews / parseInt(limit)),
+        totalReviews,
+        hasNext: skip + reviews.length < totalReviews,
+        hasPrev: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching all reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reviews',
+      error: error.message
+    });
+  }
+};
+
 // Submit a review
 export const submitReview = async (req, res) => {
   try {
@@ -325,6 +414,93 @@ export const getReviewStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching review stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch review statistics',
+      error: error.message
+    });
+  }
+};
+
+// Get overall review statistics (for admin panel)
+export const getAllReviewStats = async (req, res) => {
+  try {
+    const stats = await Review.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalReviews: { $sum: 1 },
+          averageRating: { $avg: '$rating' },
+          totalHelpfulVotes: { $sum: '$helpfulVotes' },
+          totalNotHelpfulVotes: { $sum: '$notHelpfulVotes' },
+          ratingDistribution: {
+            $push: '$rating'
+          },
+          flaggedReviews: {
+            $sum: {
+              $cond: [{ $gt: [{ $size: { $ifNull: ['$reports', []] } }, 0] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalReviews: 1,
+          averageRating: { $round: ['$averageRating', 1] },
+          totalHelpfulVotes: 1,
+          totalNotHelpfulVotes: 1,
+          flaggedReviews: 1,
+          ratingDistribution: {
+            $reduce: {
+              input: '$ratingDistribution',
+              initialValue: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+              in: {
+                $cond: {
+                  if: { $eq: ['$$this', 5] },
+                  then: { $mergeObjects: ['$$value', { 5: { $add: [{ $ifNull: ['$$value.5', 0] }, 1] } }] },
+                  else: {
+                    $cond: {
+                      if: { $eq: ['$$this', 4] },
+                      then: { $mergeObjects: ['$$value', { 4: { $add: [{ $ifNull: ['$$value.4', 0] }, 1] } }] },
+                      else: {
+                        $cond: {
+                          if: { $eq: ['$$this', 3] },
+                          then: { $mergeObjects: ['$$value', { 3: { $add: [{ $ifNull: ['$$value.3', 0] }, 1] } }] },
+                          else: {
+                            $cond: {
+                              if: { $eq: ['$$this', 2] },
+                              then: { $mergeObjects: ['$$value', { 2: { $add: [{ $ifNull: ['$$value.2', 0] }, 1] } }] },
+                              else: { $mergeObjects: ['$$value', { 1: { $add: [{ $ifNull: ['$$value.1', 0] }, 1] } }] }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = stats[0] || {
+      totalReviews: 0,
+      averageRating: 0,
+      totalHelpfulVotes: 0,
+      totalNotHelpfulVotes: 0,
+      flaggedReviews: 0,
+      ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+    };
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error fetching all review stats:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch review statistics',

@@ -296,7 +296,7 @@ const categories = [
 async function seedDatabase() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel_management');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel-management');
     console.log('✅ Connected to MongoDB');
 
     // Clear existing data

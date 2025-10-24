@@ -50,10 +50,12 @@ const FoodCategoryManagementPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/menu/categories');
-      setCategories(response.data?.data || []);
+      console.log('🔍 [Categories] Fetching from /food/categories');
+      const response = await api.get('/food/categories');  // ✅ FIXED: Correct endpoint
+      console.log('✅ [Categories] Response:', response.data);
+      setCategories(response.data?.data || response.data || []);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('❌ [Categories] Error fetching:', error);
       setError('Failed to load categories');
       toast.error('Failed to load categories');
     } finally {
@@ -133,15 +135,19 @@ const FoodCategoryManagementPage = () => {
 
       if (editingCategory) {
         // Update existing category
-        const response = await api.put(`/menu/categories/${editingCategory._id}`, categoryData);
+        console.log('🔍 [Categories] Updating category:', editingCategory._id);
+        const response = await api.put(`/food/categories/${editingCategory._id}`, categoryData);  // ✅ FIXED
+        console.log('✅ [Categories] Update response:', response.data);
         setCategories(prev => prev.map(cat => 
-          cat._id === editingCategory._id ? response.data.data : cat
+          cat._id === editingCategory._id ? (response.data.data || response.data) : cat
         ));
         toast.success('Category updated successfully');
       } else {
         // Create new category
-        const response = await api.post('/menu/categories', categoryData);
-        setCategories(prev => [...prev, response.data.data]);
+        console.log('🔍 [Categories] Creating category');
+        const response = await api.post('/food/categories', categoryData);  // ✅ FIXED
+        console.log('✅ [Categories] Create response:', response.data);
+        setCategories(prev => [...prev, (response.data.data || response.data)]);
         toast.success('Category created successfully');
       }
 

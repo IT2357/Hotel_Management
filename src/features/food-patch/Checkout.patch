@@ -1,0 +1,112 @@
+diff --git a/frontend/src/components/food/Checkout.jsx b/frontend/src/components/food/Checkout.jsx
+index 1234567..89abcde 100644
+--- a/frontend/src/components/food/Checkout.jsx
++++ b/frontend/src/components/food/Checkout.jsx
+@@ -1,5 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import { motion } from 'framer-motion';
++import { useNavigate } from 'react-router-dom';
+ import { 
+   User, 
+   Phone, 
+@@ -15,6 +16,7 @@ import { useCart } from '../../context/CartContext';
+ const Checkout = ({ onClose, onOrderComplete }) => {
+   const { items, getTotal, clearCart } = useCart();
+   const navigate = useNavigate();
++  const [groupId, setGroupId] = useState(null);
+   
+   const [formData, setFormData] = useState({
+     // Guest details
+@@ -35,6 +37,10 @@ const Checkout = ({ onClose, onOrderComplete }) => {
+     // Load saved form data from localStorage
+     const savedFormData = localStorage.getItem('jaffna_checkout_form');
+     if (savedFormData) {
++      // Check for group order session
++      const groupSession = localStorage.getItem('jaffna_group_order');
++      if (groupSession) {
++        setGroupId(JSON.parse(groupSession).groupId);
++      }
+       try {
+         setFormData(JSON.parse(savedFormData));
+       } catch (error) {
+@@ -50,6 +56,10 @@ const Checkout = ({ onClose, onOrderComplete }) => {
+   // Save form data to localStorage
+   useEffect(() => {
+     localStorage.setItem('jaffna_checkout_form', JSON.stringify(formData));
++    // Save group order session
++    if (groupId) {
++      localStorage.setItem('jaffna_group_order', JSON.stringify({ groupId, timestamp: Date.now() }));
++    }
+   }, [formData, groupId]);
+ 
+   // Handle input changes
+@@ -100,6 +110,10 @@ const Checkout = ({ onClose, onOrderComplete }) => {
+       // Create order object
+       const order = {
+         _id: `ORD-${Date.now()}`,
++        groupId: groupId || undefined,
++        isGroupOrder: !!groupId,
++        groupMembers: groupId ? [{ name: `${formData.firstName} ${formData.lastName}`, email: formData.email }] : undefined,
+         items: items,
+         guest: {
+           firstName: formData.firstName,
+@@ -120,6 +134,10 @@ const Checkout = ({ onClose, onOrderComplete }) => {
+       // Clear form and cart
+       localStorage.removeItem('jaffna_checkout_form');
+       clearCart();
++      // Clear group order session
++      if (groupId) {
++        localStorage.removeItem('jaffna_group_order');
++      }
+ 
+       // Call success callback
+       onOrderComplete(order);
+@@ -200,6 +218,20 @@ const Checkout = ({ onClose, onOrderComplete }) => {
+     { value: 'bank', label: 'Bank Transfer', icon: '🏦', description: 'Transfer to our account', color: 'bg-gray-50 border-gray-200' }
+   ].map((method) => (
+     <div
++      key={method.value}
++      className={`p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${
++        formData.paymentMethod === method.value
++          ? 'border-orange-500 bg-orange-50 shadow-lg'
++          : `border-gray-200 hover:border-orange-300 ${method.color}`
++      }`}
++      onClick={() => handleInputChange('paymentMethod', method.value)}
++    >
++      <div className="flex items-center gap-4">
++        <span className="text-3xl">{method.icon}</span>
++        <div>
++          <h3 className="text-lg font-bold text-gray-800">{method.label}</h3>
++          <p className="text-gray-600">{method.description}</p>
++        </div>
++      </div>
++    </div>
++  ))}
++</div>
++
++{groupId && (
++  <motion.div
++    initial={{ opacity: 0, y: 20 }}
++    animate={{ opacity: 1, y: 0 }}
++    className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200"
++  >
++    <div className="flex items-center gap-2 text-blue-700">
++      <Users className="w-5 h-5" />
++      <span className="font-semibold">Group Order #{groupId.substring(0, 8)}</span>
++    </div>
++    <p className="text-sm text-blue-600 mt-1">This order is part of a group order. Your items will be combined with other group members.</p>
++  </motion.div>
++)}
++
++{/* Delivery Address for COD */}
++{formData.paymentMethod === 'cod' && (
++  <motion.div
++    initial={{ opacity: 0, y: 20 }}
++    animate={{ opacity: 1, y: 0 }}
++    className="mt-8 p-8 bg-blue-50 rounded-2xl border border-blue-200"
++  >
++    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
++      <MapPin className="w-6 h-6 text-blue-500" />
++      Delivery Address
++    </h3>
++

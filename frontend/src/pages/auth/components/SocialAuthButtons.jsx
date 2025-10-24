@@ -31,15 +31,15 @@ const SocialAuthButtons = () => {
   const handleGoogleLogin = () => {
     if (!enabledProviders.google) return;
     setLoading(true);
-    // Redirect to Google OAuth
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/auth/google`;
+    // Redirect to Google OAuth through proxy
+    window.location.href = `/api/auth/google`;
   };
 
   const handleFacebookLogin = () => {
     if (!enabledProviders.facebook) return;
     setLoading(true);
-    // Redirect to Facebook OAuth
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/auth/facebook`;
+    // Redirect to Facebook OAuth through proxy
+    window.location.href = `/api/auth/facebook`;
   };
 
   return (

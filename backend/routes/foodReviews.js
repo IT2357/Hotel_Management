@@ -4,9 +4,11 @@ import {
   submitReview,
   voteReview,
   reportReview,
-  getReviewStats
+  getReviewStats,
+  getAllReviews,
+  getAllReviewStats
 } from '../controllers/food/foodReviewController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { 
   submitReviewValidation, 
   voteReviewValidation, 
@@ -15,6 +17,10 @@ import {
 } from '../validations/foodValidation.js';
 
 const router = express.Router();
+
+// Admin routes (for getting all reviews)
+router.get('/', authenticateToken, requireRole('admin'), getAllReviews);
+router.get('/stats', authenticateToken, requireRole('admin'), getAllReviewStats);
 
 // Public routes
 router.get('/menu/:menuItemId', getReviewsValidation, getMenuItemReviews);
