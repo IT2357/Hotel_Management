@@ -87,8 +87,9 @@ export default function MyReviews() {
 useEffect(() => {
   if (bookings.length >= 0 && reviews.length >= 0) {
     // Filter only completed bookings (only completed stays can be reviewed)
+    // Use a case-insensitive check because status value casing may vary ('completed' vs 'Completed')
     const completedOnly = bookings.filter(
-      (booking) => booking.status === "Completed"
+      (booking) => String(booking.status).toLowerCase() === 'completed'
     );
 
     // Map and add review status info - the hasReview field is now properly set from backend

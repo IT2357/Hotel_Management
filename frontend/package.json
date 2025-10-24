@@ -53,6 +53,7 @@
     "flowbite-react": "^0.12.9",
     "framer-motion": "^12.23.21",
     "hotel_management": "file:..",
+    "html2pdf.js": "^0.12.1",
     "input-otp": "^1.2.5",
     "lodash": "^4.17.21",
     "lucide-react": "^0.544.0",

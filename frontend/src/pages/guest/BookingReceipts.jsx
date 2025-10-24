@@ -5,6 +5,7 @@ import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import { Calendar, MapPin, Users, CreditCard, Eye, Download, Star, Clock, ArrowLeft } from 'lucide-react';
 import bookingService from '../../services/bookingService';
+import html2pdf from 'html2pdf.js';
 
 export default function BookingReceipts() {
   const [bookings, setBookings] = useState([]);
@@ -191,411 +192,204 @@ export default function BookingReceipts() {
   const downloadReceipt = async (booking) => {
     try {
       const receiptData = generateReceipt(booking);
+      console.log('Receipt Data:', receiptData); // Debug log
       
-      // Create HTML content for the receipt
+      // Create a simpler HTML structure that's more PDF-friendly
       const receiptHTML = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Hotel Receipt - ${receiptData.bookingNumber}</title>
-          <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              font-family: 'Arial', sans-serif;
-              background: #f8f9fa;
-              padding: 20px;
-              color: #333;
-            }
-            
-            .receipt-container {
-              max-width: 800px;
-              margin: 0 auto;
-              background: white;
-              border: 2px solid #e3f2fd;
-              border-radius: 12px;
-              overflow: hidden;
-              box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            }
-            
-            .receipt-header {
-              background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-              color: white;
-              padding: 30px;
-              text-align: center;
-              position: relative;
-            }
-            
-            .hotel-logo {
-              font-size: 2.5em;
-              font-weight: bold;
-              margin-bottom: 10px;
-              text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            }
-            
-            .hotel-tagline {
-              font-size: 1.1em;
-              opacity: 0.9;
-              font-style: italic;
-            }
-            
-            .receipt-body {
-              padding: 40px;
-            }
-            
-            .receipt-title {
-              text-align: center;
-              margin-bottom: 30px;
-              padding-bottom: 15px;
-              border-bottom: 3px solid #e3f2fd;
-            }
-            
-            .receipt-title h1 {
-              color: #1976d2;
-              font-size: 2.2em;
-              margin-bottom: 5px;
-            }
-            
-            .receipt-title p {
-              color: #666;
-              font-size: 1.1em;
-            }
-            
-            .info-section {
-              margin-bottom: 30px;
-              background: #f8f9fa;
-              padding: 20px;
-              border-radius: 8px;
-              border-left: 4px solid #1976d2;
-            }
-            
-            .info-section h3 {
-              color: #1976d2;
-              margin-bottom: 15px;
-              font-size: 1.3em;
-              border-bottom: 1px solid #e0e0e0;
-              padding-bottom: 8px;
-            }
-            
-            .info-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-              gap: 15px;
-            }
-            
-            .info-item {
-              background: white;
-              padding: 12px;
-              border-radius: 6px;
-              border: 1px solid #e0e0e0;
-            }
-            
-            .info-label {
-              font-weight: bold;
-              color: #555;
-              font-size: 0.9em;
-              margin-bottom: 4px;
-            }
-            
-            .info-value {
-              color: #333;
-              font-size: 1.1em;
-            }
-            
-            .pricing-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 15px;
-              background: white;
-              border-radius: 8px;
-              overflow: hidden;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            
-            .pricing-table th,
-            .pricing-table td {
-              padding: 15px;
-              text-align: left;
-              border-bottom: 1px solid #e0e0e0;
-            }
-            
-            .pricing-table th {
-              background: #1976d2;
-              color: white;
-              font-weight: bold;
-            }
-            
-            .pricing-table tr:last-child td {
-              border-bottom: none;
-            }
-            
-            .pricing-table .total-row {
-              background: #e3f2fd;
-              font-weight: bold;
-              font-size: 1.1em;
-            }
-            
-            .pricing-table .total-row td {
-              border-top: 2px solid #1976d2;
-            }
-            
-            .status-badge {
-              display: inline-block;
-              padding: 8px 16px;
-              border-radius: 20px;
-              font-weight: bold;
-              font-size: 0.9em;
-            }
-            
-            .status-confirmed {
-              background: #e8f5e8;
-              color: #2e7d32;
-              border: 2px solid #4caf50;
-            }
-            
-            .status-pending {
-              background: #fff3e0;
-              color: #ef6c00;
-              border: 2px solid #ff9800;
-            }
-            
-            .receipt-footer {
-              background: #f8f9fa;
-              padding: 25px;
-              text-align: center;
-              border-top: 2px solid #e3f2fd;
-            }
-            
-            .footer-note {
-              color: #666;
-              font-size: 0.95em;
-              line-height: 1.6;
-              margin-bottom: 15px;
-            }
-            
-            .contact-info {
-              display: flex;
-              justify-content: center;
-              gap: 30px;
-              flex-wrap: wrap;
-              margin-top: 15px;
-            }
-            
-            .contact-item {
-              color: #1976d2;
-              font-weight: bold;
-              font-size: 0.9em;
-            }
-            
-            @media print {
-              body { background: white; padding: 0; }
-              .receipt-container { box-shadow: none; border: 1px solid #ccc; }
-            }
-            
-            @media (max-width: 600px) {
-              .info-grid { grid-template-columns: 1fr; }
-              .contact-info { flex-direction: column; gap: 10px; }
-              .receipt-body { padding: 20px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="receipt-container">
-            <div class="receipt-header">
-              <div class="hotel-logo">${receiptData.hotelName}</div>
-              <div class="hotel-tagline">Luxury • Comfort • Excellence</div>
-            </div>
-            
-            <div class="receipt-body">
-              <div class="receipt-title">
-                <h1>BOOKING RECEIPT</h1>
-                <p>Receipt #${receiptData.receiptNumber}</p>
-                <p>Issued on ${receiptData.issueDate} at ${receiptData.issueTime}</p>
-              </div>
-              
-              <div class="info-section">
-                <h3>📍 Hotel Information</h3>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <div class="info-label">Address</div>
-                    <div class="info-value">${receiptData.hotelAddress}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Phone</div>
-                    <div class="info-value">${receiptData.hotelPhone}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Email</div>
-                    <div class="info-value">${receiptData.hotelEmail}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Website</div>
-                    <div class="info-value">${receiptData.hotelWebsite}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="info-section">
-                <h3>🏨 Booking Details</h3>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <div class="info-label">Booking Number</div>
-                    <div class="info-value">${receiptData.bookingNumber}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Booking Date</div>
-                    <div class="info-value">${receiptData.bookingDate}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Status</div>
-                    <div class="info-value">
-                      <span class="status-badge ${receiptData.status.includes('Confirmed') || receiptData.status.includes('Completed') ? 'status-confirmed' : 'status-pending'}">
-                        ${receiptData.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="info-section">
-                <h3>🛏️ Room & Stay Information</h3>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <div class="info-label">Room Type</div>
-                    <div class="info-value">${receiptData.roomTitle}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Room Number</div>
-                    <div class="info-value">${receiptData.roomNumber}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Check-in Date</div>
-                    <div class="info-value">${receiptData.checkInDate}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Check-out Date</div>
-                    <div class="info-value">${receiptData.checkOutDate}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Number of Nights</div>
-                    <div class="info-value">${receiptData.nights} night${receiptData.nights > 1 ? 's' : ''}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Number of Guests</div>
-                    <div class="info-value">${receiptData.guests} guest${receiptData.guests > 1 ? 's' : ''}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="info-section">
-                <h3>💰 Pricing Breakdown</h3>
-                <table class="pricing-table">
-                  <thead>
-                    <tr>
-                      <th>Description</th>
-                      <th>Amount (LKR)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Room Charges:</td>
-                      <td>LKR ${receiptData.roomBasePrice.toLocaleString()}</td>
-                    </tr>
-                    <tr>
-                      <td>Food Charges:</td>
-                      <td>LKR ${receiptData.foodCharges.toLocaleString()}</td>
-                    </tr>
-                    ${receiptData.tax > 0 ? `
-                    <tr>
-                      <td>Tax:</td>
-                      <td>LKR ${receiptData.tax.toLocaleString()}</td>
-                    </tr>
-                    ` : ''}
-                    ${receiptData.serviceFee > 0 ? `
-                    <tr>
-                      <td>Service Fee:</td>
-                      <td>LKR ${receiptData.serviceFee.toLocaleString()}</td>
-                    </tr>
-                    ` : ''}
-                    <tr class="total-row">
-                      <td><strong>Total Amount:</strong></td>
-                      <td><strong>LKR ${receiptData.totalAmount.toLocaleString()}</strong></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              
-              <div class="info-section">
-                <h3>💳 Payment Information</h3>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <div class="info-label">Payment Method</div>
-                    <div class="info-value">${receiptData.paymentMethod}</div>
-                  </div>
-                  <div class="info-item">
-                    <div class="info-label">Payment Status</div>
-                    <div class="info-value">
-                      <span class="status-badge ${receiptData.paymentStatus === 'Paid' ? 'status-confirmed' : 'status-pending'}">
-                        ${receiptData.paymentStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              ${receiptData.specialRequests !== 'None' ? `
-                <div class="info-section">
-                  <h3>📝 Special Requests</h3>
-                  <div class="info-item">
-                    <div class="info-value">${receiptData.specialRequests}</div>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-            
-            <div class="receipt-footer">
-              <div class="footer-note">
-                <strong>Thank you for choosing ${receiptData.hotelName}!</strong><br>
-                We hope you enjoyed your stay with us. For any queries regarding this receipt, 
-                please contact our customer service team with your booking reference number.
-              </div>
-              
-              <div class="contact-info">
-                <div class="contact-item">📞 ${receiptData.hotelPhone}</div>
-                <div class="contact-item">📧 ${receiptData.hotelEmail}</div>
-                <div class="contact-item">🌐 ${receiptData.hotelWebsite}</div>
-              </div>
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: white; color: #333;">
+          
+          <!-- Header -->
+          <div style="background: #1976d2; color: white; padding: 30px; text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">${receiptData.hotelName}</h1>
+            <p style="margin: 0; font-size: 16px; opacity: 0.9;">Luxury • Comfort • Excellence</p>
+          </div>
+          
+          <!-- Title -->
+          <div style="text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 3px solid #e3f2fd;">
+            <h1 style="color: #1976d2; font-size: 24px; margin: 0 0 10px 0;">BOOKING RECEIPT</h1>
+            <p style="color: #666; margin: 5px 0;">Receipt #${receiptData.receiptNumber}</p>
+            <p style="color: #666; margin: 5px 0;">Issued on ${receiptData.issueDate} at ${receiptData.issueTime}</p>
+          </div>
+          
+          <!-- Hotel Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Hotel Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Address:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelAddress}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Phone:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelPhone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Email:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelEmail}</td>
+                <td style="padding: 8px; vertical-align: top;"><strong>Website:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelWebsite}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Booking Details -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Booking Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Booking Number:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.bookingNumber}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Booking Date:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.bookingDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Status:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">
+                  <span style="background: ${receiptData.status.includes('Confirmed') || receiptData.status.includes('Completed') ? '#e8f5e8' : '#fff3e0'}; 
+                               color: ${receiptData.status.includes('Confirmed') || receiptData.status.includes('Completed') ? '#2e7d32' : '#ef6c00'}; 
+                               padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;">
+                    ${receiptData.status}
+                  </span>
+                </td>
+                <td style="padding: 8px; vertical-align: top;"></td>
+                <td style="padding: 8px; vertical-align: top;"></td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Room & Stay Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Room & Stay Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Room Type:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.roomTitle}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Room Number:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.roomNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Check-in Date:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.checkInDate}</td>
+                <td style="padding: 8px; vertical-align: top;"><strong>Check-out Date:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.checkOutDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Number of Nights:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.nights} night${receiptData.nights > 1 ? 's' : ''}</td>
+                <td style="padding: 8px; vertical-align: top;"><strong>Number of Guests:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.guests} guest${receiptData.guests > 1 ? 's' : ''}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Pricing Breakdown -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Pricing Breakdown</h3>
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+              <thead>
+                <tr style="background: #1976d2; color: white;">
+                  <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Description</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Amount (LKR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Room Charges:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.roomBasePrice.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Food Charges:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.foodCharges.toLocaleString()}</td>
+                </tr>
+                ${receiptData.tax > 0 ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Tax:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.tax.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                ${receiptData.serviceFee > 0 ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Service Fee:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.serviceFee.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                <tr style="background: #e3f2fd; font-weight: bold; font-size: 16px;">
+                  <td style="padding: 12px; border-top: 2px solid #1976d2;"><strong>Total Amount:</strong></td>
+                  <td style="padding: 12px; text-align: right; border-top: 2px solid #1976d2;"><strong>LKR ${receiptData.totalAmount.toLocaleString()}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Payment Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Payment Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Payment Method:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.paymentMethod}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Payment Status:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">
+                  <span style="background: ${receiptData.paymentStatus === 'Paid' ? '#e8f5e8' : '#fff3e0'}; 
+                               color: ${receiptData.paymentStatus === 'Paid' ? '#2e7d32' : '#ef6c00'}; 
+                               padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;">
+                    ${receiptData.paymentStatus}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+          
+          ${receiptData.specialRequests !== 'None' ? `
+          <!-- Special Requests -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Special Requests</h3>
+            <p style="margin: 0; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 4px;">${receiptData.specialRequests}</p>
+          </div>
+          ` : ''}
+          
+          <!-- Footer -->
+          <div style="background: #f8f9fa; padding: 25px; text-align: center; border-top: 2px solid #e3f2fd; margin-top: 30px;">
+            <p style="color: #666; margin: 0 0 15px 0; line-height: 1.6;">
+              <strong>Thank you for choosing ${receiptData.hotelName}!</strong><br>
+              We hope you enjoyed your stay with us. For any queries regarding this receipt, 
+              please contact our customer service team with your booking reference number.
+            </p>
+            <div style="margin-top: 15px;">
+              <span style="color: #1976d2; font-weight: bold; margin-right: 20px;">Phone: ${receiptData.hotelPhone}</span>
+              <span style="color: #1976d2; font-weight: bold; margin-right: 20px;">Email: ${receiptData.hotelEmail}</span>
+              <span style="color: #1976d2; font-weight: bold;">Website: ${receiptData.hotelWebsite}</span>
             </div>
           </div>
-        </body>
-        </html>
+          
+        </div>
       `;
 
-      // Create and download the receipt
-      const blob = new Blob([receiptHTML], { type: 'text/html' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Receipt_${receiptData.bookingNumber}_${receiptData.hotelName.replace(/\s+/g, '_')}.html`;
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Configure PDF options for better compatibility
+      const opt = {
+        margin: 0.5,
+        filename: `Receipt_${receiptData.bookingNumber}_${receiptData.hotelName.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          logging: true,
+          useCORS: true,
+          allowTaint: true
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'a4', 
+          orientation: 'portrait'
+        }
+      };
+
+      // Generate and download PDF directly from HTML string
+      html2pdf().set(opt).from(receiptHTML).save();
 
       // Show success message
-      alert('Receipt downloaded successfully! You can open the HTML file in any web browser to view or print it.');
+      alert('Receipt downloaded successfully as PDF!');
       
     } catch (error) {
-      console.error('Error generating receipt:', error);
-      alert('Failed to generate receipt. Please try again.');
+      console.error('Error generating PDF receipt:', error);
+      alert('Failed to generate PDF receipt. Please try again.');
     }
   };
 
@@ -686,7 +480,7 @@ export default function BookingReceipts() {
             📄 Booking Receipts
           </h1>
           <p className="text-gray-600">
-            Download official receipts for your completed and confirmed bookings
+            Download official receipts as PDF for your completed and confirmed bookings
           </p>
           <div className="mt-4">
             <Button
@@ -838,7 +632,7 @@ export default function BookingReceipts() {
                           size="sm"
                         >
                           <Download className="h-4 w-4 mr-2" />
-                          Download Receipt
+                          Download PDF Receipt
                         </Button>
                       </div>
                     </div>
