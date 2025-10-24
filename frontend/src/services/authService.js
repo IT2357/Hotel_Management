@@ -18,6 +18,11 @@ const authService = {
   deleteProfile: () => api.delete("/auth/profile"),
   checkInvitation: (token) => api.get(`/auth/check-invitation?token=${token}`),
   registerWithInvite: (data) => api.post("/auth/register-with-invite", data),
+  uploadProfilePicture: (formData) => api.post("/auth/upload-profile-picture", formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
 };
 
 export default authService;

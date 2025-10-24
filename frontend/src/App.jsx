@@ -11,6 +11,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import PageTransition from './components/shared/PageTransition.jsx';
 import NotificationDropdown from './components/common/NotificationDropdown.jsx';
+import GlobalChatbot from './components/common/GlobalChatbot.jsx';
 import HomePage from './pages/HomePage.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
@@ -27,12 +28,14 @@ import LogoutHandler from './pages/auth/LogoutHandler.jsx';
 import UnauthorizedPage from './pages/auth/UnauthorizedPage.jsx';
 import NotFoundPage from './pages/auth/NotFoundPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx'; // Import the new ProfilePage
+import UserProfile from './pages/UserProfile.jsx';
 import GuestDashboardPage from './pages/guest/GuestDashboardPage.jsx';
 import GuestCheckInOutPage from './pages/guest/GuestCheckInOutPage.jsx';
 import GuestBookingFlow from './pages/guest/GuestBookingFlow.jsx';
 import RoomsPage from './pages/guest/RoomsPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import MyBookings from './pages/guest/MyBookings.jsx';
+import BookingReceipts from './pages/guest/BookingReceipts.jsx';
 import MyReviews from './pages/guest/MyReviews.jsx';
 import FavoriteRooms from './pages/guest/FavoriteRooms.jsx';
 import GuestServiceRequestsPage from './pages/guest/GuestServiceRequestsPage.jsx';
@@ -111,6 +114,7 @@ const AppContent = () => {
             <BookingProvider>
               <CartProvider>
                 <ToastContainer position="top-right" newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+                <GlobalChatbot />
                 <AnimatePresence mode="wait">
                   <Routes>
                     {/* Home Page */}
@@ -178,9 +182,7 @@ const AppContent = () => {
                       path="/guest/dashboard"
                       element={wrapWithTransition(
                         <ProtectedRoute roles={['guest']}>
-                          <GuestLayout>
-                            <GuestDashboardPage />
-                          </GuestLayout>
+                          <UserProfile />
                         </ProtectedRoute>
                       )}
                     />
@@ -190,6 +192,17 @@ const AppContent = () => {
                         <ProtectedRoute roles={['guest']}>
                           <GuestLayout>
                             <MyBookings />
+                          </GuestLayout>
+                        </ProtectedRoute>
+                      )}
+                    />
+
+                    <Route
+                      path="/guest/receipts"
+                      element={wrapWithTransition(
+                        <ProtectedRoute roles={['guest']}>
+                          <GuestLayout>
+                            <BookingReceipts />
                           </GuestLayout>
                         </ProtectedRoute>
                       )}
@@ -256,6 +269,18 @@ const AppContent = () => {
                         </ProtectedRoute>
                       }
                     />
+                    {/* 👤 User Profile Route - Accessible to all authenticated users */}
+                    <Route
+                      path="/user/profile"
+                      element={
+                        <ProtectedRoute>
+                          <UserProfile />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Staff Dashboard Route */}
+
 
                     <Route
                       path="/staff/dashboard"
@@ -266,7 +291,17 @@ const AppContent = () => {
                       }
                     />
 
-                    {/* Admin Routes */}
+                    {/* 👤 General Profile Route - Accessible to all authenticated users */}
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <ProfilePage />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* 🔒 Admin Routes */}
                     <Route
                       path="/admin/dashboard"
                       element={

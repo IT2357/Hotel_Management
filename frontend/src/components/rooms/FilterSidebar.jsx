@@ -43,31 +43,201 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
   };
 
   return (
-    <div
-      className="space-y-6 glassmorphic-sidebar rounded-2xl shadow-2xl border-0 p-6"
-      style={{
-        boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
-        border: '1.5px solid rgba(255, 255, 255, 0.18)',
-        background: 'linear-gradient(135deg, rgba(99,102,241,0.13) 0%, rgba(168,85,247,0.10) 100%)',
-        backdropFilter: 'blur(14px) saturate(180%)',
-      }}
-    >
+    <>
+      <style jsx global>{`
+        .glassmorphic-dropdown {
+          background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+          backdrop-filter: blur(20px) saturate(180%);
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        /* Enhanced Slider Styles - Improved targeting for actual structure */
+        .slider-enhanced [data-orientation="horizontal"] {
+          height: 8px !important;
+          background: rgba(99,102,241,0.25) !important;
+          border-radius: 4px !important;
+          position: relative !important;
+          width: 100% !important;
+        }
+        
+        .slider-enhanced [data-orientation="horizontal"] > span[data-orientation="horizontal"] {
+          background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+        }
+        
+        .slider-enhanced button[role="slider"] {
+          width: 20px !important;
+          height: 20px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+          border: 3px solid white !important;
+          box-shadow: 0 4px 12px 0 rgba(99, 102, 241, 0.4) !important;
+          transition: all 0.2s ease !important;
+          position: relative !important;
+          z-index: 10 !important;
+          cursor: pointer !important;
+          outline: none !important;
+        }
+        
+        .slider-enhanced button[role="slider"]:hover {
+          transform: scale(1.2) !important;
+          box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.6) !important;
+          border: 4px solid white !important;
+        }
+        
+        .slider-enhanced button[role="slider"]:focus {
+          transform: scale(1.1) !important;
+          box-shadow: 0 8px 24px 0 rgba(99, 102, 241, 0.7) !important;
+          border: 4px solid white !important;
+        }
+        
+        /* Yellow-themed Rating Slider - Improved targeting */
+        .slider-rating [data-orientation="horizontal"] {
+          height: 8px !important;
+          background: rgba(245,158,11,0.25) !important;
+          border-radius: 4px !important;
+          position: relative !important;
+          width: 100% !important;
+        }
+        
+        .slider-rating [data-orientation="horizontal"] > span[data-orientation="horizontal"] {
+          background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+        }
+        
+        .slider-rating button[role="slider"] {
+          width: 20px !important;
+          height: 20px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%) !important;
+          border: 3px solid white !important;
+          box-shadow: 0 4px 12px 0 rgba(245, 158, 11, 0.4) !important;
+          transition: all 0.2s ease !important;
+          position: relative !important;
+          z-index: 10 !important;
+          cursor: pointer !important;
+          outline: none !important;
+        }
+        
+        .slider-rating button[role="slider"]:hover {
+          transform: scale(1.2) !important;
+          box-shadow: 0 6px 20px 0 rgba(245, 158, 11, 0.6) !important;
+          border: 4px solid white !important;
+        }
+        
+        .slider-rating button[role="slider"]:focus {
+          transform: scale(1.1) !important;
+          box-shadow: 0 8px 24px 0 rgba(245, 158, 11, 0.7) !important;
+          border: 4px solid white !important;
+        }
+        
+        /* Radix UI Slider specific targeting - Enhanced */
+        .slider-enhanced [data-radix-slider-track] {
+          background: rgba(99,102,241,0.25) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+          position: relative !important;
+        }
+        
+        .slider-enhanced [data-radix-slider-range] {
+          background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+        }
+        
+        .slider-rating [data-radix-slider-track] {
+          background: rgba(245,158,11,0.25) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+          position: relative !important;
+        }
+        
+        .slider-rating [data-radix-slider-range] {
+          background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+        }
+        
+        /* Direct child targeting fallback - Enhanced */
+        .slider-enhanced > div[role="slider"] {
+          height: 8px !important;
+          background: rgba(99,102,241,0.25) !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+        }
+        
+        .slider-enhanced > div > div:first-child {
+          background: rgba(99,102,241,0.25) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+        }
+        
+        .slider-enhanced > div > div:nth-child(2) {
+          background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+        }
+        
+        .slider-rating > div[role="slider"] {
+          height: 8px !important;
+          background: rgba(245,158,11,0.25) !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+        }
+        
+        .slider-rating > div > div:first-child {
+          background: rgba(245,158,11,0.25) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          width: 100% !important;
+        }
+        
+        .slider-rating > div > div:nth-child(2) {
+          background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          position: absolute !important;
+        }
+      `}</style>
+      <div
+        className="space-y-6 glassmorphic-sidebar rounded-2xl shadow-2xl border-0 p-6"
+        style={{
+          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
+          border: '1.5px solid rgba(255, 255, 255, 0.18)',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.13) 0%, rgba(168,85,247,0.10) 100%)',
+          backdropFilter: 'blur(14px) saturate(180%)',
+        }}
+      >
       {/* Price Range */}
       <motion.div className="space-y-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <Label className="text-sm font-medium">Price Range</Label>
-        <div className="px-3">
+        <div className="px-3 py-2">
           <Slider
             value={filters.priceRange}
             onValueChange={(value) => updateFilter('priceRange', value)}
             min={100}
             max={1000}
             step={50}
-            className="w-full"
+            className="w-full slider-enhanced"
           />
         </div>
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>${filters.priceRange[0]}</span>
-          <span>${filters.priceRange[1]}</span>
+        <div className="flex justify-between text-sm text-muted-foreground px-1">
+          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">${filters.priceRange[0]}</span>
+          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">${filters.priceRange[1]}</span>
         </div>
       </motion.div>
 
@@ -81,8 +251,8 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
             <SelectTrigger className="glass flex-1">
               <SelectValue placeholder="Any bed type" />
             </SelectTrigger>
-            <SelectContent className="glass-strong">
-              {bedTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+            <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 shadow-xl rounded-lg z-50 glassmorphic-dropdown">
+              {bedTypes.map(type => <SelectItem key={type} value={type} className="hover:bg-indigo-500/10 transition-colors">{type}</SelectItem>)}
             </SelectContent>
           </Select>
           {filters.bedType && (
@@ -126,8 +296,8 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
             <SelectTrigger className="glass flex-1">
               <SelectValue placeholder="Any view" />
             </SelectTrigger>
-            <SelectContent className="glass-strong">
-              {viewTypes.map(type => <SelectItem key={type} value={type}>{type} View</SelectItem>)}
+            <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 shadow-xl rounded-lg z-50 glassmorphic-dropdown">
+              {viewTypes.map(type => <SelectItem key={type} value={type} className="hover:bg-indigo-500/10 transition-colors">{type} View</SelectItem>)}
             </SelectContent>
           </Select>
           {filters.view && <Button variant="outline" size="sm" onClick={() => updateFilter('view', '')} className="glass hover:bg-destructive/10"><X className="w-3 h-3" /></Button>}
@@ -153,13 +323,17 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
         <Label className="text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4 text-yellow-500" /> Rating</Label>
         <Select value={filters.ratingLabel} onValueChange={(value) => updateFilter('ratingLabel', value)}>
           <SelectTrigger className="glass flex-1"><SelectValue placeholder="Any rating" /></SelectTrigger>
-          <SelectContent className="glass-strong">
-            {ratingOptions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 shadow-xl rounded-lg z-50 glassmorphic-dropdown">
+            {ratingOptions.map(r => <SelectItem key={r} value={r} className="hover:bg-indigo-500/10 transition-colors">{r}</SelectItem>)}
           </SelectContent>
         </Select>
         <Label className="text-xs mt-1">Minimum Stars</Label>
-        <Slider value={[filters.minReviewRating]} min={0} max={5} step={1} onValueChange={(value) => updateFilter('minReviewRating', value[0])} />
-        <div className="text-sm text-muted-foreground">{filters.minReviewRating} ★ & up</div>
+        <div className="px-3 py-2">
+          <Slider value={[filters.minReviewRating]} min={0} max={5} step={1} onValueChange={(value) => updateFilter('minReviewRating', value[0])} className="w-full slider-rating" />
+        </div>
+        <div className="text-sm text-muted-foreground px-1">
+          <span className="bg-yellow-100/80 px-2 py-1 rounded-md font-medium text-yellow-700">{filters.minReviewRating} ★ & up</span>
+        </div>
       </motion.div>
 
       {/* Clear Filters */}
@@ -169,6 +343,7 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
         </Button>
       </motion.div>
     </div>
+    </>
   );
 };
 

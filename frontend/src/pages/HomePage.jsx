@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Info, Image, Phone, ChefHat, ShoppingCart, Bed, Calendar, Menu, X, User, Heart, FileText, MessageSquare, Star, CheckCircle, Clock, MapPin, LogIn, LogOut } from 'lucide-react';
+import { Home, Info, Image, Phone, ChefHat, ShoppingCart, Bed, Calendar, Menu, X, User, Heart, FileText, MessageSquare, Star, CheckCircle, Clock, MapPin, LogIn, LogOut, ChevronDown, Settings } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import foodService from '../services/foodService';
 import roomService from '../services/roomService';
@@ -12,11 +12,26 @@ export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [menuLoading, setMenuLoading] = useState(true);
   const [featuredRooms, setFeaturedRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userDropdownOpen && !event.target.closest('.user-dropdown')) {
+        setUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userDropdownOpen]);
 
   const heroSlides = [
     {
@@ -144,7 +159,6 @@ export default function HomePage() {
     { name: 'Rooms', href: '/rooms' },
     { name: 'Menu', href: '/menu' },
     { name: 'Gallery', href: '/gallery' },
-    { name: 'Dashboard', href: '/user/dashboard' },
   ];
 
   const navigationItems = user ? authenticatedNavigationItems : guestNavigationItems;
@@ -327,19 +341,56 @@ export default function HomePage() {
             <div className="flex items-center space-x-4">
               {/* Authentication Buttons */}
               {user ? (
-                <div className="hidden lg:flex items-center space-x-3">
-                  <Link
-                    to="/user/dashboard"
-                    className="text-gray-700 hover:text-indigo-600 transition-colors font-medium px-4 py-2 rounded-lg hover:bg-indigo-50"
-                  >
-                    Dashboard
-                  </Link>
+                <div className="hidden lg:flex items-center relative user-dropdown">
+                  {/* User Dropdown */}
                   <button
-                    onClick={logout}
-                    className="px-4 py-2 text-gray-700 hover:text-red-600 transition-colors font-medium rounded-lg hover:bg-red-50"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium rounded-lg hover:bg-indigo-50"
                   >
-                    Logout
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="hidden md:block">{user.name?.split(' ')[0] || 'User'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
+
+                  {/* Dropdown Menu */}
+                  {userDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    >
+                      <Link
+                        to="/guest/dashboard"
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        onClick={() => setUserDropdownOpen(false)}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        to="/user/profile"
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        onClick={() => setUserDropdownOpen(false)}
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Profile</span>
+                      </Link>
+                      <hr className="my-1 border-gray-200" />
+                      <button
+                        onClick={() => {
+                          logout();
+                          setUserDropdownOpen(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </motion.div>
+                  )}
                 </div>
               ) : (
                 <Link

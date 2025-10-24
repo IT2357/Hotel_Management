@@ -421,7 +421,12 @@ export default function MyBookings() {
                           View Details
                         </Button>
                         {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
-                          <Button key={`receipt-${booking._id || booking.id}`} variant="outline" size="sm">
+                          <Button 
+                            key={`receipt-${booking._id || booking.id}`} 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => window.location.href = '/guest/receipts'}
+                          >
                             <Download className="h-4 w-4 mr-2" />
                             Receipt
                           </Button>

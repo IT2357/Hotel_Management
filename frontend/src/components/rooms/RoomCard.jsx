@@ -97,7 +97,7 @@ const RoomCard = ({
   view,
   amenities = [],
   size,
-  status = 'available',
+  //status = 'available',
   rating,
   isInComparison = false,
   onWishlist,

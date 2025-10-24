@@ -212,10 +212,10 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
         <DialogHeader className="px-6 py-4 border-b border-white/20">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div className="flex-1">
-              <DialogTitle className="text-2xl font-display font-bold text-foreground mb-2">
+              <DialogTitle className="text-2xl font-display font-bold text-white mb-2">
                 {room.name || "Unnamed Room"}
               </DialogTitle>
-              <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-4 text-white">
                 {reviews && (
                   <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 fill-primary text-primary" />
@@ -232,7 +232,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Badge variant="secondary" className="bg-primary text-primary-foreground text-base px-3 py-1">
+              <Badge variant="secondary" className="bg-primary text-white text-base px-3 py-1">
                 LKR {room.price || 0}/night
               </Badge>
             </div>
