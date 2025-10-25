@@ -1,26 +1,51 @@
 import { Button } from "@/components/rooms/ui/button";
-import { Heart, Star, Users, Wifi, Car, Coffee, Bath, Ruler, Bed, MapPin, Eye } from "lucide-react";
+import { Heart, Star, Users, Wifi, Car, Coffee, Bath, Ruler, Bed, MapPin, Eye, Snowflake, Utensils, Flower, Waves, Bell, Map, Fish, Landmark, Building } from "lucide-react";
 import { useState } from "react";
 import RoomModal from "./ViewDetails";
 import IntegratedBookingFlow from "../booking/IntegratedBookingFlow";
 import { useFavorites } from "../../contexts/FavoritesContext";
+import { formatLKR } from "../../utils/sriLankanCurrency";
+import { ROOM_TYPES, SRI_LANKAN_AMENITIES } from "../../constants/sriLankanHotel";
 
 const amenityIcons = {
+  AC: Snowflake,
   WiFi: Wifi,
   Parking: Car,
+  Restaurant: Utensils,
+  Spa: Flower,
+  Pool: Waves,
+  Balcony: Building,
+  MiniBar: Coffee,
+  RoomService: Bell,
+  CulturalTours: Map,
+  FishingTrips: Fish,
+  TempleVisits: Landmark,
+  // Legacy support
   Coffee: Coffee,
   Bathtub: Bath,
 };
 
 const getRoomGradient = (roomType) => {
-  switch (roomType?.toLowerCase()) {
+  const type = roomType?.toLowerCase();
+  
+  // Sri Lankan room type mappings
+  if (type.includes('tamil heritage') || type.includes('heritage')) {
+    return ROOM_TYPES.SUITE.gradient;
+  }
+  if (type.includes('jaffna royal') || type.includes('royal') || type.includes('presidential')) {
+    return ROOM_TYPES.PRESIDENTIAL.gradient;
+  }
+  if (type.includes('deluxe')) {
+    return ROOM_TYPES.DELUXE.gradient;
+  }
+  if (type.includes('standard')) {
+    return ROOM_TYPES.STANDARD.gradient;
+  }
+  
+  // Legacy mappings
+  switch (type) {
     case 'luxury suite':
-    case 'deluxe':
-    case 'deluxe room':
       return 'from-red-500 to-pink-500';
-    case 'standard':
-    case 'standard room':
-      return 'from-blue-500 to-indigo-500';
     case 'economy':
     case 'economy room':
       return 'from-green-500 to-emerald-500';
@@ -29,19 +54,31 @@ const getRoomGradient = (roomType) => {
     case 'guest suite':
       return 'from-gray-500 to-slate-500';
     default:
-      return 'from-indigo-500 to-purple-500';
+      return ROOM_TYPES.STANDARD.gradient; // Default to standard room
   }
 };
 
 const getRoomBackgroundGradient = (roomType) => {
-  switch (roomType?.toLowerCase()) {
+  const type = roomType?.toLowerCase();
+  
+  // Sri Lankan room type mappings
+  if (type.includes('tamil heritage') || type.includes('heritage')) {
+    return ROOM_TYPES.SUITE.backgroundGradient;
+  }
+  if (type.includes('jaffna royal') || type.includes('royal') || type.includes('presidential')) {
+    return ROOM_TYPES.PRESIDENTIAL.backgroundGradient;
+  }
+  if (type.includes('deluxe')) {
+    return ROOM_TYPES.DELUXE.backgroundGradient;
+  }
+  if (type.includes('standard')) {
+    return ROOM_TYPES.STANDARD.backgroundGradient;
+  }
+  
+  // Legacy mappings
+  switch (type) {
     case 'luxury suite':
-    case 'deluxe':
-    case 'deluxe room':
       return 'from-red-50 to-red-100';
-    case 'standard':
-    case 'standard room':
-      return 'from-blue-50 to-blue-100';
     case 'economy':
     case 'economy room':
       return 'from-green-50 to-green-100';
@@ -50,19 +87,31 @@ const getRoomBackgroundGradient = (roomType) => {
     case 'guest suite':
       return 'from-gray-50 to-gray-100';
     default:
-      return 'from-indigo-50 to-purple-50';
+      return ROOM_TYPES.STANDARD.backgroundGradient;
   }
 };
 
 const getRoomBorderColor = (roomType) => {
-  switch (roomType?.toLowerCase()) {
+  const type = roomType?.toLowerCase();
+  
+  // Sri Lankan room type mappings
+  if (type.includes('tamil heritage') || type.includes('heritage')) {
+    return ROOM_TYPES.SUITE.borderColor;
+  }
+  if (type.includes('jaffna royal') || type.includes('royal') || type.includes('presidential')) {
+    return ROOM_TYPES.PRESIDENTIAL.borderColor;
+  }
+  if (type.includes('deluxe')) {
+    return ROOM_TYPES.DELUXE.borderColor;
+  }
+  if (type.includes('standard')) {
+    return ROOM_TYPES.STANDARD.borderColor;
+  }
+  
+  // Legacy mappings
+  switch (type) {
     case 'luxury suite':
-    case 'deluxe':
-    case 'deluxe room':
       return 'border-red-200';
-    case 'standard':
-    case 'standard room':
-      return 'border-blue-200';
     case 'economy':
     case 'economy room':
       return 'border-green-200';
@@ -71,7 +120,7 @@ const getRoomBorderColor = (roomType) => {
     case 'guest suite':
       return 'border-gray-200';
     default:
-      return 'border-indigo-200';
+      return ROOM_TYPES.STANDARD.borderColor;
   }
 };
 
@@ -262,7 +311,7 @@ const RoomCard = ({
         {/* Price Tag */}
         <div className={`absolute bottom-3 left-3 px-3 py-1 rounded-full font-bold text-white shadow-sm`}>
           <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${gradientClass} opacity-95`}></div>
-          <span className="relative z-10 text-sm">LKR. {price} <span className="text-xs font-normal">/ night</span></span>
+          <span className="relative z-10 text-sm">{formatLKR(price)} <span className="text-xs font-normal">/ night</span></span>
         </div>
       </div>
       
@@ -286,10 +335,14 @@ const RoomCard = ({
         <div className="flex flex-wrap gap-1.5 mb-4">
           {amenities.slice(0, 3).map((amenity, index) => {
             const Icon = amenityIcons[amenity] || Star;
+            // Find Sri Lankan amenity for proper display
+            const sriLankanAmenity = SRI_LANKAN_AMENITIES.find(a => a.id === amenity);
+            const displayName = sriLankanAmenity ? sriLankanAmenity.label : amenity;
+            
             return (
               <span key={index} className="flex items-center text-xs bg-white/50 text-gray-600 px-2 py-1 rounded-full backdrop-blur-sm hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200 border border-white/50 shadow-sm">
                 <Icon className="w-3 h-3 mr-1 text-indigo-500" />
-                {amenity}
+                {displayName}
               </span>
             );
           })}
@@ -313,7 +366,7 @@ const RoomCard = ({
     onClick={handleViewDetails}
   >
     <Eye className="w-3 h-3 mr-1" />
-    View Details 
+    View Details
   </Button>
 
   <Button 

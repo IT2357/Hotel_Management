@@ -19,7 +19,38 @@ export const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1
 export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
 
-export const imageFor = (topic, w = 800, h = 600) => `https://images.unsplash.com/photo-155${randomInt(1000,9999)}?q=80&w=${w}&h=${h}&fit=crop&auto=format&${encodeURIComponent(topic)}`;
+// Working image URLs from free stock image sites
+export const imageFor = (topic, w = 800, h = 600) => {
+  const imageUrls = {
+    'hotel room': [
+      `https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/27161
+      8/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`
+    ],
+    'bathroom': [
+      `https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/1454804/pexels-photo-1454804.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/1571467/pexels-photo-1571467.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`
+    ],
+    'food': [
+      `https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/70497/pexels-photo-70497.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`
+    ],
+    'hotel': [
+      `https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`,
+      `https://images.pexels.com/photos/189296/pexels-photo-189296.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`
+    ],
+    'default': [
+      `https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=${w}&h=${h}&fit=crop`
+    ]
+  };
+  
+  const categoryImages = imageUrls[topic.toLowerCase()] || imageUrls['default'];
+  return pick(categoryImages);
+};
 export const avatar = (seed) => `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 
 export const randPhoneLK = () => `+94${randomInt(70,79)}${randomInt(1000000,9999999)}`;

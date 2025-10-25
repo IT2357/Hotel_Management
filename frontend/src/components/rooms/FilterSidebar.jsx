@@ -1,21 +1,51 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Filter, Users, Bed, MapPin, Wifi, Car, Coffee, Bath, Star } from 'lucide-react';
+import { X, Filter, Users, Bed, MapPin, Wifi, Car, Coffee, Bath, Star, Snowflake, Utensils, Flower, Waves, Bell, Map, Fish, Landmark, Building } from 'lucide-react';
 import { Button } from '@/components/rooms/ui/button';
 import { Label } from '@/components/rooms/ui/label';
 import { Slider } from '@/components/rooms/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/rooms/ui/select';
 import { Checkbox } from '@/components/rooms/ui/checkbox';
+import { formatLKR, getDefaultPriceRange } from '../../utils/sriLankanCurrency';
+import { SRI_LANKAN_AMENITIES, BED_TYPES, VIEW_TYPES } from '../../constants/sriLankanHotel';
 
-const bedTypes = ['King', 'Queen', 'Twin', 'Double'];
-const viewTypes = ['Ocean', 'Garden', 'City', 'Mountain'];
-const amenityOptions = [
-  { id: 'WiFi', label: 'WiFi', icon: Wifi },
-  { id: 'Parking', label: 'Parking', icon: Car },
-  { id: 'Coffee', label: 'Coffee Machine', icon: Coffee },
-  { id: 'Bathtub', label: 'Bathtub', icon: Bath },
+// Sri Lankan hotel specific options
+const bedTypes = Object.values(BED_TYPES).map(bed => bed.name);
+const viewTypes = Object.values(VIEW_TYPES).map(view => view.name);
+
+// Enhanced amenities with Sri Lankan context
+const amenityIcons = {
+  AC: Snowflake,
+  WiFi: Wifi,
+  Parking: Car,
+  Restaurant: Utensils,
+  Spa: Flower,
+  Pool: Waves,
+  Balcony: Building,
+  MiniBar: Coffee,
+  RoomService: Bell,
+  CulturalTours: Map,
+  FishingTrips: Fish,
+  TempleVisits: Landmark,
+};
+
+const amenityOptions = SRI_LANKAN_AMENITIES.map(amenity => ({
+  id: amenity.id,
+  label: amenity.label,
+  icon: amenityIcons[amenity.id] || Star,
+  featured: amenity.featured,
+  premium: amenity.premium,
+  unique: amenity.unique
+}));
+
+const ratingOptions = [
+  { value: 'Any', label: 'Any Rating' },
+  { value: '5 Stars', label: '5 Stars' },
+  { value: '4 Stars', label: '4 Stars' },
+  { value: '3 Stars', label: '3 Stars' },
+  { value: '2 Stars', label: '2 Stars' },
+  { value: '1 Star', label: '1 Star' }
 ];
-const ratingOptions = ['Any', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'];
 
 const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
   const updateFilter = (key, value) => {
@@ -30,8 +60,9 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
   };
 
   const clearFilters = () => {
+    const defaultRange = getDefaultPriceRange();
     onFiltersChange({
-      priceRange: [200, 800],
+      priceRange: defaultRange, // [5000, 100000] for Sri Lankan context
       bedType: '',
       adults: 2,
       children: 0,
@@ -229,15 +260,18 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
           <Slider
             value={filters.priceRange}
             onValueChange={(value) => updateFilter('priceRange', value)}
-            min={100}
-            max={1000}
-            step={50}
+            min={5000}
+            max={200000}
+            step={5000}
             className="w-full slider-enhanced"
           />
         </div>
         <div className="flex justify-between text-sm text-muted-foreground px-1">
-          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">${filters.priceRange[0]}</span>
-          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">${filters.priceRange[1]}</span>
+          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">{formatLKR(filters.priceRange[0])}</span>
+          <span className="bg-indigo-100/80 px-2 py-1 rounded-md font-medium text-indigo-700">{formatLKR(filters.priceRange[1])}</span>
+        </div>
+        <div className="text-xs text-gray-500 text-center">
+          Per night
         </div>
       </motion.div>
 
@@ -297,7 +331,7 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
               <SelectValue placeholder="Any view" />
             </SelectTrigger>
             <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 shadow-xl rounded-lg z-50 glassmorphic-dropdown">
-              {viewTypes.map(type => <SelectItem key={type} value={type} className="hover:bg-indigo-500/10 transition-colors">{type} View</SelectItem>)}
+              {viewTypes.map(type => <SelectItem key={type} value={type} className="hover:bg-indigo-500/10 transition-colors">{type}</SelectItem>)}
             </SelectContent>
           </Select>
           {filters.view && <Button variant="outline" size="sm" onClick={() => updateFilter('view', '')} className="glass hover:bg-destructive/10"><X className="w-3 h-3" /></Button>}
@@ -307,12 +341,30 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
       {/* Amenities */}
       <motion.div className="space-y-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <Label className="text-sm font-medium">Amenities</Label>
-        <div className="space-y-3">
-          {amenityOptions.map(({ id, label, icon: Icon }) => (
-            <motion.div key={id} className="flex items-center space-x-3 p-2 rounded-lg glass hover:bg-primary/5 transition-colors cursor-pointer" whileHover={{ scale: 1.02 }} onClick={() => toggleAmenity(id)}>
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {amenityOptions.map(({ id, label, icon: Icon, featured, premium, unique }) => (
+            <motion.div 
+              key={id} 
+              className={`flex items-center space-x-3 p-2 rounded-lg glass hover:bg-primary/5 transition-colors cursor-pointer relative ${
+                featured ? 'ring-1 ring-orange-300' : 
+                premium ? 'ring-1 ring-purple-300' : 
+                unique ? 'ring-1 ring-green-300' : ''
+              }`} 
+              whileHover={{ scale: 1.02 }} 
+              onClick={() => toggleAmenity(id)}
+            >
               <Checkbox id={id} checked={filters.amenities.includes(id)} onCheckedChange={() => toggleAmenity(id)} />
-              <Icon className="w-4 h-4 text-primary" />
-              <Label htmlFor={id} className="cursor-pointer">{label}</Label>
+              <Icon className={`w-4 h-4 ${
+                featured ? 'text-orange-500' : 
+                premium ? 'text-purple-500' : 
+                unique ? 'text-green-500' : 'text-primary'
+              }`} />
+              <div className="flex flex-col flex-1">
+                <Label htmlFor={id} className="cursor-pointer text-xs font-medium">{label}</Label>
+              </div>
+              {featured && <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded">Featured</span>}
+              {premium && <span className="text-xs bg-purple-100 text-purple-600 px-1 rounded">Premium</span>}
+              {unique && <span className="text-xs bg-green-100 text-green-600 px-1 rounded">Unique</span>}
             </motion.div>
           ))}
         </div>
@@ -324,7 +376,11 @@ const FilterSidebar = ({ isOpen, onToggle, filters, onFiltersChange }) => {
         <Select value={filters.ratingLabel} onValueChange={(value) => updateFilter('ratingLabel', value)}>
           <SelectTrigger className="glass flex-1"><SelectValue placeholder="Any rating" /></SelectTrigger>
           <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 shadow-xl rounded-lg z-50 glassmorphic-dropdown">
-            {ratingOptions.map(r => <SelectItem key={r} value={r} className="hover:bg-indigo-500/10 transition-colors">{r}</SelectItem>)}
+            {ratingOptions.map(option => (
+              <SelectItem key={option.value} value={option.value} className="hover:bg-indigo-500/10 transition-colors">
+                {option.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Label className="text-xs mt-1">Minimum Stars</Label>

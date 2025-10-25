@@ -18,6 +18,10 @@ import { Input } from "@/components/rooms/ui/input";
 import roomService from "@/services/roomService";
 import { useToast } from "@/hooks/use-toast";
 
+// Sri Lankan imports
+import { getDefaultPriceRange, formatLKR } from "@/utils/sriLankanCurrency";
+import { HOTEL_BRANDING, SRI_LANKAN_AMENITIES, VIEW_TYPES } from "@/constants/sriLankanHotel";
+
 const GuestDashboardPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -33,7 +37,7 @@ const GuestDashboardPage = () => {
   const [comparisonRooms, setComparisonRooms] = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [filters, setFilters] = useState({
-    priceRange: [0, 5000],
+    priceRange: getDefaultPriceRange(), // [5000, 100000] for Sri Lankan context
     bedType: "",
     adults: 2,
     children: 0,
@@ -170,7 +174,8 @@ const GuestDashboardPage = () => {
 
   // Calculate active filter count
   const activeFilterCount = Object.entries(filters).reduce((count, [key, value]) => {
-    if (key === 'priceRange' && (value[0] > 0 || value[1] < 5000)) return count + 1;
+    const defaultRange = getDefaultPriceRange();
+    if (key === 'priceRange' && (value[0] > defaultRange[0] || value[1] < defaultRange[1])) return count + 1;
     if (key === 'bedType' && value) return count + 1;
     if (key === 'adults' && value > 2) return count + 1;
     if (key === 'children' && value > 0) return count + 1;
@@ -249,8 +254,9 @@ const GuestDashboardPage = () => {
 
   // Clear all filters
   const clearFilters = () => {
+    const defaultRange = getDefaultPriceRange();
     setFilters({
-      priceRange: [0, 5000],
+      priceRange: defaultRange,
       bedType: "",
       adults: 2,
       children: 0,
