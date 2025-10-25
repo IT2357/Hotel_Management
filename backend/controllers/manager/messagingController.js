@@ -513,3 +513,90 @@ export const sendReply = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get unread message counts for all staff members
+ * @route GET /api/manager/messaging/unread-counts
+ */
+export const getUnreadCounts = async (req, res) => {
+  try {
+    const managerId = req.user._id;
+
+    console.log(`🔔 Getting unread counts for manager ${managerId}`);
+
+    // Get all staff members
+    const staff = await User.find({ role: 'staff', isActive: true }).select('_id');
+    const staffIds = staff.map(s => s._id);
+
+    // Get unread messages from each staff member to the manager
+    const unreadCounts = {};
+    
+    for (const staffId of staffIds) {
+      const count = await Message.countDocuments({
+        sender: staffId,
+        recipient: managerId,
+        status: 'pending' // pending status means unread
+      });
+      
+      if (count > 0) {
+        unreadCounts[staffId.toString()] = count;
+      }
+    }
+
+    console.log(`✅ Found unread messages:`, unreadCounts);
+
+    res.status(200).json({
+      success: true,
+      data: unreadCounts,
+    });
+  } catch (error) {
+    console.error('❌ Error getting unread counts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get unread counts',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Mark all messages from a specific staff member as read
+ * @route PUT /api/manager/messaging/mark-read/:staffId
+ */
+export const markConversationAsRead = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const managerId = req.user._id;
+
+    console.log(`✓ Marking messages from ${staffId} as read for manager ${managerId}`);
+
+    // Update all pending messages from this staff to manager
+    const result = await Message.updateMany(
+      {
+        sender: staffId,
+        recipient: managerId,
+        status: 'pending'
+      },
+      {
+        $set: { status: 'in-progress' }
+      }
+    );
+
+    console.log(`✅ Marked ${result.modifiedCount} messages as read`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Messages marked as read',
+      data: {
+        modifiedCount: result.modifiedCount
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error marking messages as read:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark messages as read',
+      error: error.message,
+    });
+  }
+};

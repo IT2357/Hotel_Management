@@ -8,7 +8,9 @@ import {
   Clock,
   CheckCheck,
   User,
-  ArrowLeft
+  ArrowLeft,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ManagerLayout } from '@/components/manager';
@@ -22,23 +24,40 @@ export default function ManagerChatPage() {
   const [loading, setLoading] = useState(false);
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({});
   const messagesEndRef = useRef(null);
+  const previousMessageCountRef = useRef({});
+  const notificationSoundRef = useRef(null);
   const currentUserId = JSON.parse(localStorage.getItem('user') || '{}')._id;
 
   useEffect(() => {
     fetchStaffList();
+    checkNotificationPermission();
+    // Create notification sound
+    notificationSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBDGH0fPTgjMGHm7A7+OZSA0PVqzn77BdGAg+ltryxnMnBSl+zPLaizsIGGS57OihUBELTKXh8bllHAU2jdXzzoM0Bhxsu+7mnUoODlOq5O+5YhsFO5LY88p1KwYnfMny25I+CRZiuOvpoFISC0ih4PK8aB8EMYvU89GFNwYacLzt45xKDg5Rp+Tvt2IdBTuP1vPPgjYHHnDB7uWcSQ0OUark7rhiHQU7ktjzyXUrBSd8yfPbkj4JFmK46+mgUhILSKHg8rxoHwQxi9Tz0YU3Bhpwu+7mnEoODlGn5O+3Yh0FO4/W88+CNgcecMHu5ZxJDQ5SquTuuGIdBTuS2PPJdSsFJ3zJ89uSPgkWYrjr6aBSEgtIoeDyvGgfBDGL1PPRhTcGGnC77uacSg4OUafk77diHQU7j9bzz4I2Bx5wwe7lnEkNDlKq5O64Yh0FO5LY88l1KwUnfMnz25I+CRZiuOvpoFISC0ih4PK8aB8EMYvU89GFNwYacLvu5pxKDg5Rp+Tvt2IdBTuP1vPPgjYHHnDB7uWcSQ0OUqrk7rhiHQU7ktjzyXUrBSd8yfPbkj4JFmK46+mgUhILSKHg8rxoHwQxi9Tz0YU3Bhpwu+7mnEoODlGn5O+3Yh0FO4/W88+CNgcecMHu5ZxJDQ5SquTuuGIdBTuS2PPJdSsFJ3zJ89uSPgkWYrjr6aBSEgtIoeDyvGgfBDGL1PPRhTcGGnC77uacSg4OUafk77diHQU7j9bzz4I2Bx5wwe7lnEkNDlKq5O64Yh0FO5LY88l1KwUnfMnz25I+CRZiuOvpoFISC0ih4PK8aB8EMYvU89GFNwYacLvu5pxKDg==');
   }, []);
 
   useEffect(() => {
     if (selectedStaff) {
       fetchConversation(selectedStaff.id);
-      // Auto-refresh every 5 seconds
+      // Mark messages as read when viewing conversation
+      markConversationAsRead(selectedStaff.id);
+      // Auto-refresh every 3 seconds
       const interval = setInterval(() => {
         fetchConversation(selectedStaff.id, true);
-      }, 5000);
+      }, 3000);
       return () => clearInterval(interval);
     }
   }, [selectedStaff]);
+
+  // Poll for new messages from all staff every 5 seconds
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      checkForNewMessages();
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [staffList, selectedStaff]);
 
   useEffect(() => {
     scrollToBottom();
@@ -46,6 +65,115 @@ export default function ManagerChatPage() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const checkNotificationPermission = async () => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(true);
+      } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        setNotificationsEnabled(permission === 'granted');
+      }
+    }
+  };
+
+  const toggleNotifications = async () => {
+    if (!notificationsEnabled && 'Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+        toast.success('Notifications Enabled', {
+          description: 'You will receive notifications for new messages'
+        });
+      } else {
+        toast.error('Permission Denied', {
+          description: 'Please enable notifications in your browser settings'
+        });
+      }
+    } else {
+      setNotificationsEnabled(!notificationsEnabled);
+      toast.info(notificationsEnabled ? 'Notifications Disabled' : 'Notifications Enabled');
+    }
+  };
+
+  const showNotification = (staffName, message) => {
+    if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification(`New message from ${staffName}`, {
+        body: message,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'chat-notification',
+        requireInteraction: false
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      // Play notification sound
+      if (notificationSoundRef.current) {
+        notificationSoundRef.current.play().catch(e => console.log('Sound play failed:', e));
+      }
+    }
+  };
+
+  const checkForNewMessages = async () => {
+    if (!staffList.length) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/api/manager/messaging/unread-counts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newUnreadCounts = data.data || {};
+        
+        // Check for new messages and show notifications
+        Object.keys(newUnreadCounts).forEach(staffId => {
+          const newCount = newUnreadCounts[staffId];
+          const oldCount = unreadCounts[staffId] || 0;
+          
+          if (newCount > oldCount && staffId !== selectedStaff?.id) {
+            const staff = staffList.find(s => s.id === staffId);
+            if (staff) {
+              showNotification(staff.name, `${newCount} new message${newCount > 1 ? 's' : ''}`);
+            }
+          }
+        });
+
+        setUnreadCounts(newUnreadCounts);
+      }
+    } catch (error) {
+      console.error('Failed to check for new messages:', error);
+    }
+  };
+
+  const markConversationAsRead = async (staffId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/api/manager/messaging/mark-read/${staffId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Clear unread count for this staff
+      setUnreadCounts(prev => ({
+        ...prev,
+        [staffId]: 0
+      }));
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
   };
 
   const handleMenuItemSelect = useCallback((item) => {
@@ -94,7 +222,19 @@ export default function ManagerChatPage() {
       }
 
       const data = await response.json();
-      setMessages(data.data || []);
+      const newMessages = data.data || [];
+      
+      // Check if there are new messages and show notification
+      if (silent && newMessages.length > messages.length) {
+        const latestMessage = newMessages[newMessages.length - 1];
+        const isSent = latestMessage.sender?._id === currentUserId || latestMessage.sender === currentUserId;
+        
+        if (!isSent && selectedStaff) {
+          showNotification(selectedStaff.name, latestMessage.message);
+        }
+      }
+      
+      setMessages(newMessages);
     } catch (error) {
       if (!silent) {
         console.error('Failed to fetch conversation:', error);
@@ -162,10 +302,23 @@ export default function ManagerChatPage() {
     }
   };
 
-  const filteredStaff = staffList.filter(staff =>
-    staff.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    staff.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = staffList
+    .filter(staff =>
+      staff.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staff.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort by unread count - staff with new messages appear first
+      const unreadA = unreadCounts[a.id] || 0;
+      const unreadB = unreadCounts[b.id] || 0;
+      
+      if (unreadB !== unreadA) {
+        return unreadB - unreadA; // Higher unread count first
+      }
+      
+      // If same unread count, sort alphabetically by name
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
   return (
     <ManagerLayout activeItem="chat" onMenuItemSelect={handleMenuItemSelect}>
@@ -183,9 +336,29 @@ export default function ManagerChatPage() {
                 <p className="text-gray-600 font-medium">WhatsApp-style messaging</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-green-50 px-6 py-3 rounded-xl border-2 border-emerald-200">
-              <Users className="h-5 w-5 text-emerald-600" />
-              <span className="font-bold text-gray-900">{staffList.length} Staff Online</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleNotifications}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                  notificationsEnabled
+                    ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200 text-emerald-700 hover:shadow-md'
+                    : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
+                }`}
+                title={notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+              >
+                {notificationsEnabled ? (
+                  <Bell className="h-5 w-5" />
+                ) : (
+                  <BellOff className="h-5 w-5" />
+                )}
+                <span className="font-semibold text-sm">
+                  {notificationsEnabled ? 'Notifications On' : 'Enable Notifications'}
+                </span>
+              </button>
+              <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-3 rounded-xl border-2 border-indigo-200">
+                <Users className="h-5 w-5 text-indigo-600" />
+                <span className="font-bold text-gray-900">{staffList.length} Staff</span>
+              </div>
             </div>
           </div>
         </div>
@@ -222,26 +395,43 @@ export default function ManagerChatPage() {
                   <p className="text-gray-600">No staff found</p>
                 </div>
               ) : (
-                filteredStaff.map((staff) => (
-                  <div
-                    key={staff.id}
-                    onClick={() => setSelectedStaff(staff)}
-                    className={`p-4 border-b border-gray-100 cursor-pointer transition-all hover:bg-indigo-50 ${
-                      selectedStaff?.id === staff.id ? 'bg-indigo-100 border-l-4 border-l-indigo-500' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white font-bold shadow-lg">
-                        {staff.name?.charAt(0).toUpperCase()}
+                filteredStaff.map((staff) => {
+                  const unreadCount = unreadCounts[staff.id] || 0;
+                  return (
+                    <div
+                      key={staff.id}
+                      onClick={() => setSelectedStaff(staff)}
+                      className={`p-4 border-b border-gray-100 cursor-pointer transition-all hover:bg-indigo-50 ${
+                        selectedStaff?.id === staff.id ? 'bg-indigo-100 border-l-4 border-l-indigo-500' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white font-bold shadow-lg">
+                            {staff.name?.charAt(0).toUpperCase()}
+                          </div>
+                          {unreadCount > 0 && (
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
+                              <span className="text-xs font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-gray-900">{staff.name}</h4>
+                            {unreadCount > 0 && selectedStaff?.id !== staff.id && (
+                              <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">
+                                NEW
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">{staff.department}</p>
+                        </div>
+                        <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-gray-900">{staff.name}</h4>
-                        <p className="text-sm text-gray-500">{staff.department}</p>
-                      </div>
-                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

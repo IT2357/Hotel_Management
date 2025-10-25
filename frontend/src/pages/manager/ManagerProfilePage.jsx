@@ -36,6 +36,8 @@ const ManagerProfilePage = () => {
       item.id === "dashboard" ||
       item.id === "tasks" ||
       item.id === "staff" ||
+      item.id === "messaging" ||
+      item.id === "chat" ||
       item.id === "feedback" ||
       item.id === "reports"
     ) {

@@ -44,7 +44,7 @@ const ManagerStaffAnalyticsPage = () => {
       return false;
     }
 
-    if (item.id === "dashboard" || item.id === "tasks" || item.id === "feedback" || item.id === "reports" || item.id === "profile") {
+    if (item.id === "dashboard" || item.id === "tasks" || item.id === "messaging" || item.id === "chat" || item.id === "feedback" || item.id === "reports" || item.id === "profile") {
       return undefined;
     }
 

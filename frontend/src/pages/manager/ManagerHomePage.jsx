@@ -59,6 +59,7 @@ const ManagerHomePage = () => {
       item.id === "tasks" ||
       item.id === "staff" ||
       item.id === "messaging" ||
+      item.id === "chat" ||
       item.id === "feedback" ||
       item.id === "profile" ||
       item.id === "reports"

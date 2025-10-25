@@ -9,6 +9,8 @@ import {
   getMessageStats,
   getConversation,
   sendReply,
+  getUnreadCounts,
+  markConversationAsRead,
 } from '../../controllers/manager/messagingController.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { authorizeRoles } from '../../middleware/roleAuth.js';
@@ -28,6 +30,8 @@ router.get('/stats', authorizeRoles(['manager', 'admin']), getMessageStats);
 // Chat conversation routes (manager and staff can both use)
 router.get('/conversation/:staffId', getConversation);
 router.post('/reply', sendReply);
+router.get('/unread-counts', getUnreadCounts);
+router.put('/mark-read/:staffId', markConversationAsRead);
 
 // Staff routes (can also be used by managers)
 router.get('/received', getReceivedMessages);

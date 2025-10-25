@@ -65,7 +65,7 @@ const ManagerTaskManagementPage = () => {
       return false;
     }
 
-    if (item.id === "dashboard" || item.id === "staff" || item.id === "feedback" || item.id === "profile" || item.id === "reports") {
+    if (item.id === "dashboard" || item.id === "staff" || item.id === "messaging" || item.id === "chat" || item.id === "feedback" || item.id === "profile" || item.id === "reports") {
       return undefined;
     }
 

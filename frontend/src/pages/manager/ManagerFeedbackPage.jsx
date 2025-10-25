@@ -75,7 +75,7 @@ const ManagerFeedbackPage = () => {
       return false;
     }
 
-    if (item.id === "dashboard" || item.id === "tasks" || item.id === "staff" || item.id === "profile" || item.id === "reports") {
+    if (item.id === "dashboard" || item.id === "tasks" || item.id === "staff" || item.id === "messaging" || item.id === "chat" || item.id === "profile" || item.id === "reports") {
       return undefined;
     }
 
