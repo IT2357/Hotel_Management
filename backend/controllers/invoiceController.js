@@ -138,16 +138,16 @@ export const getInvoiceStats = async (req, res) => {
           _id: null,
           totalInvoices: { $sum: 1 },
           paid: {
-            $sum: { $cond: [{ $eq: ["$paymentStatus", "Paid"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "Paid"] }, 1, 0] }
           },
           pending: {
-            $sum: { $cond: [{ $eq: ["$paymentStatus", "Pending"] }, 1, 0] }
+            $sum: { $cond: [{ $in: ["$status", ["Sent - Payment Pending", "Draft", "Awaiting Approval", "pending"]] }, 1, 0] }
           },
           refunded: {
-            $sum: { $cond: [{ $eq: ["$paymentStatus", "Refunded"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "Refunded"] }, 1, 0] }
           },
           totalRevenue: {
-            $sum: { $cond: [{ $eq: ["$paymentStatus", "Paid"] }, "$amount", 0] }
+            $sum: { $cond: [{ $eq: ["$status", "Paid"] }, "$amount", 0] }
           }
         }
       }

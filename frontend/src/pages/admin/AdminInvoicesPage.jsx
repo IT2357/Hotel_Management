@@ -49,6 +49,13 @@ export default function AdminInvoicesPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkActionType, setBulkActionType] = useState('');
   const [actionNotes, setActionNotes] = useState('');
+  const [invoiceStats, setInvoiceStats] = useState({
+    totalInvoices: 0,
+    paid: 0,
+    pending: 0,
+    refunded: 0,
+    totalRevenue: 0
+  });
 
   // Check authentication token on mount
   useEffect(() => {
@@ -68,6 +75,17 @@ export default function AdminInvoicesPage() {
     const fetchInitialData = async () => {
       try {
         setLoading(prev => ({ ...prev, general: true }));
+        
+        // Fetch invoice stats
+        const statsResponse = await fetch('/api/invoices/admin/stats?period=all', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          signal
+        });
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setInvoiceStats(statsData.data);
+        }
+        
         await updateFilters({}, { signal });
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -796,17 +814,13 @@ export default function AdminInvoicesPage() {
     }, 300); // Match this with your modal's transition duration
   };
 
-  // Use pagination totals for stats, not just current page length
+  // Use fetched stats for accurate totals
   const stats = {
-    total: pagination.totalInvoices || invoices.length,
-    paid: (invoices || []).filter(i => i.status === 'Paid').length,
-    pending: (invoices || []).filter(i =>
-      i.status === 'Sent - Payment Pending' ||
-      i.status === 'Sent - Payment Processing' ||
-      i.status === 'Draft'
-    ).length,
-    overdue: (invoices || []).filter(i => i.status === 'Overdue').length,
-    revenue: formatCurrency((invoices || []).filter(i => i.status === 'Paid').reduce((sum, i) => sum + (i.amount || i.totalAmount || 0), 0)),
+    total: invoiceStats.totalInvoices || 0,
+    paid: invoiceStats.paid || 0,
+    pending: invoiceStats.pending || 0,
+    overdue: (invoices || []).filter(i => i.status === 'Overdue').length, // Keep overdue from current page since it's not in API stats
+    revenue: formatCurrency(invoiceStats.totalRevenue || 0),
   };
 
   return (
