@@ -50,6 +50,7 @@ const staffTaskSchema = new mongoose.Schema(
     assignmentHistory: [{
       assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      assignedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       source: { type: String, enum: ["user", "system"] },
       assignedAt: { type: Date, default: Date.now },
       completedAt: { type: Date },
@@ -79,7 +80,7 @@ const staffTaskSchema = new mongoose.Schema(
         "electrical", "plumbing", "hvac", "appliance", "structural", "general",
         "food_preparation", "cooking", "cleaning", "inventory", "equipment",
         "guest_request", "room_service", "concierge", "transportation", "event",
-        "cleaning", "laundry", "restocking", "inspection", "deep_cleaning"
+        "laundry", "restocking", "inspection", "deep_cleaning"
       ],
       required: true,
     },
@@ -125,12 +126,20 @@ const staffTaskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Linkage to upstream sources (e.g., GuestServiceRequest) for request→task pipeline
+staffTaskSchema.add({
+  source: { type: String, enum: ["guest_service", "manager", "system", "other"], default: "system", index: true },
+  sourceModel: { type: String, enum: ["GuestServiceRequest"], default: null },
+  sourceRef: { type: mongoose.Schema.Types.ObjectId, refPath: 'sourceModel' }
+});
+
 staffTaskSchema.index({ department: 1, status: 1 });
 staffTaskSchema.index({ assignedTo: 1, status: 1 });
 staffTaskSchema.index({ priority: 1, dueDate: 1 });
 staffTaskSchema.index({ isUrgent: 1, status: 1 });
 staffTaskSchema.index({ assignmentSource: 1 });
 staffTaskSchema.index({ lastStatusChange: 1 });
+staffTaskSchema.index({ source: 1 });
 
 // Governance: forward-only status progression after a grace period
 // Order mapping for statuses

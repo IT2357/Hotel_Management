@@ -1,13 +1,19 @@
+import mongoose from "mongoose";
 import StaffTask from "../models/StaffTask.js";
 import StaffProfile from "../models/profiles/StaffProfile.js";
 import { assignTask } from "../utils/taskAssigner.js";
+import config from "../config/environment.js";
+import { syncGSRStatusFromTask } from "../utils/gsrSync.js";
 import { getIO } from '../utils/socket.js';
 
 // Validate department if provided by manager/admin
-const validateDepartment = (dept) => {
-  const validDepartments = ["Housekeeping", "Kitchen", "Maintenance", "Service"];
-  return validDepartments.includes(dept);
+const CANON_DEPARTMENTS = ["Housekeeping", "Kitchen", "Maintenance", "Service"];
+const getCanonicalDepartment = (dept) => {
+  if (!dept) return null;
+  const str = String(dept).trim().toLowerCase();
+  return CANON_DEPARTMENTS.find(d => d.toLowerCase() === str) || null;
 };
+const validateDepartment = (dept) => !!getCanonicalDepartment(dept);
 
 // Get all tasks for staff with filtering by department
 export const getStaffTasks = async (req, res) => {
@@ -36,25 +42,32 @@ export const getStaffTasks = async (req, res) => {
         });
       }
       
-      filter.department = staffProfile.department;
+      filter.department = getCanonicalDepartment(staffProfile.department) || staffProfile.department;
     } else if (department) {
       // Validate department for manager/admin
-      if (!validateDepartment(department)) {
+      const canon = getCanonicalDepartment(department);
+      if (!canon) {
         return res.status(400).json({
           success: false,
           message: 'Invalid department. Valid departments are: Housekeeping, Kitchen, Maintenance, Service'
         });
       }
-      filter.department = department;
+      filter.department = canon;
     }
     
-    // Staff can only see their own tasks or tasks they assigned
+    // Staff visibility: either department-wide (default) or restricted by feature flag
     if (req.user.role === 'staff') {
-      filter.$or = [
-        { assignedTo: req.user.id },
-        { assignedBy: req.user.id },
-        { department: filter.department } // Include all tasks from their department
-      ];
+      const restrict = !!config.FEATURES?.RESTRICT_STAFF_DEPT_VISIBILITY;
+      filter.$or = restrict
+        ? [
+            { assignedTo: req.user.id },
+            { assignedBy: req.user.id }
+          ]
+        : [
+            { assignedTo: req.user.id },
+            { assignedBy: req.user.id },
+            { department: filter.department } // Include all tasks from their department
+          ];
     }
     
     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
@@ -114,13 +127,17 @@ export const getMyTasks = async (req, res) => {
 export const createStaffTask = async (req, res) => {
   try {
     const { title, description, priority, dueDate, department } = req.body;
+    const canonDept = getCanonicalDepartment(department);
+    if (department && !canonDept) {
+      return res.status(400).json({ success: false, message: 'Invalid department' });
+    }
     
     const task = new StaffTask({
       title,
       description,
       priority,
       dueDate,
-      department,
+      department: canonDept || undefined,
       assignedBy: req.user.id,
       status: 'pending'
     });
@@ -146,6 +163,10 @@ export const updateStaffTaskStatus = async (req, res) => {
 
     console.log('Updating task status:', { taskId, status, notes, userId: req.user?.id });
 
+    if (!mongoose.isValidObjectId(taskId)) {
+      return res.status(400).json({ message: 'Invalid task id' });
+    }
+
     const task = await StaffTask.findById(taskId);
     if (!task) {
       console.log('Task not found:', taskId);
@@ -169,14 +190,17 @@ export const updateStaffTaskStatus = async (req, res) => {
       task.notes = task.notes || [];
       task.notes.push({
         content: notes,
-        createdBy: req.user.id,
-        createdAt: new Date()
+        addedBy: req.user.id,
+        addedAt: new Date()
       });
     }
 
     console.log('Saving task...');
     await task.save();
     console.log('Task saved successfully');
+
+    // Reverse sync to GuestServiceRequest if linked (centralized util)
+    await syncGSRStatusFromTask(task);
 
     // Notify relevant users (optional - don't fail if socket fails)
     try {
@@ -203,7 +227,7 @@ export const deleteStaffTask = async (req, res) => {
     }
     
     // Only allow managers/admins or the task creator to delete
-    if (task.assignedBy.toString() !== req.user.id && !['manager', 'admin'].includes(req.user.role)) {
+    if (task.assignedBy?.toString() !== req.user.id && !['manager', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Not authorized to delete this task' });
     }
     
@@ -221,28 +245,31 @@ export const deleteStaffTask = async (req, res) => {
 // Add a note to a task
 export const addTaskNote = async (req, res) => {
   try {
-    const { taskId } = req.params;
+  const { taskId } = req.params;
     const { content } = req.body;
     
     if (!content) {
       return res.status(400).json({ message: 'Note content is required' });
     }
     
+    if (!mongoose.isValidObjectId(taskId)) {
+      return res.status(400).json({ message: 'Invalid task id' });
+    }
     const task = await StaffTask.findById(taskId);
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
     }
     
     // Check if user is assigned to the task or is the assigner
-    if (task.assignedTo.toString() !== req.user.id && task.assignedBy.toString() !== req.user.id) {
+    if (task.assignedTo?.toString() !== req.user.id && task.assignedBy?.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to add notes to this task' });
     }
     
     task.notes = task.notes || [];
     task.notes.push({
       content,
-      createdBy: req.user.id,
-      createdAt: new Date()
+      addedBy: req.user.id,
+      addedAt: new Date()
     });
     
     await task.save();

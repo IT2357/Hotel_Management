@@ -120,19 +120,63 @@ const StaffTaskPage = () => {
     if (!selectedTask) return;
 
     try {
-      await taskAPI.updateTaskStatus(selectedTask._id, updateForm);
+      // Map UI status values to backend-expected values
+      const statusMap = {
+        'in-progress': 'in-progress',
+        'In-Progress': 'in-progress',
+        'completed': 'completed',
+        'Completed': 'completed',
+        'assigned': 'assigned',
+        'Assigned': 'assigned',
+        'pending': 'pending',
+        'Pending': 'pending'
+      };
+
+      // Get the normalized status (lowercase, with hyphens)
+      const normalizedStatus = statusMap[updateForm.status] || updateForm.status.toLowerCase();
+
+      // Prepare the update data with proper formatting
+      const updateData = {
+        status: normalizedStatus,
+        notes: updateForm.notes?.trim() || undefined,
+        completionNotes: updateForm.completionNotes?.trim() || undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      // If marking as completed, ensure we have completion notes
+      if (normalizedStatus === 'completed' && !updateData.completionNotes) {
+        alert('Please add completion notes before marking as completed.');
+        return;
+      }
+
+      console.log('Updating task with data:', { taskId: selectedTask._id, updateData });
+      
+      // Send the update request
+      const response = await taskAPI.updateTaskStatus(selectedTask._id, updateData);
+      console.log('Update response:', response);
       
       // Refresh tasks
-      fetchMyTasks();
+      await fetchMyTasks();
       
-      // Close modal
+      // Close modal and reset state
       setTaskModal({ isOpen: false, type: 'view' });
       setSelectedTask(null);
       
-      alert('Task status updated successfully!');
+      // Show success message
+      setNotification({
+        id: `update-${Date.now()}`,
+        message: `Task status updated to ${updateForm.status} successfully!`,
+        type: 'success',
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Error updating task status:', error);
-      alert('Failed to update task status. Please try again.');
+      setNotification({
+        id: `error-${Date.now()}`,
+        message: error.response?.data?.message || 'Failed to update task status. Please try again.',
+        type: 'error',
+        timestamp: new Date().toISOString()
+      });
     }
   };
 

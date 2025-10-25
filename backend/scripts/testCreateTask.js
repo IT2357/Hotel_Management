@@ -5,7 +5,7 @@ const testCreateTask = async () => {
     console.log('Testing task creation...');
 
     // First, login as manager to get token
-    const loginResponse = await axios.post('http://localhost:5002/api/auth/login', {
+    const loginResponse = await axios.post('http://localhost:5000/api/auth/login', {
       email: 'manager@hotel.com',
       password: 'manager123'
     });
@@ -26,7 +26,7 @@ const testCreateTask = async () => {
       instructions: 'Please handle this test task promptly'
     };
 
-    const createResponse = await axios.post('http://localhost:5002/api/task-management/tasks', taskData, {
+    const createResponse = await axios.post('http://localhost:5000/api/task-management/tasks', taskData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

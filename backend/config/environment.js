@@ -109,6 +109,15 @@ const config = {
   LOG_LEVEL: process.env.LOG_LEVEL || "info",
   LOG_FILE_PATH: process.env.LOG_FILE_PATH || "./logs",
 
+  // Feature Flags
+  FEATURES: {
+    GSR_TO_TASK_PIPELINE: process.env.FEATURE_GSR_TO_TASK_PIPELINE === "true",
+    // When true, staff can only see tasks they are assigned to or created (no department-wide visibility)
+    RESTRICT_STAFF_DEPT_VISIBILITY: process.env.FEATURE_RESTRICT_STAFF_DEPT_VISIBILITY === "true",
+    // When true, if all linked StaffTasks for a GSR are cancelled, the GSR will be set to cancelled
+    GSR_ALL_CANCELLED_CANCELS_GSR: process.env.FEATURE_GSR_ALL_CANCELLED_CANCELS_GSR === "true",
+  },
+
   // Development Configuration
   DEVELOPMENT: {
     MOCK_PAYMENTS: process.env.MOCK_PAYMENTS === "true",

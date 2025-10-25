@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Staff Messaging Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #193f7b;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #193f7b;
+        }
+        button {
+            background: #193f7b;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #193f7b;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #193f7b;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-green { background: #193f7b; }
+        .status-red { background: #f44336; }
+        .status-yellow { background: #FFC107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Staff Messaging Diagnostic Tool</h1>
+        
+        <div class="test-section">
+            <h2>Step 1: Check Authentication</h2>
+            <button onclick="checkAuth()">Check Auth Status</button>
+            <div id="authResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 2: Check Backend Connection</h2>
+            <button onclick="testBackend()">Test Backend</button>
+            <div id="backendResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 3: Check for Managers</h2>
+            <button onclick="checkManagers()">Check Managers</button>
+            <div id="managersResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 4: Send Test Message</h2>
+            <input type="text" id="testMessage" placeholder="Enter test message" value="Hello, this is a test message!">
+            <button onclick="sendTestMessage()">Send Test Message</button>
+            <div id="messageResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Step 5: Check Message History</h2>
+            <button onclick="checkMessages()">Get Messages</button>
+            <div id="messagesListResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Full Diagnostic Report</h2>
+            <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+            <div id="diagnosticResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        function getUser() {
+            try {
+                return JSON.parse(localStorage.getItem('user'));
+            } catch {
+                return null;
+            }
+        }
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.textContent = message;
+        }
+
+        async function checkAuth() {
+            const token = getToken();
+            const user = getUser();
+            
+            let result = '🔐 Authentication Status:\n\n';
+            
+            if (!token) {
+                showResult('authResult', result + '❌ No token found!\n\nPlease login first at: http://localhost:5173/login', 'error');
+                return false;
+            }
+            
+            result += `✅ Token found: ${token.substring(0, 20)}...\n\n`;
+            
+            if (!user) {
+                result += '⚠️ No user data found\n';
+            } else {
+                result += `User Details:\n`;
+                result += `- Name: ${user.name || 'N/A'}\n`;
+                result += `- Email: ${user.email || 'N/A'}\n`;
+                result += `- Role: ${user.role || 'N/A'}\n`;
+                result += `- ID: ${user._id || user.id || 'N/A'}\n`;
+            }
+            
+            showResult('authResult', result, 'success');
+            return true;
+        }
+
+        async function testBackend() {
+            showResult('backendResult', '⏳ Testing backend connection...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                let result = '🌐 Backend Connection:\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n\n`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result += '✅ Backend is online!\n';
+                    result += `Response: ${JSON.stringify(data, null, 2)}`;
+                    showResult('backendResult', result, 'success');
+                } else {
+                    result += '⚠️ Backend responded but with error\n';
+                    showResult('backendResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('backendResult', 
+                    `❌ Backend connection failed!\n\nError: ${error.message}\n\n` +
+                    `Make sure backend is running:\n` +
+                    `cd backend\n` +
+                    `npm start`, 
+                    'error');
+            }
+        }
+
+        async function checkManagers() {
+            showResult('managersResult', '⏳ Checking for managers...', 'info');
+            
+            const token = getToken();
+            if (!token) {
+                showResult('managersResult', '❌ Please login first!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/staff/messaging/managers`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                let result = '👥 Available Managers:\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n\n`;
+                
+                if (response.ok && data.success) {
+                    if (data.data && data.data.length > 0) {
+                        result += `✅ Found ${data.data.length} manager(s):\n\n`;
+                        data.data.forEach((manager, index) => {
+                            result += `${index + 1}. ${manager.name || 'Unknown'}\n`;
+                            result += `   Email: ${manager.email || 'N/A'}\n`;
+                            result += `   Role: ${manager.role || 'N/A'}\n`;
+                            result += `   ID: ${manager._id || 'N/A'}\n\n`;
+                        });
+                        showResult('managersResult', result, 'success');
+                    } else {
+                        result += '❌ No managers found!\n\n';
+                        result += 'Solution: Create a manager account:\n';
+                        result += '1. Go to /register\n';
+                        result += '2. Create account with role: "manager"\n';
+                        result += '3. Or update existing user in MongoDB:\n\n';
+                        result += 'db.users.updateOne(\n';
+                        result += '  { email: "your-email@hotel.com" },\n';
+                        result += '  { $set: { role: "manager", isActive: true } }\n';
+                        result += ')';
+                        showResult('managersResult', result, 'error');
+                    }
+                } else {
+                    result += `❌ Error: ${data.message || 'Unknown error'}\n\n`;
+                    result += `Full response: ${JSON.stringify(data, null, 2)}`;
+                    showResult('managersResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('managersResult', 
+                    `❌ Request failed!\n\nError: ${error.message}`, 
+                    'error');
+            }
+        }
+
+        async function sendTestMessage() {
+            const messageText = document.getElementById('testMessage').value;
+            
+            if (!messageText.trim()) {
+                showResult('messageResult', '❌ Please enter a message!', 'error');
+                return;
+            }
+            
+            showResult('messageResult', '⏳ Sending test message...', 'info');
+            
+            const token = getToken();
+            if (!token) {
+                showResult('messageResult', '❌ Please login first!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/staff/messaging/send-to-manager`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: messageText,
+                        subject: 'Test Message from Diagnostic Tool',
+                        priority: 'normal'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                let result = '📤 Send Message Result:\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n\n`;
+                
+                if (response.ok && data.success) {
+                    result += '✅ Message sent successfully!\n\n';
+                    result += `Message Details:\n`;
+                    result += `- ID: ${data.data._id || 'N/A'}\n`;
+                    result += `- To: ${data.data.recipient?.name || 'Manager'}\n`;
+                    result += `- Subject: ${data.data.subject || 'N/A'}\n`;
+                    result += `- Message: ${data.data.message || 'N/A'}\n`;
+                    result += `- Priority: ${data.data.priority || 'normal'}\n`;
+                    result += `- Sent at: ${new Date(data.data.createdAt).toLocaleString()}\n`;
+                    showResult('messageResult', result, 'success');
+                } else {
+                    result += `❌ Failed to send message!\n\n`;
+                    result += `Error: ${data.message || 'Unknown error'}\n\n`;
+                    result += `Full response:\n${JSON.stringify(data, null, 2)}`;
+                    showResult('messageResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('messageResult', 
+                    `❌ Request failed!\n\nError: ${error.message}`, 
+                    'error');
+            }
+        }
+
+        async function checkMessages() {
+            showResult('messagesListResult', '⏳ Loading messages...', 'info');
+            
+            const token = getToken();
+            if (!token) {
+                showResult('messagesListResult', '❌ Please login first!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/staff/messaging/conversation`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                let result = '💬 Message History:\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n\n`;
+                
+                if (response.ok && data.success) {
+                    if (data.data && data.data.length > 0) {
+                        result += `✅ Found ${data.data.length} message(s):\n\n`;
+                        data.data.forEach((msg, index) => {
+                            result += `${index + 1}. ${msg.subject || 'No Subject'}\n`;
+                            result += `   From: ${msg.sender?.name || 'Unknown'} (${msg.sender?.role || 'N/A'})\n`;
+                            result += `   To: ${msg.recipient?.name || 'Unknown'} (${msg.recipient?.role || 'N/A'})\n`;
+                            result += `   Message: ${msg.message?.substring(0, 50) || 'N/A'}...\n`;
+                            result += `   Date: ${new Date(msg.createdAt).toLocaleString()}\n\n`;
+                        });
+                        showResult('messagesListResult', result, 'success');
+                    } else {
+                        result += 'ℹ️ No messages found yet.\n\n';
+                        result += 'Try sending a test message first!';
+                        showResult('messagesListResult', result, 'info');
+                    }
+                } else {
+                    result += `❌ Error: ${data.message || 'Unknown error'}\n\n`;
+                    result += `Full response: ${JSON.stringify(data, null, 2)}`;
+                    showResult('messagesListResult', result, 'error');
+                }
+            } catch (error) {
+                showResult('messagesListResult', 
+                    `❌ Request failed!\n\nError: ${error.message}`, 
+                    'error');
+            }
+        }
+
+        async function runFullDiagnostic() {
+            showResult('diagnosticResult', '⏳ Running full diagnostic...', 'info');
+            
+            let report = '🔍 FULL DIAGNOSTIC REPORT\n';
+            report += '═══════════════════════════════════════\n\n';
+            
+            // Check 1: Auth
+            const token = getToken();
+            const user = getUser();
+            
+            report += '1️⃣ AUTHENTICATION\n';
+            report += '─────────────────────────────────────\n';
+            if (token) {
+                report += `<span class="status-indicator status-green"></span> Token: Present\n`;
+                report += `   ${token.substring(0, 30)}...\n`;
+            } else {
+                report += `<span class="status-indicator status-red"></span> Token: MISSING ❌\n`;
+            }
+            
+            if (user) {
+                report += `<span class="status-indicator status-green"></span> User: ${user.name || 'N/A'}\n`;
+                report += `   Email: ${user.email || 'N/A'}\n`;
+                report += `   Role: ${user.role || 'N/A'}\n`;
+            } else {
+                report += `<span class="status-indicator status-red"></span> User: MISSING ❌\n`;
+            }
+            report += '\n';
+            
+            // Check 2: Backend
+            report += '2️⃣ BACKEND CONNECTION\n';
+            report += '─────────────────────────────────────\n';
+            try {
+                const backendRes = await fetch(`${API_URL}/api/health`);
+                report += `<span class="status-indicator status-green"></span> Status: Online (${backendRes.status})\n`;
+            } catch {
+                report += `<span class="status-indicator status-red"></span> Status: OFFLINE ❌\n`;
+                report += `   Backend not reachable at ${API_URL}\n`;
+            }
+            report += '\n';
+            
+            // Check 3: Managers
+            report += '3️⃣ AVAILABLE MANAGERS\n';
+            report += '─────────────────────────────────────\n';
+            try {
+                const managersRes = await fetch(`${API_URL}/api/staff/messaging/managers`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const managersData = await managersRes.json();
+                
+                if (managersRes.ok && managersData.data && managersData.data.length > 0) {
+                    report += `<span class="status-indicator status-green"></span> Found: ${managersData.data.length} manager(s) ✅\n`;
+                    managersData.data.forEach(m => {
+                        report += `   • ${m.name} (${m.email})\n`;
+                    });
+                } else {
+                    report += `<span class="status-indicator status-red"></span> Found: 0 managers ❌\n`;
+                    report += `   THIS IS THE PROBLEM!\n`;
+                }
+            } catch (e) {
+                report += `<span class="status-indicator status-red"></span> Error checking managers: ${e.message}\n`;
+            }
+            report += '\n';
+            
+            // Check 4: Messages
+            report += '4️⃣ MESSAGE HISTORY\n';
+            report += '─────────────────────────────────────\n';
+            try {
+                const messagesRes = await fetch(`${API_URL}/api/staff/messaging/conversation`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const messagesData = await messagesRes.json();
+                
+                if (messagesRes.ok && messagesData.data) {
+                    report += `<span class="status-indicator status-green"></span> Messages: ${messagesData.data.length}\n`;
+                } else {
+                    report += `<span class="status-indicator status-yellow"></span> Messages: Unable to fetch\n`;
+                }
+            } catch (e) {
+                report += `<span class="status-indicator status-red"></span> Error: ${e.message}\n`;
+            }
+            report += '\n';
+            
+            // Summary
+            report += '═══════════════════════════════════════\n';
+            report += '📋 SUMMARY\n';
+            report += '═══════════════════════════════════════\n\n';
+            
+            if (!token) {
+                report += '❌ PROBLEM: Not logged in\n';
+                report += '   SOLUTION: Login at http://localhost:5173/login\n';
+            } else {
+                report += '✅ Authentication OK\n';
+            }
+            
+            report += '\nNext steps:\n';
+            report += '1. Make sure backend is running\n';
+            report += '2. Make sure at least one manager exists\n';
+            report += '3. Try sending a test message\n';
+            
+            const element = document.getElementById('diagnosticResult');
+            element.className = 'result info';
+            element.innerHTML = report;
+        }
+
+        // Auto-run auth check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkAuth, 500);
+        });
+    </script>
+</body>
+</html>

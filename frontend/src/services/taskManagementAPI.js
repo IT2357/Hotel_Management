@@ -90,39 +90,22 @@ export const taskAPI = {
 
   // Accept a task (staff accepting in-progress task)
   acceptTask: async (taskId) => {
-    const staffAPI = axios.create({
-      baseURL: `${API_BASE_URL}/staff`,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    // Use the status update endpoint for consistency
+    const response = await api.put(`/tasks/${taskId}/status`, {
+      status: 'in-progress',
+      updatedAt: new Date().toISOString()
     });
-    
-    // Add auth token
-    const token = localStorage.getItem('token');
-    if (token) {
-      staffAPI.defaults.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    const response = await staffAPI.post(`/tasks/${taskId}/accept`);
     return response.data;
   },
 
   // Complete a task (staff completing their task)
-  completeTask: async (taskId) => {
-    const staffAPI = axios.create({
-      baseURL: `${API_BASE_URL}/staff`,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  completeTask: async (taskId, notes = '') => {
+    // Use the status update endpoint instead of the old complete endpoint
+    const response = await api.put(`/tasks/${taskId}/status`, {
+      status: 'completed',
+      completionNotes: notes,
+      updatedAt: new Date().toISOString()
     });
-    
-    // Add auth token
-    const token = localStorage.getItem('token');
-    if (token) {
-      staffAPI.defaults.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    const response = await staffAPI.post(`/tasks/${taskId}/complete`);
     return response.data;
   },
 

@@ -67,10 +67,12 @@ router.patch(
   authenticate, 
   authorize(['staff', 'manager']),
   (req, res, next) => {
-    console.log('🚪 Route hit: PATCH /guest-services/:id/status');
-    console.log('👤 Authenticated user:', req.user);
-    console.log('📋 Request body:', req.body);
-    console.log('🔗 Request params:', req.params);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🚪 Route hit: PATCH /guest-services/:id/status');
+      console.log('👤 Authenticated user id:', req.user?.id || req.user?._id);
+      console.log('📋 Request body keys:', Object.keys(req.body || {}));
+      console.log('🔗 Request params:', req.params);
+    }
     next();
   },
   validateStatusUpdate, 
@@ -81,10 +83,12 @@ router.post(
   authenticate, 
   authorize(['staff', 'manager']),
   (req, res, next) => {
-    console.log('🚪 Route hit: POST /guest-services/:id/notes');
-    console.log('👤 Authenticated user:', req.user);
-    console.log('📋 Request body:', req.body);
-    console.log('🔗 Request params:', req.params);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🚪 Route hit: POST /guest-services/:id/notes');
+      console.log('👤 Authenticated user id:', req.user?.id || req.user?._id);
+      console.log('📋 Request body keys:', Object.keys(req.body || {}));
+      console.log('🔗 Request params:', req.params);
+    }
     next();
   },
   validateNoteAddition, 

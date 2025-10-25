@@ -41,7 +41,7 @@ export default function BookingHistory({ userId, onBookingSelect }) {
         },
         {
           id: 2,
-          bookingNumber: "BK2025002",
+          bookingNumber: "BK2025000",
           roomTitle: "Executive Business Room",
           roomNumber: "301",
           checkIn: "2025-03-10",

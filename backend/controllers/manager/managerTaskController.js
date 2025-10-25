@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
-import Task from "../../models/Task.js";
 import StaffTask from "../../models/StaffTask.js";
-import GuestServiceRequest from "../../models/GuestServiceRequest.js";
 import { User } from "../../models/User.js";
 import cron from "node-cron";
+import { syncGSRStatusFromTask } from "../../utils/gsrSync.js";
 
 // Auto-assignment logic
 const autoAssignTasks = async () => {
@@ -14,8 +13,7 @@ const autoAssignTasks = async () => {
     const unassignedTasks = await StaffTask.find({
       status: "pending",
       assignedTo: { $exists: false },
-      requestedAt: { $lte: fiveMinutesAgo },
-      isActive: true
+      createdAt: { $lte: fiveMinutesAgo }
     });
 
     for (const task of unassignedTasks) {
@@ -36,6 +34,13 @@ const autoAssignTasks = async () => {
         task.assignedAt = new Date();
         
         await task.save();
+
+        // Keep linked GuestServiceRequest in sync when auto-assigning StaffTask
+        try {
+          await syncGSRStatusFromTask(task);
+        } catch (e) {
+          console.warn("GSR sync after auto-assign failed:", e?.message || e);
+        }
         
         console.log(`Auto-assigned task ${task._id} to ${randomStaff.name}`);
         
@@ -58,8 +63,7 @@ class ManagerTaskController {
       const { department, priority, limit = 50 } = req.query;
       
       const filter = {
-        status: "pending",
-        isActive: true
+        status: "pending"
       };
       
       if (department && department !== "all") {
@@ -73,15 +77,19 @@ class ManagerTaskController {
       const tasks = await StaffTask.find(filter)
         .populate("guestId", "name email profile.phone")
         .populate("assignedBy", "name email")
-        .sort({ requestedAt: -1 })
+        .sort({ createdAt: -1 })
         .limit(parseInt(limit));
 
       // Calculate how long each task has been pending
-      const tasksWithTimings = tasks.map(task => ({
-        ...task.toObject(),
-        pendingFor: Math.round((Date.now() - task.requestedAt) / (1000 * 60)), // minutes
-        isNearAutoAssignment: (Date.now() - task.requestedAt) > (4 * 60 * 1000) // 4+ minutes
-      }));
+      const tasksWithTimings = tasks.map(task => {
+        const obj = task.toObject();
+        return {
+          ...obj,
+          requestedAt: obj.createdAt, // compatibility mapping
+          pendingFor: Math.round((Date.now() - (obj.createdAt || Date.now())) / (1000 * 60)), // minutes
+          isNearAutoAssignment: (Date.now() - (obj.createdAt || Date.now())) > (4 * 60 * 1000) // 4+ minutes
+        };
+      });
 
       res.json({
         success: true,
@@ -115,8 +123,7 @@ class ManagerTaskController {
         staff.map(async (member) => {
           const activeTasks = await StaffTask.countDocuments({
             assignedTo: member._id,
-            status: { $in: ["assigned", "in_progress"] },
-            isActive: true
+            status: { $in: ["assigned", "in_progress"] }
           });
           
           return {
@@ -153,7 +160,8 @@ class ManagerTaskController {
         });
       }
 
-      const task = await Task.findById(taskId);
+      // Use StaffTask instead of legacy Task
+      const task = await StaffTask.findById(taskId);
       if (!task) {
         return res.status(404).json({
           success: false,
@@ -169,38 +177,48 @@ class ManagerTaskController {
         });
       }
 
-      // Update task assignment
+      // Update task assignment on StaffTask
       task.assignedTo = staffId;
-      task.assignedBy = req.user.userId;
+      task.assignedBy = req.user.userId || req.user.id;
       task.status = "assigned";
-      task.assignedAt = new Date();
-      
+      // Track in assignment history
+      task.assignmentHistory = task.assignmentHistory || [];
+      task.assignmentHistory.push({
+        assignedTo: staffId,
+        assignedBy: task.assignedBy,
+        source: "user",
+        status: "assigned",
+        assignedAt: new Date(),
+        notes: notes || undefined
+      });
+
       if (estimatedDuration) {
         task.estimatedDuration = estimatedDuration;
       }
-      
       if (priority) {
         task.priority = priority;
       }
-      
       if (notes) {
-        task.notes = { ...task.notes, manager: notes };
+        task.notes = task.notes || [];
+        task.notes.push({ content: notes, addedBy: task.assignedBy, addedAt: new Date() });
       }
 
       await task.save();
 
-      // Populate the updated task for response
-      const updatedTask = await Task.findById(taskId)
+      // Populate the updated StaffTask for response
+      const updatedTask = await StaffTask.findById(taskId)
         .populate("assignedTo", "name email profile")
-        .populate("guestId", "name email profile.phone")
         .populate("assignedBy", "name email");
 
+      const updatedObj = updatedTask?.toObject ? updatedTask.toObject() : updatedTask;
       res.json({
         success: true,
         message: `Task assigned to ${staff.name}`,
-        data: updatedTask
+        data: { ...updatedObj, requestedAt: updatedObj?.createdAt }
       });
 
+      // Keep linked GuestServiceRequest in sync
+      try { await syncGSRStatusFromTask(task); } catch (e) { console.warn("GSR sync after manager assign failed:", e?.message || e); }
       // TODO: Send real-time notification to assigned staff
       // TODO: Send notification to guest about assignment
       
@@ -217,7 +235,7 @@ class ManagerTaskController {
   // Get task status overview for manager dashboard
   static async getTaskStatusOverview(req, res) {
     try {
-      const { timeframe = "today" } = req.query;
+  const { timeframe = "today" } = req.query;
       
       let dateFilter = {};
       const now = new Date();
@@ -225,7 +243,7 @@ class ManagerTaskController {
       switch (timeframe) {
         case "today":
           dateFilter = {
-            requestedAt: {
+            createdAt: {
               $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
               $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
             }
@@ -233,19 +251,20 @@ class ManagerTaskController {
           break;
         case "week":
           const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
-          dateFilter = { requestedAt: { $gte: weekStart } };
+          dateFilter = { createdAt: { $gte: weekStart } };
           break;
         case "month":
           dateFilter = {
-            requestedAt: {
+            createdAt: {
               $gte: new Date(now.getFullYear(), now.getMonth(), 1)
             }
           };
           break;
       }
 
-      const statusCounts = await Task.aggregate([
-        { $match: { isActive: true, ...dateFilter } },
+      // Aggregate over StaffTask instead of legacy Task
+      const statusCounts = await StaffTask.aggregate([
+        { $match: { ...dateFilter } },
         {
           $group: {
             _id: "$status",
@@ -255,25 +274,24 @@ class ManagerTaskController {
         }
       ]);
 
-      const departmentStats = await Task.aggregate([
-        { $match: { isActive: true, ...dateFilter } },
+      const departmentStats = await StaffTask.aggregate([
+        { $match: { ...dateFilter } },
         {
           $group: {
             _id: "$department",
             total: { $sum: 1 },
             pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
             assigned: { $sum: { $cond: [{ $eq: ["$status", "assigned"] }, 1, 0] } },
-            inProgress: { $sum: { $cond: [{ $eq: ["$status", "in-progress"] }, 1, 0] } },
+            inProgress: { $sum: { $cond: [{ $eq: ["$status", "in_progress"] }, 1, 0] } },
             completed: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } }
           }
         }
       ]);
 
       // Get overdue tasks count
-      const overdueTasks = await Task.countDocuments({
+      const overdueTasks = await StaffTask.countDocuments({
         dueDate: { $lt: new Date() },
-        status: { $in: ["pending", "assigned", "in-progress"] },
-        isActive: true
+        status: { $in: ["pending", "assigned", "in_progress"] }
       });
 
       res.json({
@@ -305,11 +323,11 @@ class ManagerTaskController {
         assignedTo,
         page = 1,
         limit = 20,
-        sortBy = "requestedAt",
+        sortBy = "createdAt",
         sortOrder = "desc"
       } = req.query;
 
-      const filter = { isActive: true };
+      const filter = {};
       
       if (status && status !== "all") filter.status = status;
       if (department && department !== "all") filter.department = department;
@@ -330,9 +348,14 @@ class ManagerTaskController {
       const totalTasks = await StaffTask.countDocuments(filter);
       const totalPages = Math.ceil(totalTasks / parseInt(limit));
 
+      const data = tasks.map(doc => {
+        const obj = doc.toObject();
+        return { ...obj, requestedAt: obj.createdAt };
+      });
+
       res.json({
         success: true,
-        data: tasks,
+        data,
         pagination: {
           currentPage: parseInt(page),
           totalPages,
@@ -357,7 +380,8 @@ class ManagerTaskController {
       const { taskId } = req.params;
       const { status, notes, priority } = req.body;
 
-      const task = await Task.findById(taskId);
+      // Use StaffTask instead of legacy Task
+      const task = await StaffTask.findById(taskId);
       if (!task) {
         return res.status(404).json({
           success: false,
@@ -369,22 +393,25 @@ class ManagerTaskController {
       if (status) task.status = status;
       if (priority) task.priority = priority;
       if (notes) {
-        task.notes = { ...task.notes, manager: notes };
+        task.notes = task.notes || [];
+        task.notes.push({ content: notes, addedBy: req.user.userId || req.user.id, addedAt: new Date() });
       }
 
       await task.save();
 
-      const updatedTask = await Task.findById(taskId)
+      const updatedTask = await StaffTask.findById(taskId)
         .populate("assignedTo", "name email profile")
-        .populate("guestId", "name email profile.phone")
         .populate("assignedBy", "name email");
 
+      const updatedObj = updatedTask?.toObject ? updatedTask.toObject() : updatedTask;
       res.json({
         success: true,
         message: "Task updated successfully",
-        data: updatedTask
+        data: { ...updatedObj, requestedAt: updatedObj?.createdAt }
       });
 
+      // Keep linked GuestServiceRequest in sync
+      try { await syncGSRStatusFromTask(task); } catch (e) { console.warn("GSR sync after manager status update failed:", e?.message || e); }
       // TODO: Send notification about status change
       
     } catch (error) {

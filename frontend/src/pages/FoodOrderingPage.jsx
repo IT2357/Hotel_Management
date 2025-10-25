@@ -25,7 +25,7 @@ import foodService from '../services/foodService';
 // Get API base URL for images
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
-  : (window.location.origin.includes('localhost') ? 'http://localhost:5002' : window.location.origin);
+  : (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
 
 const ModernFoodOrderingPageContent = () => {
   const [showCart, setShowCart] = useState(false);

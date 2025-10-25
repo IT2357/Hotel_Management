@@ -30,7 +30,7 @@ I have updated the hotel management system to use your specified departments acr
   - Table Service (Server Staff) - Medium Priority
 
 ## Current System Status:
-- ✅ Backend running on port 5002
+- ✅ Backend running on port 5000
 - ✅ Frontend running on port 5173
 - ✅ Database populated with updated sample data
 - ✅ Enhanced assignment modal ready for testing

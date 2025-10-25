@@ -1,12 +1,16 @@
-// Placeholder for import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Textarea from '../components/ui/Textarea';
 import Select from '../components/ui/Select';
 import { MapPin, Phone, Mail, Clock, Send, MessageCircle } from 'lucide-react';
+import StaffContactChat from './staff/StaffContactChatWithSidebar';
 
 export default function Contact() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +20,36 @@ export default function Contact() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    console.log('📦 Contact Page - User Data:', userData);
+    
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        console.log('✅ Contact Page - Parsed User:', parsedUser);
+        console.log('👤 Contact Page - User Role:', parsedUser.role);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('❌ Contact Page - Error parsing user data:', error);
+      }
+    } else {
+      console.log('⚠️ Contact Page - No user data in localStorage');
+    }
+  }, []);
+
+  // Debug log for conditional rendering
+  console.log('🔍 Contact Page - Current user state:', user);
+  console.log('🔍 Contact Page - Should show chat?', user && (user.role === 'staff' || user.role === 'chef' || user.role === 'kitchen'));
+
+  // If user is staff, show WhatsApp-style chat
+  if (user && (user.role === 'staff' || user.role === 'chef' || user.role === 'kitchen')) {
+    console.log('✅ Contact Page - Rendering StaffContactChat');
+    return <StaffContactChat />;
+  }
+  
+  console.log('📋 Contact Page - Rendering traditional contact form');
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({

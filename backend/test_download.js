@@ -5,7 +5,7 @@ async function testDownload() {
   
   try {
     // Login
-    const loginResponse = await axios.post('http://localhost:5002/api/auth/login', {
+    const loginResponse = await axios.post('http://localhost:5000/api/auth/login', {
       email: 'manager@hotel.com',
       password: 'manager123'
     });
@@ -14,7 +14,7 @@ async function testDownload() {
     console.log('✅ Login successful');
     
     // Export report
-    const exportResponse = await axios.post('http://localhost:5002/api/reports/export', {
+    const exportResponse = await axios.post('http://localhost:5000/api/reports/export', {
       reportType: 'booking',
       format: 'pdf',
       includeCharts: false
@@ -26,7 +26,7 @@ async function testDownload() {
     console.log('📥 Download URL:', exportResponse.data.data.downloadUrl);
     
     // Download the file
-    const downloadUrl = `http://localhost:5002${exportResponse.data.data.downloadUrl}`;
+    const downloadUrl = `http://localhost:5000${exportResponse.data.data.downloadUrl}`;
     console.log('🔄 Testing download from:', downloadUrl);
     
     const downloadResponse = await axios.get(downloadUrl, {
@@ -48,8 +48,8 @@ async function testDownload() {
     console.log('   ✅ Authentication: Working');
     console.log('');
     console.log('🔗 Test URLs:');
-    console.log('   Export: POST http://localhost:5002/api/reports/export');
-    console.log('   Download: GET http://localhost:5002/api/exports/[filename]');
+    console.log('   Export: POST http://localhost:5000/api/reports/export');
+    console.log('   Download: GET http://localhost:5000/api/exports/[filename]');
     
   } catch (error) {
     console.error('❌ Error:', error.message);

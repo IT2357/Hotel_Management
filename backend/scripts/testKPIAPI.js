@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5002/api/reports';
+const API_BASE = 'http://localhost:5000/api/reports';
 
 async function testKPIAPI() {
   try {
@@ -61,7 +61,7 @@ async function testKPIAPI() {
       console.error(`   ${error.message}`);
     }
     console.log('\n💡 Make sure:');
-    console.log('   1. Backend server is running on port 5002');
+    console.log('   1. Backend server is running on port 5000');
     console.log('   2. MongoDB is running and has KPI data');
     console.log('   3. Run: node scripts/seedKPIData.js (if no data)\n');
     throw error;

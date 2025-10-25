@@ -39,6 +39,7 @@ import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
 import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task management routes
 import guestFeedbackRoutes from "./routes/manager/guestFeedbackRoutes.js"; // Manager guest feedback routes
 import messagingRoutes from "./routes/manager/messaging.js"; // Manager messaging routes
+import staffMessagingRoutes from "./routes/staff/messaging.js"; // Staff messaging routes
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
@@ -269,6 +270,7 @@ const startServer = async () => {
   app.use("/api/reviews", reviewRoutes); // Hotel review routes
   app.use("/api/staff", staffRoutes);
   app.use("/api/staff", staffTaskRoutes); // Staff task routes
+  app.use("/api/staff/messaging", staffMessagingRoutes); // Staff messaging routes
   app.use("/api/messages", messageRoutes);
   app.use("/api/manager", managerRoutes); // New manager routes
   app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes

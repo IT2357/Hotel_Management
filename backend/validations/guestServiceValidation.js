@@ -23,8 +23,10 @@ export const validateServiceRequest = (data) => {
     errors.push('Title is required and must be less than 100 characters');
   }
   
-  if (!data.description || typeof data.description !== 'string' || data.description.length > 500) {
-    errors.push('Description is required and must be less than 500 characters');
+  if (data.description !== undefined && data.description !== null) {
+    if (typeof data.description !== 'string' || data.description.length > 500) {
+      errors.push('Description must be a string and less than 500 characters');
+    }
   }
   
   if (data.guest && typeof data.guest !== 'string') {
@@ -35,8 +37,10 @@ export const validateServiceRequest = (data) => {
     errors.push('Room must be a string or null');
   }
   
-  if (!data.guestLocation || typeof data.guestLocation !== 'string') {
-    errors.push('Guest location is required');
+  if (data.guestLocation !== undefined && data.guestLocation !== null) {
+    if (typeof data.guestLocation !== 'string') {
+      errors.push('Guest location must be a string');
+    }
   }
   
   if (data.isAnonymous !== undefined && typeof data.isAnonymous !== 'boolean') {

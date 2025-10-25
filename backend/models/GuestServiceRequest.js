@@ -54,6 +54,7 @@ const guestServiceRequestSchema = new mongoose.Schema(
     attachments: [{
       filename: String,
       url: String,
+      type: String,
       uploadedAt: { type: Date, default: Date.now }
     }],
     notes: [{

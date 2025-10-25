@@ -13,7 +13,10 @@ import { authorizeRoles } from "../middleware/roleAuth.js";
 
 const router = express.Router();
 
-// Get all tasks with filtering (for staff)
+// Get tasks with filtering. Staff visibility depends on feature flag:
+// - Always: tasks assigned to them, and tasks they assigned
+// - Additionally (default): all tasks in their department (collaborative visibility)
+// - If FEATURE_RESTRICT_STAFF_DEPT_VISIBILITY=true: department-wide visibility is disabled
 router.get(
   "/tasks",
   authenticateToken,

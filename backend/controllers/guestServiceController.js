@@ -1,7 +1,11 @@
+import mongoose from 'mongoose';
 import GuestServiceRequest from "../models/GuestServiceRequest.js";
 import CheckInOut from "../models/CheckInOut.js";
 import { validateServiceRequest } from "../validations/guestServiceValidation.js";
 import environment from '../config/environment.js';
+import StaffTask from "../models/StaffTask.js";
+import { assignTask } from "../utils/taskAssigner.js";
+import { mapRequestTypeToDeptCategory } from "../utils/requestTypeMapper.js";
 
 export const createServiceRequest = async (req, res) => {
   try {
@@ -23,7 +27,7 @@ export const createServiceRequest = async (req, res) => {
     const { error } = validateServiceRequest(requestData);
     if (error) {
       console.error('Validation error:', error);
-      return res.status(400).json({ message: error.details?.[0]?.message || 'Invalid request data' });
+      return res.status(400).json({ message: typeof error === 'string' ? error : 'Invalid request data' });
     }
 
     // Enforce that the requester is an authenticated guest with an active check-in
@@ -96,7 +100,44 @@ export const createServiceRequest = async (req, res) => {
     });
 
     await request.save();
-    console.log('Service request created successfully:', request);
+    console.log('Service request created successfully:', request._id);
+
+    // Optionally create a StaffTask for manager oversight under feature flag
+    if (environment.FEATURES?.GSR_TO_TASK_PIPELINE) {
+      try {
+        const { department, category } = mapRequestTypeToDeptCategory(request.requestType);
+
+        const taskPayload = {
+          title: `[GSR] ${request.title}`,
+          description: request.description || request.title,
+          department,
+          priority: request.priority || 'medium',
+          status: 'pending',
+          createdBy: null,
+          assignedBy: null,
+          assignmentSource: 'system',
+          location: (request.guestLocation && ['room','kitchen','lobby','gym','pool','parking'].includes(request.guestLocation.toLowerCase())) ? request.guestLocation.toLowerCase() : 'other',
+          category,
+          // Linkage fields
+          source: 'guest_service',
+          sourceModel: 'GuestServiceRequest',
+          sourceRef: request._id
+        };
+
+        const staffTask = new StaffTask(taskPayload);
+        await staffTask.save();
+
+        // Try auto-assignment; ignore failures
+        try {
+          await assignTask(staffTask._id);
+        } catch (assignErr) {
+          console.warn('Auto-assign failed for task from GSR:', assignErr?.message || assignErr);
+        }
+      } catch (pipelineErr) {
+        console.error('Failed to create StaffTask from GSR (feature-flagged):', pipelineErr);
+      }
+    }
+
     res.status(201).json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -123,6 +164,9 @@ export const getServiceRequests = async (req, res) => {
 export const getRequestDetails = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
     
     const request = await GuestServiceRequest.findById(id)
       .populate('guest', 'name email phone')
@@ -147,6 +191,10 @@ export const updateRequestStatus = async (req, res) => {
 
     const { id } = req.params;
     const { status, assignedTo } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
 
     // Additional validation check
     if (!id || !status) {
@@ -249,6 +297,10 @@ export const addRequestNotes = async (req, res) => {
 
     const { id } = req.params;
     const { content } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
 
     if (!content || content.trim() === '') {
       console.log('❌ Empty note content');
