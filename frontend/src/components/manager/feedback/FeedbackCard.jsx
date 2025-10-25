@@ -8,9 +8,11 @@ import { formatDate, getStatusBadge, getSentimentConfig } from "@/utils/feedback
 
 /**
  * Individual feedback card component
+ * Supports both guest feedback and food reviews
  */
 const FeedbackCard = ({ 
   entry, 
+  type = 'guest', // 'guest' | 'food'
   onMarkHelpful, 
   onRespond, 
   onPublish, 
@@ -18,6 +20,21 @@ const FeedbackCard = ({
 }) => {
   const badge = getStatusBadge(entry.status);
   const sentiment = getSentimentConfig(entry.sentiment);
+  
+  // Adapt display data based on type
+  const displayData = type === 'food' ? {
+    title: entry.orderDetails || 'Food Order',
+    subtitle: entry.tableNumber && entry.tableNumber !== '-' 
+      ? `Table ${entry.tableNumber}` 
+      : entry.orderType,
+    name: entry.customerName,
+    date: entry.orderDate
+  } : {
+    title: entry.roomTitle,
+    subtitle: `Room ${entry.roomNumber}`,
+    name: entry.guestName,
+    date: entry.stayDate
+  };
   
   return (
     <motion.div
@@ -33,7 +50,7 @@ const FeedbackCard = ({
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <h2 className="text-lg font-black text-gray-900">
-                  {entry.roomTitle} · Room {entry.roomNumber}
+                  {displayData.title} · {displayData.subtitle}
                 </h2>
                 <Badge
                   variant={badge.variant}
@@ -61,15 +78,15 @@ const FeedbackCard = ({
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Users className="h-4 w-4 text-gray-500" />
-                  {entry.guestName}
+                  {displayData.name}
                 </span>
                 <span className="flex items-center gap-1.5 font-medium">
                   <Calendar className="h-4 w-4 text-gray-500" />
-                  {formatDate(entry.stayDate)}
+                  {formatDate(displayData.date)}
                 </span>
                 <span className="flex items-center gap-1.5 font-medium">
                   <ThumbsUp className="h-4 w-4 text-gray-500" />
-                  {entry.helpful}
+                  {entry.helpful || 0}
                 </span>
               </div>
             </div>

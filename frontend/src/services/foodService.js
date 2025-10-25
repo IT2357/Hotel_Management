@@ -300,9 +300,35 @@ class FoodService {
   }
 
   // Get user's food orders
-  async getUserOrders() {
+  async getUserOrders(email = null) {
     try {
-      const response = await api.get('/food/orders/customer');
+      // Check if user is authenticated
+      const token = localStorage.getItem('token');
+      
+      // If authenticated, get user's orders with cache-busting
+      if (token) {
+        const response = await api.get(`/food/orders/customer?_t=${Date.now()}`);
+        return response;
+      }
+      
+      // For guest users, require email parameter
+      if (!email) {
+        // Try to get email from last order in localStorage
+        const lastOrderEmail = localStorage.getItem('guestOrderEmail');
+        if (!lastOrderEmail) {
+          throw new Error('Email is required to view orders. Please log in or provide your email.');
+        }
+        email = lastOrderEmail;
+      }
+      
+      // Fetch guest orders by email with cache-busting
+      const response = await api.get(`/food/orders/customer?email=${encodeURIComponent(email)}&_t=${Date.now()}`);
+      
+      // Save email for future requests
+      if (email) {
+        localStorage.setItem('guestOrderEmail', email);
+      }
+      
       return response;
     } catch (error) {
       console.error('Error fetching user orders:', error);
@@ -350,6 +376,11 @@ class FoodService {
       console.error('Error submitting review:', error);
       throw new Error(error.response?.data?.message || 'Failed to submit review');
     }
+  }
+
+  // Alias method for menu item reviews for clarity
+  async submitMenuItemReview(menuItemId, reviewData) {
+    return this.submitReview(menuItemId, reviewData);
   }
 
   async voteReview(reviewId, isHelpful) {

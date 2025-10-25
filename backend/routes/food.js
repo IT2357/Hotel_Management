@@ -69,9 +69,17 @@ router.post("/ai/generate", authenticateToken, authorizeRoles(["admin", "manager
 router.post("/process-image", authenticateToken, authorizeRoles(["admin", "manager"]), upload.single('image'), extractMenuFromImageRealTime);
 
 // Customer food order routes - MUST come BEFORE parameterized routes
-router.get("/orders/customer", authenticateToken, getCustomerOrders); // Get current user's orders
-router.get("/orders/customer/:customerEmail", getCustomerOrders);
-router.get("/orders/customer/status/:orderNumber", getCustomerOrders);
+// Support both authenticated users and guests (with email query param)
+router.get("/orders/customer", (req, res, next) => {
+  // If user is authenticated OR email is provided, proceed
+  if (req.headers.authorization || req.query.email) {
+    return next();
+  }
+  return res.status(401).json({
+    success: false,
+    message: 'Authentication required or email must be provided'
+  });
+}, authenticateToken, getCustomerOrders); // authenticateToken will be skipped if no auth header
 router.get("/orders/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getOrderStats);
 
 // Food order routes - Generic parameterized routes AFTER specific ones

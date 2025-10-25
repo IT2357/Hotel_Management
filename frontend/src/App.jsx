@@ -15,6 +15,8 @@ import { Toaster } from 'sonner';
 import PageTransition from './components/shared/PageTransition.jsx';
 import NotificationDropdown from './components/common/NotificationDropdown.jsx';
 import GlobalChatbot from './components/common/GlobalChatbot.jsx';
+import { useReviewPrompt } from './hooks/useReviewPrompt.js';
+import FoodReview from './components/food/FoodReview.jsx';
 import HomePage from './pages/HomePage.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
@@ -702,6 +704,9 @@ const AppContent = () => {
                             }
                           /> */}
                         </Routes>
+                        
+                        {/* Global Review Prompt Modal - Auto-shows when order delivered */}
+                        <GlobalReviewModal />
                   </AnimatePresence>
                 </FavoritesProvider>
                 </ReactQueryProvider>
@@ -711,6 +716,22 @@ const AppContent = () => {
         </AuthProvider>
       </NotificationProvider>
     </SnackbarProvider>
+  );
+};
+
+// Global Review Modal Component
+const GlobalReviewModal = () => {
+  const { pendingReview, showModal, dismissReview } = useReviewPrompt();
+  
+  if (!pendingReview) return null;
+  
+  return (
+    <FoodReview
+      isOpen={showModal}
+      onClose={() => dismissReview(pendingReview.orderId)}
+      orderId={pendingReview.orderId}
+      orderDetails={pendingReview.items}
+    />
   );
 };
 

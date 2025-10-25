@@ -27,10 +27,25 @@ const bookingSchema = new mongoose.Schema(
     },
     selectedMeals: [
       {
+        day: { type: Number }, // Day 1, 2, 3, etc.
+        date: { type: Date },  // Actual date
+        mealType: { 
+          type: String, 
+          enum: ["breakfast", "lunch", "dinner", "snack"],
+        },
+        scheduledTime: { type: Date },
+        items: [{
+          foodId: { type: mongoose.Schema.Types.ObjectId, ref: "MenuItem" },
+          name: String,
+          price: Number,
+          quantity: { type: Number, default: 1 },
+          description: String
+        }],
+        totalCost: Number,
+        // Legacy fields for backward compatibility
         name: String,
         price: Number,
-        description: String,
-        scheduledTime: Date,
+        description: String
       },
     ],
 

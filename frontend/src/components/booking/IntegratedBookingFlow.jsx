@@ -1,6 +1,8 @@
 import React, { useState, useContext, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/rooms/ui/dialog";
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/rooms/ui/dialog";
 import { Button } from "@/components/rooms/ui/button";
 import { Badge } from "@/components/rooms/ui/badge";
 import { Card, CardContent } from "@/components/rooms/ui/card";
@@ -25,6 +27,7 @@ import {
   UtensilsCrossed
 } from "lucide-react";
 import BookingMenuSelector from './BookingMenuSelector';
+import DailyMealSelector from './DailyMealSelector';
 import { cn } from "@/lib/utils";
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
@@ -72,12 +75,19 @@ const IntegratedBookingFlow = ({
     ...initialBookingData
   });
 
-  // Update booking data when initialBookingData changes (for ViewDetails integration)
+  // Update booking data ONLY when modal first opens (not on every initialBookingData change)
+  // This prevents resetting selectedMeals when ViewDetails updates its state
   useEffect(() => {
-    console.log('IntegratedBookingFlow - initialBookingData received:', initialBookingData);
+    if (!isOpen) return; // Only run when modal is open
+    
+    console.log('IntegratedBookingFlow - Modal opened, initialBookingData:', initialBookingData);
     if (initialBookingData && Object.keys(initialBookingData).length > 0) {
-      console.log('IntegratedBookingFlow - Updating booking data with initial data:', initialBookingData);
+      console.log('IntegratedBookingFlow - Initializing booking data with initial data');
       setBookingData(prev => {
+        // CRITICAL: Only update if prev is empty/default state
+        // If prev already has selectedMeals, preserve them!
+        const hasExistingMeals = prev.selectedMeals && prev.selectedMeals.length > 0;
+        
         const newData = {
           ...prev,
           checkIn: initialBookingData.checkIn || prev.checkIn,
@@ -85,15 +95,15 @@ const IntegratedBookingFlow = ({
           guests: initialBookingData.guests || prev.guests,
           specialRequests: initialBookingData.specialRequests || prev.specialRequests,
           foodPlan: initialBookingData.foodPlan || prev.foodPlan,
-          selectedMeals: initialBookingData.selectedMeals || prev.selectedMeals,
           roomId: room?.id || prev.roomId,
-          ...initialBookingData
+          // CRITICAL: Preserve existing selectedMeals, only use initialBookingData.selectedMeals if we don't have any
+          selectedMeals: hasExistingMeals ? prev.selectedMeals : (initialBookingData.selectedMeals || prev.selectedMeals)
         };
-        console.log('IntegratedBookingFlow - New booking data:', newData);
+        console.log('IntegratedBookingFlow - New booking data (hasExistingMeals:', hasExistingMeals, '):', newData);
         return newData;
       });
     }
-  }, [initialBookingData, room?.id]);
+  }, [isOpen, room?.id]); // ← REMOVED initialBookingData from dependencies!
 
   // Log when modal opens
   useEffect(() => {
@@ -140,6 +150,11 @@ const IntegratedBookingFlow = ({
       return;
     }
   }, [isOpen, isAuthenticated, onClose, navigate, room, initialStep, initialBookingData]);
+
+  // Debug: Log when showMenuSelector changes
+  useEffect(() => {
+    console.log('🎯 showMenuSelector changed to:', showMenuSelector);
+  }, [showMenuSelector]);
   
 
   // Calculate functions using unified engine
@@ -148,14 +163,25 @@ const IntegratedBookingFlow = ({
   };
 
   const calculateTotalCost = () => {
-    return calculateBookingCost({
+    const result = calculateBookingCost({
       checkIn: bookingData.checkIn,
       checkOut: bookingData.checkOut,
       roomPrice: room?.price || room?.pricePerNight || room?.basePrice || 0,
       guests: bookingData.guests,
       foodPlan: bookingData.foodPlan,
-      selectedFoodItems: bookingData.selectedMeals
+      selectedMeals: bookingData.selectedMeals // Day-by-day meals from DailyMealSelector
     });
+    
+    // Debug log if food cost is 0 but meals are selected
+    if (bookingData.selectedMeals?.length > 0 && result.foodCost === 0) {
+      console.warn('⚠️ Food cost is 0 but meals are selected!', {
+        mealsCount: bookingData.selectedMeals.length,
+        firstMeal: bookingData.selectedMeals[0],
+        result
+      });
+    }
+    
+    return result;
   };
 
   // Handle menu items selection
@@ -171,9 +197,19 @@ const IntegratedBookingFlow = ({
   // Open menu selector
   const openMenuSelector = () => {
     if (bookingData.foodPlan === 'None') {
-      window.alert('Please select a food plan first');
+      toast.error('Please select a food plan first');
       return;
     }
+    if (!bookingData.checkIn || !bookingData.checkOut) {
+      toast.error('Please select check-in and check-out dates first');
+      return;
+    }
+    console.log('📅 Opening meal selector with:', {
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      foodPlan: bookingData.foodPlan
+    });
+    console.log('🔓 Setting showMenuSelector to TRUE');
     setShowMenuSelector(true);
   };
 
@@ -199,7 +235,23 @@ const IntegratedBookingFlow = ({
       console.log('Room data received:', room);
       console.log('Creating booking with unified calculations...');
 
+      // ✅ CRITICAL: Verify meal structure before sending to backend
+      // Each meal should have: { day, date, mealType, items: [{ foodId, name, price, quantity }], totalCost }
+      if (bookingData.foodPlan !== 'None' && bookingData.selectedMeals?.length > 0) {
+        console.log('🔍 Verifying meal structure before submission:', {
+          mealsCount: bookingData.selectedMeals.length,
+          firstMeal: bookingData.selectedMeals[0],
+          allMealsCosts: bookingData.selectedMeals.map(m => ({
+            day: m.day,
+            mealType: m.mealType,
+            itemsCount: m.items?.length,
+            totalCost: m.totalCost
+          }))
+        });
+      }
+
       // Use the unified booking payload creator
+      // This will validate and ensure all meals have totalCost calculated
       const bookingPayload = createBookingPayload({
         roomId: roomId,
         roomPrice: roomPrice,
@@ -208,19 +260,30 @@ const IntegratedBookingFlow = ({
         checkOut: bookingData.checkOut,
         guests: bookingData.guests,
         foodPlan: bookingData.foodPlan,
-        selectedMeals: bookingData.selectedMeals,
+        selectedMeals: bookingData.selectedMeals, // Day-by-day meal structure
         specialRequests: bookingData.specialRequests,
         paymentMethod: paymentData.paymentMethod || 'cash',
         source: 'integrated_booking_flow'
       });
 
-      console.log('Submitting booking with accurate calculations:', bookingPayload);
+      console.log('✅ Submitting booking with validated payload:', bookingPayload);
+      console.log('📊 Booking Summary:', {
+        room: roomName,
+        nights: bookingPayload.nights,
+        roomCost: bookingPayload.costBreakdown.roomCost,
+        foodPlan: bookingData.foodPlan,
+        mealsCount: bookingPayload.selectedMeals?.length || 0,
+        foodCost: bookingPayload.costBreakdown.foodCost,
+        totalCost: bookingPayload.totalAmount,
+        mealsValidated: bookingPayload.metadata.mealsValidated
+      });
       
       // Use the booking service to create booking
       const data = await bookingService.createBooking(bookingPayload);
-      console.log('Booking response:', data);
+      console.log('✅ Booking created successfully:', data);
 
       if (data && data.success) {
+        console.log('🎯 Moving to payment step with booking:', data.data.bookingNumber);
         setBookingResult(data.data);
         setStep(5); // Move to payment step
       } else {
@@ -552,7 +615,7 @@ const IntegratedBookingFlow = ({
                   >
                     <UtensilsCrossed className="w-4 h-4" />
                     {bookingData.selectedMeals.length > 0 
-                      ? `${bookingData.selectedMeals.length} items selected - Click to modify`
+                      ? `${bookingData.selectedMeals.length} meals selected - Click to modify`
                       : 'Browse & Select Menu Items'}
                   </Button>
                   
@@ -560,15 +623,33 @@ const IntegratedBookingFlow = ({
                     <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center gap-2 text-green-700 text-sm font-medium mb-2">
                         <ChefHat className="w-4 h-4" />
-                        <span>Selected Items ({bookingData.selectedMeals.length})</span>
+                        <span>Selected Meals ({bookingData.selectedMeals.length} meals)</span>
                       </div>
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {bookingData.selectedMeals.map((item, idx) => (
-                          <div key={idx} className="text-xs text-green-600 flex justify-between items-center">
-                            <span>{item.name}</span>
-                            <span className="font-medium">×{item.quantity}</span>
-                          </div>
-                        ))}
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {bookingData.selectedMeals.map((meal, idx) => {
+                          const mealCost = meal.totalCost || (meal.items?.reduce((sum, item) => 
+                            sum + (item.price * item.quantity), 0) || 0);
+                          
+                          return (
+                            <div key={idx} className="border-l-2 border-green-400 pl-2">
+                              <div className="text-xs font-semibold text-green-700 mb-1">
+                                Day {meal.day} - {meal.mealType?.charAt(0).toUpperCase() + meal.mealType?.slice(1)}
+                                <span className="float-right">LKR {mealCost.toLocaleString()}</span>
+                              </div>
+                              <div className="space-y-0.5">
+                                {meal.items?.map((item, itemIdx) => (
+                                  <div key={itemIdx} className="text-xs text-green-600 flex justify-between">
+                                    <span>{item.name}</span>
+                                    <span>×{item.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-green-300 text-sm font-bold text-green-800">
+                        Total Meals Cost: LKR {calculateTotalCost().foodCost.toLocaleString()}
                       </div>
                     </div>
                   )}
@@ -601,7 +682,7 @@ const IntegratedBookingFlow = ({
               </div>
               {calculateTotalCost().foodCost > 0 && (
                 <div className="flex justify-between">
-                  <span>{bookingData.foodPlan} × {calculateNights()} nights × {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}</span>
+                  <span>{bookingData.foodPlan} Meal Plan ({bookingData.selectedMeals?.length || 0} meals)</span>
                   <span>LKR {calculateTotalCost().foodCost.toLocaleString()}</span>
                 </div>
               )}
@@ -624,11 +705,29 @@ const IntegratedBookingFlow = ({
         </Card>
       )}
 
+      {/* Show reminder if meals are selected */}
+      {bookingData.selectedMeals && bookingData.selectedMeals.length > 0 && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-2 text-green-800">
+            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="font-semibold">
+              Meals selected! Review your booking details above and continue when ready.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <Button
           onClick={() => setStep(4)}
           disabled={calculateNights() === 0}
-          className="px-8 py-3 bg-primary hover:bg-primary/90"
+          className={`px-8 py-3 transition-all ${
+            bookingData.selectedMeals && bookingData.selectedMeals.length > 0
+              ? 'bg-green-600 hover:bg-green-700 animate-pulse'
+              : 'bg-primary hover:bg-primary/90'
+          }`}
         >
           Continue to Confirmation
           <ArrowRight className="w-4 h-4 ml-2" />
@@ -685,16 +784,29 @@ const IntegratedBookingFlow = ({
                 <ChefHat className="w-5 h-5 text-green-600" />
                 <h4 className="font-semibold text-green-800">Food Plan: {bookingData.foodPlan}</h4>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {bookingData.selectedMeals.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-sm bg-white/60 px-3 py-2 rounded border border-green-100">
-                    <span className="text-gray-700">{item.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500">×{item.quantity}</span>
-                      <span className="font-medium text-green-600">LKR {(item.price * item.quantity).toLocaleString()}</span>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {bookingData.selectedMeals.map((meal, mealIdx) => {
+                  // Calculate meal cost if not present
+                  const mealCost = meal.totalCost || (meal.items?.reduce((sum, item) => 
+                    sum + (item.price * item.quantity), 0) || 0);
+                  
+                  return (
+                    <div key={mealIdx} className="bg-white/60 px-3 py-2 rounded border border-green-100">
+                      <div className="font-medium text-green-700 mb-2 text-sm">
+                        Day {meal.day} - {meal.mealType?.charAt(0).toUpperCase() + meal.mealType?.slice(1)} 
+                        <span className="float-right text-green-600">LKR {mealCost.toLocaleString()}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {meal.items?.map((item, itemIdx) => (
+                          <div key={itemIdx} className="flex justify-between items-center text-xs text-gray-600 pl-2">
+                            <span>{item.name} × {item.quantity}</span>
+                            <span>LKR {(item.price * item.quantity).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -714,13 +826,17 @@ const IntegratedBookingFlow = ({
               </div>
               {calculateTotalCost().foodCost > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Food Items × {calculateNights()} nights × {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}</span>
+                  <span>{bookingData.foodPlan} Meal Plan ({bookingData.selectedMeals?.length || 0} meals)</span>
                   <span>LKR {calculateTotalCost().foodCost.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Taxes (12%)</span>
                 <span>LKR {calculateTotalCost().taxes.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Service Charge (10%)</span>
+                <span>LKR {calculateTotalCost().serviceCharge.toLocaleString()}</span>
               </div>
             </div>
             <div className="flex justify-between items-center text-2xl font-bold pt-3 border-t-2 border-gray-300">
@@ -1084,7 +1200,7 @@ const IntegratedBookingFlow = ({
                     </div>
                     {calculateTotalCost().foodCost > 0 && (
                       <div className="flex justify-between">
-                        <span>{bookingData.foodPlan} × {calculateNights()} nights × {bookingData.guests} guest{bookingData.guests > 1 ? 's' : ''}</span>
+                        <span>{bookingData.foodPlan} Meal Plan ({bookingData.selectedMeals?.length || 0} meals)</span>
                         <span>LKR {calculateTotalCost().foodCost.toLocaleString()}</span>
                       </div>
                     )}
@@ -1187,41 +1303,130 @@ const IntegratedBookingFlow = ({
   if (!room) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 backdrop-blur-xl"
-        style={{
-          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-          border: '1.5px solid rgba(255, 255, 255, 0.18)',
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.8) 0%, rgba(168,85,247,0.8) 100%)',
-          backdropFilter: 'blur(16px) saturate(180%)',
+    <>
+      <Dialog 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          // Only allow closing if meal selector is not open
+          if (!showMenuSelector) {
+            onClose();
+          } else {
+            // If meal selector is open, just close that instead
+            console.log('Meal selector is open, preventing parent dialog close');
+          }
         }}
       >
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-2xl font-bold text-white mb-4">
-            Complete Your Booking
-          </DialogTitle>
-          <ProgressBar />
-        </DialogHeader>
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 backdrop-blur-xl"
+          style={{
+            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+            border: '1.5px solid rgba(255, 255, 255, 0.18)',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.8) 0%, rgba(168,85,247,0.8) 100%)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            zIndex: 9999, // Ensure booking flow appears above ViewDetails modal
+          }}
+          onPointerDownOutside={(e) => {
+            // Prevent closing when clicking on meal selector
+            if (showMenuSelector) {
+              e.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            // Prevent closing when meal selector is open
+            if (showMenuSelector) {
+              e.preventDefault();
+              setShowMenuSelector(false);
+            }
+          }}
+        >
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-2xl font-bold text-white mb-4">
+              Complete Your Booking
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Follow the steps to complete your hotel room booking with optional meal plans
+            </DialogDescription>
+            <ProgressBar />
+          </DialogHeader>
 
-        <div className="p-6">
-          {renderCurrentStep()}
-        </div>
-      </DialogContent>
+          <div className="p-6">
+            {renderCurrentStep()}
+          </div>
+        </DialogContent>
+      </Dialog>
       
-      {/* Menu Selector Modal */}
-      {showMenuSelector && (
-        <BookingMenuSelector
-          isOpen={showMenuSelector}
-          planType={bookingData.foodPlan}
-          nights={calculateNights()}
-          guests={bookingData.guests}
-          initialItems={bookingData.selectedMeals}
-          onItemsSelected={handleMenuItemsSelected}
-          onClose={() => setShowMenuSelector(false)}
-        />
+      {/* Menu Selector Modal - Rendered via portal outside Dialog for proper layering */}
+      {showMenuSelector && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <DailyMealSelector
+          checkIn={bookingData.checkIn}
+          checkOut={bookingData.checkOut}
+          foodPlan={bookingData.foodPlan}
+          onMealsSelected={(meals) => {
+            console.log('✅ Daily meals selected from DailyMealSelector:', meals);
+            console.log('🔍 First meal structure:', meals[0]);
+            
+            // Keep the meal structure as-is - it already has totalCost calculated
+            // The booking calculations expect this structure: { day, mealType, items[], totalCost }
+            
+            // Ensure each item has foodId for backend compatibility
+            // Also ensure totalCost is preserved
+            const mealsWithFoodIds = meals.map(meal => {
+              const mealCost = meal.totalCost || (meal.items?.reduce((sum, item) => 
+                sum + (item.price * item.quantity), 0) || 0);
+              
+              return {
+                ...meal,
+                totalCost: mealCost, // Explicitly set totalCost
+                items: meal.items.map(item => ({
+                  ...item,
+                  foodId: item.foodId || item._id
+                }))
+              };
+            });
+            
+            const totalItems = mealsWithFoodIds.reduce((sum, meal) => sum + meal.items.length, 0);
+            const totalCost = mealsWithFoodIds.reduce((sum, meal) => sum + (meal.totalCost || 0), 0);
+            
+            console.log('📦 Meals for booking:', {
+              mealsCount: mealsWithFoodIds.length,
+              totalItems,
+              totalCost,
+              firstMeal: mealsWithFoodIds[0],
+              meals: mealsWithFoodIds
+            });
+            
+            setBookingData(prev => {
+              const updated = {
+                ...prev,
+                selectedMeals: mealsWithFoodIds
+              };
+              console.log('🎯 Updated bookingData.selectedMeals:', updated.selectedMeals);
+              return updated;
+            });
+            setShowMenuSelector(false);
+            
+            // Show success message with clear instruction
+            toast.success(
+              `✅ ${totalItems} meal items added! Total: LKR ${totalCost.toLocaleString()}`, 
+              { duration: 4000 }
+            );
+            
+            // Scroll to top to show updated cost summary
+            setTimeout(() => {
+              const dialogContent = document.querySelector('[role="dialog"]');
+              if (dialogContent) {
+                dialogContent.scrollTop = 0;
+              }
+            }, 100);
+          }}
+          onClose={() => {
+            console.log('🚪 Closing meal selector');
+            setShowMenuSelector(false);
+          }}
+        />,
+        document.body
       )}
-    </Dialog>
+    </>
   );
 };
 

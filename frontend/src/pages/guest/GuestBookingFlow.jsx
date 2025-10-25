@@ -13,6 +13,7 @@ import Alert from '../../components/common/Alert';
 import { Calendar, Users, ChefHat } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
 import BookingMenuSelector from '../../components/booking/BookingMenuSelector';
+import DailyMealSelector from '../../components/booking/DailyMealSelector';
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
 import { 
@@ -184,7 +185,7 @@ const GuestBookingFlow = () => {
       roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
       guests: bookingData.guests,
       foodPlan: bookingData.foodPlan,
-      selectedFoodItems: selectedFoodItems
+      selectedMeals: selectedFoodItems // NEW: Day-by-day meals from DailyMealSelector
     });
     
     return costData.total;
@@ -202,7 +203,8 @@ const GuestBookingFlow = () => {
         serviceCharge: 0,
         total: 0,
         breakdown: [],
-        selectedFoodItems: []
+        selectedFoodItems: [],
+        selectedMeals: []
       };
     }
     
@@ -212,7 +214,7 @@ const GuestBookingFlow = () => {
       roomPrice: selectedRoom.basePrice || selectedRoom.pricePerNight || selectedRoom.pricing?.roomRate || 0,
       guests: bookingData.guests,
       foodPlan: bookingData.foodPlan,
-      selectedFoodItems: selectedFoodItems
+      selectedMeals: selectedFoodItems // NEW: Day-by-day meals from DailyMealSelector
     });
   };
 
@@ -681,15 +683,17 @@ const GuestBookingFlow = () => {
         </CardContent>
       </Card>
       
-      {/* BookingMenuSelector Modal */}
+      {/* DailyMealSelector Modal */}
       {showMenuSelector && (
-        <BookingMenuSelector
-          isOpen={showMenuSelector}
-          planType={bookingData.foodPlan}
-          nights={calculateNights()}
-          guests={bookingData.guests}
-          initialItems={selectedFoodItems}
-          onItemsSelected={handleFoodItemsSelected}
+        <DailyMealSelector
+          checkIn={bookingData.checkIn}
+          checkOut={bookingData.checkOut}
+          foodPlan={bookingData.foodPlan}
+          onMealsSelected={(meals) => {
+            console.log('✅ Daily meals selected (Guest Flow):', meals);
+            setSelectedFoodItems(meals);
+            setShowMenuSelector(false);
+          }}
           onClose={() => setShowMenuSelector(false)}
         />
       )}

@@ -189,26 +189,106 @@ const TaskCard = ({ task, index, onAction }) => {
         </div>
       </div>
 
-      {/* Order Items */}
+      {/* Order Items - Enhanced with Details */}
       <div className="mb-4">
-        <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
-        <div className="space-y-1">
-          {task.orderId?.items?.map((item, idx) => (
-            <div key={idx} className="flex justify-between text-sm">
-              <span className="text-gray-700">
-                {item.quantity}x {item.name || item.foodId?.name || 'Unknown Item'}
-              </span>
-              <span className="text-gray-500">
-                LKR {((item.price || 0) * item.quantity).toFixed(2)}
-              </span>
-            </div>
-          )) || (
+        <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <ChefHat className="w-4 h-4" />
+          Items to Prepare:
+        </p>
+        <div className="space-y-3">
+          {task.orderId?.items?.map((item, idx) => {
+            const foodItem = item.foodId || {};
+            const hasAllergens = foodItem.allergens && foodItem.allergens.length > 0;
+            const hasDietaryTags = foodItem.dietaryTags && foodItem.dietaryTags.length > 0;
+            
+            return (
+              <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                {/* Item Header */}
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">
+                        {item.quantity}x {item.name || foodItem.name || 'Unknown Item'}
+                      </span>
+                      {/* Dietary Tags */}
+                      {foodItem.isVeg && (
+                        <FoodBadge className="bg-green-100 text-green-700 text-xs">
+                          🥬 Veg
+                        </FoodBadge>
+                      )}
+                      {foodItem.isSpicy && (
+                        <FoodBadge className="bg-red-100 text-red-700 text-xs">
+                          🌶️ Spicy
+                        </FoodBadge>
+                      )}
+                    </div>
+                    
+                    {/* Prep Time */}
+                    {foodItem.preparationTimeMinutes && (
+                      <div className="flex items-center gap-1 text-xs text-gray-600 mb-2">
+                        <Clock className="w-3 h-3" />
+                        <span>Prep: {foodItem.preparationTimeMinutes} min</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">
+                    LKR {((item.price || 0) * item.quantity).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Ingredients */}
+                {foodItem.ingredients && foodItem.ingredients.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Ingredients:</p>
+                    <p className="text-xs text-gray-700 leading-relaxed">
+                      {foodItem.ingredients.join(', ')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Allergen Warning - Prominent */}
+                {hasAllergens && (
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-2 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-yellow-800 mb-0.5">
+                        ⚠️ ALLERGEN ALERT
+                      </p>
+                      <p className="text-xs text-yellow-700">
+                        <span className="font-medium">Contains:</span> {foodItem.allergens.join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dietary Tags */}
+                {hasDietaryTags && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {foodItem.dietaryTags.map((tag, tagIdx) => (
+                      <FoodBadge key={tagIdx} className="bg-blue-50 text-blue-700 text-xs">
+                        {tag}
+                      </FoodBadge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Special Item Notes */}
+                {foodItem.description && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <p className="text-xs text-gray-600 italic">
+                      {foodItem.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          }) || (
             <p className="text-sm text-gray-500">No items available</p>
           )}
         </div>
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className="flex justify-between text-sm font-bold">
-            <span className="text-gray-700">Total:</span>
+        <div className="mt-3 pt-3 border-t-2 border-gray-300">
+          <div className="flex justify-between text-base font-bold">
+            <span className="text-gray-900">Total:</span>
             <span className="text-orange-600">
               LKR {(task.orderId?.totalPrice || 0).toFixed(2)}
             </span>
@@ -253,16 +333,16 @@ const TaskCard = ({ task, index, onAction }) => {
         )}
       </div>
 
-      {/* Allergen Warning */}
+      {/* Overall Allergen Warning - if not yet checked */}
       {!task.allergyChecked && task.orderId?.items?.some(item => 
         item.foodId?.allergens && item.foodId.allergens.length > 0
       ) && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl flex items-start gap-2">
-          <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-xl flex items-start gap-2 animate-pulse">
+          <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-yellow-800">Allergen Alert</p>
-            <p className="text-xs text-yellow-700">
-              This order contains allergens. Please verify ingredients.
+            <p className="text-sm font-bold text-red-800">⚠️ CRITICAL: Allergen Verification Required</p>
+            <p className="text-xs text-red-700">
+              This order contains multiple allergen items. Verify all ingredients before preparation and during quality check.
             </p>
           </div>
         </div>

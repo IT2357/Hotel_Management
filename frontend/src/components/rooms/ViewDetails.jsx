@@ -219,11 +219,17 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
     // Update the bookingData state to be passed to the flow
     setBookingData(currentBookingData);
     setIsBookingFlowOpen(true);
-    onClose(); // Close the details modal
+    
+    // DON'T close ViewDetails modal - let IntegratedBookingFlow handle the entire flow
+    // The IntegratedBookingFlow will manage its own lifecycle and close when needed
+    // Keeping ViewDetails open ensures state is maintained
+    // onClose(); // ← REMOVED: This was causing the booking flow to break after meal selection!
   };
 
   const handleBookingFlowClose = () => {
     setIsBookingFlowOpen(false);
+    // When booking flow closes, also close the ViewDetails modal
+    onClose();
   };
 
   const nextImage = () => {
@@ -235,7 +241,7 @@ const RoomModal = ({ isOpen, onClose, room, onBook }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen && !isBookingFlowOpen} onOpenChange={onClose}>
       <DialogContent
         className="max-w-4xl max-h-[85vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-100/80 backdrop-blur-xl glassmorphic-modal custom-scrollbar"
         style={{

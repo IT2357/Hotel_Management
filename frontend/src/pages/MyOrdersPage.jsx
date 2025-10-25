@@ -38,12 +38,39 @@ const MyOrdersPage = () => {
   const fetchMyOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/food/orders/customer'); // Correct endpoint
+      
+      // Check if user is authenticated
+      const token = localStorage.getItem('token');
+      
+      let response;
+      if (token) {
+        // Authenticated user - add timestamp to bypass cache
+        response = await api.get(`/food/orders/customer?_t=${Date.now()}`);
+      } else {
+        // Guest user - get email from localStorage
+        const guestEmail = localStorage.getItem('guestOrderEmail');
+        if (!guestEmail) {
+          toast.error('Please provide your email to view orders');
+          setOrders([]);
+          return;
+        }
+        // Add timestamp to bypass browser cache
+        response = await api.get(`/food/orders/customer?email=${encodeURIComponent(guestEmail)}&_t=${Date.now()}`);
+      }
+      
       console.log('Orders response:', response.data); // Debug log
-      setOrders(response.data.data || response.data || []);
+      const orderData = response.data.data || response.data || [];
+      console.log('Number of orders:', orderData.length); // Debug log
+      setOrders(orderData);
+      
+      if (orderData.length === 0) {
+        toast.info('You have no orders yet');
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast.error('Failed to load your orders');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load your orders';
+      toast.error(errorMessage);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -61,14 +88,16 @@ const MyOrdersPage = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Pending':
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'pending':
         return <Clock className="h-4 w-4" />;
-      case 'Preparing':
+      case 'preparing':
+      case 'ready':
         return <ChefHat className="h-4 w-4" />;
-      case 'Delivered':
+      case 'delivered':
         return <CheckCircle className="h-4 w-4" />;
-      case 'Cancelled':
+      case 'cancelled':
         return <XCircle className="h-4 w-4" />;
       default:
         return <Package className="h-4 w-4" />;
@@ -76,14 +105,16 @@ const MyOrdersPage = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending':
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'pending':
         return 'warning';
-      case 'Preparing':
+      case 'preparing':
+      case 'ready':
         return 'primary';
-      case 'Delivered':
+      case 'delivered':
         return 'success';
-      case 'Cancelled':
+      case 'cancelled':
         return 'danger';
       default:
         return 'default';
@@ -168,14 +199,14 @@ const MyOrdersPage = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            {order.isTakeaway ? 'Takeaway' : 'Dine-in'}
+                            {order.orderType ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1) : (order.isTakeaway ? 'Takeaway' : 'Dine-in')}
                           </div>
                         </div>
                       </div>
                       <FoodBadge variant={getStatusColor(order.status)}>
                         <div className="flex items-center gap-1">
                           {getStatusIcon(order.status)}
-                          {order.status}
+                          {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
                         </div>
                       </FoodBadge>
                     </div>
@@ -222,14 +253,24 @@ const MyOrdersPage = () => {
                       <div className="mb-6">
                         <h4 className="font-semibold text-gray-800 mb-3">Customer Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">{order.customerDetails.email}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm text-gray-600">{order.customerDetails.phone}</span>
-                          </div>
+                          {order.customerDetails.name && (
+                            <div className="flex items-center gap-2 md:col-span-2">
+                              <span className="text-sm font-medium text-gray-700">Name:</span>
+                              <span className="text-sm text-gray-600">{order.customerDetails.name}</span>
+                            </div>
+                          )}
+                          {order.customerDetails.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm text-gray-600">{order.customerDetails.email}</span>
+                            </div>
+                          )}
+                          {order.customerDetails.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm text-gray-600">{order.customerDetails.phone}</span>
+                            </div>
+                          )}
                           {order.customerDetails.deliveryAddress && (
                             <div className="flex items-center gap-2 md:col-span-2">
                               <MapPin className="h-4 w-4 text-gray-500" />
@@ -284,7 +325,7 @@ const MyOrdersPage = () => {
                             </p>
                           )}
                         </div>
-                      ) : order.status === 'Delivered' ? (
+                      ) : order.status?.toLowerCase() === 'delivered' ? (
                         <div className="text-center">
                           {reviewOrderId === order._id ? (
                             <div className="mt-4">

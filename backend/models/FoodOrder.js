@@ -129,6 +129,41 @@ const foodOrderSchema = new mongoose.Schema(
       isVisible: { type: Boolean, default: true },
       flagged: { type: Boolean, default: false },
     },
+    // Meal Plan Integration Fields
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      index: true
+    },
+    roomNumber: { 
+      type: String, 
+      index: true 
+    },
+    mealType: {
+      type: String,
+      enum: ["breakfast", "lunch", "dinner", "snack", "other"],
+      index: true
+    },
+    scheduledDate: {
+      type: Date,
+      index: true
+    },
+    orderSource: {
+      type: String,
+      enum: ["walk-in", "room-service", "meal-plan", "booking"],
+      default: "walk-in",
+      index: true
+    },
+    isPartOfMealPlan: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    mealPlanType: {
+      type: String,
+      enum: ["Breakfast", "Half Board", "Full Board", "À la carte", null],
+      default: null
+    }
   },
   { timestamps: true }
 );

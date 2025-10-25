@@ -228,9 +228,47 @@ export const getOrderStats = catchAsync(async (req, res) => {
 
 // Get customer's own orders
 export const getCustomerOrders = catchAsync(async (req, res) => {
-  const orders = await FoodOrder.find({ userId: req.user.id })
-    .populate('items.foodId', 'name price imageUrl')
-    .sort({ createdAt: -1 });
+  let orders;
+  
+  // Check if user is authenticated
+  if (req.user && req.user.id) {
+    // For authenticated users: get their orders by userId
+    logger.info('Fetching orders for authenticated user', { userId: req.user.id });
+    orders = await FoodOrder.find({ userId: req.user.id })
+      .populate('items.foodId', 'name price imageUrl')
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 });
+    logger.info('Found orders for authenticated user', { userId: req.user.id, count: orders.length });
+  } else if (req.query.email) {
+    // For guest users: get orders by email (from query parameter)
+    logger.info('Fetching orders for guest user', { email: req.query.email });
+    orders = await FoodOrder.find({ 
+      'customerDetails.email': req.query.email,
+      userId: null // Only guest orders
+    })
+      .populate('items.foodId', 'name price imageUrl')
+      .sort({ createdAt: -1 });
+    logger.info('Found orders for guest user', { email: req.query.email, count: orders.length });
+    
+    // Log order details for debugging
+    if (orders.length > 0) {
+      logger.debug('Sample order structure', { 
+        orderId: orders[0]._id,
+        hasCustomerDetails: !!orders[0].customerDetails,
+        customerDetailsKeys: orders[0].customerDetails ? Object.keys(orders[0].customerDetails) : [],
+        status: orders[0].status,
+        orderType: orders[0].orderType,
+        totalPrice: orders[0].totalPrice
+      });
+    }
+  } else {
+    // No user and no email provided
+    logger.warn('Order fetch attempt without authentication or email');
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide email to view orders'
+    });
+  }
 
   res.status(200).json({
     success: true,
@@ -405,51 +443,62 @@ const {
    throw new AppError(`Total price does not match calculated price. Expected: ${expectedTotal.toFixed(2)}, Received: ${totalPrice.toFixed(2)}`, 400);
  }
 
- // Process payment
- const orderId = `FOOD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+// Process payment
+const orderId = `FOOD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
- let paymentResult;
- if (paymentMethod === 'cash') {
-   // For cash on delivery, just register the order
-   paymentResult = {
-     success: true,
-     paymentId: `CASH_${Date.now()}`,
-     status: "PENDING",
-     paymentMethod: "CASH",
-     message: "Cash on delivery payment registered"
-   };
- } else {
-   // Generate PayHere payment data
-   const payHereData = payHereService.generatePaymentData({
-     orderId,
-     amount: totalPrice,
-     currency: "LKR",
-     customerName: customerDetails.customerName,
-     customerEmail: customerDetails.customerEmail,
-     customerPhone: customerDetails.customerPhone,
-     items: validatedItems.map(item => ({
-       name: item.name,
-       quantity: item.quantity,
-       price: item.price
-     })),
-     custom1: req.user ? req.user.id : null,
-     custom2: orderId
-   });
+logger.info('Processing payment', { paymentMethod, orderId });
 
-   const hash = payHereService.generateHash(payHereData);
-   
-   paymentResult = {
-     success: true,
-     paymentId: orderId,
-     status: "PENDING",
-     paymentMethod: "PAYHERE",
-     message: "PayHere payment initialized",
-     payHereData: {
-       ...payHereData,
-       hash: hash
-     }
-   };
- }
+let paymentResult;
+if (paymentMethod === 'cash') {
+  // For cash on delivery, just register the order
+  paymentResult = {
+    success: true,
+    paymentId: `CASH_${Date.now()}`,
+    status: "PENDING",
+    paymentMethod: "CASH",
+    message: "Cash on delivery payment registered"
+  };
+  logger.info('Cash payment registered', { paymentId: paymentResult.paymentId });
+} else {
+  // Generate PayHere payment data
+  logger.info('Generating PayHere payment data', { paymentMethod, orderId, amount: totalPrice });
+  
+  const payHereData = payHereService.generatePaymentData({
+    orderId,
+    amount: totalPrice,
+    currency: "LKR",
+    customerName: customerDetails.customerName,
+    customerEmail: customerDetails.customerEmail,
+    customerPhone: customerDetails.customerPhone,
+    items: validatedItems.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price
+    })),
+    custom1: req.user ? req.user.id : null,
+    custom2: orderId
+  });
+
+  logger.info('PayHere data generated', { merchant_id: payHereData.merchant_id, orderId: payHereData.order_id });
+
+  const hash = payHereService.generateHash(payHereData);
+  
+  logger.info('PayHere hash generated', { hash: hash.substring(0, 10) + '...' });
+  
+  paymentResult = {
+    success: true,
+    paymentId: orderId,
+    status: "PENDING",
+    paymentMethod: "PAYHERE",
+    message: "PayHere payment initialized",
+    payHereData: {
+      ...payHereData,
+      hash: hash
+    }
+  };
+  
+  logger.info('PayHere payment result prepared', { hasPayHereData: !!paymentResult.payHereData });
+}
 
 // Generate pickup code for takeaway orders
 const pickupCode = orderType === 'takeaway' 
@@ -523,28 +572,33 @@ if (orderType === 'takeaway') {
    // Don't fail the order creation if email fails
  }
 
- logger.info('Food order created successfully', {
-   orderId: order._id,
-   userId: req.user ? req.user.id : null,
-   totalPrice: totalPrice,
-   subtotal: subtotal,
-   tax: tax,
-   deliveryFee: deliveryFee,
-   paymentMethod,
-   paymentId: paymentResult.paymentId
- });
+logger.info('Food order created successfully', {
+  orderId: order._id,
+  userId: req.user ? req.user.id : null,
+  totalPrice: totalPrice,
+  subtotal: subtotal,
+  tax: tax,
+  deliveryFee: deliveryFee,
+  paymentMethod,
+  paymentId: paymentResult.paymentId,
+  hasPayHereData: !!paymentResult.payHereData
+});
 
- res.status(201).json({
-   success: true,
-   data: order,
-   paymentResult: {
-     success: paymentResult.success,
-     paymentId: paymentResult.paymentId,
-     status: paymentResult.status,
-     redirectUrl: paymentResult.redirectUrl,
-     message: paymentResult.message,
-     payHereData: paymentResult.payHereData || null
-   },
-   message: 'Food order created successfully'
- });
+const response = {
+  success: true,
+  data: order,
+  paymentResult: {
+    success: paymentResult.success,
+    paymentId: paymentResult.paymentId,
+    status: paymentResult.status,
+    redirectUrl: paymentResult.redirectUrl,
+    message: paymentResult.message,
+    payHereData: paymentResult.payHereData || null
+  },
+  message: 'Food order created successfully'
+};
+
+logger.info('Sending response', { hasPayHereData: !!response.paymentResult.payHereData });
+
+res.status(201).json(response);
 });

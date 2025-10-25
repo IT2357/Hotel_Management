@@ -15,6 +15,7 @@ import {
   ModernQuickActionCard,
   ModernLoadingSkeleton
 } from '../../components/staff/ModernStaffComponents';
+import KitchenQueueView from '../../components/food/KitchenQueueView';
 
 // Module-scope department normalizer so all components can use it
 function normalizeDepartment(value) {
@@ -240,6 +241,7 @@ export default function StaffDashboardPage() {
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "tasks", label: "My Tasks", icon: "📋" },
+    ...(department === 'kitchen' ? [{ id: "kitchen", label: "Kitchen Orders", icon: "🍳" }] : []),
     { id: "service-requests", label: "Service Requests", icon: "🛎️" },
     { id: "keycard", label: "Key Card", icon: "🔑" },
     { id: "contact", label: "Contact Manager", icon: "💬" },
@@ -388,6 +390,7 @@ export default function StaffDashboardPage() {
           <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-xl border border-white/20 dark:border-gray-800/50 p-6 min-h-[calc(100vh-12rem)]">
             {activeTab === "overview" && <OverviewTab user={user} department={department} setActiveTab={setActiveTab} />}
             {activeTab === "tasks" && <TasksTab user={user} department={department} />}
+            {activeTab === "kitchen" && <KitchenOrdersTab user={user} department={department} />}
             {activeTab === "keycard" && <KeyCardManagementPage />}
             {activeTab === "service-requests" && <ServiceRequestManagement />}
             {activeTab === "contact" && <ContactManagerTab user={user} department={department} />}
@@ -2364,6 +2367,18 @@ function NotificationsTab({ user }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function KitchenOrdersTab({ user, department }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-3xl">🍳</span>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Kitchen Orders</h2>
+      </div>
+      <KitchenQueueView />
     </div>
   );
 }

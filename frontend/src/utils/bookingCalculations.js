@@ -47,7 +47,8 @@ export const calculateNights = (checkIn, checkOut) => {
  * @param {number} params.roomPrice - Room price per night
  * @param {number} params.guests - Number of guests (default: 1)
  * @param {string} params.foodPlan - Food plan type (default: 'None')
- * @param {Array} params.selectedFoodItems - Array of selected menu items with quantities (default: [])
+ * @param {Array} params.selectedFoodItems - Array of selected menu items (old structure, for backward compatibility)
+ * @param {Array} params.selectedMeals - Array of day-by-day meals with totalCost (new structure from DailyMealSelector)
  * @returns {Object} Detailed cost breakdown
  */
 export const calculateBookingCost = ({
@@ -56,7 +57,8 @@ export const calculateBookingCost = ({
   roomPrice,
   guests = 1,
   foodPlan = 'None',
-  selectedFoodItems = []
+  selectedFoodItems = [],
+  selectedMeals = [] // NEW: Day-by-day meal structure
 }) => {
   const nights = calculateNights(checkIn, checkOut);
   
@@ -71,7 +73,8 @@ export const calculateBookingCost = ({
       serviceCharge: 0,
       total: 0,
       breakdown: [],
-      selectedFoodItems: []
+      selectedFoodItems: [],
+      selectedMeals: []
     };
   }
   
@@ -82,15 +85,54 @@ export const calculateBookingCost = ({
   // Calculate base room cost
   const roomCost = validRoomPrice * nights;
   
-  // Calculate food cost from selected items
+  // Calculate food cost
   let foodCost = 0;
-  if (foodPlan !== 'None' && selectedFoodItems.length > 0) {
-    // Sum all item prices × quantities × nights × guests
+  
+  // ✅ UNIFIED CALCULATION: Day-by-day meal structure (from DailyMealSelector)
+  // This matches the backend calculation logic exactly
+  if (selectedMeals && selectedMeals.length > 0) {
+    // Each meal represents one meal slot (e.g., Day 1 Breakfast, Day 1 Dinner)
+    // Structure: { day, date, mealType, items: [{ foodId, name, price, quantity }], totalCost }
+    foodCost = selectedMeals.reduce((total, meal) => {
+      // Use totalCost if available (preferred)
+      let mealCost = Number(meal.totalCost) || 0;
+      
+      // Fallback: Calculate from items if totalCost is missing
+      if (!mealCost && meal.items && meal.items.length > 0) {
+        mealCost = meal.items.reduce((sum, item) => {
+          return sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1));
+        }, 0);
+      }
+      
+      return total + mealCost;
+    }, 0);
+    
+    console.log('💰 Frontend: Day-by-day meal calculation:', {
+      mealsCount: selectedMeals.length,
+      totalMealCost: foodCost,
+      mealsDetails: selectedMeals.map(m => ({
+        day: m.day,
+        mealType: m.mealType,
+        itemsCount: m.items?.length || 0,
+        totalCost: m.totalCost || 'calculated from items',
+        items: m.items?.map(item => `${item.name} x${item.quantity} @${item.price}`)
+      }))
+    });
+  } 
+  // OLD: Fallback to old structure for backward compatibility (shouldn't be used with new flow)
+  else if (foodPlan !== 'None' && selectedFoodItems.length > 0) {
+    console.warn('⚠️ Using LEGACY meal calculation - this should not happen with DailyMealSelector!');
+    // OLD LOGIC: Sum all item prices × quantities × nights × guests
     foodCost = selectedFoodItems.reduce((total, item) => {
       const itemPrice = Number(item.price) || 0;
       const itemQuantity = Number(item.quantity) || 1;
       return total + (itemPrice * itemQuantity * nights * validGuests);
     }, 0);
+    
+    console.log('💰 Legacy meal calculation:', {
+      itemsCount: selectedFoodItems.length,
+      totalMealCost: foodCost
+    });
   }
   
   // Calculate subtotal (before taxes and charges)
@@ -112,20 +154,38 @@ export const calculateBookingCost = ({
     }
   ];
   
-  // Add itemized food breakdown
-  if (foodCost > 0 && selectedFoodItems.length > 0) {
-    selectedFoodItems.forEach(item => {
-      const itemPrice = Number(item.price) || 0;
-      const itemQuantity = Number(item.quantity) || 1;
-      const itemTotal = itemPrice * itemQuantity * nights * validGuests;
-      
-      breakdown.push({
-        label: `${item.name} × ${itemQuantity} × ${nights} night${nights > 1 ? 's' : ''} × ${validGuests} guest${validGuests > 1 ? 's' : ''}`,
-        amount: itemTotal,
-        type: 'food',
-        itemId: item._id
+  // Add food breakdown based on structure
+  if (foodCost > 0) {
+    if (selectedMeals && selectedMeals.length > 0) {
+      // NEW: Day-by-day breakdown
+      selectedMeals.forEach((meal, index) => {
+        const mealLabel = meal.mealType ? 
+          `Day ${meal.day} - ${meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}` :
+          `Meal ${index + 1}`;
+        
+        breakdown.push({
+          label: mealLabel,
+          amount: meal.totalCost,
+          type: 'food',
+          day: meal.day,
+          mealType: meal.mealType
+        });
       });
-    });
+    } else if (selectedFoodItems.length > 0) {
+      // OLD: Itemized food breakdown
+      selectedFoodItems.forEach(item => {
+        const itemPrice = Number(item.price) || 0;
+        const itemQuantity = Number(item.quantity) || 1;
+        const itemTotal = itemPrice * itemQuantity * nights * validGuests;
+        
+        breakdown.push({
+          label: `${item.name} × ${itemQuantity} × ${nights} night${nights > 1 ? 's' : ''} × ${validGuests} guest${validGuests > 1 ? 's' : ''}`,
+          amount: itemTotal,
+          type: 'food',
+          itemId: item._id
+        });
+      });
+    }
   }
   
   breakdown.push(
@@ -150,7 +210,8 @@ export const calculateBookingCost = ({
     serviceCharge,
     total,
     breakdown,
-    selectedFoodItems
+    selectedFoodItems,
+    selectedMeals
   };
 };
 
@@ -218,9 +279,11 @@ export const validateBookingDates = (checkIn, checkOut) => {
 };
 
 /**
- * Create standardized booking payload
+ * Create standardized booking payload for backend submission
+ * IMPORTANT: The backend will recalculate costs but we pass calculated values for validation
+ * 
  * @param {Object} params - Booking parameters
- * @returns {Object} Standardized booking payload
+ * @returns {Object} Standardized booking payload matching backend expectations
  */
 export const createBookingPayload = ({
   roomId,
@@ -231,7 +294,7 @@ export const createBookingPayload = ({
   guests,
   foodPlan = 'None',
   selectedFoodItems = [],
-  selectedMeals = [],
+  selectedMeals = [], // Day-by-day meal structure from DailyMealSelector
   specialRequests = '',
   paymentMethod = 'cash',
   source = 'web'
@@ -242,10 +305,28 @@ export const createBookingPayload = ({
     roomPrice,
     guests,
     foodPlan,
-    selectedFoodItems
+    selectedFoodItems,
+    selectedMeals
   });
 
-  return {
+  // Ensure each meal has totalCost calculated before sending to backend
+  const mealsWithTotalCost = selectedMeals.map(meal => {
+    const totalCost = meal.totalCost || (meal.items?.reduce((sum, item) => 
+      sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0) || 0);
+    
+    return {
+      ...meal,
+      totalCost, // Ensure this is always present
+      items: meal.items?.map(item => ({
+        ...item,
+        foodId: item.foodId || item._id, // Ensure foodId is present
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1
+      })) || []
+    };
+  });
+
+  const payload = {
     // Room details
     roomId,
     roomTitle,
@@ -260,7 +341,7 @@ export const createBookingPayload = ({
       children: 0
     },
     
-    // Costs
+    // Costs - Backend will recalculate but we send for validation
     totalAmount: costBreakdown.total,
     nights: costBreakdown.nights,
     costBreakdown: {
@@ -272,14 +353,23 @@ export const createBookingPayload = ({
       total: costBreakdown.total
     },
     
-    // Food details
+    // Food details - CRITICAL: Backend uses this to calculate meal costs
     foodPlan,
-    selectedFoodItems, // NEW: Include selected menu items
-    selectedMeals,
-    foodDetails: {     // NEW: Metadata for kitchen/restaurant
+    selectedFoodItems, // OLD: Kept for backward compatibility
+    selectedMeals: mealsWithTotalCost, // NEW: Day-by-day meal structure with validated totalCost
+    foodDetails: {     // Metadata for kitchen/restaurant
       planType: foodPlan,
-      itemsCount: selectedFoodItems.length,
+      itemsCount: mealsWithTotalCost.length || selectedFoodItems.length,
       totalFoodCost: costBreakdown.foodCost,
+      mealsBreakdown: mealsWithTotalCost.map(meal => ({
+        day: meal.day,
+        date: meal.date,
+        mealType: meal.mealType,
+        scheduledTime: meal.scheduledTime,
+        items: meal.items,
+        totalCost: meal.totalCost
+      })),
+      // OLD: Keep for backward compatibility
       itemsBreakdown: selectedFoodItems.map(item => ({
         itemId: item._id,
         name: item.name,
@@ -297,11 +387,25 @@ export const createBookingPayload = ({
     metadata: {
       bookingSource: source,
       timestamp: new Date().toISOString(),
-      version: '2.1',
+      version: '2.2',
       calculationEngine: 'unified',
-      foodSelectionEnabled: true
+      foodSelectionEnabled: true,
+      mealsValidated: true
     }
   };
+
+  // Verification log
+  console.log('📦 Creating booking payload:', {
+    roomTitle,
+    nights: payload.nights,
+    foodPlan: payload.foodPlan,
+    mealsCount: mealsWithTotalCost.length,
+    totalMealCost: costBreakdown.foodCost,
+    totalAmount: payload.totalAmount,
+    mealsStructure: mealsWithTotalCost.length > 0 ? mealsWithTotalCost[0] : 'none'
+  });
+
+  return payload;
 };
 
 export default {

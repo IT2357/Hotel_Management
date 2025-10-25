@@ -7,7 +7,9 @@ export const validateEmail = (email) => {
 
 export const validatePhone = (phone) => {
   const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-  return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+  const digitsOnly = phone.replace(/\D/g, '');
+  // Only accept exactly 10 digits for Sri Lankan phone numbers
+  return phoneRegex.test(phone) && digitsOnly.length === 10;
 };
 
 export const validatePrice = (price) => {

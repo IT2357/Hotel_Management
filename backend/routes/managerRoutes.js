@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
 import * as managerController from '../controllers/manager/managerController.js';
+import foodReviewRoutes from './managerFoodReviewRoutes.js';
 
 const router = express.Router();
 
@@ -15,5 +16,8 @@ router.post('/set-priority', managerController.setTaskPriority);
 router.get('/analytics', managerController.getAnalytics);
 router.get('/profile/overview', managerController.getManagerProfileOverview);
 router.put('/profile/update', managerController.updateManagerProfile);
+
+// Food review management routes
+router.use('/food-reviews', foodReviewRoutes);
 
 export default router;

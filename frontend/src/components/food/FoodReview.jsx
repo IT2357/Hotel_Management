@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Star, Send, MessageSquare, CheckCircle, X } from 'lucide-react';
+import { Star, Send, MessageSquare, CheckCircle, X, ThumbsUp, Clock, Package, ChefHat } from 'lucide-react';
 import Rating from '../ui/Rating';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [detailedRatings, setDetailedRatings] = useState({
+    foodQuality: 0,
+    deliveryTime: 0,
+    packaging: 0
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingReview, setExistingReview] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,9 +31,13 @@ const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
     e.preventDefault();
 
     if (rating === 0) {
-      alert('Please select a rating');
+      toast.error('Please select an overall rating');
       return;
     }
+
+    // Calculate average of detailed ratings if provided
+    const detailedAvg = Object.values(detailedRatings).reduce((a, b) => a + b, 0) / 3;
+    const finalRating = detailedAvg > 0 ? Math.round(detailedAvg) : rating;
 
     setIsSubmitting(true);
 
@@ -38,8 +49,9 @@ const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          rating,
-          comment: comment.trim()
+          rating: finalRating,
+          comment: comment.trim(),
+          detailedRatings: detailedRatings.foodQuality > 0 ? detailedRatings : undefined
         })
       });
 
@@ -50,14 +62,17 @@ const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
         if (onReviewSubmitted) {
           onReviewSubmitted(data.data);
         }
-        alert('Review submitted successfully!');
+        toast.success('Thank you for your feedback!', {
+          description: 'Your review has been submitted successfully.',
+          icon: '⭐'
+        });
         if (onClose) onClose();
       } else {
-        alert(data.message || 'Failed to submit review');
+        toast.error(data.message || 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Failed to submit review. Please try again.');
+      toast.error('Failed to submit review. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -137,7 +152,10 @@ const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Rating Section */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <label className="block text-sm font-medium text-gray-700 mb-3">
             How would you rate your overall experience?
           </label>
@@ -151,7 +169,97 @@ const FoodReview = ({ orderId, order, onReviewSubmitted, onClose }) => {
               {rating === 0 ? 'Select rating' : `${rating} star${rating !== 1 ? 's' : ''}`}
             </span>
           </div>
-        </div>
+        </motion.div>
+
+        {/* Detailed Ratings (Optional) */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 space-y-4"
+        >
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+            Detailed Ratings (Optional)
+          </h4>
+          
+          {/* Food Quality */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ChefHat className="w-4 h-4 text-orange-500" />
+              <span className="text-sm text-gray-700">Food Quality</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setDetailedRatings({ ...detailedRatings, foodQuality: star })}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-5 h-5 ${
+                      star <= detailedRatings.foodQuality
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Delivery Time */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-500" />
+              <span className="text-sm text-gray-700">Delivery Time</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setDetailedRatings({ ...detailedRatings, deliveryTime: star })}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-5 h-5 ${
+                      star <= detailedRatings.deliveryTime
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Packaging */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-green-500" />
+              <span className="text-sm text-gray-700">Packaging</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setDetailedRatings({ ...detailedRatings, packaging: star })}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-5 h-5 ${
+                      star <= detailedRatings.packaging
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        </motion.div>
 
         {/* Comment Section */}
         <div>

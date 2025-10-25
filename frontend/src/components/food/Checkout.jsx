@@ -29,6 +29,7 @@ import FoodInput from './FoodInput';
 import FoodLabel from './FoodLabel';
 import FoodSelect from './FoodSelect';
 import FoodTextarea from './FoodTextarea';
+import OrderConfirmation from './OrderConfirmation';
 import { useCart } from '../../context/CartContext';
 import { toast } from 'sonner';
 import foodService from '../../services/foodService';
@@ -66,6 +67,8 @@ const Checkout = ({ onClose, onOrderComplete }) => {
   const [touchedFields, setTouchedFields] = useState(new Set());
   const [fieldValidation, setFieldValidation] = useState({});
   const [appliedOffer, setAppliedOffer] = useState(null);
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState(null);
 
   // Load saved form data from localStorage
   useEffect(() => {
@@ -191,8 +194,14 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       // Show success message
       toast.success('Order placed successfully!');
       
-      // Call success callback
-      onOrderComplete?.(data);
+      // Set completed order and show confirmation modal
+      setCompletedOrder(data);
+      setShowOrderConfirmation(true);
+      
+      // Call success callback if provided
+      if (onOrderComplete) {
+        onOrderComplete(data);
+      }
     },
     onError: (error) => {
       console.error('Order submission error:', error);
@@ -203,25 +212,49 @@ const Checkout = ({ onClose, onOrderComplete }) => {
 
   // Redirect to PayHere payment gateway
   const redirectToPayHere = (payHereData) => {
-    // Create a form to submit to PayHere
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://sandbox.payhere.lk/pay/checkout';
-    form.target = '_blank';
-    
-    // Add all PayHere form fields
-    Object.keys(payHereData).forEach(key => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = payHereData[key];
-      form.appendChild(input);
-    });
-    
-    // Add form to page and submit
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    try {
+      console.log('🔄 Redirecting to PayHere with data:', payHereData);
+      
+      // Validate PayHere data
+      if (!payHereData || !payHereData.merchant_id) {
+        throw new Error('Invalid PayHere configuration');
+      }
+      
+      // Create a form to submit to PayHere
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = import.meta.env.VITE_PAYMENT_GATEWAY_URL 
+        ? `${import.meta.env.VITE_PAYMENT_GATEWAY_URL}/pay/checkout`
+        : 'https://sandbox.payhere.lk/pay/checkout';
+      
+      console.log('📍 PayHere URL:', form.action);
+      
+      // Add all PayHere form fields
+      Object.keys(payHereData).forEach(key => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = payHereData[key];
+        form.appendChild(input);
+        console.log(`  ${key}: ${payHereData[key]}`);
+      });
+      
+      // Add form to page and submit
+      document.body.appendChild(form);
+      console.log('✅ Submitting PayHere form...');
+      form.submit();
+      
+      // Close checkout modal after redirect
+      setTimeout(() => {
+        document.body.removeChild(form);
+        onClose();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ PayHere redirect error:', error);
+      toast.error('Failed to redirect to payment gateway. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   // Handle PayHere payment callback
@@ -335,6 +368,9 @@ const Checkout = ({ onClose, onOrderComplete }) => {
 
       console.log('📦 Order object created:', order);
       
+      // Save guest email to localStorage for order tracking
+      localStorage.setItem('guestOrderEmail', formData.email);
+      
       // Handle different payment methods
       if (formData.paymentMethod === 'card') {
         // For card payments, redirect to PayHere
@@ -347,9 +383,13 @@ const Checkout = ({ onClose, onOrderComplete }) => {
         if (orderResponse.data && orderResponse.data.paymentResult?.payHereData) {
           // Redirect to PayHere with payment data
           const payHereData = orderResponse.data.paymentResult.payHereData;
+          console.log('💳 PayHere data received:', payHereData);
           redirectToPayHere(payHereData);
+          
+          // Store order ID for tracking payment
+          localStorage.setItem('pendingPaymentOrderId', orderResponse.data.data._id);
         } else {
-          throw new Error('Failed to initialize payment');
+          throw new Error('Failed to initialize payment. PayHere data not received.');
         }
       } else {
         // For other payment methods, submit order directly
@@ -1097,6 +1137,16 @@ const Checkout = ({ onClose, onOrderComplete }) => {
           </motion.div>
         )}
       </form>
+
+      {/* Order Confirmation Modal */}
+      <OrderConfirmation
+        order={completedOrder}
+        show={showOrderConfirmation}
+        onClose={() => {
+          setShowOrderConfirmation(false);
+          onClose();
+        }}
+      />
     </div>
   );
 };

@@ -7,6 +7,9 @@ import {
   getOrderDetails,
   getStaffOrders
 } from '../controllers/food/kitchenController.js';
+import { 
+  confirmDelivery
+} from '../controllers/kitchen/kitchenOrderController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { 
   updateOrderStatusValidation, 
@@ -30,6 +33,10 @@ router.get('/orders/:orderId', getOrderDetails);
 
 // Update order status
 router.patch('/orders/:orderId/status', updateOrderStatusValidation, updateOrderStatus);
+router.put('/orders/:orderId/status', updateOrderStatusValidation, updateOrderStatus);
+
+// Confirm delivery (triggers review prompt to guest)
+router.post('/orders/:orderId/deliver', confirmDelivery);
 
 // Assign order to staff
 router.patch('/orders/:orderId/assign', requireRole(['manager', 'admin']), assignOrderValidation, assignOrderToStaff);

@@ -102,23 +102,29 @@ const KitchenDashboard = () => {
     );
   }
 
+  // Add debug logging
+  console.log('🍳🍳🍳 KITCHEN DASHBOARD RENDERING 🍳🍳🍳');
+  console.log('User Role:', userRole);
+  console.log('Staff ID:', staffId);
+  console.log('Current URL:', window.location.href);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
       {/* Navigation */}
-      <SharedNavbar showBackButton={true} backPath="/dashboard" />
+      <SharedNavbar showBackButton={true} backPath="/staff/dashboard" />
 
       <div className="pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
+          {/* Header with OBVIOUS visual indicator */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-8 bg-orange-500 text-white p-6 rounded-lg shadow-lg"
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-[#4A4A4A] mb-2">Kitchen Dashboard</h1>
-                <p className="text-[#4A4A4A]/70">Manage food orders and kitchen operations</p>
+                <h1 className="text-3xl font-bold mb-2">🍳 Kitchen Dashboard 🍳</h1>
+                <p className="text-white/90">Manage food orders and kitchen operations</p>
               </div>
               <div className="flex items-center gap-3">
                 <FoodButton

@@ -5,6 +5,7 @@ import Booking from "../../models/Booking.js";
 import { User } from "../../models/User.js";
 import Room from "../../models/Room.js";
 import { parseISO, isBefore, isAfter, differenceInDays, addDays } from 'date-fns';
+import { createMealPlanOrders, cancelMealPlanOrders } from '../mealPlanService.js';
 
 class BookingService {
   constructor() {
@@ -247,28 +248,66 @@ class BookingService {
 
     if (bookingData.foodPlan && bookingData.foodPlan !== 'None') {
       const guests = bookingData.guests || 1;
-      // ✅ FIX: Use consistent rates with frontend (LKR per person per night)
-      const mealPlanRates = {
-        'Breakfast': 1500,
-        'Half Board': 3500, // Breakfast + Dinner
-        'Full Board': 5500, // All meals
-        'A la carte': 0 // Will be calculated separately based on selected meals
-      };
-
-      if (bookingData.foodPlan === 'A la carte' && bookingData.selectedMeals) {
-        // Calculate cost for selected meals
+      
+      // ✅ NEW LOGIC: Check if we have day-by-day selectedMeals (new structure from DailyMealSelector)
+      if (bookingData.selectedMeals && bookingData.selectedMeals.length > 0) {
+        // NEW: Day-by-day meal structure with items and totalCost
+        // Each meal represents one meal slot (e.g., Day 1 Breakfast, Day 1 Dinner, etc.)
         mealPlanCost = bookingData.selectedMeals.reduce((total, meal) => {
-          return total + (meal.price * guests * nights);
+          // Use totalCost if available, otherwise calculate from items
+          let mealCost = Number(meal.totalCost) || 0;
+          
+          if (!mealCost && meal.items && meal.items.length > 0) {
+            // Fallback: Calculate from items if totalCost is missing
+            mealCost = meal.items.reduce((sum, item) => {
+              return sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1));
+            }, 0);
+          }
+          
+          return total + mealCost;
         }, 0);
+        
+        // Build detailed breakdown for day-by-day meals
         mealBreakdown = {
-          meals: bookingData.selectedMeals.map(meal => ({
-            name: meal.name,
-            price: meal.price,
-            quantity: guests * nights,
-            total: meal.price * guests * nights
-          }))
+          plan: bookingData.foodPlan,
+          mealsCount: bookingData.selectedMeals.length,
+          meals: bookingData.selectedMeals.map(meal => {
+            const mealCost = meal.totalCost || (meal.items?.reduce((sum, item) => 
+              sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0) || 0);
+            
+            return {
+              day: meal.day,
+              date: meal.date,
+              mealType: meal.mealType,
+              itemsCount: meal.items?.length || 0,
+              items: meal.items?.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.price * item.quantity
+              })) || [],
+              total: mealCost
+            };
+          }),
+          total: mealPlanCost
         };
+        
+        console.log('💰 Backend calculated meal cost from day-by-day structure:', {
+          foodPlan: bookingData.foodPlan,
+          mealsCount: bookingData.selectedMeals.length,
+          totalMealCost: mealPlanCost,
+          breakdown: mealBreakdown
+        });
       } else {
+        // FALLBACK: No meals selected - use flat rates (this shouldn't happen with proper flow)
+        console.warn('⚠️ No selectedMeals provided but food plan is set:', bookingData.foodPlan);
+        const mealPlanRates = {
+          'Breakfast': 1500,
+          'Half Board': 3500, // Breakfast + Dinner
+          'Full Board': 5500, // All meals
+          'A la carte': 0
+        };
+        
         const mealRate = mealPlanRates[bookingData.foodPlan] || 0;
         mealPlanCost = mealRate * guests * nights;
         mealBreakdown = {
@@ -276,7 +315,8 @@ class BookingService {
           rate: mealRate,
           guests: guests,
           nights: nights,
-          total: mealPlanCost
+          total: mealPlanCost,
+          note: 'Calculated using flat rates - no items selected'
         };
       }
     }
@@ -571,6 +611,20 @@ class BookingService {
         console.warn('⚠️ [INVOICE] This may cause issues with check-in/check-out flow');
       }
 
+      // 🍽️ Create meal plan orders if booking is instantly confirmed and has meal plan
+      if (booking.status === 'Confirmed' && bookingData.foodPlan && bookingData.foodPlan !== 'None') {
+        if (bookingData.selectedMeals && bookingData.selectedMeals.length > 0) {
+          try {
+            console.log(`🍽️ Creating meal plan orders for instant confirmed booking ${booking.bookingNumber}...`);
+            const mealOrders = await createMealPlanOrders(booking);
+            console.log(`✅ Created ${mealOrders.length} meal plan orders for booking ${booking.bookingNumber}`);
+          } catch (mealPlanError) {
+            console.error('❌ Error creating meal plan orders on booking creation:', mealPlanError.message);
+            // Don't fail booking creation if meal plan orders fail - can be created later
+          }
+        }
+      }
+
       // Send notifications based on settings (non-blocking)
       if (settings.bookingConfirmations) {
         try {
@@ -649,6 +703,34 @@ class BookingService {
       booking.status = status;
       booking.updatedBy = adminId;
       await booking.save();
+
+      // 🍽️ Create meal plan orders when booking is confirmed
+      if (status === 'Confirmed' && oldStatus !== 'Confirmed') {
+        if (booking.foodPlan && booking.foodPlan !== 'None' && booking.selectedMeals && booking.selectedMeals.length > 0) {
+          try {
+            console.log(`🍽️ Creating meal plan orders for booking ${booking.bookingNumber}...`);
+            const mealOrders = await createMealPlanOrders(booking);
+            console.log(`✅ Created ${mealOrders.length} meal plan orders for booking ${booking.bookingNumber}`);
+          } catch (mealPlanError) {
+            console.error('❌ Error creating meal plan orders:', mealPlanError.message);
+            // Don't fail booking confirmation if meal plan orders fail
+          }
+        }
+      }
+
+      // 🍽️ Cancel meal plan orders if booking is cancelled
+      if ((status === 'Cancelled' || status === 'Rejected') && oldStatus !== status) {
+        try {
+          console.log(`❌ Cancelling meal plan orders for booking ${booking.bookingNumber}...`);
+          const cancelledCount = await cancelMealPlanOrders(booking._id);
+          if (cancelledCount > 0) {
+            console.log(`✅ Cancelled ${cancelledCount} meal plan orders`);
+          }
+        } catch (cancelError) {
+          console.error('❌ Error cancelling meal plan orders:', cancelError.message);
+          // Don't fail booking cancellation if meal order cancellation fails
+        }
+      }
 
       // Send notification to guest about status change (non-blocking)
       if (settings.bookingConfirmations && oldStatus !== status) {
