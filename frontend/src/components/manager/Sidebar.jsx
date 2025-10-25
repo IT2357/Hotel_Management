@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, User, ChevronLeft, Activity, TrendingUp, Mail } from "lucide-react";
+import { LayoutDashboard, ListTodo, Users, MessageSquare, FileText, User, ChevronLeft, Activity, TrendingUp, Mail, MessageCircle } from "lucide-react";
 import { Button } from "@/components/manager/ManagerButton";
 
 const menuItems = [
@@ -7,6 +7,7 @@ const menuItems = [
   { icon: ListTodo, label: "Task Management", id: "tasks" },
   { icon: Users, label: "Staff Analytics", id: "staff" },
   { icon: Mail, label: "Staff Messaging", id: "messaging" },
+  { icon: MessageCircle, label: "Staff Chat", id: "chat" },
   { icon: MessageSquare, label: "Guest Feedback", id: "feedback" },
   { icon: FileText, label: "Reports", id: "reports" },
   { icon: User, label: "Profile", id: "profile" },

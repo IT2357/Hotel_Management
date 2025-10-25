@@ -47,6 +47,19 @@ const messageSchema = new mongoose.Schema({
     },
     respondedAt: Date
   },
+  // Chat conversation fields
+  conversationId: {
+    type: String,
+    index: true
+  },
+  isReply: {
+    type: Boolean,
+    default: false
+  },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message'
+  },
   attachments: [{
     url: String,
     filename: String,

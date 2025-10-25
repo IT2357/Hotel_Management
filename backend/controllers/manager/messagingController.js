@@ -161,6 +161,8 @@ export const getSentMessages = async (req, res) => {
     const { messageType, priority, search } = req.query;
     const senderId = req.user._id;
 
+    console.log('📨 Fetching sent messages for manager:', senderId);
+
     let query = { sender: senderId };
     
     if (messageType && messageType !== 'all') {
@@ -179,12 +181,53 @@ export const getSentMessages = async (req, res) => {
 
     let messages = await Message.find(query)
       .populate('recipient', 'name email role department')
+      .populate('sender', 'name email role')
       .sort({ createdAt: -1 });
+
+    console.log(`📊 Found ${messages.length} messages`);
+
+    // Group messages by subject and timestamp (within 1 second) for broadcast messages
+    const groupedMessages = {};
+    messages.forEach(msg => {
+      const timestamp = new Date(msg.createdAt).getTime();
+      const roundedTime = Math.floor(timestamp / 1000); // Group by second
+      const key = `${msg.subject}_${roundedTime}`;
+      
+      if (!groupedMessages[key]) {
+        groupedMessages[key] = {
+          ...msg.toObject(),
+          recipients: [msg.recipient],
+          recipientCount: 1,
+          isBroadcast: false
+        };
+      } else {
+        groupedMessages[key].recipients.push(msg.recipient);
+        groupedMessages[key].recipientCount++;
+        groupedMessages[key].isBroadcast = true;
+      }
+    });
+
+    // Convert grouped messages back to array
+    let finalMessages = Object.values(groupedMessages).map(msg => {
+      if (msg.isBroadcast) {
+        // For broadcast, show summary
+        const departments = [...new Set(msg.recipients.map(r => r?.department).filter(Boolean))];
+        return {
+          ...msg,
+          recipient: {
+            name: departments.length > 1 ? 'All Staff' : `${departments[0]} Team`,
+            email: `${msg.recipientCount} recipients`
+          },
+          recipientSummary: `${msg.recipientCount} staff members`
+        };
+      }
+      return msg;
+    });
 
     // Apply search filter if provided
     if (search) {
       const searchLower = search.toLowerCase();
-      messages = messages.filter(
+      finalMessages = finalMessages.filter(
         (msg) =>
           msg.subject.toLowerCase().includes(searchLower) ||
           msg.message.toLowerCase().includes(searchLower) ||
@@ -192,13 +235,15 @@ export const getSentMessages = async (req, res) => {
       );
     }
 
+    console.log(`✅ Returning ${finalMessages.length} grouped messages`);
+
     res.status(200).json({
       success: true,
-      count: messages.length,
-      data: messages,
+      count: finalMessages.length,
+      data: finalMessages,
     });
   } catch (error) {
-    console.error('Error fetching sent messages:', error);
+    console.error('❌ Error fetching sent messages:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch messages',
@@ -357,6 +402,113 @@ export const getMessageStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get chat conversation between manager and a staff member
+ * @route GET /api/manager/messaging/conversation/:staffId
+ */
+export const getConversation = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const managerId = req.user._id;
+
+    console.log(`💬 Fetching conversation between manager ${managerId} and staff ${staffId}`);
+
+    // Get all messages between manager and this staff member
+    const messages = await Message.find({
+      $or: [
+        { sender: managerId, recipient: staffId },
+        { sender: staffId, recipient: managerId }
+      ]
+    })
+      .populate('sender', 'name email role')
+      .populate('recipient', 'name email role')
+      .sort({ createdAt: 1 }); // Oldest first for chat view
+
+    console.log(`✅ Found ${messages.length} messages in conversation`);
+
+    res.status(200).json({
+      success: true,
+      count: messages.length,
+      data: messages,
+    });
+  } catch (error) {
+    console.error('❌ Error fetching conversation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch conversation',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Send a reply in a conversation
+ * @route POST /api/manager/messaging/reply
+ */
+export const sendReply = async (req, res) => {
+  try {
+    const { recipientId, message, conversationId } = req.body;
+    const senderId = req.user._id;
+
+    console.log(`💬 Sending reply from ${senderId} to ${recipientId}`);
+
+    if (!message || !recipientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message and recipient are required',
+      });
+    }
+
+    // Get recipient info to determine department
+    const recipient = await User.findById(recipientId);
+    if (!recipient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Recipient not found',
+      });
+    }
+
+    const departmentMap = {
+      'Housekeeping': 'cleaning',
+      'Kitchen': 'kitchen',
+      'Maintenance': 'maintenance',
+      'Service': 'service'
+    };
+
+    // Create reply message
+    const replyMessage = await Message.create({
+      sender: senderId,
+      recipient: recipientId,
+      subject: 'Chat Reply',
+      message,
+      type: 'general',
+      priority: 'medium',
+      department: departmentMap[recipient.department] || 'service',
+      status: 'pending',
+      conversationId: conversationId || `${senderId}_${recipientId}`,
+      isReply: true
+    });
+
+    await replyMessage.populate('sender', 'name email role');
+    await replyMessage.populate('recipient', 'name email role');
+
+    console.log(`✅ Reply sent successfully`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Reply sent successfully',
+      data: replyMessage,
+    });
+  } catch (error) {
+    console.error('❌ Error sending reply:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send reply',
       error: error.message,
     });
   }

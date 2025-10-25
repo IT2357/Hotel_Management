@@ -7,6 +7,8 @@ import {
   markMessageAsRead,
   deleteMessage,
   getMessageStats,
+  getConversation,
+  sendReply,
 } from '../../controllers/manager/messagingController.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { authorizeRoles } from '../../middleware/roleAuth.js';
@@ -22,6 +24,10 @@ router.post('/send', authorizeRoles(['manager', 'admin']), sendMessage);
 router.get('/sent', authorizeRoles(['manager', 'admin']), getSentMessages);
 router.delete('/:id', authorizeRoles(['manager', 'admin']), deleteMessage);
 router.get('/stats', authorizeRoles(['manager', 'admin']), getMessageStats);
+
+// Chat conversation routes (manager and staff can both use)
+router.get('/conversation/:staffId', getConversation);
+router.post('/reply', sendReply);
 
 // Staff routes (can also be used by managers)
 router.get('/received', getReceivedMessages);

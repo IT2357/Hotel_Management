@@ -90,7 +90,17 @@ export default function ManagerMessagingPage() {
 
   const fetchMessages = async () => {
     try {
+      console.log('🔄 Fetching messages...');
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('❌ No auth token found');
+        toast.error('Authentication Error', {
+          description: 'Please log in again'
+        });
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/api/manager/messaging/sent`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -98,11 +108,18 @@ export default function ManagerMessagingPage() {
         }
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch messages');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error response:', errorData);
+        throw new Error(errorData.message || 'Failed to fetch messages');
       }
 
       const data = await response.json();
+      console.log('📨 Received data:', data);
+      console.log(`✅ Got ${data.count} messages from server`);
+      
       // Map Message model fields to frontend format
       const typeMap = {
         'general': 'announcement',
@@ -112,20 +129,35 @@ export default function ManagerMessagingPage() {
         'complaint': 'feedback'
       };
       
-      setMessages(data.data.map(msg => ({
-        id: msg._id,
-        subject: msg.subject,
-        message: msg.message,
-        recipient: msg.recipient?.name || 'Unknown',
-        type: typeMap[msg.type] || 'general',
-        priority: msg.priority,
-        timestamp: msg.createdAt,
-        status: msg.status
-      })));
+      const mappedMessages = data.data.map(msg => {
+        const mapped = {
+          id: msg._id,
+          subject: msg.subject,
+          message: msg.message,
+          recipient: msg.recipient?.name || msg.recipientSummary || 'Unknown',
+          type: typeMap[msg.type] || 'general',
+          priority: msg.priority,
+          timestamp: msg.createdAt,
+          status: msg.status,
+          isBroadcast: msg.isBroadcast || false,
+          recipientCount: msg.recipientCount || 1
+        };
+        console.log('Mapped message:', mapped);
+        return mapped;
+      });
+      
+      console.log(`✅ Setting ${mappedMessages.length} messages in state`);
+      setMessages(mappedMessages);
+      
+      if (mappedMessages.length === 0) {
+        toast.info('No Messages Yet', {
+          description: 'Send your first message using the form above'
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
+      console.error('❌ Failed to fetch messages:', error);
       toast.error('Failed to Load Messages', {
-        description: 'Could not fetch message history'
+        description: error.message || 'Could not fetch message history'
       });
     }
   };
@@ -477,8 +509,13 @@ export default function ManagerMessagingPage() {
                             <span className={`px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r ${getPriorityColor(msg.priority)} text-white shadow-md`}>
                               {msg.priority.toUpperCase()}
                             </span>
-                            <span className="text-sm text-gray-600 font-medium">
+                            <span className="text-sm text-gray-600 font-medium flex items-center gap-1">
                               To: {msg.recipient || 'All Staff'}
+                              {msg.isBroadcast && msg.recipientCount > 1 && (
+                                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
+                                  {msg.recipientCount} recipients
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>
