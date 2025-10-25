@@ -11,6 +11,7 @@ import Spinner from "../../components/ui/Spinner";
 import Modal from "../../components/ui/Modal";
 import Pagination from "../../components/ui/Pagination";
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
+import adminService from '../../services/adminService';
 
 export default function AdminBookingsPage() {
 
@@ -52,6 +53,7 @@ export default function AdminBookingsPage() {
   const [heldBookings, setHeldBookings] = useState([]);
   const [loadingHeld, setLoadingHeld] = useState(false);
   const [nowTs, setNowTs] = useState(Date.now());
+  const [pageSizeOptions, setPageSizeOptions] = useState([10, 20, 50, 100]);
 
   useEffect(() => {
     // Ticker for countdowns
@@ -81,6 +83,27 @@ export default function AdminBookingsPage() {
   useEffect(() => {
     fetchBookings();
   }, [filters]);
+
+  // Load default page size from admin settings once
+  useEffect(() => {
+    const loadDefaultPageSize = async () => {
+      try {
+        const res = await adminService.getAdminSettings();
+        const settings = res?.data?.data ?? res?.data ?? {};
+        const defaultSize = settings?.systemSettings?.pagination?.defaultPageSize;
+        const options = settings?.systemSettings?.pagination?.pageSizeOptions;
+        if (defaultSize && Number.isInteger(defaultSize)) {
+          setFilters(prev => ({ ...prev, limit: defaultSize }));
+        }
+        if (Array.isArray(options) && options.length) {
+          setPageSizeOptions(options);
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadDefaultPageSize();
+  }, []);
 
   const fetchBookings = async () => {
     try {
@@ -153,7 +176,7 @@ export default function AdminBookingsPage() {
         setPagination({
           currentPage: pagination.currentPage || 1,
           totalPages: pagination.totalPages || 1,
-          totalBookings: pagination.total || 0
+          totalBookings: pagination.totalBookings || 0
         });
         // Return fetched data so callers can use it to sync nested modal state
         return { bookings, pagination };
@@ -527,7 +550,7 @@ export default function AdminBookingsPage() {
   };
 
   const stats = {
-    total: bookings.length,
+    total: pagination.totalBookings || bookings.length,
     pending: (bookings || []).filter(b => b.status === 'Pending Approval').length,
     confirmed: (bookings || []).filter(b =>
       b.status === 'Confirmed' ||
@@ -653,6 +676,25 @@ export default function AdminBookingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Feature Tips */}
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 pt-0.5">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-900 mb-2">💡 Keyboard Shortcuts & Features</h3>
+              <ul className="text-sm text-green-800 space-y-1.5">
+                <li className="flex items-center gap-2"><kbd className="px-2 py-1 rounded bg-green-200 font-semibold text-xs">←</kbd> / <kbd className="px-2 py-1 rounded bg-green-200 font-semibold text-xs">→</kbd> <span>to navigate between pages</span></li>
+                <li className="flex items-center gap-2"><span>📊 Use the <strong>Per page</strong> selector to show 10, 20, 50, or 100 bookings</span></li>
+                <li className="flex items-center gap-2"><span>⚙️ Manage default items per page in Admin Settings</span></li>
+              </ul>
+            </div>
+          </div>
+        </Card>
 
         {/* Filter Section */}
         <Card className="bg-white shadow-xl rounded-2xl border-0 p-4 lg:p-6">
@@ -843,7 +885,9 @@ export default function AdminBookingsPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">📋 Bookings</h2>
                 <div className="text-sm text-gray-500">
-                  {bookings.length} booking{bookings.length === 1 ? '' : 's'} found
+                  {pagination.totalBookings > 0
+                    ? `${bookings.length} of ${pagination.totalBookings} booking${pagination.totalBookings === 1 ? '' : 's'} found`
+                    : 'No bookings found'}
                 </div>
               </div>
               {bookings.length === 0 ? (
@@ -941,7 +985,10 @@ export default function AdminBookingsPage() {
             <Pagination
               currentPage={pagination.currentPage}
               totalPages={pagination.totalPages}
-              onPageChange={(page) => updateFilters({...filters, page})}
+              onPageChange={(page) => updateFilters({ page })}
+              pageSize={filters.limit}
+              pageSizeOptions={pageSizeOptions}
+              onPageSizeChange={(size) => updateFilters({ limit: size, page: 1 })}
             />
           </div>
         )}

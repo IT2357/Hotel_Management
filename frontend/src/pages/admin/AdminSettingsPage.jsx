@@ -456,6 +456,62 @@ export default function AdminSettingsPage() {
                 />
               </SettingsField>
             </SettingsGrid>
+            {/* Pagination Defaults */}
+            <SettingsCard title="Pagination" description="Control default items per page across admin lists">
+              <SettingsGrid>
+                <SettingsField label="Default Page Size" required>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={200}
+                    value={settings?.systemSettings?.pagination?.defaultPageSize ?? 20}
+                    onChange={(e) => {
+                      const newDefaultSize = parseInt(e.target.value || '0', 10);
+                      handleSettingChange("systemSettings.pagination.defaultPageSize", newDefaultSize);
+                      
+                      // Auto-suggest page sizes when default changes
+                      if (newDefaultSize > 0) {
+                        const currentOptions = settings?.systemSettings?.pagination?.pageSizeOptions ?? [10, 20, 50, 100];
+                        
+                        // Generate intelligent suggestions based on default size
+                        const suggestions = new Set();
+                        suggestions.add(Math.max(5, Math.floor(newDefaultSize / 2))); // Half the default
+                        suggestions.add(newDefaultSize); // The default itself
+                        suggestions.add(Math.min(200, newDefaultSize * 2)); // Double the default
+                        
+                        // Add existing options that make sense
+                        currentOptions.forEach(opt => {
+                          if (opt >= 5 && opt <= 200) suggestions.add(opt);
+                        });
+                        
+                        const sortedOptions = Array.from(suggestions).sort((a, b) => a - b);
+                        handleSettingChange("systemSettings.pagination.pageSizeOptions", sortedOptions);
+                      }
+                    }}
+                    className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  />
+                </SettingsField>
+                <SettingsField label="Allowed Page Sizes (comma-separated)">
+                  <div>
+                    <Input
+                      value={(settings?.systemSettings?.pagination?.pageSizeOptions ?? [10,20,50,100]).join(',')}
+                      onChange={(e) => {
+                        const arr = e.target.value
+                          .split(',')
+                          .map(v => parseInt(v.trim(), 10))
+                          .filter(v => Number.isFinite(v) && v > 0);
+                        handleSettingChange("systemSettings.pagination.pageSizeOptions", arr);
+                      }}
+                      placeholder="e.g. 10,20,50,100"
+                      className="rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      💡 Tip: The default page size ({settings?.systemSettings?.pagination?.defaultPageSize ?? 20}) will be automatically included in these options.
+                    </p>
+                  </div>
+                </SettingsField>
+              </SettingsGrid>
+            </SettingsCard>
           </SettingsSection>
         );
 

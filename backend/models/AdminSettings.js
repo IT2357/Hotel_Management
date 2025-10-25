@@ -606,6 +606,11 @@ const adminSettingsSchema = new mongoose.Schema(
         maxUsers: { type: Number, default: 100, min: 1, max: 1000 },
         maxRooms: { type: Number, default: 500, min: 1, max: 5000 },
         maxBookings: { type: Number, default: 10000, min: 100, max: 100000 }
+      },
+      // Unified pagination defaults for admin lists
+      pagination: {
+        defaultPageSize: { type: Number, default: 20, min: 5, max: 200 },
+        pageSizeOptions: { type: [Number], default: [10, 20, 50, 100] }
       }
     },
 

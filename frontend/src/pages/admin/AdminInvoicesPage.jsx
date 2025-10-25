@@ -11,9 +11,11 @@ import Select from "../../components/ui/Select";
 import Modal from "../../components/ui/Modal";
 import Pagination from "../../components/ui/Pagination";
 import DefaultAdminLayout from '../../layout/admin/DefaultAdminLayout';
+import adminService from '../../services/adminService';
 
 export default function AdminInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
+  const [pageSizeOptions, setPageSizeOptions] = useState([10, 20, 50, 100]);
   const [loading, setLoading] = useState({
     search: false,
     status: false,
@@ -103,6 +105,27 @@ export default function AdminInvoicesPage() {
         general: false
       });
     };
+  }, []);
+
+  // Load default page size from admin settings once
+  useEffect(() => {
+    const applyDefaultPageSize = async () => {
+      try {
+        const res = await adminService.getAdminSettings?.();
+        const settings = res?.data?.data ?? res?.data ?? {};
+        const defaultSize = settings?.systemSettings?.pagination?.defaultPageSize;
+        const options = settings?.systemSettings?.pagination?.pageSizeOptions;
+        if (defaultSize && Number.isInteger(defaultSize)) {
+          setFilters(prev => ({ ...prev, limit: defaultSize }));
+        }
+        if (Array.isArray(options) && options.length) {
+          setPageSizeOptions(options);
+        }
+      } catch (_) {
+        // ignore if settings API not available here
+      }
+    };
+    applyDefaultPageSize();
   }, []);
 
   // Memoize the fetchInvoices function with proper dependencies
@@ -773,8 +796,9 @@ export default function AdminInvoicesPage() {
     }, 300); // Match this with your modal's transition duration
   };
 
+  // Use pagination totals for stats, not just current page length
   const stats = {
-    total: invoices.length,
+    total: pagination.totalInvoices || invoices.length,
     paid: (invoices || []).filter(i => i.status === 'Paid').length,
     pending: (invoices || []).filter(i =>
       i.status === 'Sent - Payment Pending' ||
@@ -882,7 +906,24 @@ export default function AdminInvoicesPage() {
           </div>
         </div>
 
-        {/* Filter Section */}
+        {/* Feature Tips */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 pt-0.5">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-2">💡 Keyboard Shortcuts & Features</h3>
+              <ul className="text-sm text-blue-800 space-y-1.5">
+                <li className="flex items-center gap-2"><kbd className="px-2 py-1 rounded bg-blue-200 font-semibold text-xs">←</kbd> / <kbd className="px-2 py-1 rounded bg-blue-200 font-semibold text-xs">→</kbd> <span>to navigate between pages</span></li>
+                <li className="flex items-center gap-2"><span>📊 Use the <strong>Per page</strong> selector to show 10, 20, 50, or 100 invoices</span></li>
+                <li className="flex items-center gap-2"><span>⚙️ Manage default items per page in Admin Settings</span></li>
+              </ul>
+            </div>
+          </div>
+        </Card>
         <Card className="bg-white shadow-xl rounded-2xl border-0 p-4 lg:p-6">
           <div className="space-y-4">
             {/* Search Bar */}
@@ -1126,7 +1167,9 @@ export default function AdminInvoicesPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">📋 Invoices</h2>
                 <div className="text-sm text-gray-500">
-                  {invoices.length} invoice{invoices.length === 1 ? '' : 's'} found
+                  {pagination.totalInvoices > 0 
+                    ? `${invoices.length} of ${pagination.totalInvoices} invoice${pagination.totalInvoices === 1 ? '' : 's'} found`
+                    : 'No invoices found'}
                 </div>
               </div>
               {invoices.length === 0 ? (
@@ -1216,6 +1259,9 @@ export default function AdminInvoicesPage() {
               currentPage={pagination.currentPage}
               totalPages={pagination.totalPages}
               onPageChange={(page) => updateFilters({ page })}
+              pageSize={filters.limit}
+              pageSizeOptions={pageSizeOptions}
+              onPageSizeChange={(size) => updateFilters({ limit: size, page: 1 })}
             />
           </div>
         )}
