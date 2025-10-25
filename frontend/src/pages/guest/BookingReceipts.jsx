@@ -518,7 +518,7 @@ export default function BookingReceipts() {
             { key: 'all', label: 'All Receipts' },
             { key: 'completed', label: 'Completed Stays' },
             { key: 'confirmed', label: 'Confirmed Bookings' },
-            { key: 'processing', label: 'Payment Processing' }
+           // { key: 'processing', label: 'Payment Processing' }
           ].map((status) => (
             <Button
               key={status.key}

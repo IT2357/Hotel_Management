@@ -5,6 +5,7 @@ import { useSnackbar } from 'notistack';
 import axios from 'axios';
 import Modal from '../../components/ui/Modal.jsx';
 import OverstayPaymentForm from '../../components/checkout/OverstayPaymentForm.jsx';
+import html2pdf from 'html2pdf.js';
 // Create a local API instance for check-in/out with correct baseURL
 const checkInOutApi = axios.create({
   baseURL: '/api', // Use Vite proxy path
@@ -49,6 +50,7 @@ const GuestCheckInOutPage = () => {
   const [eligibleBookings, setEligibleBookings] = useState([]);
   const [recentlyCheckedOut, setRecentlyCheckedOut] = useState(null);
   const [overstayInfo, setOverstayInfo] = useState(null);  // ⚠️ NEW: Track overstay information
+  const [hotelSettings, setHotelSettings] = useState(null); // Hotel admin settings
 
   // Check-in form state
   const [checkInData, setCheckInData] = useState({
@@ -130,7 +132,50 @@ const GuestCheckInOutPage = () => {
   useEffect(() => {
     fetchCheckInStatus();
     fetchEligibleBookings();
+    fetchHotelSettings();
   }, []);
+
+  const fetchHotelSettings = async () => {
+    try {
+      // Try to get admin settings first (might require auth)
+      const response = await checkInOutApi.get('/admin/settings');
+      console.log('✅ Hotel admin settings received:', response.data);
+      const settings = response.data?.data || response.data;
+      setHotelSettings({
+        name: settings.hotelName || settings.name || "Valdore HMS",
+        address: settings.hotelAddress || settings.address || "Punnalakadduvan, Jaffna 03, Sri Lanka",
+        phone: settings.hotelPhone || settings.phone || "+94 77 234 5678",
+        email: settings.hotelEmail || settings.email || "reservations@valdorehotel.lk",
+        website: settings.hotelWebsite || settings.website || "www.valdorehotel.lk"
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch hotel settings from admin, trying alternative:', error.response?.status);
+      
+      try {
+        // Try public social settings endpoint to see if we can get any hotel info
+        const publicResponse = await checkInOutApi.get('/public/social-auth-settings');
+        console.log('✅ Public settings response:', publicResponse.data);
+        // This endpoint only has social settings, so use defaults
+        setHotelSettings({
+          name: "Valdore HMS",
+          address: "Punnalakadduvan, Jaffna 03, Sri Lanka", 
+          phone: "+94 77 234 5678",
+          email: "reservations@valdorehotel.lk",
+          website: "www.valdorehotel.lk"
+        });
+      } catch (publicError) {
+        console.error('❌ All settings endpoints failed, using defaults:', publicError);
+        // Use default settings as final fallback
+        setHotelSettings({
+          name: "Valdore HMS",
+          address: "Punnalakadduvan, Jaffna 03, Sri Lanka",
+          phone: "+94 77 234 5678", 
+          email: "reservations@valdorehotel.lk",
+          website: "www.valdorehotel.lk"
+        });
+      }
+    }
+  };
 
   const fetchCheckInStatus = async () => {
     try {
@@ -425,12 +470,53 @@ const GuestCheckInOutPage = () => {
     
     try {
       console.log('📄 Fetching receipt for:', safeCheckInStatus._id);
-      const response = await checkInOutApi.get(`/check-in-out/guest/${safeCheckInStatus._id}/receipt`);
-      console.log('✅ Receipt received:', response.data);
-      setReceipt(response.data);
+      console.log('📄 Current check-in status with booking:', safeCheckInStatus);
+      
+      // Get the basic receipt data from check-in/out
+      const receiptResponse = await checkInOutApi.get(`/check-in-out/guest/${safeCheckInStatus._id}/receipt`);
+      console.log('✅ Receipt received - Full response:', receiptResponse);
+      
+      const receiptData = receiptResponse.data?.data || receiptResponse.data;
+      console.log('✅ Basic receipt data:', receiptData);
+      
+      // Get detailed booking information for pricing
+      let bookingData = null;
+      const bookingId = safeCheckInStatus.booking?._id || safeCheckInStatus.booking?.id || safeCheckInStatus.bookingId;
+      
+      if (bookingId) {
+        try {
+          console.log('📄 Fetching booking details for pricing:', bookingId);
+          const bookingResponse = await checkInOutApi.get(`/bookings/${bookingId}`);
+          bookingData = bookingResponse.data?.data || bookingResponse.data;
+          console.log('✅ Booking data with pricing:', bookingData);
+        } catch (bookingError) {
+          console.warn('⚠️ Could not fetch booking details:', bookingError);
+          // Use booking data from check-in status if available
+          bookingData = safeCheckInStatus.booking;
+        }
+      } else {
+        console.warn('⚠️ No booking ID found, using booking data from check-in status');
+        bookingData = safeCheckInStatus.booking;
+      }
+      
+      // Combine receipt data with booking pricing information
+      const combinedReceiptData = {
+        ...receiptData,
+        booking: bookingData,
+        // Ensure we have access to all booking pricing details
+        totalPrice: bookingData?.totalPrice,
+        costBreakdown: bookingData?.costBreakdown,
+        roomBasePrice: bookingData?.roomBasePrice,
+        paymentMethod: bookingData?.paymentMethod || receiptData.paymentMethod
+      };
+      
+      console.log('✅ Combined receipt data with booking pricing:', combinedReceiptData);
+      
+      setReceipt(combinedReceiptData);
       setShowReceiptModal(true);
     } catch (error) {
       console.error('❌ Failed to generate receipt:', error);
+      console.error('❌ Error details:', error.response?.data);
       enqueueSnackbar('Failed to generate receipt', { variant: 'error' });
     }
   };
@@ -540,41 +626,306 @@ const GuestCheckInOutPage = () => {
     }
   };
 
-  const downloadReceipt = () => {
-    // Simple download implementation - in a real app, you'd generate a PDF
-    const receiptText = `
-HOTEL RECEIPT
-=============
+  const generateReceiptData = (receiptData) => {
+    console.log('🔍 Processing receipt data for PDF:', receiptData);
+    
+    // Handle different possible data structures
+    const guest = receiptData.guest || receiptData.guestInfo || {};
+    const room = receiptData.room || receiptData.roomInfo || {};
+    const charges = receiptData.charges || receiptData.billing || receiptData.costBreakdown || {};
+    const booking = receiptData.booking || receiptData.bookingInfo || {};
+    
+    // Try to get guest name from multiple possible sources
+    const guestName = guest.firstName && guest.lastName 
+      ? `${guest.firstName} ${guest.lastName}`.trim()
+      : guest.fullName || guest.name || receiptData.guestName || 'N/A';
+    
+    // Try to get guest email from multiple sources
+    const guestEmail = guest.email || receiptData.guestEmail || 'N/A';
+    
+    // Try to get room information
+    const roomNumber = room.roomNumber || room.number || receiptData.roomNumber || 'N/A';
+    const roomType = room.type || room.roomType || receiptData.roomType || 'N/A';
+    
+    // Try to get dates from multiple sources
+    const checkInDate = receiptData.checkInDate || receiptData.checkIn || booking.checkIn;
+    const checkOutDate = receiptData.checkOutDate || receiptData.checkOut || booking.checkOut || new Date().toISOString();
+    
+    // Get pricing from booking data since check-in/out doesn't contain pricing
+    const bookingInfo = receiptData.booking || {};
+    const costBreakdown = bookingInfo.costBreakdown || receiptData.costBreakdown || {};
+    
+    // Handle charges from booking cost breakdown or other sources
+    const baseCharge = costBreakdown.roomCost || 
+                      bookingInfo.roomBasePrice || 
+                      charges.baseCharge || 
+                      charges.roomCost || 
+                      charges.roomCharges || 
+                      charges.subtotal || 0;
+                      
+    const servicesCharges = costBreakdown.serviceFee || 
+                           costBreakdown.serviceCharges || 
+                           charges.servicesCharges || 
+                           charges.serviceCharges || 
+                           charges.services || 0;
+                           
+    const foodCharges = costBreakdown.foodCharges || 
+                       costBreakdown.food || 
+                       charges.foodCharges || 
+                       charges.food || 
+                       charges.foodAndBeverage || 0;
+                       
+    const taxes = costBreakdown.tax || 
+                  costBreakdown.taxes || 
+                  charges.taxes || 
+                  charges.tax || 
+                  charges.vat || 0;
+                  
+    const totalAmount = costBreakdown.total || 
+                        bookingInfo.totalPrice || 
+                        receiptData.totalPrice ||
+                        charges.totalAmount || 
+                        charges.total || 
+                        charges.grandTotal || 
+                        (baseCharge + servicesCharges + foodCharges + taxes);
+    
+    const processedData = {
+      // Hotel Information - From admin settings with fallbacks
+      hotelName: hotelSettings?.name || hotelSettings?.hotelName || "Valdore HMS",
+      hotelAddress: hotelSettings?.address || hotelSettings?.hotelAddress || "Punnalakadduvan, Jaffna 03, Sri Lanka",
+      hotelPhone: hotelSettings?.phone || hotelSettings?.hotelPhone || "+94 77 234 5678",
+      hotelEmail: hotelSettings?.email || hotelSettings?.hotelEmail || "reservations@valdorehotel.lk",
+      hotelWebsite: hotelSettings?.website || hotelSettings?.hotelWebsite || "www.valdorehotel.lk",
 
-Guest: ${receipt.guestName}
-Email: ${receipt.guestEmail}
-Room: ${receipt.roomNumber} (${receipt.roomType})
+      // Receipt Details
+      receiptNumber: receiptData.receiptNumber || receiptData._id || `RC-${Date.now()}`,
+      issueDate: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      issueTime: new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      
+      // Guest Information
+      guestName: guestName,
+      guestEmail: guestEmail,
+      
+      // Room & Stay Details
+      roomNumber: roomNumber,
+      roomType: roomType,
+      checkInDate: checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : 'N/A',
+      checkOutDate: checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : 'N/A',
+      
+      // Charges Details
+      baseCharge: Number(baseCharge) || 0,
+      servicesCharges: Number(servicesCharges) || 0,
+      foodCharges: Number(foodCharges) || 0,
+      taxes: Number(taxes) || 0,
+      totalAmount: Number(totalAmount) || 0,
+      
+      // Payment Information
+      paymentMethod: receiptData.paymentMethod || bookingInfo.paymentMethod || booking.paymentMethod || 'Credit Card',
+      paymentStatus: 'Paid'
+    };
+    
+    console.log('✅ Processed receipt data:', processedData);
+    return processedData;
+  };
 
-Check-in: ${new Date(receipt.checkInDate).toLocaleDateString()}
-Check-out: ${new Date(receipt.checkOutDate).toLocaleDateString()}
+  const downloadReceipt = async () => {
+    if (!receipt) {
+      console.error('No receipt data available for PDF generation');
+      enqueueSnackbar('No receipt data available', { variant: 'error' });
+      return;
+    }
 
-Charges:
-- Base Charge: රු${receipt.charges.baseCharge}
-- Services: රු${receipt.charges.servicesCharges}
-- Food: රු${receipt.charges.foodCharges}
-- Taxes: රු${receipt.charges.taxes}
+    try {
+      console.log('🔄 Starting PDF generation with raw receipt data:', receipt);
+      const receiptData = generateReceiptData(receipt);
+      console.log('📊 Processed receipt data for PDF:', receiptData); // Debug log
+      
+      // Create a comprehensive HTML structure for the PDF receipt
+      const receiptHTML = `
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: white; color: #333;">
+          
+          <!-- Header -->
+          <div style="background: #1976d2; color: white; padding: 30px; text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">${receiptData.hotelName}</h1>
+            <p style="margin: 0; font-size: 16px; opacity: 0.9;">Luxury • Comfort • Excellence</p>
+          </div>
+          
+          <!-- Title -->
+          <div style="text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 3px solid #e3f2fd;">
+            <h1 style="color: #1976d2; font-size: 24px; margin: 0 0 10px 0;">CHECK-OUT RECEIPT</h1>
+            <p style="color: #666; margin: 5px 0;">Receipt #${receiptData.receiptNumber}</p>
+            <p style="color: #666; margin: 5px 0;">Issued on ${receiptData.issueDate} at ${receiptData.issueTime}</p>
+          </div>
+          
+          <!-- Hotel Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Hotel Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Address:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelAddress}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Phone:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelPhone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Email:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelEmail}</td>
+                <td style="padding: 8px; vertical-align: top;"><strong>Website:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.hotelWebsite}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Guest Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Guest Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Guest Name:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.guestName}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Email:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.guestEmail}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Stay Details -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Stay Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Room Number:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.roomNumber}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Room Type:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.roomType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; vertical-align: top;"><strong>Check-in Date:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.checkInDate}</td>
+                <td style="padding: 8px; vertical-align: top;"><strong>Check-out Date:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.checkOutDate}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Charges Summary -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Charges Summary</h3>
+            <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+              <thead>
+                <tr style="background: #1976d2; color: white;">
+                  <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">Description</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">Amount (LKR)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Room Charges:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.baseCharge.toLocaleString()}</td>
+                </tr>
+                ${receiptData.servicesCharges > 0 ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Services:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.servicesCharges.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                ${receiptData.foodCharges > 0 ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Food & Beverages:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.foodCharges.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                ${receiptData.taxes > 0 ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #ddd;">Taxes:</td>
+                  <td style="padding: 12px; text-align: right; border-bottom: 1px solid #ddd;">LKR ${receiptData.taxes.toLocaleString()}</td>
+                </tr>
+                ` : ''}
+                <tr style="background: #e3f2fd; font-weight: bold; font-size: 16px;">
+                  <td style="padding: 12px; border-top: 2px solid #1976d2;"><strong>Total Amount:</strong></td>
+                  <td style="padding: 12px; text-align: right; border-top: 2px solid #1976d2;"><strong>LKR ${receiptData.totalAmount.toLocaleString()}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Payment Information -->
+          <div style="margin-bottom: 25px; background: #f8f9fa; padding: 20px;">
+            <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Payment Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Payment Method:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">${receiptData.paymentMethod}</td>
+                <td style="padding: 8px; vertical-align: top; width: 25%;"><strong>Payment Status:</strong></td>
+                <td style="padding: 8px; vertical-align: top;">
+                  <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: bold;">
+                    ${receiptData.paymentStatus}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background: #f8f9fa; padding: 25px; text-align: center; border-top: 2px solid #e3f2fd; margin-top: 30px;">
+            <p style="color: #666; margin: 0 0 15px 0; line-height: 1.6;">
+              <strong>Thank you for choosing ${receiptData.hotelName}!</strong><br>
+              We hope you enjoyed your stay with us. For any queries regarding this receipt, 
+              please contact our customer service team with your receipt number.
+            </p>
+            <div style="margin-top: 15px;">
+              <span style="color: #1976d2; font-weight: bold; margin-right: 20px;">Phone: ${receiptData.hotelPhone}</span>
+              <span style="color: #1976d2; font-weight: bold; margin-right: 20px;">Email: ${receiptData.hotelEmail}</span>
+              <span style="color: #1976d2; font-weight: bold;">Website: ${receiptData.hotelWebsite}</span>
+            </div>
+          </div>
+          
+        </div>
+      `;
 
-Total Amount: රු${receipt.charges.totalAmount}
+      // Configure PDF options for better compatibility
+      const opt = {
+        margin: 0.5,
+        filename: `CheckOut_Receipt_${receiptData.receiptNumber}_${receiptData.hotelName.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          logging: true,
+          useCORS: true,
+          allowTaint: true
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'a4', 
+          orientation: 'portrait'
+        }
+      };
 
-Payment Method: ${receipt.paymentMethod}
-Receipt Number: ${receipt.receiptNumber}
-Issued: ${new Date(receipt.issuedAt).toLocaleString()}
-    `;
+      // Generate and download PDF directly from HTML string
+      html2pdf().set(opt).from(receiptHTML).save();
 
-    const blob = new Blob([receiptText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${receipt.receiptNumber}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // Show success message
+      enqueueSnackbar('Receipt downloaded successfully as PDF!', { variant: 'success' });
+      
+    } catch (error) {
+      console.error('Error generating PDF receipt:', error);
+      enqueueSnackbar('Failed to generate PDF receipt. Please try again.', { variant: 'error' });
+    }
   };
 
   if (loading) {
@@ -1332,46 +1683,126 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-semibold mb-2">Guest Information</h4>
-                    <p><strong>Name:</strong> {receipt.guestName}</p>
-                    <p><strong>Email:</strong> {receipt.guestEmail}</p>
+                    <p><strong>Name:</strong> {(() => {
+                      const guest = receipt.guest || receipt.guestInfo || {};
+                      const guestName = guest.firstName && guest.lastName 
+                        ? `${guest.firstName} ${guest.lastName}`.trim()
+                        : guest.fullName || guest.name || receipt.guestName || 'N/A';
+                      return guestName;
+                    })()}</p>
+                    <p><strong>Email:</strong> {(() => {
+                      const guest = receipt.guest || receipt.guestInfo || {};
+                      return guest.email || receipt.guestEmail || 'N/A';
+                    })()}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Stay Details</h4>
-                    <p><strong>Room:</strong> {receipt.roomNumber} ({receipt.roomType})</p>
-                    <p><strong>Check-in:</strong> {new Date(receipt.checkInDate).toLocaleDateString()}</p>
-                    <p><strong>Check-out:</strong> {new Date(receipt.checkOutDate).toLocaleDateString()}</p>
+                    <p><strong>Room:</strong> {(() => {
+                      const room = receipt.room || receipt.roomInfo || {};
+                      const roomNumber = room.roomNumber || room.number || receipt.roomNumber || 'N/A';
+                      const roomType = room.type || room.roomType || receipt.roomType || 'N/A';
+                      return `${roomNumber} (${roomType})`;
+                    })()}</p>
+                    <p><strong>Check-in:</strong> {(() => {
+                      const checkInDate = receipt.checkInDate || receipt.checkIn || receipt.booking?.checkIn;
+                      return checkInDate ? new Date(checkInDate).toLocaleDateString() : 'N/A';
+                    })()}</p>
+                    <p><strong>Check-out:</strong> {(() => {
+                      const checkOutDate = receipt.checkOutDate || receipt.checkOut || receipt.booking?.checkOut;
+                      return checkOutDate ? new Date(checkOutDate).toLocaleDateString() : new Date().toLocaleDateString();
+                    })()}</p>
                   </div>
                 </div>
 
                 <div className="border-t pt-4">
                   <h4 className="font-semibold mb-3">Charges Summary</h4>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Room Charges:</span>
-                      <span>රු{receipt.charges.baseCharge}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Services:</span>
-                      <span>රු{receipt.charges.servicesCharges}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Food & Beverages:</span>
-                      <span>රු{receipt.charges.foodCharges}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Taxes:</span>
-                      <span>රු{receipt.charges.taxes}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg border-t pt-2">
-                      <span>Total Amount:</span>
-                      <span>රු{receipt.charges.totalAmount}</span>
-                    </div>
+                    {(() => {
+                      // Get pricing from booking data since check-in/out doesn't contain pricing
+                      const bookingData = receipt.booking || {};
+                      const costBreakdown = bookingData.costBreakdown || receipt.costBreakdown || {};
+                      const charges = receipt.charges || receipt.billing || {};
+                      
+                      const baseCharge = costBreakdown.roomCost || 
+                                        bookingData.roomBasePrice || 
+                                        charges.baseCharge || 
+                                        charges.roomCost || 
+                                        charges.roomCharges || 
+                                        charges.subtotal || 0;
+                                        
+                      const servicesCharges = costBreakdown.serviceFee || 
+                                             costBreakdown.serviceCharges || 
+                                             charges.servicesCharges || 
+                                             charges.serviceCharges || 
+                                             charges.services || 0;
+                                             
+                      const foodCharges = costBreakdown.foodCharges || 
+                                         costBreakdown.food || 
+                                         charges.foodCharges || 
+                                         charges.food || 
+                                         charges.foodAndBeverage || 0;
+                                         
+                      const taxes = costBreakdown.tax || 
+                                    costBreakdown.taxes || 
+                                    charges.taxes || 
+                                    charges.tax || 
+                                    charges.vat || 0;
+                                    
+                      const totalAmount = costBreakdown.total || 
+                                          bookingData.totalPrice || 
+                                          receipt.totalPrice ||
+                                          charges.totalAmount || 
+                                          charges.total || 
+                                          charges.grandTotal || 
+                                          (baseCharge + servicesCharges + foodCharges + taxes);
+
+                      console.log('💰 Modal charges calculation:', {
+                        bookingData,
+                        costBreakdown,
+                        baseCharge,
+                        servicesCharges,
+                        foodCharges,
+                        taxes,
+                        totalAmount
+                      });
+
+                      return (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Room Charges:</span>
+                            <span>LKR {Number(baseCharge).toLocaleString()}</span>
+                          </div>
+                          {servicesCharges > 0 && (
+                            <div className="flex justify-between">
+                              <span>Services:</span>
+                              <span>LKR {Number(servicesCharges).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {foodCharges > 0 && (
+                            <div className="flex justify-between">
+                              <span>Food & Beverages:</span>
+                              <span>LKR {Number(foodCharges).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {taxes > 0 && (
+                            <div className="flex justify-between">
+                              <span>Taxes:</span>
+                              <span>LKR {Number(taxes).toLocaleString()}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>Total Amount:</span>
+                            <span>LKR {Number(totalAmount).toLocaleString()}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div className="text-center text-gray-600 text-sm">
-                  <p>Payment Method: {receipt.paymentMethod}</p>
-                  <p>Issued: {new Date(receipt.issuedAt).toLocaleString()}</p>
+                  <p>Payment Method: {receipt.paymentMethod || receipt.booking?.paymentMethod || 'Credit Card'}</p>
+                  <p>Issued: {receipt.issuedAt ? new Date(receipt.issuedAt).toLocaleString() : new Date().toLocaleString()}</p>
                 </div>
                 </div>
               )}
