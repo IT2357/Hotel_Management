@@ -324,108 +324,110 @@ export default function MyBookings() {
           </Card>
         ) : (
           /* Bookings List */
-          <div className="space-y-6">
+          <div className="space-y-4">
             {filteredBookings.map((booking) => (
-              <Card key={booking._id || booking.id} className="overflow-visible h-auto">
-                <div className="md:flex">
+              <Card key={booking._id || booking.id} className="overflow-hidden h-72 shadow-lg hover:shadow-xl transition-shadow duration-300 border-0 bg-white rounded-xl">
+                <div className="md:flex h-full">
                   {/* Image */}
-                  <div className="md:w-1/3 h-40 md:h-auto">
+                  <div className="md:w-1/3 h-36 md:h-72 relative overflow-hidden">
                     <img
                       src={booking.roomId?.images?.[0]?.url || booking.room?.images?.[0]?.url || `https://source.unsplash.com/600x400?hotel,room,${booking.roomTitle?.replace(/\s+/g, ',')}`}
                       alt={booking.roomTitle || booking.roomId?.title || 'Hotel Room'}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                   </div>
 
                   {/* Content */}
-                  <div className="p-6 md:w-2/3 flex flex-col justify-between min-h-full">
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 md:w-2/3 flex flex-col bg-gradient-to-br from-white to-gray-50 h-full md:h-72 overflow-y-auto">
+                    <div className="flex-1 min-h-0">
+                      <div className="flex justify-between items-start mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-semibold text-gray-800 mb-1 truncate">
+                          <h3 className="text-base font-bold text-gray-900 mb-1 truncate">
                             {booking.roomTitle}
                           </h3>
-                          <p className="text-gray-600 text-sm">
+                          <p className="text-gray-600 text-xs font-medium">
                             Booking #{booking.bookingNumber}
                           </p>
                         </div>
-                        <div className="flex gap-2 ml-4 flex-shrink-0">
-                          <Badge className={getStatusColor(booking.status)}>
+                        <div className="flex gap-1 ml-2 flex-shrink-0">
+                          <Badge className={`${getStatusColor(booking.status)} text-xs px-2 py-0.5 font-semibold shadow-md`}>
                             {getStatusDisplayText(booking.status)}
                           </Badge>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                        <div key={`checkin-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
-                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                      <div className="grid grid-cols-2 gap-1.5 mb-2">
+                        <div key={`checkin-${booking._id || booking.id}`} className="flex items-center space-x-1 min-w-0 bg-gradient-to-r from-blue-50 to-indigo-50 p-1.5 rounded border border-blue-100">
+                          <Calendar className="h-2.5 w-2.5 text-blue-600 flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800">Check-in</p>
-                            <p className="text-sm text-gray-600 truncate">{formatDate(booking.checkIn)}</p>
+                            <p className="text-xs font-medium text-gray-800">Check-in</p>
+                            <p className="text-xs text-gray-600 truncate">{formatDate(booking.checkIn)}</p>
                           </div>
                         </div>
 
-                        <div key={`checkout-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
-                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        <div key={`checkout-${booking._id || booking.id}`} className="flex items-center space-x-1 min-w-0 bg-gradient-to-r from-purple-50 to-pink-50 p-1.5 rounded border border-purple-100">
+                          <Calendar className="h-2.5 w-2.5 text-purple-600 flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800">Check-out</p>
-                            <p className="text-sm text-gray-600 truncate">{formatDate(booking.checkOut)}</p>
+                            <p className="text-xs font-medium text-gray-800">Check-out</p>
+                            <p className="text-xs text-gray-600 truncate">{formatDate(booking.checkOut)}</p>
                           </div>
                         </div>
 
-                        <div key={`guests-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
-                          <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        <div key={`guests-${booking._id || booking.id}`} className="flex items-center space-x-1 min-w-0 bg-gradient-to-r from-emerald-50 to-green-50 p-1.5 rounded border border-emerald-100">
+                          <Users className="h-2.5 w-2.5 text-emerald-600 flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800">Guests</p>
-                            <p className="text-sm text-gray-600">{booking.guests || booking.guestCount?.adults || 1}</p>
+                            <p className="text-xs font-medium text-gray-800">Guests</p>
+                            <p className="text-xs text-gray-600">{booking.guests || booking.guestCount?.adults || 1}</p>
                           </div>
                         </div>
 
-                        <div key={`room-${booking._id || booking.id}`} className="flex items-center space-x-2 min-w-0">
-                          <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        <div key={`room-${booking._id || booking.id}`} className="flex items-center space-x-1 min-w-0 bg-gradient-to-r from-orange-50 to-amber-50 p-1.5 rounded border border-orange-100">
+                          <MapPin className="h-2.5 w-2.5 text-orange-600 flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800">Room</p>
-                            <p className="text-sm text-gray-600 truncate">{booking.roomNumber || booking?.roomId?.roomNumber || 'N/A'}</p>
+                            <p className="text-xs font-medium text-gray-800">Room</p>
+                            <p className="text-xs text-gray-600 truncate">{booking.roomNumber || booking?.roomId?.roomNumber || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-auto">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center space-x-4">
-                          <div key={`total-${booking._id || booking.id}`}>
-                            <p className="text-sm text-gray-600">
+                    {/* Bottom Section - Price & Actions */}
+                    <div className="mt-auto bg-gradient-to-r from-gray-50 to-white p-2 rounded border-t border-gray-200">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <div className="flex items-center space-x-2">
+                          <div key={`total-${booking._id || booking.id}`} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2 py-1.5 rounded shadow-md">
+                            <p className="text-xs font-medium">
                               {booking.status === 'Completed' || booking.status === 'Confirmed'
                                 ? 'Total Paid'
                                 : booking.paymentMethod === 'cash' && (booking.status === 'Approved - Payment Pending' || booking.status === 'Pending Approval')
-                                  ? 'Amount Due (Pay at Hotel)'
+                                  ? 'Pay at Hotel'
                                   : 'Total Amount'}
                             </p>
-                            <p className="text-lg font-semibold text-gray-800">
+                            <p className="text-xs font-bold">
                               {formatPrice(
                                 (booking?.costBreakdown?.total ?? booking?.totalPrice ?? 0)
                               )}
                             </p>
                           </div>
-                          <div key={`nights-${booking._id || booking.id}`}>
-                            <p className="text-sm text-gray-600">Nights</p>
-                            <p className="text-sm font-medium text-gray-800">
+                          <div key={`nights-${booking._id || booking.id}`} className="bg-white px-2 py-1.5 rounded border border-gray-200 shadow-sm">
+                            <p className="text-xs font-medium text-gray-600">Nights</p>
+                            <p className="text-xs font-semibold text-gray-800">
                               {booking.costBreakdown?.nights || getNights(booking.checkIn, booking.checkOut)}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-2 flex-shrink-0">
+                        <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                           {(booking.status === 'Confirmed' || booking.status === 'Completed') && (
                             <Button 
                               key={`receipt-${booking._id || booking.id}`} 
                               variant="default" 
                               size="sm"
                               onClick={() => window.location.href = '/guest/receipts'}
-                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0"
+                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 text-xs px-2 py-1 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
                             >
-                              <Download className="h-4 w-4 mr-2" />
+                              <Download className="h-3 w-3 mr-1" />
                               Receipt
                             </Button>
                           )}
@@ -435,10 +437,10 @@ export default function MyBookings() {
                               variant="default"
                               size="sm"
                               onClick={() => openRefundModal(booking)}
-                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0"
+                              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-0 text-xs px-2 py-1 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
                             >
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Request Refund
+                              <CreditCard className="h-3 w-3 mr-1" />
+                              Refund
                             </Button>
                           )}
                           {booking.status === 'Pending Approval' ||
@@ -448,7 +450,7 @@ export default function MyBookings() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleCancelBooking(booking._id || booking.id)}
-                              className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0"
+                              className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-0 text-xs px-2 py-1 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
                             >
                               Cancel
                             </Button>
@@ -456,51 +458,29 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      {booking.specialRequests && (
-                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200 p-3 rounded-lg">
-                          <p className="text-sm font-medium text-gray-800 mb-1">
-                            Special Requests:
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {booking.specialRequests}
-                          </p>
-                        </div>
-                      )}
-
-                      {booking.status === 'Pending Approval' && (
-                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-yellow-800" />
-                            <p className="text-sm text-yellow-800">
-                              Your booking is pending approval from our team. We'll notify you once it's confirmed.
-                            </p>
+                      
+                      {/* Special Requests & Status Messages */}
+                      <div className="space-y-1 mt-1">
+                        {booking.specialRequests && (
+                          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200 p-1.5 rounded text-xs shadow-sm">
+                            <p className="font-medium text-gray-800 mb-0.5">Special Requests:</p>
+                            <p className="text-gray-700 line-clamp-1 truncate">{booking.specialRequests}</p>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {booking.status === 'On Hold' && (
-                        <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-orange-800" />
-                            <p className="text-sm text-orange-800">
-                              Your booking is currently on hold. Please check back later or contact our team for updates.
-                            </p>
+                        {(booking.status === 'Pending Approval' || booking.status === 'On Hold' || booking.status === 'Approved - Payment Processing') && (
+                          <div className="p-1.5 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded text-xs shadow-sm">
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-2.5 w-2.5 text-amber-600" />
+                              <p className="text-amber-800 font-medium truncate">
+                                {booking.status === 'Pending Approval' && 'Awaiting approval'}
+                                {booking.status === 'On Hold' && 'Booking on hold'}
+                                {booking.status === 'Approved - Payment Processing' && 'Payment processing'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {booking.status === 'Approved - Payment Processing' && (
-                        <div className="mt-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-blue-800" />
-                            <p className="text-sm text-gray-800">
-                              Your booking is approved and payment is being processed. We'll notify you once payment is confirmed.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {null}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

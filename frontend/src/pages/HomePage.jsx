@@ -1139,12 +1139,12 @@ export default function HomePage() {
                         )}
                       </div>
                     )}
-                    <Link
+                    {/* <Link
                       to="/booking"
                       className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-2 px-4 rounded-lg font-medium hover:shadow-lg transition-all duration-300 text-center block"
                     >
                       Book Now
-                    </Link>
+                    </Link> */}
                   </div>
                 </motion.div>
               ))
