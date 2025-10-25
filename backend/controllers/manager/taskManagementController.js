@@ -1,284 +1,28 @@
-import mongoose from "mongoose";
+/**
+ * Task Management Controller
+ * Handles all task-related operations for managers
+ */
+
 import { User } from "../../models/User.js";
-import StaffProfile from "../../models/profiles/StaffProfile.js";
 import StaffNotification from "../../models/StaffNotification.js";
 import StaffTask from "../../models/StaffTask.js";
 import { getIO } from "../../utils/socket.js";
-
-// Normalize incoming status values to StaffTask schema
-// Note: "pending" returns as "Pending" (capital P) for frontend compatibility
-const STATUS_MAP = {
-  pending: "Pending", // ✅ Capital P for frontend
-  queued: "Pending",  // ✅ Capital P for frontend
-  assigned: "assigned",
-  inprogress: "in_progress",
-  "in-progress": "in_progress",
-  "in_progress": "in_progress",
-  active: "in_progress",
-  completed: "completed",
-  done: "completed",
-  finished: "completed",
-  cancelled: "cancelled",
-  canceled: "cancelled",
-};
-
-// Normalize incoming priority values to StaffTask (lowercase)
-const PRIORITY_MAP = {
-  low: "low",
-  normal: "medium",
-  medium: "medium",
-  moderate: "medium",
-  high: "high",
-  urgent: "urgent",
-  critical: "urgent",
-};
-
-// Map various inputs to StaffTask department enum
-// StaffTask departments: ["Housekeeping", "Kitchen", "Maintenance", "Service"]
-const DEPARTMENT_MAP = {
-  housekeeping: "Housekeeping",
-  cleaning: "Housekeeping",
-  "cleaning staff": "Housekeeping",
-  kitchen: "Kitchen",
-  food: "Kitchen",
-  "kitchen staff": "Kitchen",
-  maintenance: "Maintenance",
-  engineering: "Maintenance",
-  service: "Service",
-  services: "Service",
-  "guest services": "Service",
-  concierge: "Service",
-  "room service": "Service",
-  "front desk": "Service",
-  reception: "Service",
-};
-
-// Map to StaffTask category enum
-const CATEGORY_ALLOWED = new Set([
-  "electrical",
-  "plumbing",
-  "hvac",
-  "appliance",
-  "structural",
-  "general",
-  "food_preparation",
-  "cooking",
-  "cleaning",
-  "inventory",
-  "equipment",
-  "guest_request",
-  "room_service",
-  "concierge",
-  "transportation",
-  "event",
-  "laundry",
-  "restocking",
-  "inspection",
-  "deep_cleaning",
-]);
-
-const ALLOWED_SORT_FIELDS = new Set(["createdAt", "dueDate", "priority", "status"]);
-
-const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(String(value));
-
-const toTitleCase = (value = "") =>
-  String(value)
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-
-const normalizeDepartment = (value) => {
-  if (!value) return "Service";
-  const normalized = String(value).trim().toLowerCase();
-  if (DEPARTMENT_MAP[normalized]) return DEPARTMENT_MAP[normalized];
-  // If already one of StaffTask enums, keep
-  const maybe = toTitleCase(value);
-  return ["Housekeeping", "Kitchen", "Maintenance", "Service"].includes(maybe)
-    ? maybe
-    : "Service";
-};
-
-const inferCategoryFromDepartment = (department) => {
-  const normalized = String(department).trim().toLowerCase();
-  if (normalized === "kitchen") return "food_preparation";
-  if (normalized === "housekeeping" || normalized === "cleaning") return "cleaning";
-  if (normalized === "maintenance") return "general";
-  return "guest_request";
-};
-
-const normalizeCategory = (value, department) => {
-  if (!value) return inferCategoryFromDepartment(department || "");
-  const normalized = String(value).trim().toLowerCase().replace(/[-\s]+/g, "_");
-  return CATEGORY_ALLOWED.has(normalized) ? normalized : inferCategoryFromDepartment(department || "");
-};
-
-const normalizePriority = (value) => {
-  if (!value) return "medium";
-  const normalized = String(value).trim().toLowerCase();
-  return PRIORITY_MAP[normalized] || "medium";
-};
-
-const normalizeStatus = (value) => {
-  if (!value) return "Pending"; // ✅ Capital P for frontend
-  const normalized = String(value).trim().toLowerCase();
-  return STATUS_MAP[normalized] || "Pending"; // Default to "Pending" with capital P
-};
-
-const parseDate = (value) => {
-  if (!value) return undefined;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
-
-const extractUserId = (user) => user?._id || user?.id || user?.userId;
-
-// AI-powered staff recommendation system
-const computeStaffRecommendations = async (task) => {
-  try {
-    // If already assigned, return the assigned staff as the top recommendation
-    if (task.assignedTo && task.assignedTo._id) {
-      return [
-        {
-          name: task.assignedTo.name || "Assigned Staff",
-          staffId: String(task.assignedTo._id),
-          role: task.assignedTo.role || task.department || "Staff Member",
-          match: 100,
-          email: task.assignedTo.email,
-        },
-      ];
-    }
-
-    // Find staff members from the same department
-    const department = task.department;
-    const lookupKey = String(department).toLowerCase();
-    const profileDepartments = STAFF_PROFILE_DEPARTMENT_MAP[lookupKey] || [department];
-
-    // Get staff profiles for this department
-    const staffProfiles = await StaffProfile.find({
-      department: { $in: profileDepartments },
-      isActive: true,
-    })
-      .populate("userId", "name email role phone isActive")
-      .lean();
-
-    let availableStaff = staffProfiles
-      .filter((profile) => profile.userId && profile.userId.role === "staff" && profile.userId.isActive !== false)
-      .map((profile) => ({
-        staffId: String(profile.userId._id),
-        name: profile.userId.name,
-        email: profile.userId.email,
-        phone: profile.userId.phone || undefined,
-        role: profile.position || profile.department,
-        department: profile.department,
-      }));
-
-    // Fallback: if no profiles found, get all active staff
-    if (availableStaff.length === 0) {
-      const fallbackUsers = await User.find({ role: "staff", isActive: true })
-        .select("name email phone")
-        .lean();
-
-      availableStaff = fallbackUsers.map((user) => ({
-        staffId: String(user._id),
-        name: user.name,
-        email: user.email,
-        phone: user.phone || undefined,
-        role: toTitleCase(profileDepartments[0] || department || "Staff Member"),
-        department: profileDepartments[0] || toTitleCase(department),
-      }));
-    }
-
-    // If still no staff found, return empty array
-    if (availableStaff.length === 0) {
-      return [];
-    }
-
-    // Calculate match scores based on workload and priority
-    const staffWithScores = await Promise.all(
-      availableStaff.map(async (staff) => {
-        // Get current workload for this staff member
-        const activeTasksCount = await StaffTask.countDocuments({
-          assignedTo: staff.staffId,
-          status: { $in: ["pending", "assigned", "in_progress"] },
-        });
-
-        // Calculate match score (0-100)
-        // Lower workload = higher match score
-        let matchScore = 95 - activeTasksCount * 5; // Decrease score by 5 for each active task
-        matchScore = Math.max(60, Math.min(99, matchScore)); // Keep between 60-99
-
-        // Boost score for urgent/high priority tasks
-        if (task.priority === "urgent" || task.priority === "high") {
-          matchScore = Math.min(99, matchScore + 5);
-        }
-
-        return {
-          ...staff,
-          match: matchScore,
-          currentWorkload: activeTasksCount,
-        };
-      })
-    );
-
-    // Sort by match score (highest first)
-    staffWithScores.sort((a, b) => b.match - a.match);
-
-    // Return top 3 recommendations
-    return staffWithScores.slice(0, 3);
-  } catch (error) {
-    console.error("computeStaffRecommendations error:", error);
-    return [];
-  }
-};
-
-const formatAssignmentHistory = (history) =>
-  (history || []).map((entry) => ({
-    assignedTo: entry.assignedTo ? String(entry.assignedTo) : undefined,
-    assignedName: entry.assignedName || "",
-    assignedAt: entry.assignedAt,
-    assignedBy: entry.assignedBy ? String(entry.assignedBy) : undefined,
-    notes: entry.notes,
-  }));
-
-const buildTaskResponse = async (taskDoc) => {
-  if (!taskDoc) return null;
-  const task = taskDoc.toObject ? taskDoc.toObject({ virtuals: true }) : taskDoc;
-
-  const assigned = task.assignedTo
-    ? {
-        _id: task.assignedTo._id ? String(task.assignedTo._id) : String(task.assignedTo),
-        name: task.assignedTo.name || task.assignedTo.fullName || "",
-        email: task.assignedTo.email,
-        role: task.assignedTo.role,
-      }
-    : null;
-
-  // Get AI-powered staff recommendations
-  const recommendedStaff = await computeStaffRecommendations({ ...task, assignedTo: assigned });
-
-  return {
-    _id: String(task._id),
-    title: task.title,
-    description: task.description || "",
-    department: task.department,
-    type: task.category || "general",
-    priority: task.priority,
-    status: task.status,
-    location: task.location,
-    roomNumber: task.roomNumber,
-    dueDate: task.dueDate,
-    estimatedDuration: task.estimatedDuration,
-    tags: task.tags || [],
-    recommendedStaff,
-    aiRecommendationScore: recommendedStaff[0]?.match || undefined,
-    assignedTo: assigned,
-    assignmentHistory: formatAssignmentHistory(task.assignmentHistory),
-    notes: Array.isArray(task.notes)
-      ? { manager: task.notes.map(n => n.content).join("\n") }
-      : task.notes || {},
-    createdAt: task.createdAt,
-    updatedAt: task.updatedAt,
-  };
-};
+import { ALLOWED_SORT_FIELDS } from "./taskConstants.js";
+import {
+  isValidObjectId,
+  normalizeDepartment,
+  normalizeCategory,
+  normalizePriority,
+  normalizeStatus,
+  parseDate,
+  extractUserId,
+  sanitizePagination,
+} from "./taskUtils.js";
+import {
+  computeStaffRecommendations,
+  buildTaskResponse,
+  getStaffByDepartment,
+} from "./taskRecommendations.js";
 
 export const getAllTasks = async (req, res) => {
   try {
@@ -293,33 +37,12 @@ export const getAllTasks = async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    const filters = {};
+    // Build filters using utility function
+    const { buildTaskFilters } = await import("./taskUtils.js");
+    const filters = buildTaskFilters({ status, department, priority, search });
 
-    if (status) {
-      filters.status = normalizeStatus(status);
-    }
-
-    if (department) {
-      filters.department = normalizeDepartment(department);
-    }
-
-    if (priority) {
-      filters.priority = normalizePriority(priority);
-    }
-
-    if (search) {
-      const regex = new RegExp(String(search).trim(), "i");
-      filters.$or = [
-        { title: regex },
-        { description: regex },
-        { location: regex },
-        { roomNumber: regex },
-      ];
-    }
-
-    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-    const safePage = Math.max(parseInt(page, 10) || 1, 1);
-
+    // Sanitize pagination and sort parameters
+    const { safeLimit, safePage } = sanitizePagination(page, limit);
     const sortField = ALLOWED_SORT_FIELDS.has(sortBy) ? sortBy : "createdAt";
     const sortDirection = String(sortOrder).toLowerCase() === "asc" ? 1 : -1;
 
@@ -336,7 +59,7 @@ export const getAllTasks = async (req, res) => {
       StaffTask.countDocuments(filters),
     ]);
 
-    // Build task responses with AI recommendations (async)
+    // Build task responses with AI recommendations
     const tasksWithRecommendations = await Promise.all(tasks.map(buildTaskResponse));
 
     res.status(200).json({
@@ -761,49 +484,10 @@ export const getAllStaff = async (req, res) => {
   }
 };
 
-const STAFF_PROFILE_DEPARTMENT_MAP = {
-  cleaning: ["Housekeeping", "Cleaning"],
-  maintenance: ["Maintenance"],
-  service: ["Service", "Guest Services", "Concierge"],
-  kitchen: ["Kitchen", "Food"],
-};
-
 export const getAvailableStaff = async (req, res) => {
   try {
     const department = normalizeDepartment(req.params.department);
-    const lookupKey = String(department).toLowerCase();
-    const profileDepartments = STAFF_PROFILE_DEPARTMENT_MAP[lookupKey] || [department];
-
-    const staffProfiles = await StaffProfile.find({ department: { $in: profileDepartments }, isActive: true })
-      .populate("userId", "name email role phone isActive")
-      .lean();
-
-    let staff = staffProfiles
-      .filter((profile) => profile.userId && profile.userId.role === "staff" && profile.userId.isActive !== false)
-      .map((profile) => ({
-        staffId: String(profile.userId._id),
-        name: profile.userId.name,
-        email: profile.userId.email,
-        phone: profile.userId.phone || undefined,
-        role: profile.position,
-        department: profile.department,
-      }));
-
-    if (staff.length === 0) {
-      const fallbackUsers = await User.find({ role: "staff", isActive: true })
-        .select("name email phone")
-        .lean();
-
-      staff = fallbackUsers.map((user) => ({
-        staffId: String(user._id),
-        name: user.name,
-        email: user.email,
-        phone: user.phone || undefined,
-        role: toTitleCase(profileDepartments[0] || department || "Staff Member"),
-        department: profileDepartments[0] || toTitleCase(department),
-      }));
-    }
-
+    const staff = await getStaffByDepartment(department);
     res.status(200).json({ success: true, data: staff });
   } catch (error) {
     console.error("manager:getAvailableStaff", error);

@@ -9,6 +9,7 @@ const menuRoutes = {
   dashboard: "/manager",
   tasks: "/manager/tasks",
   staff: "/manager/staff",
+  messaging: "/manager/messaging",
   feedback: "/manager/feedback",
   reports: "/manager/reports",
   profile: "/manager/profile",

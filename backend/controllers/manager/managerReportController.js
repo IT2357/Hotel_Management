@@ -1,171 +1,40 @@
-import Revenue from "../../models/Revenue.js";
-import Expense from "../../models/Expense.js";
-import Booking from "../../models/Booking.js";
-import Room from "../../models/Room.js";
-import StaffTask from "../../models/StaffTask.js";
-import ManagerTask from "../../models/ManagerTask.js";
-import { User } from "../../models/User.js";
+/**
+ * Manager Report Controller
+ * Handles comprehensive report generation for managers
+ */
+
 import { AppError } from "../../services/error/AppError.js";
-
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const PERIOD_UNIT_MAP = {
-  daily: "day",
-  weekly: "week",
-  monthly: "month",
-  quarterly: "quarter",
-  yearly: "year",
-};
-
-const parseDate = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const parseArrayParam = (value) => {
-  if (!value) return [];
-  if (Array.isArray(value)) {
-    return value.filter(Boolean);
-  }
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-  return [];
-};
-
-const resolveDateRange = (startValue, endValue) => {
-  let end = parseDate(endValue) || new Date();
-  let start = parseDate(startValue);
-
-  if (!start) {
-    start = new Date(end);
-    start.setDate(start.getDate() - 29);
-  }
-
-  if (start > end) {
-    const temp = start;
-    start = end;
-    end = temp;
-  }
-
-  if (start.getTime() === end.getTime()) {
-    const adjusted = new Date(start);
-    adjusted.setDate(adjusted.getDate() - 1);
-    start = adjusted;
-  }
-
-  return { start, end };
-};
-
-const calculatePercentageChange = (current, previous) => {
-  if (!Number.isFinite(previous) || previous === 0) {
-    return null;
-  }
-  if (!Number.isFinite(current)) {
-    return null;
-  }
-  return ((current - previous) / Math.abs(previous)) * 100;
-};
-
-const safeNumber = (value) => {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return value;
-};
-
-const round = (value, decimals = 2) => {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-};
-
-const formatLabel = (label) => {
-  if (!label) return "Unknown";
-  return String(label)
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const aggregateTrend = async (Model, match, dateField, period) => {
-  const unit = PERIOD_UNIT_MAP[period] || "month";
-  const dateTrunc = {
-    $dateTrunc: {
-      date: `$${dateField}`,
-      unit,
-    },
-  };
-
-  if (unit === "week") {
-    dateTrunc.$dateTrunc.startOfWeek = "monday";
-  }
-
-  const docs = await Model.aggregate([
-    {
-      $match: {
-        ...match,
-        [dateField]: { $exists: true, $ne: null },
-      },
-    },
-    {
-      $group: {
-        _id: dateTrunc,
-        total: { $sum: "$amount" },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
-
-  return docs
-    .filter((doc) => doc._id)
-    .map((doc) => ({
-      date: doc._id instanceof Date ? doc._id : new Date(doc._id),
-      total: safeNumber(doc.total),
-    }));
-};
-
-const aggregateTaskTrend = async (match, period) => {
-  const unit = PERIOD_UNIT_MAP[period] || "month";
-  const dateTrunc = {
-    $dateTrunc: {
-      date: "$createdAt",
-      unit,
-    },
-  };
-
-  if (unit === "week") {
-    dateTrunc.$dateTrunc.startOfWeek = "monday";
-  }
-
-  const docs = await StaffTask.aggregate([
-    { $match: { ...match, createdAt: { $exists: true, $ne: null } } },
-    {
-      $group: {
-        _id: dateTrunc,
-        assigned: { $sum: 1 },
-        completed: {
-          $sum: {
-            $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
-          },
-        },
-      },
-    },
-    { $sort: { _id: 1 } },
-  ]);
-
-  return docs
-    .filter((doc) => doc._id)
-    .map((doc) => ({
-      date: doc._id instanceof Date ? doc._id : new Date(doc._id),
-      assigned: safeNumber(doc.assigned),
-      completed: safeNumber(doc.completed),
-    }));
-};
+import {
+  DAY_IN_MS,
+  PERIOD_UNIT_MAP,
+  parseArrayParam,
+  resolveDateRange,
+  calculatePercentageChange,
+  safeNumber,
+  round,
+  formatLabel,
+  generateRiskAlerts,
+} from "./reportUtils.js";
+import {
+  aggregateRevenueTrend,
+  aggregateExpenseTrend,
+  aggregateTaskTrend,
+  getStaffCounts,
+  aggregateRevenueSummary,
+  aggregateExpenseSummary,
+  aggregateRevenueBySource,
+  aggregateExpenseByCategory,
+  aggregatePaymentMethods,
+  aggregateDepartmentExpenses,
+  aggregateStaffTaskSummary,
+  aggregateStaffDepartmentPerformance,
+  aggregateTopPerformers,
+  aggregateManagerTaskStatus,
+  aggregateStaffTaskStatus,
+  aggregateOccupancy,
+  getTotalRoomsCount,
+  getOverdueTasksCount,
+} from "./reportAggregations.js";
 
 export const getManagerOverviewReport = async (req, res, next) => {
   try {
@@ -210,10 +79,8 @@ export const getManagerOverviewReport = async (req, res, next) => {
 
     const now = new Date();
 
-    // Get staff counts
-    const totalStaffCount = await User.countDocuments({ role: 'staff' });
-    const activeStaffCount = await User.countDocuments({ role: 'staff', status: 'active' });
-    const onDutyCount = await User.countDocuments({ role: 'staff', status: 'active', isOnline: true });
+    // Get staff counts and execute all aggregations in parallel
+    const { totalStaffCount, activeStaffCount, onDutyCount } = await getStaffCounts();
 
     const [
       revenueSummaryAgg,
@@ -236,265 +103,25 @@ export const getManagerOverviewReport = async (req, res, next) => {
       previousExpenseAgg,
       overdueTasks,
     ] = await Promise.all([
-      Revenue.aggregate([
-        { $match: revenueMatch },
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$amount" },
-            netRevenue: {
-              $sum: {
-                $subtract: ["$amount", { $ifNull: ["$refundAmount", 0] }],
-              },
-            },
-            averageAmount: { $avg: "$amount" },
-          },
-        },
-      ]),
-      Expense.aggregate([
-        { $match: expenseMatch },
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$amount" },
-            averageAmount: { $avg: "$amount" },
-          },
-        },
-      ]),
-      aggregateTrend(Revenue, revenueMatch, "serviceDate", normalizedPeriod),
-      aggregateTrend(Expense, expenseMatch, "paidAt", normalizedPeriod),
-      Revenue.aggregate([
-        { $match: revenueMatch },
-        {
-          $group: {
-            _id: "$source",
-            value: { $sum: "$amount" },
-          },
-        },
-        { $sort: { value: -1 } },
-      ]),
-      Expense.aggregate([
-        { $match: expenseMatch },
-        {
-          $group: {
-            _id: "$category",
-            value: { $sum: "$amount" },
-          },
-        },
-        { $sort: { value: -1 } },
-      ]),
-      Revenue.aggregate([
-        { $match: revenueMatch },
-        {
-          $group: {
-            _id: "$paymentMethod",
-            value: { $sum: "$amount" },
-          },
-        },
-        { $sort: { value: -1 } },
-      ]),
-      Expense.aggregate([
-        { $match: expenseMatch },
-        {
-          $group: {
-            _id: "$department",
-            value: { $sum: "$amount" },
-          },
-        },
-        { $sort: { value: -1 } },
-      ]),
-      StaffTask.aggregate([
-        { $match: staffMatch },
-        {
-          $group: {
-            _id: null,
-            totalTasks: { $sum: 1 },
-            completedTasks: {
-              $sum: {
-                $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
-              },
-            },
-            inProgressTasks: {
-              $sum: {
-                $cond: [{ $eq: ["$status", "in_progress"] }, 1, 0],
-              },
-            },
-            avgCompletionTime: { $avg: "$actualDuration" },
-            avgQualityScore: {
-              $avg: "$performanceMetrics.qualityRating",
-            },
-          },
-        },
-      ]),
-      StaffTask.aggregate([
-        { $match: staffMatch },
-        {
-          $group: {
-            _id: "$department",
-            totalTasks: { $sum: 1 },
-            completedTasks: {
-              $sum: {
-                $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
-              },
-            },
-            avgCompletionTime: { $avg: "$actualDuration" },
-          },
-        },
-        { $sort: { completedTasks: -1 } },
-      ]),
-      StaffTask.aggregate([
-        {
-          $match: {
-            ...staffMatch,
-            assignedTo: { $exists: true, $ne: null },
-          },
-        },
-        {
-          $group: {
-            _id: "$assignedTo",
-            totalTasks: { $sum: 1 },
-            completedTasks: {
-              $sum: {
-                $cond: [{ $eq: ["$status", "completed"] }, 1, 0],
-              },
-            },
-            avgCompletionTime: { $avg: "$actualDuration" },
-            avgQualityScore: {
-              $avg: "$performanceMetrics.qualityRating",
-            },
-          },
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "_id",
-            foreignField: "_id",
-            as: "staff",
-          },
-        },
-        {
-          $project: {
-            staffId: "$_id",
-            totalTasks: 1,
-            completedTasks: 1,
-            avgCompletionTime: 1,
-            avgQualityScore: 1,
-            name: { $arrayElemAt: ["$staff.name", 0] },
-            email: { $arrayElemAt: ["$staff.email", 0] },
-            role: { $arrayElemAt: ["$staff.role", 0] },
-          },
-        },
-        {
-          $addFields: {
-            completionRate: {
-              $cond: [
-                { $gt: ["$totalTasks", 0] },
-                {
-                  $multiply: [
-                    { $divide: ["$completedTasks", "$totalTasks"] },
-                    100,
-                  ],
-                },
-                0,
-              ],
-            },
-          },
-        },
-        { $sort: { completionRate: -1, completedTasks: -1 } },
-        { $limit: 8 },
-      ]),
+      aggregateRevenueSummary(revenueMatch),
+      aggregateExpenseSummary(expenseMatch),
+      aggregateRevenueTrend(revenueMatch, normalizedPeriod),
+      aggregateExpenseTrend(expenseMatch, normalizedPeriod),
+      aggregateRevenueBySource(revenueMatch),
+      aggregateExpenseByCategory(expenseMatch),
+      aggregatePaymentMethods(revenueMatch),
+      aggregateDepartmentExpenses(expenseMatch),
+      aggregateStaffTaskSummary(staffMatch),
+      aggregateStaffDepartmentPerformance(staffMatch),
+      aggregateTopPerformers(staffMatch),
       aggregateTaskTrend(staffMatch, normalizedPeriod),
-      ManagerTask.aggregate([
-        { $match: managerTaskMatch },
-        {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-      ]),
-      StaffTask.aggregate([
-        { $match: staffMatch },
-        {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-      ]),
-      Booking.aggregate([
-        {
-          $match: {
-            status: {
-              $in: [
-                "Approved - Payment Pending",
-                "Approved - Payment Processing",
-                "Confirmed",
-                "Completed",
-              ],
-            },
-            checkIn: { $lte: end },
-            checkOut: { $gte: start },
-            isActive: { $ne: false },
-          },
-        },
-        {
-          $project: {
-            nights: {
-              $max: [
-                1,
-                {
-                  $ceil: {
-                    $divide: [
-                      { $subtract: ["$checkOut", "$checkIn"] },
-                      DAY_IN_MS,
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalNights: { $sum: "$nights" },
-            totalBookings: { $sum: 1 },
-          },
-        },
-      ]),
-      Room.countDocuments({ status: { $ne: "OutOfService" } }),
-      Revenue.aggregate([
-        { $match: previousRevenueMatch },
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$amount" },
-            netRevenue: {
-              $sum: {
-                $subtract: ["$amount", { $ifNull: ["$refundAmount", 0] }],
-              },
-            },
-          },
-        },
-      ]),
-      Expense.aggregate([
-        { $match: previousExpenseMatch },
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$amount" },
-          },
-        },
-      ]),
-      StaffTask.countDocuments({
-        ...departmentFilter,
-        status: { $nin: ["completed", "cancelled"] },
-        dueDate: { $exists: true, $lt: now },
-        createdAt: { $gte: start, $lte: end },
-      }),
+      aggregateManagerTaskStatus(managerTaskMatch),
+      aggregateStaffTaskStatus(staffMatch),
+      aggregateOccupancy(start, end),
+      getTotalRoomsCount(),
+      aggregateRevenueSummary(previousRevenueMatch),
+      aggregateExpenseSummary(previousExpenseMatch),
+      getOverdueTasksCount(departmentFilter, start, end, now),
     ]);
 
     const revenueSummary = revenueSummaryAgg[0] || {};
@@ -635,62 +262,17 @@ export const getManagerOverviewReport = async (req, res, next) => {
       ? Math.min(100, (totalNights / (totalRooms * totalDays)) * 100)
       : 0;
 
-    // Generate risk alerts based on real data
-    const riskAlerts = [];
-    
-    // Alert for overdue tasks
-    if (overdueTasks > 0) {
-      riskAlerts.push({
-        id: `alert-overdue-${Date.now()}`,
-        title: overdueTasks > 5 ? "Critical task backlog" : "Tasks overdue",
-        detail: `${overdueTasks} task${overdueTasks > 1 ? 's' : ''} past due date requiring immediate attention`,
-        severity: overdueTasks > 5 ? "high" : "medium",
-      });
-    }
-    
-    // Alert for low completion rate
-    if (completionRate < 75 && totalStaffTasks > 10) {
-      riskAlerts.push({
-        id: `alert-completion-${Date.now()}`,
-        title: "Low task completion rate",
-        detail: `Overall completion rate at ${Math.round(completionRate)}%, below 75% threshold`,
-        severity: completionRate < 60 ? "high" : "medium",
-      });
-    }
-    
-    // Alert for staff availability
-    if (totalStaffCount > 0 && (onDutyCount / totalStaffCount) < 0.4) {
-      riskAlerts.push({
-        id: `alert-staffing-${Date.now()}`,
-        title: "Low staff availability",
-        detail: `Only ${onDutyCount} out of ${totalStaffCount} staff members currently on duty`,
-        severity: "medium",
-      });
-    }
-    
-    // Alert for department performance issues
-    const underperformingDepts = departmentPerformance.filter(dept => 
-      dept.completionRate < 70 && dept.totalTasks > 5
-    );
-    if (underperformingDepts.length > 0) {
-      const deptNames = underperformingDepts.map(d => d.department).join(", ");
-      riskAlerts.push({
-        id: `alert-dept-${Date.now()}`,
-        title: "Department performance concern",
-        detail: `${deptNames} showing completion rates below 70%`,
-        severity: "medium",
-      });
-    }
-    
-    // Alert for high in-progress tasks
-    if (inProgressTasks > completedStaffTasks && totalStaffTasks > 20) {
-      riskAlerts.push({
-        id: `alert-progress-${Date.now()}`,
-        title: "High work-in-progress",
-        detail: `${inProgressTasks} tasks in progress, may indicate resource bottleneck`,
-        severity: "low",
-      });
-    }
+    // Generate risk alerts based on operational metrics
+    const riskAlerts = generateRiskAlerts({
+      overdueTasks,
+      completionRate,
+      totalStaffTasks,
+      totalStaffCount,
+      onDutyCount,
+      departmentPerformance,
+      inProgressTasks,
+      completedStaffTasks,
+    });
 
     res.json({
       success: true,

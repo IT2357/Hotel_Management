@@ -30,7 +30,7 @@ import {
 import { Button } from "@/components/manager/ManagerButton";
 import { cn } from "@/lib/utils";
 
-const textareaClasses = "min-h-[120px] w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-gray-50";
+const textareaClasses = "min-h-[120px] w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-gray-50";
 
 export const TaskCreateDialog = ({
   open,
@@ -99,14 +99,14 @@ export const TaskCreateDialog = ({
 
   return (
     <ManagerDialog open={open} onOpenChange={onOpenChange}>
-      <ManagerDialogContent className="w-full max-w-3xl border-none bg-gradient-to-br from-white via-cyan-50/30 to-blue-50/30 text-gray-800 shadow-2xl">
-        <ManagerDialogHeader className="border-b-2 border-cyan-100 pb-5 mb-6">
+      <ManagerDialogContent className="w-full max-w-4xl border-none bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/20 text-gray-900 shadow-2xl">
+        <ManagerDialogHeader className="border-b-2 border-indigo-100 pb-6 mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-xl">
               <Plus className="h-6 w-6 text-white" />
             </div>
             <div>
-              <ManagerDialogTitle className="text-2xl font-black text-gray-900 tracking-tight">Create New Task</ManagerDialogTitle>
+              <ManagerDialogTitle className="text-3xl font-black text-gray-900 tracking-tight">Create New Task</ManagerDialogTitle>
               <ManagerDialogDescription className="text-gray-600 font-medium mt-1">
                 Fill in the details to create and assign a task to your team
               </ManagerDialogDescription>
@@ -115,8 +115,8 @@ export const TaskCreateDialog = ({
         </ManagerDialogHeader>
 
         <ManagerForm {...form}>
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="grid gap-5 sm:grid-cols-2">
               <ManagerFormField
                 control={form.control}
                 name="title"
@@ -124,14 +124,14 @@ export const TaskCreateDialog = ({
                 render={({ field }) => (
                   <ManagerFormItem className="sm:col-span-2">
                     <ManagerFormLabel className="text-gray-900 font-bold text-sm flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-cyan-600" />
+                      <FileText className="h-4 w-4 text-indigo-600" />
                       Task Title *
                     </ManagerFormLabel>
                     <ManagerFormControl>
                       <ManagerInput
                         {...field}
                         placeholder="Brief summary, e.g. Deep clean suite 402"
-                        className="border-2 border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-400 h-12 rounded-xl focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 transition-all"
+                        className="border-2 border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 h-12 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                       />
                     </ManagerFormControl>
                     <ManagerFormMessage className="text-red-600 text-xs font-medium" />
@@ -146,7 +146,7 @@ export const TaskCreateDialog = ({
                 render={({ field }) => (
                   <ManagerFormItem>
                     <ManagerFormLabel className="text-gray-900 font-bold text-sm flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-cyan-600" />
+                      <Building2 className="h-4 w-4 text-indigo-600" />
                       Department *
                     </ManagerFormLabel>
                     <ManagerSelect
@@ -157,13 +157,13 @@ export const TaskCreateDialog = ({
                       }}
                     >
                       <ManagerFormControl>
-                        <ManagerSelectTrigger className="border-2 border-gray-200 bg-white text-sm text-gray-800 h-12 rounded-xl focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 transition-all">
+                        <ManagerSelectTrigger className="border-2 border-gray-300 bg-white text-sm text-gray-900 h-12 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all">
                           <ManagerSelectValue placeholder="Choose department" />
                         </ManagerSelectTrigger>
                       </ManagerFormControl>
-                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-800 shadow-xl rounded-xl">
+                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-900 shadow-xl rounded-xl">
                         {departmentOptions.map((option) => (
-                          <ManagerSelectItem key={option.value} value={option.value} className="focus:bg-cyan-50 focus:text-cyan-900 rounded-lg font-medium">
+                          <ManagerSelectItem key={option.value} value={option.value} className="focus:bg-indigo-50 focus:text-indigo-900 rounded-lg font-medium">
                             {option.label}
                           </ManagerSelectItem>
                         ))}
@@ -192,13 +192,13 @@ export const TaskCreateDialog = ({
                       }}
                     >
                       <ManagerFormControl>
-                        <ManagerSelectTrigger className="border-2 border-gray-200 bg-white text-sm text-gray-800 h-12 rounded-xl focus:border-red-400 focus:ring-4 focus:ring-red-100 transition-all">
+                        <ManagerSelectTrigger className="border-2 border-gray-300 bg-white text-sm text-gray-900 h-12 rounded-xl focus:border-rose-500 focus:ring-4 focus:ring-rose-100 transition-all">
                           <ManagerSelectValue placeholder="Select priority" />
                         </ManagerSelectTrigger>
                       </ManagerFormControl>
-                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-800 shadow-xl rounded-xl">
+                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-900 shadow-xl rounded-xl">
                         {priorityOptions.map((option) => (
-                          <ManagerSelectItem key={option.value} value={option.value} className="focus:bg-red-50 focus:text-red-900 rounded-lg font-medium">
+                          <ManagerSelectItem key={option.value} value={option.value} className="focus:bg-rose-50 focus:text-rose-900 rounded-lg font-medium">
                             {option.label}
                           </ManagerSelectItem>
                         ))}
@@ -222,7 +222,7 @@ export const TaskCreateDialog = ({
                       <ManagerInput
                         {...field}
                         type="datetime-local"
-                        className="border-2 border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-400 h-12 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                        className="border-2 border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 h-12 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all"
                       />
                     </ManagerFormControl>
                     <ManagerFormMessage className="text-red-600 text-xs font-medium" />
@@ -236,7 +236,7 @@ export const TaskCreateDialog = ({
                 render={({ field }) => (
                   <ManagerFormItem>
                     <ManagerFormLabel className="text-gray-900 font-bold text-sm flex items-center gap-2">
-                      <Timer className="h-4 w-4 text-orange-600" />
+                      <Timer className="h-4 w-4 text-amber-600" />
                       Estimated Duration (minutes)
                     </ManagerFormLabel>
                     <ManagerFormControl>
@@ -246,7 +246,7 @@ export const TaskCreateDialog = ({
                         min={0}
                         step={5}
                         placeholder="e.g. 45"
-                        className="border-2 border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-400 h-12 rounded-xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all"
+                        className="border-2 border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 h-12 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all"
                       />
                     </ManagerFormControl>
                     <ManagerFormMessage className="text-red-600 text-xs font-medium" />
@@ -261,7 +261,7 @@ export const TaskCreateDialog = ({
                 render={({ field }) => (
                   <ManagerFormItem>
                     <ManagerFormLabel className="text-gray-900 font-bold text-sm flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-green-600" />
+                      <MapPin className="h-4 w-4 text-emerald-600" />
                       Location *
                     </ManagerFormLabel>
                     <ManagerSelect
@@ -272,18 +272,18 @@ export const TaskCreateDialog = ({
                       }}
                     >
                       <ManagerFormControl>
-                        <ManagerSelectTrigger className="border-2 border-gray-200 bg-white text-sm text-gray-800 h-12 rounded-xl focus:border-green-400 focus:ring-4 focus:ring-green-100 transition-all">
+                        <ManagerSelectTrigger className="border-2 border-gray-300 bg-white text-sm text-gray-900 h-12 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all">
                           <ManagerSelectValue placeholder="Select location" />
                         </ManagerSelectTrigger>
                       </ManagerFormControl>
-                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-800 shadow-xl rounded-xl">
-                        <ManagerSelectItem value="room" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Room</ManagerSelectItem>
-                        <ManagerSelectItem value="kitchen" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Kitchen</ManagerSelectItem>
-                        <ManagerSelectItem value="lobby" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Lobby</ManagerSelectItem>
-                        <ManagerSelectItem value="gym" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Gym</ManagerSelectItem>
-                        <ManagerSelectItem value="pool" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Pool</ManagerSelectItem>
-                        <ManagerSelectItem value="parking" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Parking</ManagerSelectItem>
-                        <ManagerSelectItem value="other" className="focus:bg-green-50 focus:text-green-900 rounded-lg font-medium">Other</ManagerSelectItem>
+                      <ManagerSelectContent className="border-2 border-gray-200 bg-white text-gray-900 shadow-xl rounded-xl">
+                        <ManagerSelectItem value="room" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Room</ManagerSelectItem>
+                        <ManagerSelectItem value="kitchen" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Kitchen</ManagerSelectItem>
+                        <ManagerSelectItem value="lobby" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Lobby</ManagerSelectItem>
+                        <ManagerSelectItem value="gym" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Gym</ManagerSelectItem>
+                        <ManagerSelectItem value="pool" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Pool</ManagerSelectItem>
+                        <ManagerSelectItem value="parking" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Parking</ManagerSelectItem>
+                        <ManagerSelectItem value="other" className="focus:bg-emerald-50 focus:text-emerald-900 rounded-lg font-medium">Other</ManagerSelectItem>
                       </ManagerSelectContent>
                     </ManagerSelect>
                     <ManagerFormMessage className="text-red-600 text-xs font-medium" />
@@ -304,7 +304,7 @@ export const TaskCreateDialog = ({
                       <ManagerInput
                         {...field}
                         placeholder="Optional"
-                        className="border-2 border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-400 h-12 rounded-xl focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
+                        className="border-2 border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 h-12 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
                       />
                     </ManagerFormControl>
                     <ManagerFormMessage className="text-red-600 text-xs font-medium" />
@@ -420,12 +420,12 @@ export const TaskCreateDialog = ({
               />
             )}
 
-            <ManagerDialogFooter className="gap-3 pt-6 border-t-2 border-gray-100">
+            <ManagerDialogFooter className="gap-3 pt-7 border-t-2 border-indigo-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                className="border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 px-6 h-12 rounded-xl font-bold transition-all shadow-sm"
+                className="border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-100 hover:border-gray-400 px-8 h-12 rounded-xl font-bold transition-all shadow-sm hover:shadow-md"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -433,7 +433,7 @@ export const TaskCreateDialog = ({
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700 disabled:opacity-70 px-8 h-12 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-70 px-10 h-12 rounded-xl font-bold shadow-lg hover:shadow-2xl transition-all"
               >
                 {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
                 {isSubmitting ? "Creating..." : "Create Task"}

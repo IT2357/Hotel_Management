@@ -38,6 +38,7 @@ import messageRoutes from "./routes/messages.js";
 import managerRoutes from "./routes/managerRoutes.js"; // New manager routes
 import managerTaskRoutes from "./routes/managerTaskRoutes.js"; // Manager task management routes
 import guestFeedbackRoutes from "./routes/manager/guestFeedbackRoutes.js"; // Manager guest feedback routes
+import messagingRoutes from "./routes/manager/messaging.js"; // Manager messaging routes
 import taskManagementRoutes from "./routes/taskManagement.js"; // Task management routes
 import reportsRoutes from "./routes/reports.js"; // Reports routes
 import staffTaskRoutes from "./routes/staffTaskRoutes.js"; // Staff task routes
@@ -271,6 +272,7 @@ const startServer = async () => {
   app.use("/api/manager", managerRoutes); // New manager routes
   app.use("/api/manager/tasks", managerTaskRoutes); // Manager task management routes
   app.use("/api/manager/feedback", guestFeedbackRoutes); // Manager guest feedback routes
+  app.use("/api/manager/messaging", messagingRoutes); // Manager messaging routes
   app.use("/api/task-management", taskManagementRoutes); // Task management routes
   app.use("/api/reports", reportsRoutes); // Reports routes
   app.use("/api/menu/extraction", menuExtractionRoutes); // Menu extraction routes (AI-powered) - MUST be before /api/menu

@@ -55,6 +55,7 @@ import ManagerStaffAnalyticsPage from './pages/manager/ManagerStaffAnalyticsPage
 import ManagerFeedbackPage from './pages/manager/ManagerFeedbackPage.jsx';
 import ManagerProfilePage from './pages/manager/ManagerProfilePage.jsx';
 import ManagerReportsPage from './pages/manager/ManagerReportsPage.jsx';
+import ManagerMessagingPage from './pages/manager/ManagerMessagingPage.jsx';
 import StaffTasks from './pages/staff/StaffTasks.jsx';
 import AdminInvitationPage from './pages/admin/AdminInvitationPage.jsx';
 import AdminNotificationPage from './pages/admin/NotificationManagementPage.jsx';
@@ -576,6 +577,14 @@ const AppContent = () => {
                             element={
                               <ProtectedRoute roles={['manager']}>
                                 <ManagerReportsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/manager/messaging"
+                            element={
+                              <ProtectedRoute roles={['manager']}>
+                                <ManagerMessagingPage />
                               </ProtectedRoute>
                             }
                           />
