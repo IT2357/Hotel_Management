@@ -7,6 +7,7 @@ const permissionSchema = new mongoose.Schema(
       required: true,
       enum: [
         "invitations",
+        "refunds",
         "notification",
         "users",
         "rooms",

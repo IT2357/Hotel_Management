@@ -1,13 +1,53 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import Logo from '../../assets/images/adminLogo.jpg';
 import NotificationDropdown from '../../components/common/NotificationDropdown';
+import SearchResults from '../../components/common/SearchResults';
+import useSearch from '../../hooks/useSearch';
 
 const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
   const [showSearch, setShowSearch] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const searchRef = useRef(null);
   const { logout } = useAuth();
+  const { results, loading, error, search, clearResults } = useSearch();
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    console.log('🔤 Search input changed:', value);
+    setSearchInput(value);
+    if (value.trim()) {
+      console.log('🔍 Calling search with:', value);
+      search(value);
+    } else {
+      console.log('🧹 Clearing search results');
+      clearResults();
+    }
+  };
+
+  // Handle search result click
+  const handleSearchResultClick = () => {
+    setSearchInput('');
+    clearResults();
+    setShowSearch(false);
+  };
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        if (!results.length || !searchInput) {
+          setShowSearch(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [results, searchInput]);
 
   return (
     <header className="bg-white sticky top-0 z-[10] w-full shadow-lg rounded-b-xl">
@@ -36,13 +76,16 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
         </div>
 
         {/* Center: Search */}
-        <div className="flex-1 flex justify-center items-center min-w-0">
-          <form className="hidden sm:block w-full max-w-md">
+        <div className="flex-1 flex justify-center items-center min-w-0 relative" ref={searchRef}>
+          <form className="hidden sm:block w-full max-w-md" onSubmit={(e) => e.preventDefault()}>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 text-gray-800 placeholder-gray-500 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Search users, bookings, rooms..."
+                value={searchInput}
+                onChange={handleSearchChange}
+                onFocus={() => searchInput && setShowSearch(true)}
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 text-gray-800 placeholder-gray-500 border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 focus:ring-1"
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,6 +93,15 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
                 </svg>
               </div>
             </div>
+            {/* Search Results Dropdown */}
+            {searchInput && showSearch && (
+              <SearchResults
+                results={results}
+                loading={loading}
+                error={error}
+                onResultClick={handleSearchResultClick}
+              />
+            )}
           </form>
           <button
             className="sm:hidden p-2 rounded-full text-gray-700 hover:bg-gray-100"
@@ -60,13 +112,27 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen, toggleRef }) => {
             </svg>
           </button>
           {showSearch && (
-            <div className="absolute top-16 left-4 right-4 sm:hidden">
-              <div className="bg-white shadow-xl rounded-xl border-0 p-4">
+            <div className="absolute top-16 left-4 right-4 sm:hidden z-50">
+              <div className="bg-white shadow-xl rounded-xl border border-gray-200 p-4">
                 <input
                   type="text"
-                  placeholder="🔍 Search..."
-                  className="w-full pl-4 pr-4 py-3 rounded-xl border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  placeholder="Search users, bookings, rooms..."
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  className="w-full pl-4 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 focus:ring-1"
                 />
+                {/* Mobile Search Results */}
+                {searchInput && (
+                  <div className="mt-3">
+                    <SearchResults
+                      results={results}
+                      loading={loading}
+                      error={error}
+                      onResultClick={handleSearchResultClick}
+                      maxHeight="max-h-80"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -69,6 +69,16 @@ const adminService = {
   updateRoom: (id, data) => api.put(`/admin/rooms/${id}`, data),
   deleteRoom: (id) => api.delete(`/admin/rooms/${id}`),
 
+  // Search functionality
+  searchUsers: (searchTerm, limit = 10) => 
+    api.get("/admin/users", { params: { search: searchTerm, limit } }),
+  
+  searchBookings: (searchTerm, limit = 10) => 
+    api.get("/admin/bookings", { params: { search: searchTerm, limit } }),
+  
+  searchRooms: (searchTerm, limit = 10) => 
+    api.get("/rooms", { params: { search: searchTerm, limit } }),
+
 };
 
 export default adminService;

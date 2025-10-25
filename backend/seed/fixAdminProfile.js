@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { User } from './models/User.js';
-import AdminProfile from './models/profiles/AdminProfile.js';
+import { User } from '../models/User.js';
+import AdminProfile from '../models/profiles/AdminProfile.js';
 
 async function fixAdminProfile() {
   try {
@@ -27,6 +27,7 @@ async function fixAdminProfile() {
         userId: admin._id,
         permissions: [
           { module: 'invitations', actions: ['create', 'read', 'update', 'delete', 'approve', 'reject', 'export', 'manage'] },
+          { module: 'refunds', actions: ['create', 'read', 'update', 'delete', 'approve', 'reject', 'export', 'manage'] },
           { module: 'notification', actions: ['create', 'read', 'update', 'delete', 'manage'] },
           { module: 'users', actions: ['create', 'read', 'update', 'delete', 'manage'] },
           { module: 'rooms', actions: ['create', 'read', 'update', 'delete', 'manage'] },
