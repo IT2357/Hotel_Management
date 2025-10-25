@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,12 +31,14 @@ import FoodSelect from './FoodSelect';
 import FoodTextarea from './FoodTextarea';
 import OrderConfirmation from './OrderConfirmation';
 import { useCart } from '../../context/CartContext';
+import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'sonner';
 import foodService from '../../services/foodService';
 import { validateField, guestInfoValidation, validateForm as validateFormUtil } from '../../utils/validation';
 
 const Checkout = ({ onClose, onOrderComplete }) => {
   const { items, getTotal, clearCart, getItemCount } = useCart();
+  const { user, isAuthenticated } = useContext(AuthContext);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
@@ -91,6 +93,20 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       }
     }
   }, []);
+
+  // ✅ Pre-fill form with user data if logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('👤 Pre-filling form with user data:', user);
+      setFormData(prev => ({
+        ...prev,
+        firstName: user.name?.split(' ')[0] || prev.firstName,
+        lastName: user.name?.split(' ').slice(1).join(' ') || prev.lastName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone
+      }));
+    }
+  }, [isAuthenticated, user]);
 
   // Save form data to localStorage
   useEffect(() => {
@@ -323,6 +339,8 @@ const Checkout = ({ onClose, onOrderComplete }) => {
 
       // Create order object with FoodOrder schema - matching backend expectations
       const order = {
+        // ✅ Link order to authenticated user if logged in
+        userId: isAuthenticated && user?._id ? user._id : null,
         items: items.map(item => ({
           foodId: item._id,
           name: item.name,
@@ -367,6 +385,7 @@ const Checkout = ({ onClose, onOrderComplete }) => {
       };
 
       console.log('📦 Order object created:', order);
+      console.log('👤 User authenticated:', isAuthenticated, 'User ID:', user?._id);
       
       // Save guest email to localStorage for order tracking
       localStorage.setItem('guestOrderEmail', formData.email);

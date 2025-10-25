@@ -1,15 +1,30 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X, User, LogIn, LogOut, ArrowLeft } from 'lucide-react';
+import { Menu, X, User, LogIn, LogOut, ArrowLeft, Settings, ChevronDown } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import NotificationDropdown from '../../components/common/NotificationDropdown.jsx';
-import EnhancedProfileDropdown from './EnhancedProfileDropdown';
 
 export default function SharedNavbar({ showBackButton = false, backPath = '/' }) {
   const { user, logout } = useContext(AuthContext);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Navigation items for guests (not logged in)
   const guestNavigationItems = [
@@ -95,8 +110,49 @@ export default function SharedNavbar({ showBackButton = false, backPath = '/' })
               <div className="hidden lg:flex items-center space-x-3">
                 {/* Notifications Bell for authenticated users */}
                 <NotificationDropdown />
-                {/* Enhanced Profile Dropdown with Stats */}
-                <EnhancedProfileDropdown user={user} logout={logout} />
+                {/* ✅ Simple Profile Dropdown (Dashboard + Logout Only) */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-indigo-600 transition-colors font-medium rounded-lg hover:bg-indigo-50"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="hidden md:block">{user.name?.split(' ')[0] || 'User'}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {userDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    >
+                      <Link
+                        to="/guest/dashboard"
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        onClick={() => setUserDropdownOpen(false)}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <hr className="my-1 border-gray-200" />
+                      <button
+                        onClick={() => {
+                          logout();
+                          setUserDropdownOpen(false);
+                        }}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
               </div>
             ) : (
               <Link

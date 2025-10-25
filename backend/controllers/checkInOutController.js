@@ -774,7 +774,12 @@ export const completeGuestCheckIn = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('❌ Complete check-in error:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    });
   }
 };
 

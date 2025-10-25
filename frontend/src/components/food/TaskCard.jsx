@@ -348,25 +348,60 @@ const TaskCard = ({ task, index, onAction }) => {
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        {task.status === 'queued' || task.status === 'assigned' ? (
-          <FoodButton
-            onClick={() => onAction(task._id, 'start')}
-            className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-          >
-            <Play className="w-4 h-4 mr-2" />
-            Start Preparation
-          </FoodButton>
-        ) : task.status === 'in-progress' ? (
-          <FoodButton
-            onClick={() => onAction(task._id, 'ready')}
-            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Mark as Ready
-          </FoodButton>
-        ) : null}
+      {/* ✅ Enhanced Action Buttons - Status Management */}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          {task.status === 'pending' && (
+            <FoodButton
+              onClick={() => onAction(task._id, 'preparing')}
+              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Start Preparing
+            </FoodButton>
+          )}
+          
+          {task.status === 'queued' || task.status === 'assigned' ? (
+            <FoodButton
+              onClick={() => onAction(task._id, 'preparing')}
+              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Start Preparation
+            </FoodButton>
+          ) : task.status === 'preparing' || task.status === 'in-progress' ? (
+            <>
+              <FoodButton
+                onClick={() => onAction(task._id, 'ready')}
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-3"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Mark as Ready
+              </FoodButton>
+            </>
+          ) : task.status === 'ready' ? (
+            <FoodButton
+              onClick={() => onAction(task._id, 'completed')}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold py-3"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Mark as Delivered
+            </FoodButton>
+          ) : task.status === 'completed' ? (
+            <div className="flex-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 rounded-lg px-4 py-3 text-center font-semibold border-2 border-green-300">
+              <CheckCircle className="w-5 h-5 inline mr-2" />
+              Order Completed ✓
+            </div>
+          ) : null}
+        </div>
+        
+        {/* Status Info */}
+        <div className="text-xs text-gray-500 text-center">
+          {task.status === 'pending' && '📝 Order received - Click to start preparing'}
+          {(task.status === 'preparing' || task.status === 'in-progress') && '🔥 Currently preparing - Mark ready when done'}
+          {task.status === 'ready' && '✅ Ready for pickup/delivery - Mark when delivered'}
+          {task.status === 'completed' && '🎉 Order successfully delivered!'}
+        </div>
       </div>
 
       {/* Assigned Staff Info */}

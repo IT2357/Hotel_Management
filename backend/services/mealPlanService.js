@@ -2,6 +2,7 @@
 import FoodOrder from '../models/FoodOrder.js';
 import Room from '../models/Room.js';
 import { addDays, format, setHours, setMinutes, differenceInDays } from 'date-fns';
+import { getIO } from '../utils/socket.js';
 
 /**
  * Meal time configurations
@@ -171,6 +172,33 @@ export const createMealPlanOrders = async (booking) => {
         const order = await FoodOrder.create(orderData);
         orders.push(order);
         console.log(`✅ Created meal plan order: ${order._id} for ${meal.mealType} on ${format(meal.date, 'MMM dd')}`);
+        
+        // ✅ Emit Socket.io notification to kitchen staff for today's/overdue meals
+        const isToday = new Date(meal.date).toDateString() === new Date().toDateString();
+        const isPast = new Date(meal.date) < new Date();
+        
+        if (isToday || isPast) {
+          try {
+            const io = getIO();
+            io.emit('newFoodOrder', {
+              orderId: order._id,
+              orderNumber: bookingNumber,
+              orderType: 'meal-plan',
+              mealType: meal.mealType,
+              items: meal.items,
+              totalPrice: order.totalPrice,
+              customerName: orderData.customerDetails.name,
+              priority: 'normal',
+              isPartOfMealPlan: true,
+              roomNumber: room.roomNumber || room.title,
+              scheduledDate: meal.date,
+              timestamp: new Date()
+            });
+            console.log(`📢 Kitchen notified of meal plan order for ${meal.mealType}`);
+          } catch (socketError) {
+            console.error(`⚠️ Failed to send kitchen notification:`, socketError.message);
+          }
+        }
       } catch (error) {
         console.error(`❌ Error creating meal plan order for ${meal.mealType}:`, error.message);
       }

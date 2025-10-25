@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import MyBookings from "./guest/MyBookings";
 import FavoriteRooms from "./guest/FavoriteRooms";
 import MyReviews from "./guest/MyReviews";
+import MyFoodOrders from "./guest/MyFoodOrders";
 
 export default function UserProfile() {
   const { user, logout, setUser } = useContext(AuthContext);
@@ -78,6 +79,7 @@ export default function UserProfile() {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'bookings', label: 'My Bookings', icon: Calendar },
+    { id: 'foodOrders', label: 'Food Orders', icon: Coffee },
     { id: 'favorites', label: 'Favorite Rooms', icon: Heart },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'security', label: 'Security', icon: Shield }
@@ -88,33 +90,33 @@ export default function UserProfile() {
       id: 'bookings', 
       label: 'View My Bookings', 
       icon: Calendar, 
-      path: '/guest/my-bookings',
+      action: () => setActiveTab('bookings'),
       gradient: 'from-blue-500 to-cyan-600',
       description: 'Check your reservation history'
+    },
+    { 
+      id: 'foodOrders', 
+      label: 'Food Orders', 
+      icon: Coffee, 
+      action: () => setActiveTab('foodOrders'),
+      gradient: 'from-orange-500 to-red-600',
+      description: 'Track your food orders'
     },
     { 
       id: 'favorites', 
       label: 'Favorite Rooms', 
       icon: Heart, 
-      path: '/guest/favorite-rooms',
+      action: () => setActiveTab('favorites'),
       gradient: 'from-pink-500 to-rose-600',
       description: 'Your saved room preferences'
     },
     { 
       id: 'reviews', 
-      label: 'My Reviews', 
+      label: 'Room Reviews', 
       icon: Star, 
-      path: '/guest/reviews',
-      gradient: 'from-yellow-500 to-orange-600',
+      action: () => setActiveTab('reviews'),
+      gradient: 'from-yellow-500 to-amber-600',
       description: 'Share your experiences'
-    },
-    { 
-      id: 'settings', 
-      label: 'Settings', 
-      icon: Settings, 
-      action: () => setActiveTab('security'),
-      gradient: 'from-gray-500 to-slate-600',
-      description: 'Account preferences'
     }
   ];
 
@@ -351,6 +353,12 @@ export default function UserProfile() {
             {activeTab === 'bookings' && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                 <MyBookings />
+              </div>
+            )}
+            
+            {activeTab === 'foodOrders' && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                <MyFoodOrders />
               </div>
             )}
             

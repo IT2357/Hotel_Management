@@ -25,7 +25,7 @@ import {
   modifyFoodOrder,
   cancelFoodOrder
 } from "../controllers/food/foodOrderController.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 import { authorizeRoles } from "../middleware/roleAuth.js";
 import { validateMenuItem, validateMenuCategory } from "../middleware/validation.js";
 import { uploadSingle, handleMulterError } from "../middleware/gridfsUpload.js";
@@ -70,20 +70,11 @@ router.post("/process-image", authenticateToken, authorizeRoles(["admin", "manag
 
 // Customer food order routes - MUST come BEFORE parameterized routes
 // Support both authenticated users and guests (with email query param)
-router.get("/orders/customer", (req, res, next) => {
-  // If user is authenticated OR email is provided, proceed
-  if (req.headers.authorization || req.query.email) {
-    return next();
-  }
-  return res.status(401).json({
-    success: false,
-    message: 'Authentication required or email must be provided'
-  });
-}, authenticateToken, getCustomerOrders); // authenticateToken will be skipped if no auth header
+router.get("/orders/customer", optionalAuth, getCustomerOrders);
 router.get("/orders/stats", authenticateToken, authorizeRoles(["admin", "manager"]), getOrderStats);
 
 // Food order routes - Generic parameterized routes AFTER specific ones
-router.post("/orders", createFoodOrder); // Public for customers
+router.post("/orders", optionalAuth, createFoodOrder); // Support both authenticated and guest customers
 router.get("/orders", authenticateToken, authorizeRoles(["admin", "manager"]), getAllFoodOrders);
 router.get("/orders/:id", authenticateToken, getFoodOrder);
 router.put("/orders/:id/status", authenticateToken, updateOrderStatus);

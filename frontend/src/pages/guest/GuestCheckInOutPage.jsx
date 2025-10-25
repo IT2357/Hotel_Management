@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { CheckCircle, X, FileText, Calendar, Key, CreditCard, AlertCircle, Clock, MapPin, User, Upload, Settings, LogOut, Home } from 'lucide-react';
 import useTitle from '../../hooks/useTitle';
 import { useSnackbar } from 'notistack';
 import axios from 'axios';
@@ -930,8 +932,16 @@ const GuestCheckInOutPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading your check-in status...</p>
+        </motion.div>
       </div>
     );
   }
@@ -957,75 +967,132 @@ const GuestCheckInOutPage = () => {
   const safeCheckInStatus = checkInStatus || {};
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Self-Service Check-in/Check-out</h1>
-          <p className="text-gray-600">Manage your hotel stay conveniently</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 py-8 px-4 md:px-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg mb-4">
+            <Key className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+              Self-Service Check-in/Check-out
+            </span>
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Manage your hotel stay conveniently and securely
+          </p>
+        </motion.div>
 
         {recentlyCheckedOut ? (
-          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-            <div className="bg-green-100 p-4 rounded-full inline-flex items-center justify-center mb-4">
-              <svg className="h-12 w-12 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="bg-white rounded-2xl shadow-2xl p-8 text-center"
+          >
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full mb-6 shadow-lg">
+              <CheckCircle className="w-14 h-14 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Check-out Complete</h2>
-            <p className="text-gray-600 mb-4">{recentlyCheckedOut.message}</p>
-            {recentlyCheckedOut.roomNumber && (
-              <p className="text-gray-700 mb-4">
-                Room: {recentlyCheckedOut.roomNumber}
-              </p>
-            )}
-            {recentlyCheckedOut.checkOutTime && (
-              <p className="text-gray-700 mb-6">
-                Check-out Time: {new Date(recentlyCheckedOut.checkOutTime).toLocaleString()}
-              </p>
-            )}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-800">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Check-out Complete!</h2>
+            <p className="text-lg text-gray-600 mb-4">{recentlyCheckedOut.message}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {recentlyCheckedOut.roomNumber && (
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-xl">
+                  <div className="flex items-center justify-center gap-2 text-indigo-700">
+                    <MapPin className="w-5 h-5" />
+                    <span className="font-semibold">Room {recentlyCheckedOut.roomNumber}</span>
+                  </div>
+                </div>
+              )}
+              {recentlyCheckedOut.checkOutTime && (
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-xl">
+                  <div className="flex items-center justify-center gap-2 text-indigo-700">
+                    <Clock className="w-5 h-5" />
+                    <span className="font-semibold">{new Date(recentlyCheckedOut.checkOutTime).toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500 p-6 rounded-xl mb-6">
+              <p className="text-indigo-800 text-lg">
                 Thank you for staying with us! We hope you enjoyed your stay and look forward to welcoming you back soon.
               </p>
             </div>
-            <div className="mt-6">
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={handleGetReceipt}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
+                <FileText className="w-5 h-5" />
                 Download Receipt
               </button>
+              <button
+                onClick={() => navigate('/')}
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-all duration-300"
+              >
+                <Home className="w-5 h-5" />
+                Back to Home
+              </button>
             </div>
-          </div>
+          </motion.div>
         ) : safeCheckInStatus && safeCheckInStatus.status === 'pre_checkin' && safeCheckInStatus.booking?.status === 'Confirmed' && safeCheckInStatus.room ? (
           // Pre-check-in: Show check-in completion form
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-              <div className="text-center mb-6">
-                <div className="mx-auto h-16 w-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">✓</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Check-in</h2>
-                <p className="text-gray-600">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="bg-white rounded-2xl shadow-2xl p-8 mb-6"
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4">
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">Complete Your Check-in</h2>
+                <p className="text-lg text-gray-600">
                   Your booking is confirmed! Please complete the check-in process below.
                 </p>
               </div>
 
-              <div className="space-y-6 max-w-2xl mx-auto">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">Booking Details</h3>
-                  <p className="text-blue-800">
-                    <strong>Booking Number:</strong> {checkInStatus.booking?.bookingNumber || 'Not available'}
-                  </p>
-                  <p className="text-blue-800">
-                    <strong>Status:</strong> {checkInStatus.booking?.status || 'Not available'}
-                  </p>
-                  <p className="text-blue-800">
-                    <strong>Room:</strong> {checkInStatus.room?.roomNumber} ({checkInStatus.room?.type})
-                  </p>
-                  <p className="text-blue-800">
-                    <strong>Check-in Date:</strong> {checkInStatus.booking?.checkIn ? new Date(checkInStatus.booking.checkIn).toLocaleDateString() : 'Not available'}
-                  </p>
-                  <p className="text-blue-800">
-                    <strong>Check-out Date:</strong> {checkInStatus.booking?.checkOut ? new Date(checkInStatus.booking.checkOut).toLocaleDateString() : 'Not available'}
-                  </p>
+              <div className="space-y-6 max-w-3xl mx-auto">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                    <FileText className="w-6 h-6" />
+                    Booking Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-indigo-800">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Booking Number:</span>
+                      <span className="font-semibold">{checkInStatus.booking?.bookingNumber || 'Not available'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Status:</span>
+                      <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm font-semibold">{checkInStatus.booking?.status || 'Not available'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span className="font-medium">Room:</span>
+                      <span className="font-semibold">{checkInStatus.room?.roomNumber} ({checkInStatus.room?.type})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">Check-in:</span>
+                      <span className="font-semibold">{checkInStatus.booking?.checkIn ? new Date(checkInStatus.booking.checkIn).toLocaleDateString() : 'Not available'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 md:col-span-2">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">Check-out:</span>
+                      <span className="font-semibold">{checkInStatus.booking?.checkOut ? new Date(checkInStatus.booking.checkOut).toLocaleDateString() : 'Not available'}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {checkInStatus.booking?.status !== 'Confirmed' && (
@@ -1214,17 +1281,37 @@ const GuestCheckInOutPage = () => {
                     <button
                       onClick={handleCheckIn}
                       disabled={processing || checkInStatus.booking?.status !== 'Confirmed'}
-                      className="px-8 py-3 text-lg font-semibold bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center gap-2 px-10 py-4 text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                     >
-                      {processing ? 'Processing...' : (checkInStatus.booking?.status === 'Confirmed' ? 'Complete Check-in' : 'Awaiting Confirmation')}
+                      {processing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                          Processing...
+                        </>
+                      ) : checkInStatus.booking?.status === 'Confirmed' ? (
+                        <>
+                          <CheckCircle className="w-6 h-6" />
+                          Complete Check-in
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-6 h-6" />
+                          Awaiting Confirmation
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ) : safeCheckInStatus.status === 'checked_in' ? (
             // Checked-in: Show current stay details and service access
-            <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="space-y-6"
+            >
               {/* ⚠️ SECURITY: Show checkout date warning */}
               {safeCheckInStatus.booking && (() => {
                 const validation = validateBookingDates(safeCheckInStatus.booking);
@@ -1239,16 +1326,14 @@ const GuestCheckInOutPage = () => {
                 
                 if (daysRemaining <= 1) {
                   return (
-                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                      <div className="flex">
+                    <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-5 rounded-xl shadow-md">
+                      <div className="flex items-start gap-3">
                         <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <AlertCircle className="h-6 w-6 text-red-600" />
                         </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-semibold text-red-800">Checkout Approaching</p>
-                          <p className="text-sm text-red-700 mt-1">
+                        <div>
+                          <p className="text-base font-bold text-red-800 mb-1">Checkout Approaching</p>
+                          <p className="text-sm text-red-700">
                             You must check out by {checkOutDate.toLocaleDateString()} ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining)
                           </p>
                         </div>
@@ -1257,16 +1342,14 @@ const GuestCheckInOutPage = () => {
                   );
                 } else if (daysRemaining <= 3) {
                   return (
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                      <div className="flex">
+                    <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 p-5 rounded-xl shadow-md">
+                      <div className="flex items-start gap-3">
                         <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <Clock className="h-6 w-6 text-yellow-600" />
                         </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-semibold text-yellow-800">Checkout Soon</p>
-                          <p className="text-sm text-yellow-700 mt-1">
+                        <div>
+                          <p className="text-base font-bold text-yellow-800 mb-1">Checkout Soon</p>
+                          <p className="text-sm text-yellow-700">
                             Checkout date: {checkOutDate.toLocaleDateString()} ({daysRemaining} days remaining)
                           </p>
                         </div>
@@ -1277,130 +1360,204 @@ const GuestCheckInOutPage = () => {
                 return null;
               })()}
               
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                  <div className="mb-4 md:mb-0">
-                    <h2 className="text-xl font-semibold text-green-600 mb-1">Currently Checked In</h2>
-                    <p className="text-gray-600">
-                      Room {safeCheckInStatus.room?.roomNumber || 'N/A'} ({safeCheckInStatus.room?.type || 'N/A'})
-                      {safeCheckInStatus.checkInTime && ` • Checked in ${new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}`}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Key Card: {safeCheckInStatus.keyCardNumber || 'Not assigned'}
-                    </p>
-                    {safeCheckInStatus.booking && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        <strong>Booking:</strong> {safeCheckInStatus.booking.bookingNumber || 'N/A'} | 
-                        <strong> Checkout:</strong> {new Date(safeCheckInStatus.booking.checkOut).toLocaleDateString()}
-                      </p>
-                    )}
+              <div className="bg-white rounded-2xl shadow-2xl p-8">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+                  <div className="flex-1">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full mb-4 shadow-md">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="font-semibold">Currently Checked In</span>
+                    </div>
+                    
+                    <div className="space-y-3 mt-4">
+                      <div className="flex items-center gap-3 text-gray-700">
+                        <div className="w-10 h-10 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                          <MapPin className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Room</p>
+                          <p className="font-bold text-lg">{safeCheckInStatus.room?.roomNumber || 'N/A'} ({safeCheckInStatus.room?.type || 'N/A'})</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 text-gray-700">
+                        <div className="w-10 h-10 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                          <Key className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Key Card</p>
+                          <p className="font-semibold">{safeCheckInStatus.keyCardNumber || 'Not assigned'}</p>
+                        </div>
+                      </div>
+                      
+                      {safeCheckInStatus.checkInTime && (
+                        <div className="flex items-center gap-3 text-gray-700">
+                          <div className="w-10 h-10 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                            <Clock className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Checked in</p>
+                            <p className="font-semibold">{new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {safeCheckInStatus.booking && (
+                        <div className="flex items-center gap-3 text-gray-700">
+                          <div className="w-10 h-10 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Booking</p>
+                            <p className="font-semibold">{safeCheckInStatus.booking.bookingNumber || 'N/A'}</p>
+                            <p className="text-sm text-gray-500">Checkout: {new Date(safeCheckInStatus.booking.checkOut).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
                   <button
                     onClick={() => setShowCheckOutModal(true)}
-                    className="w-full sm:w-auto bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   >
-                    <span className="mr-2">→</span>
+                    <LogOut className="w-5 h-5" />
                     Check Out
                   </button>
                   <button
                     onClick={handleGetReceipt}
-                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   >
-                    <span className="mr-2">📄</span>
+                    <FileText className="w-5 h-5" />
                     Get Receipt
                   </button>
                 </div>
               </div>
 
               {/* Service Request Access */}
-              <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-2xl p-8">
                 <div className="text-center">
-                  <div className="mx-auto h-12 w-12 bg-green-500 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3">💬</div>
-                  <h3 className="text-lg font-semibold mb-2">Guest Services</h3>
-                  <p className="text-gray-600 mb-4">
-                    While you're staying with us, you can request various services and amenities.
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg mb-4">
+                    <Settings className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Guest Services</h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    While you're staying with us, you can request various services and amenities for your convenience.
                   </p>
                   <button 
                     onClick={() => navigate('/guest/services')} 
-                    className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   >
+                    <Settings className="w-5 h-5" />
                     Request Services
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ) : safeCheckInStatus.status === 'checked_out' ? (
             // Checked-out: Show receipt only
-            <div className="bg-white rounded-lg shadow-lg p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-2xl shadow-2xl p-8"
+            >
               <div className="text-center">
-                <div className="mx-auto h-16 w-16 bg-gray-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">✓</div>
-                <h2 className="text-xl font-semibold mb-2">Stay Completed</h2>
-                <p className="text-gray-600 mb-6">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-gray-500 to-gray-600 rounded-2xl shadow-lg mb-4">
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">Stay Completed</h2>
+                <p className="text-lg text-gray-600 mb-6 max-w-md mx-auto">
                   Your stay has been completed. Thank you for choosing our hotel!
                 </p>
-                <button onClick={handleGetReceipt} className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-                  <span className="mr-2">↓</span>
+                <button 
+                  onClick={handleGetReceipt} 
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  <FileText className="w-5 h-5" />
                   View Final Receipt
                 </button>
               </div>
-            </div>
+            </motion.div>
           ) : (
             // No check-in record found - show booking lookup
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-white rounded-2xl shadow-2xl p-8"
+          >
             <div className="text-center">
-              <div className="mx-auto h-16 w-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4">→</div>
-              <h2 className="text-xl font-semibold mb-2">Find Your Booking</h2>
-              <p className="text-gray-600 mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl shadow-lg mb-4">
+                <Key className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Find Your Booking</h2>
+              <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
                 Enter your booking ID to start the check-in process or view your stay status.
               </p>
 
               {eligibleBookings.length > 0 && (
-                <div className="text-left bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
-                  <h3 className="font-semibold text-blue-900 mb-2">Your Confirmed Bookings</h3>
-                  <ul className="space-y-3">
+                <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-6 h-6" />
+                    Your Confirmed Bookings
+                  </h3>
+                  <div className="space-y-3">
                     {eligibleBookings.map(b => (
-                      <li key={b.id} className="bg-white rounded border p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <div className="text-sm">
-                          <div className="font-medium">{b.bookingNumber}</div>
-                          <div className="text-gray-600">Room: {b.room?.number || 'N/A'} ({b.room?.type || 'N/A'})</div>
-                          <div className="text-gray-600">{new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()}</div>
-                          <div className="text-green-700">Status: {b.status}</div>
+                      <div key={b.id} className="bg-white rounded-xl border-2 border-indigo-200 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:shadow-lg transition-shadow duration-300">
+                        <div className="flex-1">
+                          <div className="font-bold text-lg text-gray-900 mb-1">{b.bookingNumber}</div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                            <MapPin className="w-4 h-4 text-indigo-600" />
+                            <span>Room: {b.room?.number || 'N/A'} ({b.room?.type || 'N/A'})</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                            <Calendar className="w-4 h-4 text-indigo-600" />
+                            <span>{new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()}</span>
+                          </div>
+                          <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded-full text-sm font-semibold mt-2">
+                            <CheckCircle className="w-4 h-4" />
+                            {b.status}
+                          </div>
                         </div>
                         <div>
                           <button
                             onClick={() => { setCheckInData({ ...checkInData, bookingId: b.id }); setShowCheckInModal(true); }}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           >
+                            <Key className="w-5 h-5" />
                             Select & Continue
                           </button>
                         </div>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
-              <div className="max-w-md mx-auto">
-                <input
-                  type="text"
-                  placeholder="Enter your booking ID"
-                  value={checkInData.bookingId}
-                  onChange={(e) => setCheckInData({ ...checkInData, bookingId: e.target.value })}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-4"
-                />
+              <div className="max-w-lg mx-auto">
+                <div className="relative mb-6">
+                  <input
+                    type="text"
+                    placeholder="Enter your booking ID"
+                    value={checkInData.bookingId}
+                    onChange={(e) => setCheckInData({ ...checkInData, bookingId: e.target.value })}
+                    className="block w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
+                  />
+                  <FileText className="absolute right-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
+                </div>
                 <button 
                   onClick={() => setShowCheckInModal(true)} 
                   disabled={!checkInData.bookingId.trim() || eligibleBookings.length === 0}
-                  className="w-full px-6 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                 >
+                  <Key className="w-6 h-6" />
                   Start Check-in Process
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Check-in Modal */}
@@ -1570,19 +1727,30 @@ const GuestCheckInOutPage = () => {
                   />
                   </div>
                 </div>
-              <div className="pt-4 border-t flex justify-end gap-3">
+              <div className="pt-6 border-t flex flex-col sm:flex-row justify-end gap-3">
             <button 
-              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all duration-300"
               onClick={() => setShowCheckInModal(false)}
             >
+              <X className="w-5 h-5" />
               Cancel
             </button>
             <button 
               onClick={handleCheckIn} 
               disabled={processing || eligibleBookings.length === 0}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
             >
-              {processing ? 'Processing...' : 'Complete Check-in'}
+              {processing ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Complete Check-in
+                </>
+              )}
             </button>
           </div>
           </div>
@@ -1652,20 +1820,31 @@ const GuestCheckInOutPage = () => {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-                <div className="pt-4 border-t flex justify-end gap-3">
+                <div className="pt-6 border-t flex flex-col sm:flex-row justify-end gap-3">
                 <button 
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all duration-300"
                   onClick={() => setShowCheckOutModal(false)}
                 >
+                  <X className="w-5 h-5" />
                   Cancel
                 </button>
                 <button 
                   onClick={handleCheckOut} 
                   disabled={processing || (safeCheckInStatus?.overstay?.paymentStatus === 'pending_approval')}
                   title={safeCheckInStatus?.overstay?.paymentStatus === 'pending_approval' ? 'Cannot checkout: Awaiting admin approval for overstay payment' : ''}
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                 >
-                  {processing ? 'Processing...' : 'Confirm Check-out'}
+                  {processing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-5 h-5" />
+                      Confirm Check-out
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1806,18 +1985,19 @@ const GuestCheckInOutPage = () => {
                 </div>
                 </div>
               )}
-            <div className="pt-4 border-t flex justify-end gap-3">
+            <div className="pt-6 border-t flex flex-col sm:flex-row justify-end gap-3">
               <button 
-                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all duration-300"
                 onClick={() => setShowReceiptModal(false)}
               >
+                <X className="w-5 h-5" />
                 Close
               </button>
               <button 
                 onClick={downloadReceipt} 
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
-                <span className="mr-2">↓</span>
+                <FileText className="w-5 h-5" />
                 Download Receipt
               </button>
             </div>

@@ -99,13 +99,16 @@ const KitchenQueueView = ({ staffId, userRole }) => {
     };
   }, [staffId, userRole]);
 
-  // Fetch kitchen queue
+  // Fetch kitchen queue - fetch ALL food orders, not just task queue
   const fetchKitchenQueue = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      
+      // ✅ Fetch directly from food orders endpoint to show ALL orders
+      // This includes pending orders that haven't been confirmed yet
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/food/workflow/kitchen-queue`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/kitchen/orders?status=${filterStatus || 'all'}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -114,13 +117,37 @@ const KitchenQueueView = ({ staffId, userRole }) => {
       );
 
       const result = await response.json();
+      
+      console.log('🍳 Kitchen orders fetched:', result);
 
       if (result.success) {
-        setTasks(result.data || []);
-        calculateStats(result.data || []);
+        // Transform FoodOrder data to match the task queue format for display
+        const orders = (result.data || []).map(order => ({
+          _id: order._id,
+          orderId: order._id,
+          orderNumber: order.orderNumber || order._id.slice(-6),
+          status: order.status || order.kitchenStatus || 'pending',
+          priority: order.orderType === 'room-service' ? 'urgent' : 'normal',
+          isRoomService: order.orderType === 'room-service',
+          createdAt: order.createdAt,
+          items: order.items || [],
+          orderType: order.orderType,
+          totalPrice: order.totalPrice || order.total,
+          customerName: order.customerDetails?.customerName || 
+                       `${order.guest?.firstName || ''} ${order.guest?.lastName || ''}`.trim() ||
+                       'Guest',
+          tableNumber: order.tableNumber,
+          // Include full order object for detailed view
+          fullOrder: order
+        }));
+        
+        console.log('🍳 Transformed orders:', orders);
+        setTasks(orders);
+        calculateStats(orders);
       }
     } catch (error) {
       console.error('Error fetching kitchen queue:', error);
+      console.error('Error details:', error.message);
     } finally {
       setLoading(false);
     }
@@ -175,46 +202,59 @@ const KitchenQueueView = ({ staffId, userRole }) => {
     }, 5000);
   };
 
-  // Handle task action (start, complete, etc.)
+  // ✅ Enhanced task action handler - supports preparing, ready, completed
   const handleTaskAction = async (taskId, action, data = {}) => {
     try {
       const token = localStorage.getItem('token');
       const task = tasks.find(t => t._id === taskId);
 
-      if (!task) return;
+      if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+
+      console.log('🔧 Handling action:', action, 'for order:', task.orderId || task._id);
 
       let endpoint = '';
       let method = 'PUT';
       let body = {};
+      
+      // Use the order ID (task.orderId or task._id if it's already an order)
+      const orderId = task.orderId?._id || task.orderId || task._id;
 
       switch (action) {
+        case 'preparing':
         case 'start':
-          endpoint = `/api/food/workflow/status/${task.orderId._id}`;
+          endpoint = `/api/kitchen/orders/${orderId}/status`;
           body = {
-            kitchenStatus: 'preparing',
-            status: 'Preparing',
-            notes: `Started by kitchen staff`
+            status: 'preparing',
+            notes: 'Kitchen staff started preparing order'
           };
           break;
 
         case 'ready':
-          setSelectedTask(task);
-          setShowQualityCheck(true);
-          return; // Will be handled by QualityCheckModal
-
-        case 'complete':
-          endpoint = `/api/food/workflow/status/${task.orderId._id}`;
+          endpoint = `/api/kitchen/orders/${orderId}/status`;
           body = {
-            kitchenStatus: 'delivered',
-            status: 'Delivered',
-            notes: `Delivered by staff`,
-            qualityChecks: data.qualityChecks
+            status: 'ready',
+            notes: 'Order is ready for pickup/delivery'
+          };
+          break;
+
+        case 'completed':
+        case 'complete':
+          endpoint = `/api/kitchen/orders/${orderId}/status`;
+          body = {
+            status: 'completed',
+            notes: 'Order has been delivered to customer'
           };
           break;
 
         default:
+          console.error('Unknown action:', action);
           return;
       }
+
+      console.log('📡 Sending request:', endpoint, body);
 
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${endpoint}`,
@@ -229,14 +269,25 @@ const KitchenQueueView = ({ staffId, userRole }) => {
       );
 
       const result = await response.json();
+      
+      console.log('✅ Action response:', result);
 
       if (result.success) {
         fetchKitchenQueue();
-        showNotification('Success', `Task ${action}ed successfully`, 'success');
+        const actionMessages = {
+          preparing: 'Order marked as preparing',
+          start: 'Order preparation started',
+          ready: 'Order marked as ready',
+          completed: 'Order marked as delivered',
+          complete: 'Order completed'
+        };
+        showNotification('Success ✓', actionMessages[action] || `Order ${action}`, 'success');
+      } else {
+        showNotification('Error', result.message || 'Failed to update order', 'error');
       }
     } catch (error) {
-      console.error('Error handling task action:', error);
-      showNotification('Error', 'Failed to update task', 'error');
+      console.error('❌ Error handling task action:', error);
+      showNotification('Error', 'Failed to update order status', 'error');
     }
   };
 
@@ -267,13 +318,13 @@ const KitchenQueueView = ({ staffId, userRole }) => {
     }
   }, []);
 
-  // Fetch on mount
+  // Fetch on mount and when filters change
   useEffect(() => {
     fetchKitchenQueue();
     // Refresh every 30 seconds
     const interval = setInterval(fetchKitchenQueue, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [filterStatus, filterPriority]); // ✅ Re-fetch when filters change
 
   // Priority badge colors
   const getPriorityColor = (priority) => {

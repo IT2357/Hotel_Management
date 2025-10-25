@@ -290,61 +290,69 @@ const MealItemPicker = ({
                   return (
                     <div
                       key={item._id}
-                      className={`border rounded-lg p-4 transition ${
+                      className={`border rounded-lg overflow-hidden transition ${
                         inCart
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-purple-300'
+                          ? 'border-purple-500 bg-purple-50 shadow-lg'
+                          : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
                       }`}
                     >
-                      <div className="flex gap-3">
-                        {item.imageUrl && (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="w-20 h-20 object-cover rounded-lg"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-1">
-                            {item.name}
-                          </h3>
-                          {item.description && (
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                              {item.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-purple-600">
-                              LKR {item.price.toFixed(2)}
-                            </span>
-                            {inCart ? (
-                              <div className="flex items-center gap-2 bg-white rounded-lg border border-purple-300 p-1">
-                                <button
-                                  onClick={() => handleUpdateQuantity(item._id, inCart.quantity - 1)}
-                                  className="w-7 h-7 flex items-center justify-center hover:bg-purple-100 rounded transition"
-                                >
-                                  <Minus className="w-4 h-4 text-purple-600" />
-                                </button>
-                                <span className="w-8 text-center font-medium text-gray-900">
-                                  {inCart.quantity}
-                                </span>
-                                <button
-                                  onClick={() => handleUpdateQuantity(item._id, inCart.quantity + 1)}
-                                  className="w-7 h-7 flex items-center justify-center hover:bg-purple-100 rounded transition"
-                                >
-                                  <Plus className="w-4 h-4 text-purple-600" />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleAddToCart(item)}
-                                className="bg-purple-600 text-white px-4 py-1.5 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 text-sm font-medium"
-                              >
-                                <Plus className="w-4 h-4" />
-                                Add
-                              </button>
-                            )}
+                      {/* ✅ Enhanced Food Image Display */}
+                      <div className="relative">
+                        <img
+                          src={item.imageUrl || item.image || '/api/placeholder/400/300'}
+                          alt={item.name}
+                          className="w-full h-32 object-cover"
+                          onError={(e) => {
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3E🍽️ ' + encodeURIComponent(item.name) + '%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                        {inCart && (
+                          <div className="absolute top-2 right-2 bg-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg">
+                            {inCart.quantity}
                           </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 mb-1">
+                          {item.name}
+                        </h3>
+                        {item.description && (
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                            {item.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="font-bold text-purple-600 text-lg">
+                            LKR {item.price.toFixed(2)}
+                          </span>
+                          {inCart ? (
+                            <div className="flex items-center gap-2 bg-white rounded-lg border border-purple-300 p-1">
+                              <button
+                                onClick={() => handleUpdateQuantity(item._id, inCart.quantity - 1)}
+                                className="w-7 h-7 flex items-center justify-center hover:bg-purple-100 rounded transition"
+                              >
+                                <Minus className="w-4 h-4 text-purple-600" />
+                              </button>
+                              <span className="w-8 text-center font-medium text-gray-900">
+                                {inCart.quantity}
+                              </span>
+                              <button
+                                onClick={() => handleUpdateQuantity(item._id, inCart.quantity + 1)}
+                                className="w-7 h-7 flex items-center justify-center hover:bg-purple-100 rounded transition"
+                              >
+                                <Plus className="w-4 h-4 text-purple-600" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleAddToCart(item)}
+                              className="bg-purple-600 text-white px-4 py-1.5 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 text-sm font-medium"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

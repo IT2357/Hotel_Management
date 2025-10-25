@@ -20,6 +20,7 @@ import FoodReview from './components/food/FoodReview.jsx';
 import HomePage from './pages/HomePage.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
+import Gallery from './pages/Gallery.jsx';
 import FoodPage from './pages/FoodPage.jsx';
 import MenuPage from './pages/MenuPage.jsx';
 // Removed imports for missing files: Gallery, Blog, RestaurantMenuPage
@@ -152,7 +153,7 @@ const AppContent = () => {
                           <Route path="/contact" element={wrapWithTransition(<Contact />)} />
                           <Route path="/menu" element={wrapWithTransition(<GuestMenuPage />)} />
                           <Route path="/food" element={wrapWithTransition(<FoodOrderingPage />)} />
-                          {/* Removed routes for missing files: Gallery, Blog, MenuPage, RestaurantMenuPage */}
+                          <Route path="/gallery" element={wrapWithTransition(<Gallery />)} />
                           <Route path="/my-orders" element={wrapWithTransition(<MyOrdersPage />)} />
                           <Route
                             path="/login"

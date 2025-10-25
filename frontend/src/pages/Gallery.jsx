@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import SharedNavbar from '../components/shared/SharedNavbar';
 
 export default function Gallery() {
   const navigate = useNavigate();
@@ -47,16 +48,12 @@ export default function Gallery() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* ✅ Shared Navigation */}
+      <SharedNavbar />
+      
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16">
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16 mt-16">
         <div className="max-w-7xl mx-auto px-6">
-          <button
-            onClick={() => navigate('/')}
-            className="mb-6 flex items-center gap-2 text-white/90 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Home
-          </button>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

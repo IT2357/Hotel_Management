@@ -69,36 +69,79 @@ export const getKitchenOrders = async (req, res) => {
       sortOrder = 'desc' 
     } = req.query;
 
-    // Build query
+    // Build query - ✅ Show active kitchen orders by default
     let query = {};
     
     if (status && status !== 'all') {
-      query.status = status;
+      // Support both status and kitchenStatus filtering
+      query.$or = [
+        { status: status },
+        { kitchenStatus: status }
+      ];
+    } else {
+      // Default: show orders that need kitchen attention (exclude delivered/cancelled)
+      query.status = { $nin: ['delivered', 'cancelled'] };
     }
+
+    // ✅ Include scheduled meal plan orders that are due today or overdue
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Expand query to include scheduled orders for today
+    query.$or = query.$or || [];
+    query.$or.push(
+      // Regular active orders
+      { 
+        status: { $nin: ['delivered', 'cancelled'] },
+        $or: [
+          { scheduledDate: { $exists: false } },
+          { scheduledDate: { $lte: today } }
+        ]
+      },
+      // Scheduled meal plan orders for today
+      { 
+        isPartOfMealPlan: true,
+        scheduledDate: { 
+          $gte: today,
+          $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: { $in: ['scheduled', 'pending'] }
+      }
+    );
 
     if (search) {
-      query.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { 'customer.firstName': { $regex: search, $options: 'i' } },
-        { 'customer.lastName': { $regex: search, $options: 'i' } },
-        { 'customer.phone': { $regex: search, $options: 'i' } }
-      ];
+      const searchQuery = {
+        $or: [
+          { 'customerDetails.name': { $regex: search, $options: 'i' } },
+          { 'customerDetails.email': { $regex: search, $options: 'i' } },
+          { 'customerDetails.phone': { $regex: search, $options: 'i' } },
+          { roomNumber: { $regex: search, $options: 'i' } }
+        ]
+      };
+      // Combine search with existing query
+      query = { $and: [query, searchQuery] };
     }
 
-    // Build sort options
+    // Build sort options - prioritize urgent orders
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // ✅ Fix populate fields to match FoodOrder model schema
     const orders = await FoodOrder.find(query)
-      .populate('assignedStaff', 'firstName lastName email')
+      .populate('assignedTo', 'name email') // Fixed: was assignedStaff
+      .populate('userId', 'name email')
+      .populate('items.foodId', 'name price imageUrl') // Fixed: was items.menuItem
+      .populate('bookingId', 'bookingNumber roomTitle')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
       .select('-__v');
 
     const totalOrders = await FoodOrder.countDocuments(query);
+
+    console.log(`🍳 Kitchen orders fetched: ${orders.length} orders (total: ${totalOrders})`);
 
     res.json({
       success: true,
@@ -127,8 +170,10 @@ export const getOrderDetails = async (req, res) => {
     const { orderId } = req.params;
 
     const order = await FoodOrder.findById(orderId)
-      .populate('assignedStaff', 'firstName lastName email phone')
-      .populate('items.menuItem', 'name description price image')
+      .populate('assignedTo', 'name email phone') // Fixed: was assignedStaff
+      .populate('userId', 'name email phone')
+      .populate('items.foodId', 'name description price imageUrl') // Fixed: was items.menuItem and image
+      .populate('bookingId', 'bookingNumber roomTitle checkIn checkOut')
       .select('-__v');
 
     if (!order) {

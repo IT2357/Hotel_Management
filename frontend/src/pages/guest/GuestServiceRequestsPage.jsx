@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSnackbar } from 'notistack';
+import { motion } from 'framer-motion';
+import { MessageSquare, RefreshCw, Clock, User, CheckCircle, X, AlertCircle, Star, FileText, Calendar, MapPin, Image as ImageIcon } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import api from '../../services/api';
 import io from 'socket.io-client';
@@ -121,120 +123,176 @@ const GuestServiceRequestsPage = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="xl" />
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading your service requests...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Service Requests</h1>
-            <p className="text-gray-600">Track the status of your service requests</p>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 py-8 px-4 md:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg mb-4">
+            <MessageSquare className="w-10 h-10 text-white" />
           </div>
-          <div className="flex space-x-2">
-            <Button onClick={fetchMyRequests} color="gray">
-              <span className="mr-2">↻</span>
-              Refresh
-            </Button>
-          </div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+              My Service Requests
+            </span>
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Track and manage all your service requests in one place
+          </p>
+        </motion.div>
+
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={fetchMyRequests}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-all duration-300 shadow-md hover:shadow-lg"
+          >
+            <RefreshCw className="w-5 h-5" />
+            Refresh
+          </button>
         </div>
-      </div>
 
       {requests.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <div className="mx-auto h-12 w-12 bg-gray-400 rounded-full flex items-center justify-center text-white text-xl">💬</div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No service requests</h3>
-          <p className="mt-1 text-sm text-gray-500">You haven't submitted any service requests yet.</p>
-          <div className="mt-6">
-            <Button href="/guest/services">Submit a Request</Button>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center py-16 bg-white rounded-2xl shadow-2xl"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl shadow-lg mb-4">
+            <MessageSquare className="w-10 h-10 text-white" />
           </div>
-        </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">No service requests</h3>
+          <p className="text-lg text-gray-600 mb-6">You haven't submitted any service requests yet.</p>
+          <button
+            onClick={() => window.location.href = '/guest/services'}
+            className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          >
+            <MessageSquare className="w-5 h-5" />
+            Submit a Request
+          </button>
+        </motion.div>
       ) : (
-        <div className="space-y-4">
-          {requests.map((request) => (
-            <div key={request._id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-start">
+        <div className="space-y-6">
+          {requests.map((request, index) => (
+            <motion.div
+              key={request._id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300"
+            >
+              <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-medium text-gray-900">{request.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <h3 className="text-2xl font-bold text-gray-900">{request.title}</h3>
                     <Badge
                       variant={statusVariants[request.status]}
-                      className="inline-flex items-center"
+                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold"
                     >
                       {getStatusIcon(request.status)}
                       {request.status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </Badge>
                     {request.priority && (
-                      <Badge variant={priorityVariants[request.priority]} className="inline-flex items-center">
+                      <Badge variant={priorityVariants[request.priority]} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold">
                         🔥 {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
                       </Badge>
                     )}
                     {request.requestType && (
-                      <Badge variant="secondary" className="inline-flex items-center">
+                      <Badge variant="secondary" className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold">
                         🧩 {requestTypeLabels[request.requestType] || request.requestType}
                       </Badge>
                     )}
                     {request.attachments && request.attachments.length > 0 && (
-                      <span className="text-gray-400" title="Has attachments">📎</span>
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm" title="Has attachments">
+                        <ImageIcon className="w-4 h-4" />
+                        {request.attachments.length}
+                      </span>
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-3">{request.description}</p>
+                  <p className="text-base text-gray-600 mb-4">{request.description}</p>
 
-                  <div className="text-sm text-gray-500 mb-3">
-                    {getStatusMessage(request.status)}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-xl mb-4">
+                    <p className="text-sm text-indigo-800 font-medium">
+                      {getStatusMessage(request.status)}
+                    </p>
                   </div>
 
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span>Submitted {moment(request.createdAt).fromNow()}</span>
-                    {request.room && <span>Room {request.room.roomNumber}</span>}
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-indigo-600" />
+                      <span>Submitted {moment(request.createdAt).fromNow()}</span>
+                    </div>
+                    {request.room && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-indigo-600" />
+                        <span>Room {request.room.roomNumber}</span>
+                      </div>
+                    )}
                     {request.estimatedCompletionTime && (
-                      <span>ETA {moment(request.estimatedCompletionTime).fromNow()}</span>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-indigo-600" />
+                        <span>ETA {moment(request.estimatedCompletionTime).fromNow()}</span>
+                      </div>
                     )}
                     {request.assignedTo && (
-                      <span>
-                        Assigned to {request.assignedTo?.name || 'Unassigned'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-indigo-600" />
+                        <span>Assigned to {request.assignedTo?.name || 'Unassigned'}</span>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="ml-4 flex flex-col space-y-2">
-                  <Button
-                    size="sm"
-                    color="gray"
+                <div className="flex lg:flex-col gap-3">
+                  <button
                     onClick={() => {
                       setSelectedRequest(request);
                       setShowDetailsModal(true);
                     }}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                   >
+                    <FileText className="w-5 h-5" />
                     View Details
                     {request.attachments && request.attachments.length > 0 && (
-                      <span className="ml-1 inline text-xs">📎</span>
+                      <ImageIcon className="w-4 h-4" />
                     )}
-                  </Button>
+                  </button>
 
                   {request.status === 'completed' && !request.feedback && (
-                    <Button
-                      size="sm"
-                      color="blue"
+                    <button
                       onClick={() => {
                         setSelectedRequest(request);
                         setShowFeedbackModal(true);
                       }}
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                     >
+                      <Star className="w-5 h-5" />
                       Leave Feedback
-                    </Button>
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
 
           {/* Request Details Modal */}
@@ -388,24 +446,26 @@ const GuestServiceRequestsPage = () => {
                   </div>
                 )}
 
-                <div className="flex justify-end space-x-2 pt-4 border-t">
-                  <Button
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t">
+                  <button
                     onClick={() => setShowDetailsModal(false)}
-                    variant="secondary"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all duration-300"
                   >
+                    <X className="w-5 h-5" />
                     Close
-                  </Button>
+                  </button>
 
                   {selectedRequest.status === 'completed' && !selectedRequest.feedback && (
-                    <Button
+                    <button
                       onClick={() => {
                         setShowFeedbackModal(true);
                         setShowDetailsModal(false);
                       }}
-                      variant="primary"
+                      className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                     >
+                      <Star className="w-5 h-5" />
                       Leave Feedback
-                    </Button>
+                    </button>
                   )}
                 </div>
               </div>
@@ -446,21 +506,27 @@ const GuestServiceRequestsPage = () => {
                 />
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4 border-t">
-                <Button
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t">
+                <button
                   onClick={() => setShowFeedbackModal(false)}
-                  variant="secondary"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all duration-300"
                 >
+                  <X className="w-5 h-5" />
                   Cancel
-                </Button>
-                <Button onClick={submitFeedback} variant="primary">
+                </button>
+                <button 
+                  onClick={submitFeedback}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  <CheckCircle className="w-5 h-5" />
                   Submit Feedback
-                </Button>
+                </button>
               </div>
             </div>
           </Modal>
         </div>
       )}
+      </div>
     </div>
   );
 };

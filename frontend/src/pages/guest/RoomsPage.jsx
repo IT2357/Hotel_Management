@@ -5,6 +5,7 @@ import { Search, Filter, X, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Components
+import SharedNavbar from "../../components/shared/SharedNavbar";
 import HotelHero from "@/components/rooms/HotelHero";
 import RoomCard from "@/components/rooms/RoomCard";
 import FilterSidebar from "@/components/rooms/FilterSidebar";
@@ -274,20 +275,8 @@ const GuestDashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header with Profile Button */}
-      <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
-        {/* <Link to="/guest/profile" className="group">
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-colors duration-200">
-            <User className="w-5 h-5 text-white" />
-            <span className="text-white font-medium">Profile</span>
-          </div>
-        </Link> */}
-        <Link to="/logout" className="group">
-          <div className="flex items-center justify-center w-10 h-10 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-colors duration-200">
-            <LogOut className="w-5 h-5 text-white" />
-          </div>
-        </Link>
-      </div>
+      {/* ✅ Shared Navigation with Profile and Logout */}
+      <SharedNavbar showLogoutIcon={true} />
 
       {/* Hotel Hero Section */}
       <HotelHero />

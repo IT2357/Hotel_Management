@@ -7,6 +7,7 @@ import paymentService from '../../services/payment/paymentService.js';
 import payHereService from '../../services/payHereService.js';
 import foodEmailService from '../../services/food/foodEmailService.js';
 import logger from '../../utils/logger.js';
+import { getIO } from '../../utils/socket.js';
 
 // Get all food orders (Admin/Staff view)
 export const getAllFoodOrders = catchAsync(async (req, res) => {
@@ -551,6 +552,30 @@ if (orderType === 'takeaway') {
  // Populate the order with food details
  await order.populate('items.foodId', 'name price imageUrl');
  await order.populate('userId', 'name email');
+
+ // ✅ Emit Socket.io notification to kitchen staff
+ try {
+   const io = getIO();
+   io.emit('newFoodOrder', {
+     orderId: order._id,
+     orderNumber: order._id.toString().slice(-6),
+     orderType: order.orderType,
+     items: order.items,
+     totalPrice: order.totalPrice,
+     customerName: customerDetails.customerName,
+     priority: orderType === 'room-service' ? 'urgent' : 'normal',
+     isPartOfMealPlan: order.isPartOfMealPlan || false,
+     roomNumber: order.roomNumber,
+     timestamp: new Date()
+   });
+   logger.info('Kitchen notification sent', { orderId: order._id });
+ } catch (socketError) {
+   logger.error('Failed to send kitchen notification', { 
+     orderId: order._id, 
+     error: socketError.message 
+   });
+   // Don't fail order creation if socket fails
+ }
 
  // Send confirmation email
  try {
