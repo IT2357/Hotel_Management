@@ -96,9 +96,11 @@ const CheckOutForm = ({ checkInRecord, onSuccess }) => {
           <div>
             <h3 className="text-lg font-medium text-gray-900">Room Information</h3>
             <p className="mt-1">Room {checkInRecord.room.number} - {checkInRecord.room.type}</p>
-            <p className="text-sm text-gray-500">
-              Checked in: {new Date(checkInRecord.checkInTime).toLocaleString()}
-            </p>
+            {checkInRecord.checkInTime && (
+              <p className="text-sm text-gray-500">
+                Checked in: {new Date(checkInRecord.checkInTime).toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
 

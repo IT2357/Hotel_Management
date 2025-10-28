@@ -424,10 +424,12 @@ const KeyCardManagementPage = () => {
                   <h3 className="font-semibold text-green-900 mb-3">Stay Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-green-700">Check-in Time:</span>
-                        <span className="font-medium">{new Date(cardDetails.checkInDetails.checkInTime).toLocaleString()}</span>
-                      </div>
+                      {cardDetails.checkInDetails.checkInTime && (
+                        <div className="flex justify-between mb-2">
+                          <span className="text-green-700">Check-in Time:</span>
+                          <span className="font-medium">{new Date(cardDetails.checkInDetails.checkInTime).toLocaleString()}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between mb-2">
                         <span className="text-green-700">Status:</span>
                         <span className="font-medium capitalize">{cardDetails.checkInDetails.status.replace('_', ' ')}</span>

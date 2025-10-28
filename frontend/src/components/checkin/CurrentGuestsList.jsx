@@ -43,7 +43,7 @@ const CurrentGuestsList = ({ guests = [], isLoading, onCheckOut, onSelectBooking
                 <div className="text-sm text-gray-500">{guest.room?.type}</div>
               </Table.Cell>
               <Table.Cell>
-                {moment(guest.checkInTime).format('MMM D, YYYY h:mm A')}
+                {guest.checkInTime ? moment(guest.checkInTime).format('MMM D, YYYY h:mm A') : 'Not checked in yet'}
               </Table.Cell>
               <Table.Cell>
                 <Badge 

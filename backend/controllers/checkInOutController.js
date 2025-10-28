@@ -590,7 +590,7 @@ export const getGuestCheckInStatus = async (req, res) => {
       id: checkInStatus._id,
       room: checkInStatus.room?.roomNumber,
       status: checkInStatus.status,
-      checkInTime: checkInStatus.checkInTime
+      checkInTime: checkInStatus.checkInTime || '(Not checked in yet - status: pre_checkin)'
     });
 
     // Return status as-is, frontend will gate UI; backend also enforces on completion

@@ -862,7 +862,7 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                   <div className="flex justify-center">
                     <button
                       onClick={handleCheckIn}
-                      disabled={processing || checkInStatus.booking?.status !== 'Confirmed' || eligibleBookings.length === 0}
+                      disabled={processing || checkInStatus.booking?.status !== 'Confirmed'}
                       className="px-8 py-3 text-lg font-semibold bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                     >
                       {processing ? 'Processing...' : (checkInStatus.booking?.status === 'Confirmed' ? 'Complete Check-in' : 'Awaiting Confirmation')}
@@ -931,7 +931,8 @@ Issued: ${new Date(receipt.issuedAt).toLocaleString()}
                   <div className="mb-4 md:mb-0">
                     <h2 className="text-xl font-semibold text-green-600 mb-1">Currently Checked In</h2>
                     <p className="text-gray-600">
-                      Room {safeCheckInStatus.room?.roomNumber || 'N/A'} ({safeCheckInStatus.room?.type || 'N/A'}) • Checked in {new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}
+                      Room {safeCheckInStatus.room?.roomNumber || 'N/A'} ({safeCheckInStatus.room?.type || 'N/A'})
+                      {safeCheckInStatus.checkInTime && ` • Checked in ${new Date(safeCheckInStatus.checkInTime).toLocaleDateString()}`}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
                       Key Card: {safeCheckInStatus.keyCardNumber || 'Not assigned'}
