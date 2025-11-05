@@ -1,4 +1,4 @@
-//src/pages/NotFound.jsx
+//src/pages/auth/NotFound.jsx
 import { Link } from 'react-router-dom';
 
 export default function NotFoundPage() {

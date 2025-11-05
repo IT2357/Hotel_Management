@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - Jaffna Hotel</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+        }
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .order-info h3 {
+            margin: 0 0 15px 0;
+            color: #d4af37;
+            font-size: 18px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .items-table th,
+        .items-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .items-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+        .total-row {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status-confirmed {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #d4af37;
+            text-decoration: none;
+        }
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .qr-code img {
+            max-width: 150px;
+            height: auto;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .info-row {
+                flex-direction: column;
+            }
+            .info-row span:first-child {
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Order Confirmation</h1>
+            <p>Thank you for choosing Jaffna Hotel</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hello {{customerName}}!</h2>
+            <p>Your order has been successfully placed and is being prepared by our kitchen team.</p>
+            
+            <div class="order-info">
+                <h3>📋 Order Details</h3>
+                <div class="info-row">
+                    <span>Order Number:</span>
+                    <span><strong>{{orderNumber}}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span>Order Type:</span>
+                    <span>{{orderType}}</span>
+                </div>
+                <div class="info-row">
+                    <span>Order Date:</span>
+                    <span>{{orderDate}}</span>
+                </div>
+                <div class="info-row">
+                    <span>Estimated Ready Time:</span>
+                    <span><strong>{{estimatedTime}}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span>Status:</span>
+                    <span><span class="status-badge status-{{status}}">{{status}}</span></span>
+                </div>
+            </div>
+
+            <h3>🍽️ Order Items</h3>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <td>{{name}}</td>
+                        <td>{{quantity}}</td>
+                        <td>LKR {{price}}</td>
+                        <td>LKR {{total}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="3"><strong>Subtotal:</strong></td>
+                        <td><strong>LKR {{subtotal}}</strong></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="3"><strong>Tax (10%):</strong></td>
+                        <td><strong>LKR {{tax}}</strong></td>
+                    </tr>
+                    {{#if deliveryFee}}
+                    <tr class="total-row">
+                        <td colspan="3"><strong>Delivery Fee:</strong></td>
+                        <td><strong>LKR {{deliveryFee}}</strong></td>
+                    </tr>
+                    {{/if}}
+                    <tr class="total-row">
+                        <td colspan="3"><strong>Total:</strong></td>
+                        <td><strong>LKR {{totalPrice}}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            {{#if specialInstructions}}
+            <div class="order-info">
+                <h3>📝 Special Instructions</h3>
+                <p>{{specialInstructions}}</p>
+            </div>
+            {{/if}}
+
+            {{#if deliveryAddress}}
+            <div class="order-info">
+                <h3>📍 Delivery Address</h3>
+                <p>{{deliveryAddress}}</p>
+            </div>
+            {{/if}}
+
+            <div class="qr-code">
+                <p><strong>Order Tracking QR Code</strong></p>
+                <img src="data:image/png;base64,{{qrCode}}" alt="Order Tracking QR Code" />
+                <p><small>Scan this QR code to track your order status</small></p>
+            </div>
+
+            <div style="background-color: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #155724;">⏰ What's Next?</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Your order is being prepared by our expert chefs</li>
+                    <li>You'll receive updates via SMS and email</li>
+                    <li>Estimated preparation time: {{estimatedTime}}</li>
+                    <li>We'll notify you when your order is ready for pickup/delivery</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Jaffna Hotel</strong></p>
+            <p>Authentic Jaffna Cuisine & Hospitality</p>
+            <p>📞 +94 21 123 4567 | 📧 info@jaffnahotel.com</p>
+            <p><a href="{{trackingUrl}}">Track Your Order</a> | <a href="{{websiteUrl}}">Visit Our Website</a></p>
+        </div>
+    </div>
+</body>
+</html>

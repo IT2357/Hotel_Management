@@ -1,0 +1,59 @@
+diff --git a/frontend/src/components/food/FoodOrderHistory.jsx b/frontend/src/components/food/FoodOrderHistory.jsx
+index 1234567..89abcde 100644
+--- a/frontend/src/components/food/FoodOrderHistory.jsx
++++ b/frontend/src/components/food/FoodOrderHistory.jsx
+@@ -1,10 +1,12 @@
+ import React, { useEffect, useState } from 'react';
++import { useNavigate } from 'react-router-dom';
+ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/food/FoodDialog';
+ import FoodButton from '../ui/food/FoodButton';
+ import { toast } from 'sonner';
+ import api from '../../services/api';
++import { useCart } from '../../context/CartContext';
+ 
+ const FoodOrderHistory = () => {
+   const [orders, setOrders] = useState([]);
++  const { addToCart } = useCart();
++  const navigate = useNavigate();
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
+@@ -35,6 +39,25 @@ const FoodOrderHistory = () => {
+     }
+   };
+ 
++  const handleReorder = async (order) => {
++    try {
++      // Add all items from the order to the cart
++      for (const item of order.items) {
++        // Create a cart-friendly item object
++        const cartItem = {
++          _id: item.foodId || item._id,
++          name: item.name,
++          price: item.price,
++          quantity: item.quantity,
++          description: `Reordered from order #${order._id.slice(-6)}`,
++          isVeg: item.name.toLowerCase().includes('vegetable') || item.name.toLowerCase().includes('veg'),
++          isSpicy: item.name.toLowerCase().includes('kola') || item.name.toLowerCase().includes('curry') || item.name.toLowerCase().includes('spicy')
++        };
++        
++        addToCart(cartItem);
++      }
++      toast.success('Items added to cart successfully');
++      navigate('/menu');
++    } catch (error) {
++      console.error('Error reordering:', error);
++      toast.error('Failed to add items to cart');
++    }
++  };
++
+   const openModify = (order) => {
+     setSelectedOrder(order);
+     setModForm({
+@@ -60,6 +83,7 @@ const FoodOrderHistory = () => {
+               <div className="flex gap-2 mt-2 md:mt-0">
+                 <FoodButton onClick={() => openModify(order)} disabled={['Delivered','Cancelled'].includes(order.status)} size="sm" variant="default">Modify</FoodButton>
+                 <FoodButton onClick={() => handleCancel(order)} disabled={['Delivered','Cancelled'].includes(order.status)} size="sm" variant="danger">Cancel</FoodButton>
++                <FoodButton onClick={() => handleReorder(order)} size="sm" variant="success">Reorder</FoodButton>
+               </div>
+             </div>
+           ))}

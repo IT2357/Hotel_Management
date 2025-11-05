@@ -1,0 +1,37 @@
+diff --git a/frontend/src/components/food/Cart.jsx b/frontend/src/components/food/Cart.jsx
+index 1234567..89abcde 100644
+--- a/frontend/src/components/food/Cart.jsx
++++ b/frontend/src/components/food/Cart.jsx
+@@ -1,5 +1,6 @@
+ import React, { useState, useEffect } from 'react';
+ import { motion, AnimatePresence } from 'framer-motion';
++import { useQueryClient } from '@tanstack/react-query';
+ import { 
+   ShoppingCart, 
+   Plus, 
+@@ -12,7 +13,8 @@ import { useCart } from '../../context/CartContext';
+ 
+ const Cart = ({ onCheckout, onClose }) => {
+   const { items, updateQuantity, removeFromCart, clearCart, getTotal, getItemCount } = useCart();
++  const queryClient = useQueryClient();
+   const [isLoading, setIsLoading] = useState(false);
+ 
+   // Calculate totals
+@@ -40,6 +42,16 @@ const Cart = ({ onCheckout, onClose }) => {
+   const tax = finalTotal * 0.1; // 10% tax
+   const serviceFee = finalTotal * 0.05; // 5% service fee
+   const grandTotal = finalTotal + tax + serviceFee;
++  
++  // Listen for localStorage changes to sync cart across tabs
++  useEffect(() => {
++    const handleStorageChange = (e) => {
++      if (e.key === 'jaffna_cart') {
++        queryClient.invalidateQueries(['cart']);
++      }
++    };
++    window.addEventListener('storage', handleStorageChange);
++    return () => window.removeEventListener('storage', handleStorageChange);
++  }, [queryClient]);
+ 
+   // Handle checkout
+   const handleCheckout = async () => {

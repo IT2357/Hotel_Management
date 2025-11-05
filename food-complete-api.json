@@ -1,0 +1,595 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "Food Complete API - Jaffna Restaurant 2025",
+  "dateExported": "2025-10-18",
+  "version": "1.2",
+  "folders": [
+    {
+      "_id": "folder_menu_crud",
+      "name": "Menu CRUD (7 endpoints)",
+      "containerId": "",
+      "created": "2025-10-18T10:00:00.000Z",
+      "sortNum": 10000
+    },
+    {
+      "_id": "folder_ai",
+      "name": "AI Extraction (2 endpoints)",
+      "containerId": "",
+      "created": "2025-10-18T10:00:00.000Z",
+      "sortNum": 20000
+    },
+    {
+      "_id": "folder_orders",
+      "name": "Order Management (4 endpoints)",
+      "containerId": "",
+      "created": "2025-10-18T10:00:00.000Z",
+      "sortNum": 30000
+    }
+  ],
+  "requests": [
+    {
+      "_id": "req_create_menu_item",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-001: Create Menu Item",
+      "url": "{{baseUrl}}/api/food-complete/menu",
+      "method": "POST",
+      "sortNum": 10000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name_tamil\": \"நண்டு கறி\",\n  \"name_english\": \"Jaffna Crab Curry\",\n  \"description_tamil\": \"புதிய நண்டு, மசாலா, தேங்காய் பால்\",\n  \"description_english\": \"Fresh crab cooked in aromatic spices with coconut milk\",\n  \"price\": 850,\n  \"category\": \"Seafood\",\n  \"ingredients\": [\"Crab\", \"Coconut Milk\", \"Curry Leaves\", \"Chili\", \"Turmeric\"],\n  \"mealTime\": [\"lunch\", \"dinner\"],\n  \"prepTime\": 30,\n  \"isVeg\": false,\n  \"isSpicy\": true,\n  \"isPopular\": true,\n  \"isAvailable\": true\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "201"
+        },
+        {
+          "type": "json-query",
+          "value": "json.success",
+          "operator": "eq",
+          "expected": "true"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.name_tamil",
+          "operator": "eq",
+          "expected": "நண்டு கறி"
+        }
+      ]
+    },
+    {
+      "_id": "req_list_menu_items",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-002: List Menu Items (Pagination)",
+      "url": "{{baseUrl}}/api/food-complete/menu",
+      "method": "GET",
+      "sortNum": 20000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "page",
+          "value": "1",
+          "isPath": false
+        },
+        {
+          "name": "limit",
+          "value": "10",
+          "isPath": false
+        },
+        {
+          "name": "search",
+          "value": "crab",
+          "isPath": false,
+          "isDisabled": true
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.pagination.page",
+          "operator": "eq",
+          "expected": "1"
+        }
+      ]
+    },
+    {
+      "_id": "req_search_tamil",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-003: Search by Tamil Name",
+      "url": "{{baseUrl}}/api/food-complete/menu",
+      "method": "GET",
+      "sortNum": 25000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "search",
+          "value": "நண்டு",
+          "isPath": false
+        },
+        {
+          "name": "searchLanguage",
+          "value": "tamil",
+          "isPath": false
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.menuItems.length",
+          "operator": "gt",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "_id": "req_filter_dietary",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-004: Filter by Category & Dietary",
+      "url": "{{baseUrl}}/api/food-complete/menu",
+      "method": "GET",
+      "sortNum": 27000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [
+        {
+          "name": "category",
+          "value": "Seafood",
+          "isPath": false
+        },
+        {
+          "name": "isVeg",
+          "value": "false",
+          "isPath": false
+        },
+        {
+          "name": "isSpicy",
+          "value": "true",
+          "isPath": false
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_menu_item",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "Get Single Menu Item",
+      "url": "{{baseUrl}}/api/food-complete/menu/{{menuItemId}}",
+      "method": "GET",
+      "sortNum": 30000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data._id",
+          "operator": "istype",
+          "expected": "string"
+        }
+      ]
+    },
+    {
+      "_id": "req_update_menu_item",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-005: Update Menu Item (Partial)",
+      "url": "{{baseUrl}}/api/food-complete/menu/{{menuItemId}}",
+      "method": "PUT",
+      "sortNum": 40000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"price\": 900,\n  \"isAvailable\": false\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.price",
+          "operator": "eq",
+          "expected": "900"
+        }
+      ]
+    },
+    {
+      "_id": "req_delete_menu_item",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-006: Delete Menu Item (Soft Delete)",
+      "url": "{{baseUrl}}/api/food-complete/menu/{{menuItemId}}",
+      "method": "DELETE",
+      "sortNum": 50000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        }
+      ],
+      "params": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.success",
+          "operator": "eq",
+          "expected": "true"
+        }
+      ]
+    },
+    {
+      "_id": "req_toggle_availability",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-007: Toggle Availability",
+      "url": "{{baseUrl}}/api/food-complete/menu/{{menuItemId}}/availability",
+      "method": "PATCH",
+      "sortNum": 60000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"isAvailable\": true\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.isAvailable",
+          "operator": "eq",
+          "expected": "true"
+        }
+      ]
+    },
+    {
+      "_id": "req_menu_stats",
+      "colId": "col_food_complete",
+      "containerId": "folder_menu_crud",
+      "name": "TC-FO-008: Get Menu Stats",
+      "url": "{{baseUrl}}/api/food-complete/menu/stats/summary",
+      "method": "GET",
+      "sortNum": 70000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        }
+      ],
+      "params": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.totalItems",
+          "operator": "istype",
+          "expected": "number"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.availablePercentage",
+          "operator": "istype",
+          "expected": "number"
+        }
+      ]
+    },
+    {
+      "_id": "req_extract_menu",
+      "colId": "col_food_complete",
+      "containerId": "folder_ai",
+      "name": "TC-FO-009: AI Extract Menu from Image",
+      "url": "{{baseUrl}}/api/food-complete/ai/extract",
+      "method": "POST",
+      "sortNum": 10000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{adminToken}}"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "formdata",
+        "raw": "",
+        "form": [
+          {
+            "name": "image",
+            "value": "path/to/jaffna-menu.jpg",
+            "type": "file"
+          }
+        ]
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.menuItems.length",
+          "operator": "gt",
+          "expected": "0"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.ocrConfidence",
+          "operator": "gte",
+          "expected": "50"
+        }
+      ]
+    },
+    {
+      "_id": "req_supported_languages",
+      "colId": "col_food_complete",
+      "containerId": "folder_ai",
+      "name": "Get Supported Languages",
+      "url": "{{baseUrl}}/api/food-complete/ai/supported-languages",
+      "method": "GET",
+      "sortNum": 20000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.languages",
+          "operator": "contains",
+          "expected": "Tamil"
+        }
+      ]
+    },
+    {
+      "_id": "req_modify_order",
+      "colId": "col_food_complete",
+      "containerId": "folder_orders",
+      "name": "TC-FO-010: Modify Order & Recalculate Discount",
+      "url": "{{baseUrl}}/api/food-complete/orders/{{orderId}}/modify",
+      "method": "PATCH",
+      "sortNum": 10000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{userToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"items\": [\n    {\n      \"menuItemId\": \"{{menuItemId}}\",\n      \"quantity\": 2,\n      \"price\": 850\n    }\n  ]\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.order.jaffnaDiscount",
+          "operator": "istype",
+          "expected": "number"
+        }
+      ]
+    },
+    {
+      "_id": "req_cancel_order",
+      "colId": "col_food_complete",
+      "containerId": "folder_orders",
+      "name": "TC-FO-011: Cancel Order with Refund %",
+      "url": "{{baseUrl}}/api/food-complete/orders/{{orderId}}/cancel",
+      "method": "POST",
+      "sortNum": 20000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{userToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"reason\": \"Changed my mind\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.order.status",
+          "operator": "eq",
+          "expected": "cancelled"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.order.refundPercentage",
+          "operator": "gte",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "_id": "req_create_review",
+      "colId": "col_food_complete",
+      "containerId": "folder_orders",
+      "name": "TC-FO-012: Create Review with Ratings",
+      "url": "{{baseUrl}}/api/food-complete/orders/reviews",
+      "method": "POST",
+      "sortNum": 30000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{userToken}}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"menuItemId\": \"{{menuItemId}}\",\n  \"foodRating\": 5,\n  \"serviceRating\": 4,\n  \"comment\": \"Excellent crab curry! Very authentic Jaffna taste.\",\n  \"photos\": [\"https://cloudinary.com/photo1.jpg\"]\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "201"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.foodRating",
+          "operator": "eq",
+          "expected": "5"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.serviceRating",
+          "operator": "eq",
+          "expected": "4"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.overallRating",
+          "operator": "eq",
+          "expected": "4.5"
+        }
+      ]
+    },
+    {
+      "_id": "req_get_reviews",
+      "colId": "col_food_complete",
+      "containerId": "folder_orders",
+      "name": "Get Menu Item Reviews",
+      "url": "{{baseUrl}}/api/food-complete/orders/reviews/menu/{{menuItemId}}",
+      "method": "GET",
+      "sortNum": 40000,
+      "created": "2025-10-18T10:00:00.000Z",
+      "modified": "2025-10-18T10:00:00.000Z",
+      "headers": [],
+      "params": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "value": "json.data.reviews",
+          "operator": "istype",
+          "expected": "array"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "headers": [],
+    "tests": [],
+    "envId": "env_development"
+  }
+}

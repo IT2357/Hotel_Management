@@ -1,0 +1,99 @@
+diff --git a/frontend/src/pages/admin/food/orders/menu/FoodMenuManagementPage.jsx b/frontend/src/pages/admin/food/orders/menu/FoodMenuManagementPage.jsx
+index 1234567..89abcde 100644
+--- a/frontend/src/pages/admin/food/orders/menu/FoodMenuManagementPage.jsx
++++ b/frontend/src/pages/admin/food/orders/menu/FoodMenuManagementPage.jsx
+@@ -1,5 +1,8 @@
+ import React, { useState, useEffect, useCallback, useMemo } from 'react';
++import { Formik, Form, Field, ErrorMessage } from 'formik';
++import * as Yup from 'yup';
+ import PropTypes from 'prop-types';
++import { useQueryClient } from '@tanstack/react-query';
+ 
+ // ...existing code...
+@@ -15,6 +18,7 @@ const FoodMenuManagementPage = () => {
+   // State declarations (must be before any useCallback/useMemo that uses them)
+   const [categoriesList, setCategoriesList] = useState([]);
++  const queryClient = useQueryClient();
+   // Helper function to get category ID from name or ID
+   const getCategoryId = useCallback((categoryValue) => {
+@@ -130,6 +134,50 @@ const FoodMenuManagementPage = () => {
+   const [isSubmitting, setIsSubmitting] = useState(false);
+ 
++  // Form validation schema
++  const validationSchema = Yup.object({
++    name: Yup.string()
++      .min(3, 'Item name must be at least 3 characters')
++      .max(100, 'Item name must be less than 100 characters')
++      .required('Item name is required'),
++    category: Yup.string().required('Category is required'),
++    description: Yup.string()
++      .min(10, 'Description must be at least 10 characters')
++      .max(500, 'Description must be less than 500 characters')
++      .required('Description is required'),
++    price: Yup.number()
++      .positive('Price must be greater than 0')
++      .max(100000, 'Price must be less than LKR 100,000')
++      .required('Price is required'),
++    imageFile: Yup.mixed()
++      .test('fileRequired', 'Image is required', function(value) {
++        const { image } = this.parent;
++        return value || image;
++      })
++      .test('fileSize', 'Image size must be less than 5MB', function(value) {
++        return !value || value.size <= 5 * 1024 * 1024;
++      })
++      .test('fileType', 'Only image files are allowed', function(value) {
++        return !value || value.type.startsWith('image/');
++      }),
++    ingredients: Yup.array()
++      .min(2, 'At least 2 ingredients are required')
++      .required('Ingredients are required'),
++    cookingTime: Yup.number()
++      .min(5, 'Cooking time must be at least 5 minutes')
++      .max(180, 'Cooking time must be less than 180 minutes')
++      .required('Cooking time is required'),
++    // Bilingual validation
++    name_tamil: Yup.string().nullable(),
++    description_tamil: Yup.string().nullable()
++  });
++
+   // AI form state
+   const [aiFormData, setAiFormData] = useState({
+@@ -200,6 +248,10 @@ const FoodMenuManagementPage = () => {
+   const handleCreateItem = useCallback(async (formData) => {
+     try {
+       setIsSubmitting(true);
++      
++      // Invalidate queries to refresh data
++      queryClient.invalidateQueries(['menuItems']);
++      queryClient.invalidateQueries(['categories']);
+       
+       // Enhanced validation
+       const validationErrors = {};
+@@ -270,6 +322,10 @@ const FoodMenuManagementPage = () => {
+   const handleUpdateItem = useCallback(async (formData) => {
+     if (!editingItem) return;
+ 
+     try {
+       setIsSubmitting(true);
++      
++      // Invalidate queries to refresh data
++      queryClient.invalidateQueries(['menuItems']);
++      queryClient.invalidateQueries(['categories']);
+       
+       // Enhanced validation
+       const validationErrors = {};
+@@ -290,6 +346,10 @@ const FoodMenuManagementPage = () => {
+   const handleDeleteItem = useCallback(async (itemId) => {
+     if (!window.confirm('Are you sure you want to delete this item?')) return;
+ 
+     try {
+       await foodService.deleteMenuItem(itemId);
+       setFoodItems(prev => prev.filter(item => item._id !== itemId));
++      
++      // Invalidate queries to refresh data
++      queryClient.invalidateQueries(['menuItems']);
++      queryClient.invalidateQueries(['categories']);
+       toast.success('Menu item deleted successfully');
+     } catch (error) {
+       console.error('Error deleting menu item:', error);

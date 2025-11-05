@@ -1,0 +1,50 @@
+[
+  {
+    "title": "Monthly Utilities Payment",
+    "category": "utilities",
+    "amount": 200,
+    "description": "Electricity and water bills",
+    "department": "General",
+    "vendor": {
+      "name": "Utility Company",
+      "contact": "+94-11-123-4567"
+    },
+    "paymentMethod": "bank_transfer",
+    "isApproved": true,
+    "paidAt": "2025-09-25T10:00:00.000Z",
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "title": "Cleaning Supplies Purchase",
+    "category": "cleaning_supplies",
+    "amount": 150,
+    "description": "Cleaning supplies and amenities",
+    "department": "Cleaning",
+    "vendor": {
+      "name": "Hotel Supplies Co",
+      "contact": "+94-11-987-6543"
+    },
+    "paymentMethod": "credit_card",
+    "isApproved": true,
+    "paidAt": "2025-09-24T10:00:00.000Z",
+    "createdAt": "2025-09-24T10:00:00.000Z",
+    "updatedAt": "2025-09-24T10:00:00.000Z"
+  },
+  {
+    "title": "HVAC System Maintenance",
+    "category": "maintenance",
+    "amount": 300,
+    "description": "HVAC system maintenance",
+    "department": "Maintenance",
+    "vendor": {
+      "name": "HVAC Services Inc",
+      "contact": "+94-11-555-0123"
+    },
+    "paymentMethod": "bank_transfer",
+    "isApproved": true,
+    "paidAt": "2025-09-24T10:00:00.000Z",
+    "createdAt": "2025-09-24T10:00:00.000Z",
+    "updatedAt": "2025-09-24T10:00:00.000Z"
+  }
+]

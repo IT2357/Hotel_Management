@@ -1,1 +1,11 @@
-// Placeholder for backend/config/cloudinary.js
+import { v2 as cloudinary } from 'cloudinary';
+import config from './environment.js';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: config.CLOUDINARY.CLOUD_NAME,
+  api_key: config.CLOUDINARY.API_KEY,
+  api_secret: config.CLOUDINARY.API_SECRET
+});
+
+export default cloudinary;

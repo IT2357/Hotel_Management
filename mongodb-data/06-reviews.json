@@ -1,0 +1,38 @@
+[
+  {
+    "overallRating": 5,
+    "cleanliness": 5,
+    "service": 5,
+    "location": 4,
+    "amenities": 5,
+    "comment": "Excellent service and clean room! Had a wonderful stay.",
+    "sentimentLabel": "Positive",
+    "isVisible": true,
+    "createdAt": "2025-09-25T14:00:00.000Z",
+    "updatedAt": "2025-09-25T14:00:00.000Z"
+  },
+  {
+    "overallRating": 4,
+    "cleanliness": 4,
+    "service": 4,
+    "location": 4,
+    "amenities": 3,
+    "comment": "Good stay, friendly staff. Room was comfortable.",
+    "sentimentLabel": "Positive",
+    "isVisible": true,
+    "createdAt": "2025-09-24T14:00:00.000Z",
+    "updatedAt": "2025-09-24T14:00:00.000Z"
+  },
+  {
+    "overallRating": 3,
+    "cleanliness": 3,
+    "service": 3,
+    "location": 4,
+    "amenities": 2,
+    "comment": "Average experience. Room could use some improvements.",
+    "sentimentLabel": "Neutral",
+    "isVisible": true,
+    "createdAt": "2025-09-23T14:00:00.000Z",
+    "updatedAt": "2025-09-23T14:00:00.000Z"
+  }
+]

@@ -1,4 +1,5 @@
-// 📁 src/pages/LogoutHandler.jsx
+//src/pages/auth/LogoutHandler.jsx
+
 import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';

@@ -1,0 +1,1856 @@
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 50,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      lowercase: true,
+      trim: true,
+      validate: {
+        validator: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+        message: (props) => `${props.value} is not a valid email address!`,
+      },
+    },
+    password: {
+      type: String,
+      minlength: 8,
+      select: false,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function (v) {
+          return /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid phone number!`,
+      },
+    },
+    profilePicture: {
+      type: String,
+      default: "",
+      validate: {
+        validator: (v) => v === "" || /^(http|https):\/\/[^ "]+$/.test(v),
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    address: {
+      country: { type: String, trim: true },
+      city: { type: String, trim: true },
+      street: { type: String, trim: true },
+      postalCode: { type: String, trim: true },
+    },
+    emailVerified: { type: Boolean, default: false },
+    otpCode: { type: String, select: false },
+    otpExpiresAt: { type: Date, select: false },
+    role: {
+      type: String,
+      enum: ["guest", "staff", "manager", "admin"],
+      default: "guest",
+      required: true,
+    },
+    isActive: { type: Boolean, default: true },
+    isApproved: { type: Boolean, default: false },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: Date,
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpiry: { type: Date, select: false },
+    notificationPreferences: {
+      email: { type: Boolean, default: true },
+      inApp: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+    },
+    passwordResetPending: {
+      type: Boolean,
+      default: false,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    lastLogin: Date,
+    loginHistory: [
+      {
+        ipAddress: String,
+        device: String,
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
+    authProviders: [
+      {
+        provider: { type: String, enum: ["google", "apple"] },
+        providerId: { type: String },
+        email: { type: String },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+    discriminatorKey: "role",
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Pre-save hook for password handling
+userSchema.pre("save", async function (next) {
+  if (this.isNew || this.isModified("password")) {
+    if (this.authProviders.length === 0) {
+      if (!this.password) {
+        return next(new Error("Password is required for local authentication"));
+      }
+      this.password = await bcrypt.hash(this.password, 12);
+    } else {
+      this.password = undefined;
+    }
+  }
+  next();
+});
+
+// Indexes (remove explicit email index; handled by unique: true)
+userSchema.index({ role: 1 });
+userSchema.index({ isActive: 1 });
+
+// Base User model
+const User = mongoose.model("User", userSchema);
+
+// Discriminators
+const Guest = User.discriminator(
+  "guest",
+  new mongoose.Schema({
+    guestProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GuestProfile",
+    },
+  })
+);
+const Staff = User.discriminator(
+  "staff",
+  new mongoose.Schema({
+    staffProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "StaffProfile",
+    },
+  })
+);
+const Manager = User.discriminator(
+  "manager",
+  new mongoose.Schema({
+    managerProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ManagerProfile",
+    },
+  })
+);
+const Admin = User.discriminator(
+  "admin",
+  new mongoose.Schema({
+    adminProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AdminProfile",
+    },
+  })
+);
+
+export { User, Guest, Staff, Manager, Admin };
+
+
+import mongoose from "mongoose";
+
+const permissionSchema = new mongoose.Schema(
+  {
+    module: {
+      type: String,
+      required: true,
+      enum: [
+        "invitations",
+        "notification",
+        "users",
+        "rooms",
+        "bookings",
+        "inventory",
+        "staff",
+        "finance",
+        "reports",
+        "system",
+      ],
+    },
+    actions: [
+      {
+        type: String,
+        enum: [
+          "create",
+          "read",
+          "update",
+          "delete",
+          "approve",
+          "reject",
+          "export",
+          "manage",
+        ],
+      },
+    ],
+  },
+  { _id: false }
+);
+
+const adminProfileSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      required: true,
+    },
+    permissions: [permissionSchema],
+    accessLevel: {
+      type: String,
+      enum: ["Full", "Departmental", "Limited"],
+      default: "Limited",
+    },
+    activityLogs: [
+      {
+        action: {
+          type: String,
+          required: true,
+          enum: [
+            "create",
+            "update",
+            "delete",
+            "login",
+            "logout",
+            "approve",
+            "reject",
+            "export",
+          ],
+        },
+        entityType: {
+          type: String,
+          required: true,
+          enum: [
+            "User",
+            "Room",
+            "Booking",
+            "Invoice",
+            "Payment",
+            "Report",
+            "SystemSetting",
+          ],
+        },
+        entityId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true,
+        },
+        description: { type: String, trim: true },
+        ipAddress: { type: String, trim: true },
+        userAgent: { type: String, trim: true },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    lastLogin: {
+      timestamp: Date,
+      ipAddress: String,
+      device: String,
+    },
+    loginHistory: [
+      {
+        timestamp: Date,
+        ipAddress: String,
+        device: String,
+        location: String,
+      },
+    ],
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    restrictedAccessHours: {
+      start: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
+      end: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
+    },
+    notes: { type: String, trim: true },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Indexes
+adminProfileSchema.index({ "permissions.module": 1 });
+
+const AdminProfile = mongoose.model("AdminProfile", adminProfileSchema);
+export default AdminProfile;
+
+
+import mongoose from "mongoose";
+
+const identityDocumentSchema = new mongoose.Schema(
+  {
+    documentType: {
+      type: String,
+      enum: ["passport", "national_id", "driver_license", "other"],
+      required: true,
+    },
+    documentNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    issuingCountry: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    expiryDate: {
+      type: Date,
+      validate: {
+        validator: function (v) {
+          return !v || v > new Date();
+        },
+        message: "Document must not be expired",
+      },
+    },
+    frontImage: {
+      type: String,
+      required: true,
+      validate: {
+        validator: (v) => /^(http|https):\/\/[^ "]+$/.test(v),
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    backImage: {
+      type: String,
+      validate: {
+        validator: (v) => !v || /^(http|https):\/\/[^ "]+$/.test(v),
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    verified: { type: Boolean, default: false },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    verifiedAt: Date,
+  },
+  { _id: false }
+);
+
+const roomPreferenceSchema = new mongoose.Schema(
+  {
+    smoking: { type: Boolean, default: false },
+    floor: { type: String, trim: true },
+    bedType: { type: String, trim: true },
+    accessibilityNeeds: [{ type: String, trim: true }],
+  },
+  { _id: false }
+);
+
+const guestProfileSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      required: true,
+    },
+    dateOfBirth: {
+      type: Date,
+      validate: {
+        validator: function (v) {
+          const age = new Date().getFullYear() - v.getFullYear();
+          return age >= 18;
+        },
+        message: "Guest must be at least 18 years old",
+      },
+    },
+    nationality: { type: String, trim: true },
+    identityDocuments: [identityDocumentSchema],
+    verificationStatus: {
+      type: String,
+      enum: ["unverified", "pending", "verified", "rejected"],
+      default: "unverified",
+    },
+    isFoodOnlyCustomer: { type: Boolean, default: false },
+    favoriteRooms: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Room",
+      },
+    ],
+    bookings: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Booking",
+      },
+    ],
+    foodOrders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "FoodOrder",
+      },
+    ],
+    serviceRequests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ServiceRequest",
+      },
+    ],
+    preferences: {
+      preferredLanguage: {
+        type: String,
+        default: "en",
+        enum: ["en", "fr", "es", "de", "it", "zh", "ja", "ar"],
+      },
+      allergies: [{ type: String, trim: true }],
+      dietaryRestrictions: [{ type: String, trim: true }],
+      roomPreferences: roomPreferenceSchema,
+    },
+    loyaltyPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    membershipLevel: {
+      type: String,
+      enum: ["standard", "silver", "gold", "platinum"],
+      default: "standard",
+    },
+    specialRequests: [{ type: String, trim: true }],
+    blacklisted: { type: Boolean, default: false },
+    blacklistReason: { type: String, trim: true },
+    notes: { type: String, trim: true },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Virtuals
+guestProfileSchema.virtual("fullName").get(function () {
+  return this.userId?.name;
+});
+guestProfileSchema.virtual("email").get(function () {
+  return this.userId?.email;
+});
+guestProfileSchema.virtual("phone").get(function () {
+  return this.userId?.phone;
+});
+
+// Indexes (keep non-duplicate indexes)
+guestProfileSchema.index({ verificationStatus: 1 });
+guestProfileSchema.index({ isFoodOnlyCustomer: 1 });
+guestProfileSchema.index({ loyaltyPoints: -1 });
+guestProfileSchema.index({ blacklisted: 1 });
+
+const GuestProfile = mongoose.model("GuestProfile", guestProfileSchema);
+export default GuestProfile;
+
+
+import mongoose from "mongoose";
+
+const reportSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        "Daily",
+        "Weekly",
+        "Monthly",
+        "Quarterly",
+        "Annual",
+        "AdHoc",
+        "Performance",
+        "Financial",
+      ],
+    },
+    generatedAt: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    periodStart: Date,
+    periodEnd: Date,
+    fileUrl: {
+      type: String,
+      validate: {
+        validator: (v) => /^(http|https):\/\/[^ "]+$/.test(v),
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    summary: { type: String, trim: true },
+    isApproved: { type: Boolean, default: false },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+  { _id: false }
+);
+
+const managerProfileSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      required: true,
+    },
+    departments: [
+      {
+        type: String,
+        required: true,
+        enum: [
+          "FrontDesk",
+          "Housekeeping",
+          "FoodBeverage",
+          "Maintenance",
+          "Sales",
+          "HR",
+          "Finance",
+        ],
+      },
+    ],
+    employees: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    reports: [reportSchema],
+    permissions: {
+      canApproveLeave: { type: Boolean, default: false },
+      canAuthorizePayments: { type: Boolean, default: false },
+      canManageInventory: { type: Boolean, default: false },
+      canOverridePricing: { type: Boolean, default: false },
+      canViewFinancials: { type: Boolean, default: false },
+    },
+    lastLogin: {
+      timestamp: Date,
+      ipAddress: String,
+      device: String,
+    },
+    loginHistory: [
+      {
+        timestamp: Date,
+        ipAddress: String,
+        device: String,
+        location: String,
+      },
+    ],
+    shift: {
+      startTime: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
+      endTime: { type: String, match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/ },
+    },
+    emergencyContact: {
+      name: { type: String, trim: true },
+      relationship: { type: String, trim: true },
+      phone: {
+        type: String,
+        validate: {
+          validator: function (v) {
+            return /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid phone number!`,
+        },
+      },
+    },
+    notes: { type: String, trim: true },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Virtuals
+managerProfileSchema.virtual("fullName").get(function () {
+  return this.userId?.name;
+});
+
+// Indexes
+managerProfileSchema.index({ departments: 1 });
+
+const ManagerProfile = mongoose.model("ManagerProfile", managerProfileSchema);
+export default ManagerProfile;
+
+
+import mongoose from "mongoose";
+
+const taskSchema = new mongoose.Schema(
+  {
+    task: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Completed", "Failed"],
+      default: "Pending",
+    },
+    date: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    dueDate: {
+      type: Date,
+      validate: {
+        validator: function (v) {
+          return v >= this.date;
+        },
+        message: "Due date must be after creation date",
+      },
+    },
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    notes: {
+      type: String,
+      trim: true,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "critical"],
+      default: "medium",
+    },
+  },
+  { _id: true }
+);
+
+const staffProfileSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+      required: true,
+    },
+    department: {
+      type: String,
+      enum: ["Housekeeping", "Kitchen", "Maintenance", "Service"],
+      required: true,
+    },
+    position: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    shifts: [
+      {
+        day: {
+          type: String,
+          enum: [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ],
+          required: true,
+        },
+        startTime: {
+          type: String,
+          required: true,
+          match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+        },
+        endTime: {
+          type: String,
+          required: true,
+          match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+        },
+      },
+    ],
+    assignedRooms: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Room",
+      },
+    ],
+    assignedTasks: [taskSchema],
+    qualifications: [
+      {
+        name: { type: String, trim: true },
+        issuingAuthority: { type: String, trim: true },
+        issueDate: Date,
+        expiryDate: Date,
+        document: String,
+      },
+    ],
+    emergencyContact: {
+      name: { type: String, trim: true },
+      relationship: { type: String, trim: true },
+      phone: {
+        type: String,
+        validate: {
+          validator: function (v) {
+            return /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid phone number!`,
+        },
+      },
+    },
+    isActive: { type: Boolean, default: true },
+    joinedDate: {
+      type: Date,
+      default: Date.now,
+    },
+    performanceReviews: [
+      {
+        date: { type: Date, default: Date.now },
+        reviewer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        rating: { type: Number, min: 1, max: 5 },
+        comments: { type: String, trim: true },
+      },
+    ],
+    notes: { type: String, trim: true },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Virtuals
+staffProfileSchema.virtual("fullName").get(function () {
+  return this.userId?.name;
+});
+staffProfileSchema.virtual("email").get(function () {
+  return this.userId?.email;
+});
+staffProfileSchema.virtual("phone").get(function () {
+  return this.userId?.phone;
+});
+
+// Indexes
+staffProfileSchema.index({ department: 1 });
+staffProfileSchema.index({ position: 1 });
+staffProfileSchema.index({ isActive: 1 });
+
+const StaffProfile = mongoose.model("StaffProfile", staffProfileSchema);
+export default StaffProfile;
+
+
+import mongoose from "mongoose";
+
+const invitationSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  role: {
+    type: String,
+    required: true,
+    enum: ["staff", "manager", "admin"],
+  },
+  token: { type: String, required: true, unique: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  expiresAt: { type: Date, required: true },
+  used: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
+export default mongoose.model("Invitation", invitationSchema);
+
+
+// 📁 backend/models/StaffTask.js
+import mongoose from "mongoose";
+
+const staffTaskSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    department: {
+      type: String,
+      enum: ["maintenance", "kitchen", "service", "cleaning"],
+      required: true,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "process", "completed", "handoff_pending", "handoff_accepted"],
+      default: "pending",
+    },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    handoffTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // For task handoffs
+    handoffFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Who handed off the task
+    handoffDepartment: { type: String }, // Department to handoff to
+    handoffReason: { type: String }, // Reason for handoff
+    dueDate: { type: Date },
+    completedAt: { type: Date },
+    location: {
+      type: String,
+      enum: ["room", "kitchen", "lobby", "gym", "pool", "parking", "other"],
+      required: true,
+    },
+    roomNumber: { type: String }, // For room-specific tasks
+    category: {
+      type: String,
+      enum: [
+        // Maintenance categories
+        "electrical", "plumbing", "hvac", "appliance", "structural", "general",
+        // Kitchen categories
+        "food_preparation", "cooking", "cleaning", "inventory", "equipment",
+        // Service categories
+        "guest_request", "room_service", "concierge", "transportation", "event",
+        // Cleaning categories
+        "cleaning", "laundry", "restocking", "inspection", "deep_cleaning"
+      ],
+      required: true,
+    },
+    estimatedDuration: { type: Number }, // in minutes
+    actualDuration: { type: Number }, // in minutes
+    materials: [String], // List of required materials/tools
+    notes: [{
+      content: String,
+      addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      addedAt: { type: Date, default: Date.now },
+    }],
+    attachments: [{
+      filename: String,
+      url: String,
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      uploadedAt: { type: Date, default: Date.now },
+    }],
+    isUrgent: { type: Boolean, default: false },
+    requiresApproval: { type: Boolean, default: false },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
+    tags: [String], // For additional categorization
+  },
+  { timestamps: true }
+);
+
+// Indexes for better query performance
+staffTaskSchema.index({ department: 1, status: 1 });
+staffTaskSchema.index({ assignedTo: 1, status: 1 });
+staffTaskSchema.index({ priority: 1, dueDate: 1 });
+staffTaskSchema.index({ isUrgent: 1, status: 1 });
+
+const StaffTask = mongoose.model("StaffTask", staffTaskSchema);
+export default StaffTask; 
+
+
+// 📁 backend/models/Booking.js
+import mongoose from "mongoose";
+
+const bookingSchema = new mongoose.Schema(
+  {
+    roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room", index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    checkIn: Date,
+    checkOut: Date,
+    // ❌ Removed durationHours – can be computed via checkOut - checkIn
+    foodPlan: {
+      type: String,
+      enum: ["None", "Breakfast", "Half Board", "Full Board", "À la carte"],
+      default: "None",
+    },
+    specialMealRequests: String,
+    selectedMeals: [
+      {
+        name: String,
+        price: Number,
+        description: String,
+        scheduledTime: Date,
+      },
+    ],
+    totalPrice: Number,
+    status: {
+      type: String,
+      enum: ["Pending", "Confirmed", "Cancelled"],
+      default: "Pending",
+      index: true,
+    },
+    cancelledAt: Date,
+    confirmedAt: Date,
+  },
+  { timestamps: true }
+);
+
+const Booking = mongoose.model("Booking", bookingSchema);
+export default Booking;
+
+
+// 📁 backend/models/Room.js
+import mongoose from "mongoose";
+
+const roomSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+    },
+    images: [
+      {
+        url: {
+          type: String,
+          required: true,
+          validate: {
+            validator: (v) => /^(http|https):\/\/[^ "]+$/.test(v),
+            message: (props) => `${props.value} is not a valid URL!`,
+          },
+        },
+        isPrimary: { type: Boolean, default: false },
+        caption: { type: String, trim: true },
+      },
+    ],
+    roomNumber: {
+      type: String,
+      unique: true,
+      index: true,
+      required: true,
+      uppercase: true,
+      trim: true,
+      validate: {
+        validator: function (v) {
+          return /^[A-Z0-9-]+$/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid room number!`,
+      },
+    },
+    status: {
+      type: String,
+      enum: ["Available", "Booked", "Maintenance", "Cleaning", "OutOfService"],
+      default: "Available",
+      index: true,
+      required: true,
+    },
+    occupancy: {
+      adults: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 10,
+      },
+      children: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 10,
+      },
+    },
+    availability: [
+      {
+        startDate: { type: Date, required: true },
+        endDate: {
+          type: Date,
+          required: true,
+          validate: {
+            validator: function (v) {
+              return v > this.startDate;
+            },
+            message: "End date must be after start date",
+          },
+        },
+        isAvailable: { type: Boolean, required: true },
+      },
+    ],
+    amenities: [
+      {
+        type: String,
+        trim: true,
+        enum: [
+          // Standardized list
+          "WiFi",
+          "TV",
+          "AC",
+          "Minibar",
+          "Safe",
+          "Hairdryer",
+          "CoffeeMaker",
+          "Iron",
+          "Desk",
+          "Balcony",
+          "PoolView",
+          "OceanView",
+          "RoomService",
+          "DailyCleaning",
+          "Bathrobes",
+          "Slippers",
+          "Jacuzzi",
+        ],
+      },
+    ],
+    size: {
+      type: Number,
+      min: 10,
+      required: true,
+    }, // in square meters
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        "Standard",
+        "Deluxe",
+        "Suite",
+        "Executive",
+        "Presidential",
+        "Family",
+        "Accessible",
+        "Connecting",
+      ],
+    },
+    bedType: {
+      type: String,
+      required: true,
+      enum: ["Single", "Double", "Queen", "King", "Twin", "Bunk"],
+    },
+    view: {
+      type: String,
+      enum: ["City", "Garden", "Pool", "Ocean", "Mountain", "None"],
+    },
+    floor: {
+      type: Number,
+      required: true,
+      min: -2, // Allow for underground floors
+      max: 100,
+    },
+    basePrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    }, // Renamed from pricePerNight for clarity
+    seasonalPricing: [
+      {
+        name: { type: String, required: true },
+        startDate: { type: Date, required: true },
+        endDate: {
+          type: Date,
+          required: true,
+          validate: {
+            validator: function (v) {
+              return v > this.startDate;
+            },
+            message: "End date must be after start date",
+          },
+        },
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        isActive: { type: Boolean, default: true },
+      },
+    ],
+    cancellationPolicy: {
+      type: String,
+      enum: ["Flexible", "Moderate", "Strict", "NonRefundable"],
+      default: "Moderate",
+    },
+    discounts: [
+      {
+        name: { type: String, required: true },
+        description: String,
+        discountType: {
+          type: String,
+          enum: ["Percentage", "Fixed"],
+          required: true,
+        },
+        value: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        startDate: Date,
+        endDate: Date,
+        code: String,
+        isActive: { type: Boolean, default: true },
+      },
+    ],
+    packages: [
+      {
+        name: { type: String, required: true },
+        price: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+        description: { type: String, required: true },
+        inclusions: [String],
+        isActive: { type: Boolean, default: true },
+      },
+    ],
+    rating: {
+      // Renamed from statusLabel for clarity
+      type: String,
+      enum: ["Excellent", "Good", "Average", "Poor"],
+      default: "Good",
+    },
+    reviewSummary: {
+      averageRating: { type: Number, min: 1, max: 5 },
+      cleanliness: { type: Number, min: 1, max: 5 },
+      comfort: { type: Number, min: 1, max: 5 },
+      location: { type: Number, min: 1, max: 5 },
+      amenities: { type: Number, min: 1, max: 5 },
+      service: { type: Number, min: 1, max: 5 },
+      totalReviews: { type: Number, default: 0 },
+    },
+    maintenanceLogs: [
+      {
+        title: { type: String, required: true },
+        description: { type: String, required: true },
+        reportedAt: { type: Date, default: Date.now },
+        resolvedAt: Date,
+        status: {
+          type: String,
+          enum: ["Pending", "In Progress", "Resolved", "Reopened"],
+          default: "Pending",
+        },
+        priority: {
+          type: String,
+          enum: ["Low", "Medium", "High", "Critical"],
+          default: "Medium",
+        },
+        reportedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        images: [String],
+        resolutionNotes: String,
+      },
+    ],
+    cleaningSchedule: [
+      {
+        date: { type: Date, required: true },
+        assignedTo: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["Scheduled", "In Progress", "Completed", "Skipped"],
+          default: "Scheduled",
+        },
+        notes: String,
+        checklist: [
+          {
+            item: { type: String, required: true },
+            completed: { type: Boolean, default: false },
+          },
+        ],
+        supervisorCheck: {
+          checked: { type: Boolean, default: false },
+          checkedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          notes: String,
+        },
+      },
+    ],
+    metadata: {
+      lastBooked: Date,
+      lastCleaned: Date,
+      views: { type: Number, default: 0 },
+      bookingsCount: { type: Number, default: 0 },
+      averageStayDuration: Number, // in nights
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Indexes
+// roomSchema.index({ roomNumber: 1 }, { unique: true });
+// roomSchema.index({ status: 1 });
+roomSchema.index({ type: 1 });
+roomSchema.index({ floor: 1 });
+roomSchema.index({ "availability.startDate": 1, "availability.endDate": 1 });
+
+// Virtual for current availability status
+roomSchema.virtual("isCurrentlyAvailable").get(function () {
+  const now = new Date();
+  return this.availability.some(
+    (avail) =>
+      avail.isAvailable && avail.startDate <= now && avail.endDate >= now
+  );
+});
+
+const Room = mongoose.model("Room", roomSchema);
+export default Room;
+
+
+// 📁 backend/models/Review.js
+import mongoose from "mongoose";
+
+const reviewSchema = new mongoose.Schema(
+  {
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+      required: true,
+      index: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    overallRating: { type: Number, min: 0, max: 5 },
+    cleanliness: Number,
+    service: Number,
+    location: Number,
+    amenities: Number,
+    comment: String,
+    images: [String],
+    isVisible: { type: Boolean, default: true },
+    flagged: { type: Boolean, default: false },
+    sentimentLabel: {
+      type: String,
+      enum: ["Positive", "Neutral", "Negative"],
+    },
+  },
+  { timestamps: true }
+);
+
+const Review = mongoose.model("Review", reviewSchema);
+export default Review;
+
+
+// 📁 backend/models/FoodOrder.js
+import mongoose from "mongoose";
+
+const foodOrderSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    items: [
+      {
+        foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food" },
+        quantity: { type: Number, default: 1 },
+      },
+    ],
+    scheduledTime: Date,
+    deliveryLocation: String,
+    totalPrice: Number,
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Refunded", "Failed"],
+      default: "Pending",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["Cash", "Card", "Wallet", "Online"],
+      default: "Cash",
+    },
+    status: {
+      type: String,
+      enum: ["Pending", "Preparing", "Delivered", "Cancelled"],
+      default: "Pending",
+    },
+  },
+  { timestamps: true }
+);
+
+const FoodOrder = mongoose.model("FoodOrder", foodOrderSchema);
+export default FoodOrder;
+
+
+// 📁 backend/models/Food.js
+import mongoose from "mongoose";
+
+const foodSchema = new mongoose.Schema(
+  {
+    name: String,
+    category: {
+      type: String,
+      enum: ["Breakfast", "Lunch", "Dinner", "Snacks", "Beverage", "Dessert"],
+      index: true,
+    },
+    description: String,
+    imageUrl: String,
+    price: Number,
+    preparationTimeMinutes: Number,
+    ingredients: [String],
+    allergens: [String],
+    dietaryTags: [String],
+    seasonal: Boolean,
+    isAvailable: Boolean,
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    // ❌ Removed rating/reviewCount – use aggregation from FoodReview
+    sentimentBreakdown: {
+      positive: Number,
+      neutral: Number,
+      negative: Number,
+    },
+  },
+  { timestamps: true }
+);
+
+const Food = mongoose.model("Food", foodSchema);
+export default Food;
+
+
+// 📁 backend/models/FoodReview.js
+import mongoose from "mongoose";
+
+const foodReviewSchema = new mongoose.Schema(
+  {
+    foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food", index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    rating: { type: Number, min: 0, max: 5 },
+    comment: String,
+    sentimentLabel: {
+      type: String,
+      enum: ["Positive", "Neutral", "Negative"],
+    },
+    isVisible: { type: Boolean, default: true },
+    flagged: { type: Boolean, default: false },
+    images: [String],
+  },
+  { timestamps: true }
+);
+
+const FoodReview = mongoose.model("FoodReview", foodReviewSchema);
+export default FoodReview;
+
+
+// 📁 backend/models/Invoice.js
+import mongoose from "mongoose";
+
+const invoiceSchema = new mongoose.Schema(
+  {
+    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" },
+    foodOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "FoodOrder"},
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    invoiceNumber: { type: String, unique: true, index: true },
+    amount: Number,
+    currency: { type: String, default: "LKR" },
+    taxRate: Number,
+    discountApplied: Number,
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Refunded", "Failed"],
+      default: "Pending",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["Cash", "Credit Card", "Online", "Wallet"],
+      default: "Cash",
+    },
+    transactionId: String,
+    issuedAt: Date,
+    paidAt: Date,
+  },
+  { timestamps: true }
+);
+
+const Invoice = mongoose.model("Invoice", invoiceSchema);
+export default Invoice;
+
+
+import mongoose from "mongoose";
+
+const refundRequestSchema = new mongoose.Schema(
+  {
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      required: true,
+    },
+    guestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      required: true,
+    },
+
+    amount: { type: Number, required: true },
+    currency: { type: String, default: "LKR" },
+
+    reason: { type: String },
+    evidence: [
+      {
+        type: {
+          type: String,
+          enum: ["receipt", "email", "document", "photo", "other"],
+        },
+        description: { type: String },
+        fileUrl: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+    paymentGatewayRef: { type: String },
+
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "approved",
+        "denied",
+        "processed",
+        "failed",
+        "info_requested",
+      ],
+      default: "pending",
+      required: true,
+    },
+
+    // Approval tracking
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    approvedAt: { type: Date },
+
+    // Denial tracking
+    deniedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    deniedAt: { type: Date },
+    denialReason: { type: String },
+
+    // Info request tracking
+    infoRequested: { type: String },
+    infoRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    infoRequestedAt: { type: Date },
+
+    // Refund processing
+    processedAt: { type: Date },
+    failureReason: { type: String },
+    gatewayResponse: { type: mongoose.Schema.Types.Mixed },
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
+const RefundRequest = mongoose.model("RefundRequest", refundRequestSchema);
+export default RefundRequest;
+
+
+// 📁 backend/models/Notification.js
+import mongoose from "mongoose";
+
+const notificationSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    userType: {
+      type: String,
+      enum: ["guest", "staff", "manager", "admin"],
+      required: true,
+    },
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        // Guest notifications
+        "booking_confirmation",
+        "payment_receipt",
+        "payment_failed",
+        "checkin_reminder",
+        "checkout_reminder",
+        "food_order_confirmation",
+        "food_order_ready",
+        "service_request_update",
+        "cancellation_confirmation",
+        "refund_update",
+        "review_request",
+        // Staff notifications
+        "task_assigned",
+        "task_reminder",
+        "task_overdue",
+        "shift_scheduled",
+        "shift_reminder",
+        "shift_change",
+        "manager_message",
+        "emergency_alert",
+        // Manager notifications
+        "staff_alert",
+        "guest_complaint",
+        "system_alert",
+        "inventory_alert",
+        "high_occupancy_alert",
+        // Admin notifications
+        "system_error",
+        "security_alert",
+        "financial_alert",
+        "audit_log",
+        "admin_activity",
+        // System notifications
+        "test_notification",
+      ],
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 255,
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    channel: {
+      type: String,
+      required: true,
+      enum: ["email", "inApp", "sms", "push"],
+      default: "inApp",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "sent", "delivered", "failed", "read"],
+      default: "pending",
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "critical"],
+      default: "medium",
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    error: {
+      type: String,
+      trim: true,
+    },
+    readAt: {
+      type: Date,
+    },
+    actionUrl: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: (v) => !v || /^(http|https):\/\/[^ "]+$/.test(v),
+        message: (props) => `${props.value} is not a valid URL!`,
+      },
+    },
+    expiryDate: {
+      type: Date,
+      index: true,
+      expires: 0, // Auto-delete after this date
+    },
+    deleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Indexes
+notificationSchema.index({ userId: 1, isRead: 1 });
+notificationSchema.index({ createdAt: -1 });
+notificationSchema.index({ type: 1 });
+notificationSchema.index({ status: 1 });
+notificationSchema.index({ priority: 1 });
+notificationSchema.index({
+  userId: 1,
+  userType: 1,
+  "metadata.department": 1,
+  deleted: 1,
+});
+
+// Virtual for days since creation
+notificationSchema.virtual("daysOld").get(function () {
+  const diff = new Date() - this.createdAt;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+});
+
+const Notification = mongoose.model("Notification", notificationSchema);
+export default Notification;
+
+
+// 📁 backend/models/NotificationPreferences.js
+import mongoose from "mongoose";
+
+// Helper function for default preferences
+export function getDefaultPreferences(userType) {
+  const defaults = {
+    // Guest defaults
+    booking_confirmation: { email: true, inApp: true, sms: false },
+    payment_receipt: { email: true, inApp: true, sms: false },
+    payment_failed: { email: true, inApp: true, sms: true },
+    checkin_reminder: { email: true, inApp: true, sms: true },
+    checkout_reminder: { email: false, inApp: true, sms: false },
+    food_order_confirmation: { email: false, inApp: true, sms: false },
+    food_order_ready: { email: false, inApp: true, sms: false },
+    service_request_update: { email: false, inApp: true, sms: false },
+    cancellation_confirmation: { email: true, inApp: true, sms: false },
+    refund_update: { email: true, inApp: true, sms: false },
+    review_request: { email: true, inApp: true, sms: false },
+  };
+
+  if (userType === "staff" || userType === "manager") {
+    Object.assign(defaults, {
+      task_assigned: { email: true, inApp: true, sms: true },
+      task_reminder: { email: false, inApp: true, sms: true },
+      task_overdue: { email: true, inApp: true, sms: true },
+      shift_scheduled: { email: true, inApp: true, sms: true },
+      shift_reminder: { email: false, inApp: true, sms: true },
+      shift_change: { email: true, inApp: true, sms: true },
+      manager_message: { email: true, inApp: true, sms: true },
+      emergency_alert: { email: true, inApp: true, sms: true },
+    });
+  }
+
+  if (userType === "manager" || userType === "admin") {
+    Object.assign(defaults, {
+      staff_alert: { email: true, inApp: true, sms: true },
+      guest_complaint: { email: true, inApp: true, sms: true },
+      system_alert: { email: true, inApp: true, sms: true },
+      inventory_alert: { email: true, inApp: true, sms: false },
+      high_occupancy_alert: { email: true, inApp: true, sms: true },
+    });
+  }
+
+  if (userType === "admin") {
+    Object.assign(defaults, {
+      system_error: { email: true, inApp: true, sms: true },
+      security_alert: { email: true, inApp: true, sms: true },
+      financial_alert: { email: true, inApp: true, sms: true },
+      audit_log: { email: false, inApp: true, sms: false },
+      admin_activity: { email: false, inApp: true, sms: false },
+    });
+  }
+
+  // System notifications for testing (available to all)
+  defaults.test_notification = { email: false, inApp: true, sms: false };
+  defaults.admin_message = { email: true, inApp: true, sms: false };
+
+  return defaults;
+}
+
+// Schema definition
+const notificationPreferencesSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true,
+      index: true,
+    },
+    userType: {
+      type: String,
+      enum: ["guest", "staff", "manager", "admin"],
+      required: true,
+    },
+    preferences: {
+      type: Map,
+      of: new mongoose.Schema({
+        email: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+      }),
+      default: {},
+      validate: {
+        validator: function (prefs) {
+          const allowedKeys = Object.keys(getDefaultPreferences(this.userType));
+          return [...prefs.keys()].every((key) => allowedKeys.includes(key));
+        },
+        message: (props) =>
+          `Invalid preference keys for userType "${props.value}".`,
+      },
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Index for fast lookup
+notificationPreferencesSchema.index({ userId: 1, userType: 1 });
+
+// Pre-save hook to clean up invalid keys
+notificationPreferencesSchema.pre("save", function (next) {
+  const allowedKeys = Object.keys(getDefaultPreferences(this.userType));
+  for (const key of this.preferences.keys()) {
+    if (!allowedKeys.includes(key)) {
+      this.preferences.delete(key);
+    }
+  }
+  next();
+});
+
+// Static method to get or create preferences
+notificationPreferencesSchema.statics.getOrCreate = async function (
+  userId,
+  userType
+) {
+  let preferences = await this.findOne({ userId });
+
+  if (!preferences) {
+    preferences = await this.create({
+      userId,
+      userType,
+      preferences: getDefaultPreferences(userType),
+    });
+  }
+
+  return preferences;
+};
+
+const NotificationPreferences = mongoose.model(
+  "NotificationPreferences",
+  notificationPreferencesSchema
+);
+
+export default NotificationPreferences;
+
+
+// 📁 backend/models/NotificationTemplate.js
+import mongoose from "mongoose";
+
+const notificationTemplateSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        // Guest notifications
+        "booking_confirmation",
+        "payment_receipt",
+        "payment_failed",
+        "checkin_reminder",
+        "checkout_reminder",
+        "food_order_confirmation",
+        "food_order_ready",
+        "service_request_update",
+        "cancellation_confirmation",
+        "refund_request_submitted",
+        "refund_approved",
+        "refund_denied",
+        "refund_processed",
+        "refund_failed",
+        "refund_info_requested",
+        "review_request",
+        // Staff notifications
+        "task_assigned",
+        "task_reminder",
+        "task_overdue",
+        "shift_scheduled",
+        "shift_reminder",
+        "shift_change",
+        "manager_message",
+        "emergency_alert",
+        // Manager notifications
+        "staff_alert",
+        "guest_complaint",
+        "system_alert",
+        "inventory_alert",
+        "high_occupancy_alert",
+        // Admin notifications
+        "system_error",
+        "security_alert",
+        "financial_alert",
+        "audit_log",
+        "admin_activity",
+        // System notifications
+        "test_notification",
+      ],
+      index: true,
+    },
+    channel: {
+      type: String,
+      required: true,
+      enum: ["email", "inApp", "sms", "push"],
+      index: true,
+    },
+    subject: {
+      type: String,
+      required: function () {
+        return this.channel === "email";
+      },
+    },
+    body: {
+      type: String,
+      required: true,
+    },
+    variables: {
+      type: [String],
+      required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    defaultPriority: {
+      type: String,
+      enum: ["low", "medium", "high", "critical"],
+      default: "medium",
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Ensure unique combination of type and channel
+notificationTemplateSchema.index({ type: 1, channel: 1 }, { unique: true });
+
+const NotificationTemplate = mongoose.model(
+  "NotificationTemplate",
+  notificationTemplateSchema
+);
+
+export default NotificationTemplate;

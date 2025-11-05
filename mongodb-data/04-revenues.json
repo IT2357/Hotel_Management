@@ -1,0 +1,60 @@
+[
+  {
+    "source": "room_booking",
+    "amount": 1200,
+    "baseAmount": 1000,
+    "tax": 150,
+    "serviceCharge": 50,
+    "sourceModel": "Booking",
+    "paymentMethod": "credit_card",
+    "paymentStatus": "completed",
+    "serviceDate": "2025-09-25T10:00:00.000Z",
+    "bookingChannel": "direct",
+    "receivedAt": "2025-09-25T10:00:00.000Z",
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "source": "room_booking",
+    "amount": 960,
+    "baseAmount": 800,
+    "tax": 120,
+    "serviceCharge": 40,
+    "sourceModel": "Booking",
+    "paymentMethod": "cash",
+    "paymentStatus": "completed",
+    "serviceDate": "2025-09-24T10:00:00.000Z",
+    "bookingChannel": "direct",
+    "receivedAt": "2025-09-24T10:00:00.000Z",
+    "createdAt": "2025-09-24T10:00:00.000Z",
+    "updatedAt": "2025-09-24T10:00:00.000Z"
+  },
+  {
+    "source": "food_order",
+    "amount": 300,
+    "baseAmount": 250,
+    "tax": 30,
+    "serviceCharge": 20,
+    "sourceModel": "Booking",
+    "paymentMethod": "cash",
+    "paymentStatus": "completed",
+    "serviceDate": "2025-09-25T12:00:00.000Z",
+    "receivedAt": "2025-09-25T12:00:00.000Z",
+    "createdAt": "2025-09-25T12:00:00.000Z",
+    "updatedAt": "2025-09-25T12:00:00.000Z"
+  },
+  {
+    "source": "food_order",
+    "amount": 280,
+    "baseAmount": 230,
+    "tax": 28,
+    "serviceCharge": 22,
+    "sourceModel": "Booking",
+    "paymentMethod": "credit_card",
+    "paymentStatus": "completed",
+    "serviceDate": "2025-09-24T12:00:00.000Z",
+    "receivedAt": "2025-09-24T12:00:00.000Z",
+    "createdAt": "2025-09-24T12:00:00.000Z",
+    "updatedAt": "2025-09-24T12:00:00.000Z"
+  }
+]

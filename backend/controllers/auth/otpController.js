@@ -1,1 +1,0 @@
-// Placeholder for backend/controllers/auth/otpController.js

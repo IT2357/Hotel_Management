@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Status Update - Jaffna Hotel</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+        }
+        .status-update {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0;
+        }
+        .status-preparing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status-ready {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .status-delivered {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .order-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .order-info h3 {
+            margin: 0 0 15px 0;
+            color: #d4af37;
+            font-size: 18px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .timeline {
+            margin: 20px 0;
+        }
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .timeline-item.completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .timeline-item.current {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 2px solid #d4af37;
+        }
+        .timeline-item.pending {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        .timeline-icon {
+            font-size: 24px;
+            margin-right: 15px;
+            min-width: 30px;
+        }
+        .timeline-content {
+            flex: 1;
+        }
+        .timeline-content h4 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+        .timeline-content p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #d4af37;
+            text-decoration: none;
+        }
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .info-row {
+                flex-direction: column;
+            }
+            .info-row span:first-child {
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Order Status Update</h1>
+            <p>Your order is being prepared with care</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hello {{customerName}}!</h2>
+            <p>We have an update on your order #{{orderNumber}}.</p>
+            
+            <div class="status-update">
+                <div class="status-icon">{{statusIcon}}</div>
+                <h3>Order Status: <span class="status-badge status-{{status}}">{{status}}</span></h3>
+                <p><strong>{{statusMessage}}</strong></p>
+                <p><small>Updated at: {{updateTime}}</small></p>
+            </div>
+
+            <div class="order-info">
+                <h3>📋 Order Summary</h3>
+                <div class="info-row">
+                    <span>Order Number:</span>
+                    <span><strong>{{orderNumber}}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span>Order Type:</span>
+                    <span>{{orderType}}</span>
+                </div>
+                <div class="info-row">
+                    <span>Total Amount:</span>
+                    <span><strong>LKR {{totalPrice}}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span>Current Status:</span>
+                    <span><span class="status-badge status-{{status}}">{{status}}</span></span>
+                </div>
+            </div>
+
+            <h3>📈 Order Progress</h3>
+            <div class="timeline">
+                <div class="timeline-item {{#if (gte statusLevel 1)}}completed{{else if (eq statusLevel 1)}}current{{else}}pending{{/if}}">
+                    <div class="timeline-icon">📝</div>
+                    <div class="timeline-content">
+                        <h4>Order Placed</h4>
+                        <p>Your order has been received and confirmed</p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item {{#if (gte statusLevel 2)}}completed{{else if (eq statusLevel 2)}}current{{else}}pending{{/if}}">
+                    <div class="timeline-icon">👨‍🍳</div>
+                    <div class="timeline-content">
+                        <h4>Preparing</h4>
+                        <p>Our chefs are preparing your delicious meal</p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item {{#if (gte statusLevel 3)}}completed{{else if (eq statusLevel 3)}}current{{else}}pending{{/if}}">
+                    <div class="timeline-icon">✅</div>
+                    <div class="timeline-content">
+                        <h4>Ready</h4>
+                        <p>Your order is ready for pickup/delivery</p>
+                    </div>
+                </div>
+                
+                <div class="timeline-item {{#if (gte statusLevel 4)}}completed{{else if (eq statusLevel 4)}}current{{else}}pending{{/if}}">
+                    <div class="timeline-icon">🚚</div>
+                    <div class="timeline-content">
+                        <h4>Delivered</h4>
+                        <p>Your order has been delivered successfully</p>
+                    </div>
+                </div>
+            </div>
+
+            {{#if nextSteps}}
+            <div style="background-color: #e8f5e8; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #155724;">🎯 Next Steps</h4>
+                <p style="margin: 0;">{{nextSteps}}</p>
+            </div>
+            {{/if}}
+
+            {{#if estimatedTime}}
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #856404;">⏰ Estimated Time</h4>
+                <p style="margin: 0;"><strong>{{estimatedTime}}</strong></p>
+            </div>
+            {{/if}}
+
+            <div style="text-align: center;">
+                <a href="{{trackingUrl}}" class="action-button">Track Your Order</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Jaffna Hotel</strong></p>
+            <p>Authentic Jaffna Cuisine & Hospitality</p>
+            <p>📞 +94 21 123 4567 | 📧 info@jaffnahotel.com</p>
+            <p><a href="{{trackingUrl}}">Track Your Order</a> | <a href="{{websiteUrl}}">Visit Our Website</a></p>
+        </div>
+    </div>
+</body>
+</html>

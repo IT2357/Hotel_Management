@@ -1,0 +1,79 @@
+diff --git a/backend/controllers/food/foodController.js b/backend/controllers/food/foodController.js
+index 1234567..89abcde 100644
+--- a/backend/controllers/food/foodController.js
++++ b/backend/controllers/food/foodController.js
+@@ -1,5 +1,6 @@
+ import MenuItem from '../../models/MenuItem.js';
+ import Category from '../../models/Category.js';
++import Fuse from 'fuse.js';
+ import catchAsync from '../../utils/catchAsync.js';
+ import AppError from '../../utils/appError.js';
+ import mongoose from 'mongoose';
+@@ -25,6 +26,45 @@ export const getAllFoodItems = catchAsync(async (req, res) => {
+   });
+ });
+ 
++// Search food items with fuzzy search and debouncing support
++export const searchFoodItems = catchAsync(async (req, res) => {
++  const { q, category, limit = 20, offset = 0 } = req.query;
++
++  // Validate limit
++  const limitNum = Math.min(parseInt(limit) || 20, 50);
++  const offsetNum = parseInt(offset) || 0;
++
++  let filter = { isAvailable: true };
++
++  if (category && category !== 'all') {
++    filter.category = category;
++  }
++
++  // If search query provided, use fuzzy search
++  let menuItems = [];
++  if (q) {
++    // Get all available items for fuzzy search
++    const allItems = await MenuItem.find(filter).lean();
++    
++    // Setup Fuse.js for fuzzy search
++    const fuse = new Fuse(allItems, {
++      keys: ['name', 'description', 'ingredients'],
++      threshold: 0.3, // Adjust for fuzziness (0.0 to 1.0, lower = stricter)
++      includeScore: true
++    });
++
++    // Perform search
++    const results = fuse.search(q);
++    menuItems = results.slice(offsetNum, offsetNum + limitNum).map(result => result.item);
++  } else {
++    // Regular search without fuzzy matching
++    menuItems = await MenuItem.find(filter)
++      .sort({ createdAt: -1 })
++      .skip(offsetNum)
++      .limit(limitNum);
++  }
++
++  // Add imageUrl to each menu item for frontend display
++  const menuItemsWithImages = menuItems.map(item => {
++    const itemObj = { ...item };
++    if (itemObj.imageId) {
++      itemObj.imageUrl = `/api/menu/image/${itemObj.imageId}`;
++    } else if (itemObj.image) {
++      itemObj.imageUrl = itemObj.image;
++    }
++    // Apply Jaffna pricing adjustment (-5%)
++    itemObj.price = parseFloat((itemObj.price * 0.95).toFixed(2));
++    itemObj.originalPrice = item.price;
++    return itemObj;
++  });
++
++  res.status(200).json({
++    success: true,
++    data: menuItemsWithImages,
++    count: menuItemsWithImages.length,
++    query: q || '',
++    category: category || 'all'
++  });
++});
++
+ // Get single food item
+ export const getFoodItem = catchAsync(async (req, res) => {
+   const menuItem = await MenuItem.findById(req.params.id);

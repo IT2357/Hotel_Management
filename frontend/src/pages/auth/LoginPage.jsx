@@ -1,13 +1,28 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import AuthForm from '../../components/auth/AuthForm';
+// In src/pages/auth/LoginPage.js
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import AuthForm from './components/AuthForm';
 import useAuth from '../../hooks/useAuth';
-import getDashboardPath from '../../utils/GetDashboardPath';
+import Alert from '../../components/common/Alert';
+import SocialAuthButtons from './components/SocialAuthButtons';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Store redirect path in sessionStorage when component mounts
+  useEffect(() => {
+    // Get the 'from' location state (set by protected routes or manual redirects)
+    const redirectPath = location.state?.from;
+    
+    if (redirectPath) {
+      // Store in sessionStorage so AuthContext can use it after login
+      sessionStorage.setItem('redirectAfterLogin', redirectPath);
+    }
+  }, [location]);
 
   const fields = [
     {
@@ -18,60 +33,101 @@ export default function LoginPage() {
         required: 'Email is required',
         pattern: {
           value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-          message: 'Invalid email address'
-        }
-      }
+          message: 'Invalid email address',
+        },
+      },
     },
     {
       name: 'password',
       label: 'Password',
       type: 'password',
-      validation: { required: 'Password is required' }
-    }
+      validation: { required: 'Password is required' },
+    },
   ];
 
   const handleSubmit = async (data) => {
     setLoading(true);
+    setAlert(null);
     try {
-      const user = await login(data); // login returns user object
-      if (user?.role) {
-        navigate(getDashboardPath(user.role));
-      } else {
-        console.warn("Login succeeded but user role not found.");
-      }
+      await login(data);
     } catch (err) {
-      console.error("Login error:", err);
+      console.error('Login error:', {
+        message: err.message,
+        response: err.response?.data,
+        redirectTo: err.response?.data?.redirectTo,
+        userData: err.response?.data?.data?.user,
+      });
+      const errorMessage =
+        err.response?.data?.redirectTo === '/reset-password'
+          ? 'A password reset is required. Redirecting to reset page...'
+          : err.response?.data?.message ||
+            err.message ||
+            'Login failed. Please check your credentials or try again later.';
+      setAlert({ type: 'error', message: errorMessage });
+      if (err.response?.data?.redirectTo === '/reset-password') {
+        navigate('/reset-password', {
+          state: {
+            userId: err.response?.data?.data?.user?._id,
+            email: err.response?.data?.data?.user?.email,
+          },
+          replace: true,
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl space-y-8 border border-gray-200">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+          <h2 className="mt-6 text-center text-4xl font-extrabold text-gray-900 tracking-tight">
+            Welcome Back!
           </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in to continue to your account
+          </p>
         </div>
-        <AuthForm 
-          fields={fields} 
-          onSubmit={handleSubmit} 
-          submitText="Sign in" 
+        {alert && (
+          <Alert
+            type={alert.type}
+            message={alert.message}
+            onClose={() => setAlert(null)}
+          />
+        )}
+        
+        {/* Social Authentication */}
+        <SocialAuthButtons />
+        
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+        
+        <AuthForm
+          fields={fields}
+          onSubmit={handleSubmit}
+          submitText="Sign In"
           loading={loading}
         />
-        <div className="text-center text-sm">
-          <Link 
-            to="/forgot-password" 
-            className="font-medium text-indigo-600 hover:text-indigo-500"
+        <div className="flex items-center justify-between text-sm">
+          <Link
+            to="/forgot-password"
+            className="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150 ease-in-out"
           >
             Forgot your password?
           </Link>
-        </div>
-        <div className="text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Register
+          <Link
+            to="/register"
+            className="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150 ease-in-out"
+          >
+            Don't have an account? Register
           </Link>
         </div>
       </div>

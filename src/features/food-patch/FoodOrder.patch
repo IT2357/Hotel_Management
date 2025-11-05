@@ -1,0 +1,74 @@
+diff --git a/backend/models/FoodOrder.js b/backend/models/FoodOrder.js
+index 1234567..89abcde 100644
+--- a/backend/models/FoodOrder.js
++++ b/backend/models/FoodOrder.js
+@@ -1,5 +1,6 @@
+ // 📁 backend/models/FoodOrder.js
+ import mongoose from "mongoose";
++import Offer from "./Offer.js";
+ 
+ const foodOrderSchema = new mongoose.Schema(
+   {
+@@ -45,6 +46,15 @@ const foodOrderSchema = new mongoose.Schema(
+       type: String,
+       required: function() {
+         return this.orderType === 'takeaway';
++      }
++    },
++    // Group order functionality
++    groupId: {
++      type: String,
++      required: false
++    },
++    isGroupOrder: {
++      type: Boolean,
++      default: false
+     },
+     // Order priority (dine-in gets higher priority)
+     priorityLevel: {
+@@ -80,6 +90,15 @@ const foodOrderSchema = new mongoose.Schema(
+       type: String,
+       enum: ["CASH", "CARD", "WALLET", "ONLINE"],
+       default: "CASH",
++    },
++    // Redeemed offers
++    redeemedOffers: [
++      {
++        offerId: { type: mongoose.Schema.Types.ObjectId, ref: "Offer" },
++        discountAmount: { type: Number },
++        code: { type: String },
++        appliedAt: { type: Date, default: Date.now }
++      }
+     },
+     paymentId: {
+       type: String,
+@@ -120,6 +139,15 @@ const foodOrderSchema = new mongoose.Schema(
+       type: String,
+       enum: ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled", "modified"],
+       default: "pending",
++    },
++    // Group order status
++    groupOrderStatus: {
++      type: String,
++      enum: ["pending", "member-joined", "confirmed", "preparing", "ready", "delivered", "cancelled"],
++      default: function() {
++        return this.isGroupOrder ? "pending" : undefined;
++      }
++    },
++    groupMembers: [
++      {
++        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
++        name: { type: String },
++        email: { type: String },
++        items: [
++          {
++            foodId: { type: mongoose.Schema.Types.ObjectId, ref: "Food" },
++            quantity: { type: Number, default: 1 },
++            price: { type: Number }
++          }
++        ],
++        status: { type: String, enum: ["pending", "confirmed", "ready", "delivered"], default: "pending" }
++      }
+     },
+     kitchenStatus: {
+       type: String,

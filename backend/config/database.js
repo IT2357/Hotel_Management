@@ -3,6 +3,13 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel-management';
+
+    if (!process.env.MONGODB_URI) {
+      console.warn('⚠️  MONGODB_URI not set in environment variables, using default: mongodb://localhost:27017/hotel-management');
+      console.warn('📝 Please set MONGODB_URI in your .env file for production use');
+    }
+
     const options = {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
@@ -11,7 +18,7 @@ export const connectDB = async () => {
       bufferCommands: false, // Disable mongoose buffering
     };
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, options);
+    const conn = await mongoose.connect(mongoURI, options);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);

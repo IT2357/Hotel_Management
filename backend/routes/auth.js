@@ -1,5 +1,5 @@
-// 📁 routes/auth.js
 import express from "express";
+import passport from "passport";
 import {
   register,
   registerWithInvitation,
@@ -13,21 +13,21 @@ import {
   updateProfile,
   changePassword,
   logout,
-  // getDashboard,
-  // getStaffPanel,
-  // deleteRoom,
-  // getBooking
+  socialCallback,
+  deleteProfile,
 } from "../controllers/auth/authController.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken, optionalAuth } from "../middleware/auth.js";
 import {
   validateRegistration,
   validateLogin,
+  validateProfileUpdate,
+  validateChangePassword,
 } from "../middleware/validation.js";
-// import { authorizeRoles, checkPermissions, checkResourceAccess } from "../middleware/roleAuth.js";
+import { authorizeRoles } from "../middleware/roleAuth.js"; // <-- only this now
 
 const router = express.Router();
 
-// Public routes
+// Public routes (no auth needed)
 router.post("/register", validateRegistration, register);
 router.get("/check-invitation", checkInvitation);
 router.post("/register-with-invite", registerWithInvitation);
@@ -36,17 +36,61 @@ router.post("/verify-email", verifyEmail);
 router.post("/resend-otp", resendOTP);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/change-password", optionalAuth, changePassword);
+
+// Social login routes
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: "/login",
+    session: false,
+  }),
+  socialCallback
+);
+
+// Facebook OAuth routes
+router.get(
+  "/facebook",
+  passport.authenticate("facebook", { scope: ["email", "public_profile"] })
+);
+router.get(
+  "/facebook/callback",
+  passport.authenticate("facebook", {
+    failureRedirect: "/login",
+    session: false,
+  }),
+  socialCallback
+);
+
+router.get("/apple", passport.authenticate("apple"));
+router.post(
+  "/apple/callback",
+  passport.authenticate("apple", { failureRedirect: "/login", session: false }),
+  socialCallback
+);
 
 // Protected routes
 router.get("/me", authenticateToken, getCurrentUser);
-router.put("/profile", authenticateToken, updateProfile);
-router.put("/change-password", authenticateToken, changePassword);
+router.put("/profile", authenticateToken, validateProfileUpdate, updateProfile);
+router.put(
+  "/change-password",
+  authenticateToken,
+  validateChangePassword,
+  changePassword
+);
 router.post("/logout", authenticateToken, logout);
+router.delete("/profile", authenticateToken, deleteProfile);
 
-// Uncomment and implement these as needed:
-// router.get("/dashboard", authenticateToken, getDashboard);
-// router.get("/staff-panel", authenticateToken, authorizeRoles("staff", "manager", "admin"), getStaffPanel);
-// router.delete("/rooms/:id", authenticateToken, checkPermissions(["delete-room"]), deleteRoom);
-// router.get("/bookings/:id", authenticateToken, checkResourceAccess("booking"), getBooking);
+// Example protected route with role & permission check:
+// router.get(
+//   "/staff-panel",
+//   authenticateToken,
+//   authorizeRoles({ roles: ["staff", "manager", "admin"], permissions: ["staff:read"] }),
+//   getStaffPanel
+// );
 
 export default router;

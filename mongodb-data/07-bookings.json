@@ -1,0 +1,39 @@
+[
+  {
+    "bookingNumber": "BK123456",
+    "checkIn": "2025-09-25T14:00:00.000Z",
+    "checkOut": "2025-09-28T11:00:00.000Z",
+    "totalAmount": 360,
+    "status": "Confirmed",
+    "paymentStatus": "completed",
+    "guests": 2,
+    "guestCount": { "adults": 2, "children": 0 },
+    "specialRequests": "Late check-in",
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  },
+  {
+    "bookingNumber": "BK123457",
+    "checkIn": "2025-09-24T14:00:00.000Z",
+    "checkOut": "2025-09-26T11:00:00.000Z",
+    "totalAmount": 240,
+    "status": "Confirmed", 
+    "paymentStatus": "completed",
+    "guests": 1,
+    "guestCount": { "adults": 1, "children": 0 },
+    "createdAt": "2025-09-24T10:00:00.000Z",
+    "updatedAt": "2025-09-24T10:00:00.000Z"
+  },
+  {
+    "bookingNumber": "BK123458",
+    "checkIn": "2025-10-02T14:00:00.000Z",
+    "checkOut": "2025-10-04T11:00:00.000Z", 
+    "totalAmount": 360,
+    "status": "Confirmed",
+    "paymentStatus": "completed",
+    "guests": 2,
+    "guestCount": { "adults": 2, "children": 0 },
+    "createdAt": "2025-09-25T10:00:00.000Z",
+    "updatedAt": "2025-09-25T10:00:00.000Z"
+  }
+]

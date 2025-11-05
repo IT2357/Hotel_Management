@@ -1,67 +1,151 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import getDashboardPath from '../../utils/GetDashboardPath';
+import usePermissions from '../../hooks/usePermissions';
 
-export default function ProtectedRoute({ children, roles = [], permissions = [] }) {
+export function ProtectedRoute({ children, roles = [], permissions = [] }) {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const { hasAllPermissions } = usePermissions();
 
-  const publicRoutes = ['/', '/login', '/register', '/forgot-password'];
+  // Define public routes that don't require authentication
+  const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-email', '/reset-password'];
 
-  // 🧪 Debug Logs
-  console.log("🔒 ProtectedRoute");
-  console.log("  📍 Path:", location.pathname);
-  console.log("  🙋‍♂️ User:", user);
-  console.log("  🚦 Loading:", loading);
-  console.log("  🎯 Required roles:", roles);
-  console.log("  🔑 Required permissions:", permissions);
-  if (user) {
-    console.log("  🧑‍💼 User role:", user.role);
-    console.log("  🎟 User permissions:", user.permissions || []);
-  }
-
-  // 🕐 Wait for checkAuth() to complete
+  // Wait for auth check to complete
   if (loading) {
-    console.log("⏳ Still loading auth state...");
-    return <div className="text-center py-10">Verifying session...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+            <span className="text-gray-700">Verifying session...</span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // ❌ If still no user after loading, redirect to login (unless it's public)
+  // If user is not authenticated and trying to access a protected route
   if (!user) {
-    console.warn("❗ No authenticated user. Redirecting to login...");
     if (publicRoutes.includes(location.pathname)) {
+      console.log('Allowing access to public route:', location.pathname);
       return children;
     }
+    console.log('Redirecting to /login', { from: location.pathname });
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 🧑‍⚖️ Role check
-  if (roles.length && !roles.includes(user.role)) {
-    console.warn(`❗ User role "${user.role}" not allowed. Redirecting to /unauthorized`);
+  console.log('ProtectedRoute user:', {
+    userId: user._id,
+    email: user.email,
+    role: user.role,
+    passwordResetPending: user.passwordResetPending,
+    emailVerified: user.emailVerified,
+    isActive: user.isActive,
+    pathname: location.pathname,
+  });
+
+  // Password reset pending - redirect to reset password
+  if (user.passwordResetPending && location.pathname !== '/reset-password') {
+    console.log('Redirecting to /reset-password', { userId: user._id, email: user.email });
     return (
       <Navigate
-        to="/unauthorized"
-        state={{ from: location, requiredRoles: roles }}
+        to="/reset-password"
+        state={{ from: location, email: user.email, userId: user._id }}
         replace
       />
     );
   }
 
-  // 🔑 Permission check
+  // Email not verified - redirect to verify email
+  if (!user.emailVerified && location.pathname !== '/verify-email') {
+    console.log('Redirecting to /verify-email', { userId: user._id, email: user.email });
+    return (
+      <Navigate
+        to="/verify-email"
+        state={{ from: location, email: user.email, userId: user._id }}
+        replace
+      />
+    );
+  }
+
+  // Account not active - show error
+  if (!user.isActive) {
+    console.log('Account deactivated', { userId: user._id, email: user.email });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Account Deactivated</h2>
+          <p className="text-gray-700">
+            Your account has been deactivated. Please contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Pending approval for non-guest roles
+  if (user.role !== "guest" && !user.isApproved && location.pathname !== '/pending-approval') {
+    console.log('Redirecting to /pending-approval', { userId: user._id, role: user.role });
+    return (
+      <Navigate
+        to="/pending-approval"
+        state={{ from: location }}
+        replace
+      />
+    );
+  }
+
+  // Role-based access control
+  if (roles.length && !roles.includes(user.role)) {
+    console.log('Unauthorized role', { userRole: user.role, requiredRoles: roles });
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Permission-based access control (common across admin/manager/staff; guests excluded by hook)
   if (permissions.length) {
-    const userPerms = user.permissions || [];
-    const hasAll = permissions.every((p) => userPerms.includes(p));
-    if (!hasAll) {
-      console.warn("❗ Missing required permissions. Redirecting to /unauthorized");
-      return (
-        <Navigate
-          to="/unauthorized"
-          state={{ from: location, requiredPermissions: permissions }}
-          replace
-        />
-      );
+    const ok = hasAllPermissions(permissions);
+    if (!ok) {
+      console.log('Insufficient permissions', { requiredPerms: permissions });
+      return <Navigate to="/unauthorized" replace />;
     }
   }
 
-  console.log("✅ Access granted. Rendering protected content.");
+  // If all checks pass, render the children
+  console.log('Allowing access to protected route:', location.pathname);
+  return children;
+}
+
+export function RedirectIfAuthenticated({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+            <span className="text-gray-700">Verifying session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only redirect if user is authenticated, email is verified, active, and no password reset pending
+  if (user && user.emailVerified && user.isActive && !user.passwordResetPending) {
+    const dashboardPath = getDashboardPath(user.role);
+    if (location.pathname !== dashboardPath) {
+      console.log('Redirecting authenticated user to dashboard', {
+        userId: user._id,
+        dashboardPath,
+        pathname: location.pathname,
+      });
+      return <Navigate to={dashboardPath} state={{ from: location }} replace />;
+    }
+  }
+
+  console.log('Allowing access to non-authenticated route:', location.pathname);
   return children;
 }

@@ -1,169 +1,153 @@
-// 📁 middleware/roleAuth.js
-import AdminProfile from "../models/profiles/AdminProfile.js";
-import Booking from "../models/Booking.js";
-import Review from "../models/Review.js";
+import { User } from "../models/User.js";
 
-// Enhanced role-based access control with approval check
-export const authorizeRoles = (...roles) => {
-  return async (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-    }
+export const authorizeRoles = (options) => {
+  let roles = [],
+    permissions = [],
+    approvalRequired = true;
 
-    // Check if user is approved (guests are always considered approved)
-    if (req.user.role !== "guest" && !req.user.isApproved) {
-      return res.status(403).json({
-        success: false,
-        message: "Account pending admin approval",
-      });
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied. Required role: ${roles.join(" or ")}`,
-      });
-    }
-
-    next();
-  };
-};
-
-// Enhanced permission check with admin approval verification
-export const checkPermissions = (requiredPermissions) => {
-  return async (req, res, next) => {
-    try {
-      if (req.user.role !== "admin") {
-        return res.status(403).json({
-          success: false,
-          message: "Admin access required",
-        });
-      }
-
-      // Verify admin is approved
-      if (!req.user.isApproved) {
-        return res.status(403).json({
-          success: false,
-          message: "Admin account pending approval",
-        });
-      }
-
-      const adminProfile = await AdminProfile.findOne({ userId: req.user._id });
-
-      if (!adminProfile) {
-        return res.status(403).json({
-          success: false,
-          message: "Admin profile not found",
-        });
-      }
-
-      const hasPermission = requiredPermissions.every((permission) =>
-        adminProfile.permissions.includes(permission)
-      );
-
-      if (!hasPermission) {
-        return res.status(403).json({
-          success: false,
-          message: "Insufficient permissions",
-          requiredPermissions,
-        });
-      }
-
-      next();
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: "Permission check failed",
-      });
-    }
-  };
-};
-
-// Enhanced resource access control with approval checks
-export const checkResourceAccess = (resourceType) => {
-  return async (req, res, next) => {
-    try {
-      const resourceId = req.params.id;
-
-      if (!resourceId) {
-        return res.status(400).json({
-          success: false,
-          message: "Missing resource ID",
-        });
-      }
-
-      let resource;
-      switch (resourceType) {
-        case "booking":
-          resource = await Booking.findById(resourceId);
-          break;
-        case "review":
-          resource = await Review.findById(resourceId);
-          break;
-        default:
-          return res.status(400).json({
-            success: false,
-            message: "Invalid resource type",
-          });
-      }
-
-      if (!resource) {
-        return res.status(404).json({
-          success: false,
-          message: `${
-            resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
-          } not found`,
-        });
-      }
-
-      const isOwner = resource.userId.toString() === req.user._id.toString();
-      const isStaff = ["staff", "manager", "admin"].includes(req.user.role);
-
-      // Check if staff/admin is approved
-      const isApprovedStaff = isStaff && req.user.isApproved;
-
-      if (!isOwner && !isApprovedStaff) {
-        return res.status(403).json({
-          success: false,
-          message: `Access denied to this ${resourceType}`,
-        });
-      }
-
-      next();
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: "Resource access check failed",
-      });
-    }
-  };
-};
-
-// New middleware for admin approval checks
-export const checkApprovedAdmin = async (req, res, next) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Admin access required",
-      });
-    }
-
-    if (!req.user.isApproved) {
-      return res.status(403).json({
-        success: false,
-        message: "Admin account pending approval",
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Admin verification failed",
-    });
+  if (Array.isArray(options)) {
+    roles = options;
+  } else if (typeof options === "object" && options !== null) {
+    roles = options.roles || [];
+    permissions = options.permissions || [];
+    approvalRequired =
+      options.approvalRequired !== undefined ? options.approvalRequired : true;
   }
+
+  return async (req, res, next) => {
+    try {
+      if (!req.user?._id) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Authentication required" });
+      }
+
+      // Fetch user WITHOUT populate first
+      const user = await User.findById(req.user._id);
+
+      if (!user) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User not found" });
+      }
+
+      // Get the correct profile field based on role
+      const profileField = `${user.role}Profile`;
+      
+      // Populate the profile with the correct model reference
+      await user.populate({
+        path: profileField,
+        // Ensure we're populating from the correct model
+        model: user.role.charAt(0).toUpperCase() + user.role.slice(1) + 'Profile'
+      });
+      
+      // Convert to plain object and get the profile
+      const userObj = user.toObject({ virtuals: true });
+      const profile = user[profileField];
+      
+      // Log for debugging
+      console.log("User role:", user.role);
+      console.log("Profile field:", profileField);
+      console.log("Profile populated:", !!profile);
+      
+      if (profile) {
+        console.log("Profile data:", JSON.stringify(profile, null, 2));
+        if (profile.permissions) {
+          console.log("Profile permissions:", JSON.stringify(profile.permissions, null, 2));
+        } else {
+          console.log("No permissions array found on profile");
+        }
+      } else {
+        console.log("Profile not found. Available user properties:", Object.keys(userObj));
+      }
+
+      // Role check
+      if (roles.length && !roles.includes(userObj.role)) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Unauthorized role" });
+      }
+
+      // Approval check
+      if (
+        approvalRequired &&
+        ["admin", "manager", "staff"].includes(userObj.role) &&
+        !userObj.isApproved
+      ) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Account pending approval" });
+      }
+
+      // Permissions check
+      if (permissions.length) {
+        // Use the populated profile from earlier
+        const profile = user[profileField];
+        
+        // Debug log
+        console.log("Checking permissions for:", permissions);
+        console.log("User profile reference exists:", !!profile);
+        
+        if (!profile) {
+          console.log(`Profile ${profileField} not found on user`);
+          return res.status(403).json({ 
+            success: false, 
+            message: `Profile not found for role: ${user.role}` 
+          });
+        }
+        
+        if (!profile.permissions || !Array.isArray(profile.permissions) || profile.permissions.length === 0) {
+          console.log("No valid permissions array found on profile");
+          console.log("No permissions found on profile");
+          return res
+            .status(403)
+            .json({ success: false, message: "No permissions assigned" });
+        }
+
+        const hasPermissions = permissions.every((perm) => {
+          console.log("Checking permission:", perm);
+          
+          // Split into module and action if using colon format (e.g., "invitations:read")
+          let [module, action] = perm.includes(':') ? 
+            perm.split(':') : 
+            [perm, 'read'];
+          
+          console.log(`Looking for module: ${module}, action: ${action}`);
+          
+          try {
+            // Find the permission object for this module
+            const modulePerm = profile.permissions.find(
+              (p) => p.module === module
+            );
+            
+            console.log("Found module permission:", modulePerm);
+            
+            // Check if module exists and has the required action
+            const hasPermission = modulePerm?.actions?.includes(action);
+            console.log(`Permission ${perm} check result:`, hasPermission);
+            return hasPermission;
+          } catch (error) {
+            console.error("Error checking permission:", error);
+            return false;
+          }
+        });
+
+        if (!hasPermissions) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Insufficient permissions" });
+        }
+      }
+
+      // Attach full user object with populated profile to req.user
+      req.user = userObj;
+      next();
+    } catch (error) {
+      console.error("authorizeRoles error:", error.stack);
+      res.status(500).json({
+        success: false,
+        message: `Authorization error: ${error.message}`,
+      });
+    }
+  };
 };

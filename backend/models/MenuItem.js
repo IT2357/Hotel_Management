@@ -1,0 +1,206 @@
+import mongoose from 'mongoose';
+
+const menuItemSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Menu item name is required'],
+    trim: true,
+  },
+  // Bilingual support for Jaffna restaurant (2025 enhancement)
+  name_tamil: {
+    type: String,
+    trim: true,
+    // Tamil Unicode: \u0B80-\u0BFF
+  },
+  name_english: {
+    type: String,
+    trim: true,
+  },
+  slug: {
+    type: String,
+    unique: true,
+    sparse: true,
+    lowercase: true,
+    trim: true,
+  },
+  id: {
+    type: Number,
+    sparse: true,
+  },
+  description: {
+    type: String,
+    trim: true,
+  },
+  description_tamil: {
+    type: String,
+    trim: true,
+  },
+  description_english: {
+    type: String,
+    trim: true,
+  },
+  price: {
+    type: Number,
+    required: [true, 'Price is required'],
+    min: [0, 'Price cannot be negative'],
+  },
+  currency: {
+    type: String,
+    default: 'LKR',
+    enum: ['LKR'],
+    required: true
+  },
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: [true, 'Category is required'],
+  },
+  image: {
+    type: String,
+    default: "https://dummyimage.com/400x300/cccccc/000000&text=Menu+Item",
+  },
+  imageId: {
+    type: String, // Store prefixed identifier (provider:id)
+    required: false
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true,
+  },
+  isVeg: {
+    type: Boolean,
+    default: false,
+  },
+  isSpicy: {
+    type: Boolean,
+    default: false,
+  },
+  isPopular: {
+    type: Boolean,
+    default: false,
+  },
+  // Time slot availability
+  isBreakfast: {
+    type: Boolean,
+    default: true,
+  },
+  isLunch: {
+    type: Boolean,
+    default: true,
+  },
+  isDinner: {
+    type: Boolean,
+    default: true,
+  },
+  isSnacks: {
+    type: Boolean,
+    default: true,
+  },
+  ingredients: [{
+    type: String,
+    trim: true,
+  }],
+  nutritionalInfo: {
+    calories: Number,
+    protein: Number,
+    carbs: Number,
+    fat: Number,
+  },
+  cookingTime: {
+    type: Number, // in minutes
+    default: 15,
+  },
+  customizations: [{
+    name: String,
+    options: [{
+      name: String,
+      price: Number,
+    }],
+  }],
+  // AI Enhancement Fields
+  dietaryTags: [{
+    type: String,
+    trim: true,
+  }],
+  culturalOrigin: {
+    type: String,
+    trim: true,
+  },
+  allergens: [{
+    type: String,
+    trim: true,
+  }],
+  aiConfidence: {
+    type: Number,
+    min: 0,
+    max: 100,
+  },
+  originalName: {
+    type: String,
+    trim: true,
+  },
+  correctionReason: {
+    type: String,
+    trim: true,
+  },
+  culturalContext: {
+    type: String,
+    enum: ['colombo', 'jaffna', 'kandy', 'galle', 'default'],
+    default: 'colombo',
+  },
+  // Soft delete support (2025 best practice)
+  isDeleted: {
+    type: Boolean,
+    default: false,
+  },
+  deletedAt: {
+    type: Date,
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+});
+
+// Pre-save middleware to generate slug
+menuItemSchema.pre('save', function(next) {
+  // Always generate slug if it's missing or if name is modified
+  if (!this.slug || this.isModified('name')) {
+    // Generate slug from name
+    let baseSlug = this.name
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .trim()
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+
+    // If slug is empty after cleaning, generate a fallback
+    if (!baseSlug) {
+      baseSlug = `item-${Date.now()}`;
+    }
+
+    // Add timestamp to ensure uniqueness
+    this.slug = `${baseSlug}-${Date.now()}`;
+  }
+  next();
+});
+
+// Add text index for search functionality
+menuItemSchema.index({ name: 'text', description: 'text', category: 'text' });
+
+const MenuItem = mongoose.model('MenuItem', menuItemSchema);
+
+export default MenuItem;

@@ -1,72 +1,401 @@
-import { useContext } from "react";
+import { useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { AuthContext } from "../../context/AuthContext";
+import NotificationDropdown from "../../components/common/NotificationDropdown.jsx";
 import useAuth from "../../hooks/useAuth";
+import { sendMessage, getMessages } from "../../services/messageService";
+import staffService from "../../services/staffService";
+import KeyCardManagementPage from "./KeyCardManagementPage";
+import { useSnackbar } from 'notistack';
+import ServiceRequestManagement from '../../components/guestServices/ServiceRequestManagement';
+import { useNotifications } from '../../context/NotificationContext';
+import notificationService from '../../services/notificationService';
+import guestServiceApi from '../../services/guestServiceApi';
+import {
+  ModernStatsCard,
+  ModernQuickActionCard,
+  ModernLoadingSkeleton
+} from '../../components/staff/ModernStaffComponents';
+import KitchenQueueView from '../../components/food/KitchenQueueView';
+import StaffContactChat from './StaffContactChatWithSidebar';
+
+// Module-scope department normalizer so all components can use it
+function normalizeDepartment(value) {
+  const key = String(value || "").toLowerCase().trim();
+  const map = {
+    chef: "kitchen",
+    cheff: "kitchen",
+    kitchen: "kitchen",
+    maintenence: "maintenance",
+    service: "service",
+    cleaning: "cleaning",
+    housekeeping: "cleaning",
+  };
+  return map[key] || key || "service";
+}
+
+// Simple icon components as fallbacks
+const Bell = () => <span className="text-xl">🔔</span>;
+const Clock = () => <span className="text-xl">⏰</span>;
+const CheckCircle = () => <span className="text-xl">✅</span>;
+const AlertTriangle = () => <span className="text-xl">⚠️</span>;
+const Users = () => <span className="text-xl">👥</span>;
+const Calendar = () => <span className="text-xl">📅</span>;
+const Settings = () => <span className="text-xl">⚙️</span>;
 
 export default function StaffDashboardPage() {
   const { user } = useContext(AuthContext);
   const { logout } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [notifications, setNotifications] = useState([]);
+  const [urgentAlerts, setUrgentAlerts] = useState([]);
+  const [taskStats, setTaskStats] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Open tab from query string if provided (e.g., /staff/dashboard?tab=tasks)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabFromUrl = params.get("tab");
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, []);
+
+  // Enhanced department mapping with debugging
+  const roleDeptMap = {
+    // Kitchen staff
+    'chef': 'kitchen',
+    'sous chef': 'kitchen',
+    'cook': 'kitchen',
+    'kitchen staff': 'kitchen',
+    'kitchen': 'kitchen',
+    
+    // Maintenance staff
+    'maintenance': 'maintenance',
+    'maintenance staff': 'maintenance',
+    'technician': 'maintenance',
+    'engineer': 'maintenance',
+    'handyman': 'maintenance',
+    
+    // Service staff
+    'waiter': 'service',
+    'waitress': 'service',
+    'server': 'service',
+    'host': 'service',
+    'hostess': 'service',
+    'front desk': 'service',
+    'receptionist': 'service',
+    'concierge': 'service',
+    'service': 'service',
+    
+    // Cleaning staff
+    'housekeeper': 'cleaning',
+    'housekeeping': 'cleaning',
+    'cleaner': 'cleaning',
+    'maid': 'cleaning',
+    'room attendant': 'cleaning',
+    'cleaning': 'cleaning'
+  };
+  
+  // Development logging
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('User:', user);
+    console.debug('User role:', user?.role);
+    console.debug('Staff profile position:', user?.staffProfile?.position);
+  }
+  
+  // Determine department based on user's email
+  const getDepartmentFromEmail = (email) => {
+    if (!email) return 'service'; // Default fallback
+    
+    if (email.includes('kitchen') || email === 'chefanoji@gmail.com') {
+      return 'kitchen';
+    } else if (email.includes('maintenance') || email === 'maintanenceanoji@gmail.com') {
+      return 'maintenance';
+    } else if (email.includes('cleaning') || email.includes('housekeeping')) {
+      return 'cleaning';
+    } else if (email.includes('service') || email.includes('reception') || email.includes('frontdesk')) {
+      return 'service';
+    }
+    return 'service'; // Default fallback
+  };
+  
+  // Get department from email first, then fall back to other methods
+  const departmentFromEmail = getDepartmentFromEmail(user?.email || '');
+  const position = (user?.staffProfile?.position || user?.role || '').toLowerCase().trim();
+  const inferredDept = roleDeptMap[position] || departmentFromEmail || 'service';
+  
+  const department = (user?.staffProfile?.department?.toLowerCase()?.trim() || 
+                     user?.department?.toLowerCase()?.trim() || 
+                     inferredDept).toLowerCase();
+  
+  console.log('Department detection:', {
+    email: user?.email,
+    position: position,
+    departmentFromEmail: departmentFromEmail,
+    finalDepartment: department
+  });
+
+  // Department configuration with background images
+  const departmentConfig = {
+    maintenance: {
+      name: "Maintenance",
+      color: "blue",
+      icon: "🔧",
+      description: "Equipment repair, facility maintenance, and technical support",
+      backgroundImage: "/images/maintanence-bg.jpg",
+      backgroundStyle: {
+        backgroundImage: 'url("/images/maintanence-bg.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }
+    },
+    kitchen: {
+      name: "Kitchen",
+      color: "orange",
+      icon: "👨‍🍳",
+      description: "Food preparation, cooking, and kitchen operations",
+      backgroundImage: "/images/kitchen-bg.jpg",
+      backgroundStyle: {
+        backgroundImage: 'url("/images/kitchen-bg.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }
+    },
+    service: {
+      name: "Service",
+      color: "green",
+      icon: "👔",
+      description: "Guest services, concierge, and customer support",
+      backgroundImage: "/images/service-bg.avif",
+      backgroundStyle: {
+        backgroundImage: 'url("/images/service-bg.avif")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }
+    },
+    cleaning: {
+      name: "Cleaning",
+      color: "purple",
+      icon: "🧹",
+      description: "Room cleaning, laundry, and facility maintenance",
+      backgroundImage: "/images/cleaning-bg.webp",
+      backgroundStyle: {
+        backgroundImage: 'url("/images/cleaning-bg.webp")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }
+    }
+  };
+
+  // Ensure we have a valid department configuration
+  const currentDept = departmentConfig[department] || departmentConfig.service;
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Fetch notifications, alerts, and stats
+      // This would be implemented with your API calls
+      
+      // Example implementation:
+      // const [notificationsRes, alertsRes, statsRes] = await Promise.all([
+      //   fetch('/api/notifications'),
+      //   fetch('/api/alerts'),
+      //   fetch('/api/stats')
+      // ]);
+      // const [notifications, alerts, stats] = await Promise.all([
+      //   notificationsRes.json(),
+      //   alertsRes.json(),
+      //   statsRes.json()
+      // ]);
+      // setNotifications(notifications);
+      // setUrgentAlerts(alerts);
+      // setTaskStats(stats);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setLoading(false);
+    }
+  }, [/* Add any dependencies here */]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Force re-render when user changes (important for switching between staff members)
+  useEffect(() => {
+    if (user && process.env.NODE_ENV === 'development') {
+      console.debug("User changed:", user);
+      console.debug("Staff Profile:", user.staffProfile);
+      console.debug("Department:", department);
+    }
+  }, [user, department]);
+
+  const tabs = [
+    { id: "overview", label: "Overview", icon: "📊" },
+    { id: "tasks", label: "My Tasks", icon: "📋" },
+    ...(department === 'kitchen' ? [{ id: "kitchen", label: "Kitchen Orders", icon: "🍳" }] : []),
+    { id: "service-requests", label: "Service Requests", icon: "🛎️" },
+    { id: "keycard", label: "Key Card", icon: "🔑" },
+    { id: "contact", label: "Contact Manager", icon: "💬" },
+    { id: "notifications", label: "Notifications", icon: "🔔" }
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Enhanced debug logging
+  console.group('🚀 Department Debug Info');
+  console.log('🔍 User:', user);
+  console.log('👤 User Role:', user?.role);
+  console.log('👔 Staff Position:', user?.staffProfile?.position);
+  console.log('🏢 Department from Profile:', user?.staffProfile?.department || user?.department);
+  console.log('🎯 Final Department:', department);
+  console.log('🖼️  Current Dept Config:', currentDept);
+  console.log('🖼️  Background Image Path:', currentDept.backgroundImage);
+  console.log('🔄 Current URL:', window.location.href);
+  console.groupEnd();
+  
+  // Check if background image exists
+  const img = new Image();
+  img.src = currentDept.backgroundImage;
+  img.onload = () => console.log('✅ Background image loaded successfully:', currentDept.backgroundImage);
+  img.onerror = () => console.error('❌ Failed to load background image:', currentDept.backgroundImage);
+  
+  // Log the full image path for debugging
+  console.log('🔍 Full image URL:', new URL(currentDept.backgroundImage, window.location.origin).href);
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
-      <header className="bg-white shadow">
-        <div className="mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-indigo-600">
-            Staff Dashboard
-          </h1>
+    <div className="min-h-screen text-gray-800 dark:text-gray-200 relative">
+      {/* Background Image with Overlay - Using inline style for debugging */}
+      <div 
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: `url(${currentDept.backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          border: '1px solid red' // Temporary border to make the background div visible
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50"></div>
+      </div>
+      
+      {/* Header */}
+      <header className="relative overflow-hidden shadow-lg border-b border-white/20 h-56 md:h-64">
+        {/* Semi-transparent overlay */}
+        <div className="absolute inset-0 bg-black/30"></div>
+        {/* Gradient overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40"></div>
+        <div className="absolute inset-0 bg-white/10 dark:bg-gray-900/30 backdrop-blur-[1px]"></div>
+
+        {/* Top Right Corner Icons */}
+        <div className="absolute top-4 right-4 z-30 flex items-center space-x-3">
+          {/* Notifications Dropdown */}
+          <NotificationDropdown />
+
+          {/* Logout Button */}
           <button
             onClick={logout}
-            className="px-6 py-2 bg-red-500 text-white rounded-full shadow hover:bg-red-600 transition duration-300 font-medium"
+            className="group relative px-6 py-3 bg-gradient-to-r from-red-500 via-red-600 to-red-700 hover:from-red-600 hover:via-red-700 hover:to-red-800 text-white rounded-2xl shadow-2xl hover:shadow-red-500/25 transform hover:scale-110 hover:-translate-y-1 transition-all duration-500 font-bold overflow-hidden border border-red-400/30 backdrop-blur-sm"
           >
-            Logout
+            <span className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-700 to-red-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></span>
+            <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-2xl animate-pulse"></span>
+            <span className="relative flex items-center space-x-2">
+              <span className="text-lg animate-bounce">🚪</span>
+              <span>Logout</span>
+            </span>
           </button>
+        </div>
+
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center">
+          <div className="flex items-center space-x-5">
+            <div className={`p-4 rounded-2xl bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm border border-white/30 shadow-2xl` }>
+              <span className="text-4xl filter drop-shadow-lg">{currentDept.icon}</span>
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-2xl">
+                Valdor Hotel - {currentDept.name} Department
+              </h1>
+              <p className="text-white/90 dark:text-gray-200 text-base md:text-lg font-medium drop-shadow-lg">
+                Welcome back! Here's what's happening in {currentDept.name.toLowerCase()} today.
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 
       <div className="flex">
-        <aside className="w-64 bg-white border-r h-screen px-6 py-8">
-          <nav className="space-y-4">
-            {[
-              { label: "Dashboard", path: "/staff-portal" },
-              { label: "My Bookings", path: "/staff/bookings" },
-              { label: "Room Status", path: "/staff/rooms" },
-              { label: "Guest Check-ins", path: "/staff/checkins" },
-              { label: "Support Requests", path: "/staff/support" }
-            ].map(({ label, path }) => (
-              <a
-                key={label}
-                href={path}
-                className="block text-lg font-medium text-gray-700 hover:text-indigo-600 transition duration-200"
+        {/* Sidebar */}
+        <aside className="w-64 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-r border-white/30 dark:border-gray-800/50 h-screen px-6 py-6 shadow-xl overflow-y-auto">
+          <div className="mb-8">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center">
+                <span className="text-indigo-600 dark:text-indigo-300 font-semibold">
+                  {user?.name?.charAt(0)}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-gray-100">{user?.name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{user?.staffProfile?.position}</p>
+              </div>
+            </div>
+          </div>
+
+          <nav className="space-y-3">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`group w-full flex items-center space-x-4 px-5 py-4 rounded-xl text-left transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === tab.id
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg border border-indigo-400"
+                    : "text-gray-700 hover:bg-white/60 dark:text-gray-200 dark:hover:bg-gray-800/60 backdrop-blur-sm border border-transparent hover:border-white/40 hover:shadow-md"
+                }`}
               >
-                {label}
-              </a>
+                <div className={`p-2 rounded-lg transition-all duration-300 ${
+                  activeTab === tab.id
+                    ? "bg-white/20 shadow-inner"
+                    : "bg-gray-100/50 dark:bg-gray-700/50 group-hover:bg-white/70 dark:group-hover:bg-gray-600/70"
+                }`}>
+                  <span className="text-xl">{tab.icon}</span>
+                </div>
+                <span className="font-semibold text-base">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                )}
+              </button>
             ))}
           </nav>
         </aside>
 
-        <main className="flex-1 p-10">
-          <h2 className="text-xl font-semibold mb-6">
-            Welcome, {user?.name?.split(" ")[0]} 👋
-          </h2>
-          <div className="grid grid-cols-3 gap-6">
-            {[
-              {
-                title: "My Bookings",
-                to: "/staff/bookings",
-                description: "View and manage your assigned bookings."
-              },
-              {
-                title: "Room Status",
-                to: "/staff/rooms",
-                description: "Check availability and maintenance status."
-              },
-              {
-                title: "Support Requests",
-                to: "/staff/support",
-                description: "Respond to guest issues and internal tasks."
-              }
-            ].map(({ title, description, to }) => (
-              <DashboardCard key={title} title={title} description={description} to={to} />
-            ))}
+        {/* Main Content */}
+        <main className="flex-1 h-screen container mx-auto px-4 py-8 relative z-10 overflow-y-auto">
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-xl border border-white/20 dark:border-gray-800/50 p-6 min-h-[calc(100vh-12rem)]">
+            {activeTab === "overview" && <OverviewTab user={user} department={department} setActiveTab={setActiveTab} />}
+            {activeTab === "tasks" && <TasksTab user={user} department={department} />}
+            {activeTab === "kitchen" && <KitchenOrdersTab user={user} department={department} />}
+            {activeTab === "keycard" && <KeyCardManagementPage />}
+            {activeTab === "service-requests" && <ServiceRequestManagement />}
+            {activeTab === "contact" && <ContactManagerTab user={user} department={department} />}
+            {activeTab === "notifications" && <NotificationsTab user={user} />}
           </div>
         </main>
       </div>
@@ -74,17 +403,1511 @@ export default function StaffDashboardPage() {
   );
 }
 
-function DashboardCard({ title, description, to }) {
+// Overview Tab Component
+function OverviewTab({ user, department, setActiveTab }) {
+  const [taskStats, setTaskStats] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTaskStats();
+    fetchRecentActivities();
+  }, [department]);
+
+  const fetchTaskStats = async () => {
+    try {
+      setLoading(true);
+      // Fetch task statistics for the department via API client (baseURL=/api/v1)
+      const data = await staffService.getTaskStats({ department });
+      setTaskStats(data?.data || data || {});
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching task stats:", error);
+      // Fallback to mock data
+      setTaskStats({
+        totalTasks: 10,
+        pendingTasks: 8,
+        completedTasks: 2,
+        urgentTasks: 3
+      });
+      setLoading(false);
+    }
+  };
+
+  const fetchRecentActivities = async () => {
+    try {
+      setActivitiesLoading(true);
+      const activities = [];
+
+      // Fetch recent completed tasks
+      try {
+        const tasksData = await staffService.getMyTasks({ limit: 10 });
+        const tasks = tasksData?.data?.tasks || tasksData?.tasks || (Array.isArray(tasksData) ? tasksData : []);
+        
+        tasks.forEach(task => {
+          if (task.status === 'completed') {
+            activities.push({
+              id: `task-${task._id}`,
+              type: 'task_completed',
+              title: `Task "${task.title}" completed`,
+              timestamp: new Date(task.updatedAt || task.createdAt),
+              icon: '✅',
+              color: 'green'
+            });
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to fetch tasks for activities:', error);
+      }
+
+      // Fetch recent notifications
+      try {
+        console.log('Fetching notifications for recent activities...');
+        const res = await notificationService.getMyNotifications({ limit: 10 });
+        console.log('Raw notifications response:', res);
+        const data = res?.data || res || {};
+        const notificationsData = data.notifications || data.items || [];
+        console.log('Processed notifications data:', notificationsData);
+        console.log('Notifications data length:', Array.isArray(notificationsData) ? notificationsData.length : 'not array');
+        
+        if (Array.isArray(notificationsData)) {
+          notificationsData.forEach(notification => {
+            console.log('Processing notification:', notification);
+            activities.push({
+              id: `notification-${notification._id || notification.id}`,
+              type: 'notification',
+              title: notification.title || 'New notification',
+              timestamp: new Date(notification.createdAt),
+              icon: '🔔',
+              color: 'blue'
+            });
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to fetch notifications for activities:', error);
+      }
+
+      // Fetch recent service requests
+      try {
+        const requests = await guestServiceApi.getServiceRequests('all', { limit: 10 });
+        const requestsData = Array.isArray(requests) ? requests : [];
+        
+        requestsData.forEach(request => {
+          if (request.status === 'completed') {
+            activities.push({
+              id: `request-${request._id}`,
+              type: 'service_request_completed',
+              title: `Service request "${request.title}" completed`,
+              timestamp: new Date(request.updatedAt || request.createdAt),
+              icon: '🛠️',
+              color: 'purple'
+            });
+          } else if (request.status === 'pending') {
+            activities.push({
+              id: `request-${request._id}`,
+              type: 'service_request_new',
+              title: `New service request: "${request.title}"`,
+              timestamp: new Date(request.createdAt),
+              icon: '📋',
+              color: 'yellow'
+            });
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to fetch service requests for activities:', error);
+      }
+
+      // Sort by timestamp (most recent first) and take top 5
+      const sortedActivities = activities
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 5);
+
+      console.log('Final activities array:', activities);
+      console.log('Sorted activities (top 5):', sortedActivities);
+
+      // Temporary fallback for testing - add a test notification if none found
+      if (sortedActivities.length === 0) {
+        console.log('No activities found, adding test notification...');
+        sortedActivities.push({
+          id: 'test-notification',
+          type: 'notification',
+          title: 'Test notification: Staff testing',
+          timestamp: new Date('2025-10-22T16:18:45'),
+          icon: '🔔',
+          color: 'blue'
+        });
+      }
+
+      setRecentActivities(sortedActivities);
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      // Fallback to some basic activities if all API calls fail
+      setRecentActivities([
+        {
+          id: 'fallback-1',
+          type: 'system',
+          title: 'System initialized',
+          timestamp: new Date(),
+          icon: '⚙️',
+          color: 'gray'
+        }
+      ]);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  // Helper function to format relative time
+  const formatRelativeTime = (timestamp) => {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - past) / (1000 * 60));
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  const statsData = [
+    {
+      title: "Total Tasks",
+      value: taskStats.totalTasks || 10,
+      change: 15,
+      icon: "📋",
+      gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+    },
+    {
+      title: "Pending Tasks",
+      value: taskStats.pendingTasks || 8,
+      change: -5,
+      icon: "⏳",
+      gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+    },
+    {
+      title: "Urgent Tasks",
+      value: taskStats.urgentTasks || 3,
+      change: 20,
+      icon: "🚨",
+      gradient: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
+    },
+    {
+      title: "Completed Today",
+      value: taskStats.completedTasks || 2,
+      change: 10,
+      icon: "✅",
+      gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+    }
+  ];
+
   return (
-    <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition duration-300">
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">{title}</h2>
-      <p className="text-gray-600 text-sm mb-4">{description}</p>
-      <a
-        href={to}
-        className="inline-block px-4 py-1 bg-indigo-600 text-white text-sm rounded-full hover:bg-indigo-700 transition duration-300"
-      >
-        Go to {title}
-      </a>
+    <div className="space-y-8 relative">
+      {/* Clean background (removed neon gradients) */}
+
+      {/* Clean Welcome Header */}
+      <div className="relative">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Welcome back, {user?.name?.split(" ")[0]}!
+            </h2>
+            <div className="text-2xl">👋</div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">
+              {department} Department Active
+            </p>
+          </div>
+        </div>
+        <p className="text-gray-600 dark:text-gray-300 mt-2 text-lg font-medium">
+          {`Here's what's happening in ${String(department).toLowerCase()} today.` }
+        </p>
+      </div>
+
+      {/* Modern Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsData.map((stat, index) => (
+          <ModernStatsCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            change={stat.change}
+            icon={stat.icon}
+            gradient={stat.gradient}
+            maxValue={20}
+          />
+        ))}
+      </div>
+
+      {/* Modern Quick Actions */}
+      <div>
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <ModernQuickActionCard
+            title="View My Tasks"
+            description="Manage your assignments"
+            icon="📋"
+            onClick={() => setActiveTab("tasks")}
+            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+          />
+          <ModernQuickActionCard
+            title="Contact Manager"
+            description="Send messages & requests"
+            icon="💬"
+            onClick={() => setActiveTab("contact")}
+            gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+          />
+          <ModernQuickActionCard
+            title="Check Notifications"
+            description="View updates & alerts"
+            icon="🔔"
+            onClick={() => setActiveTab("notifications")}
+            gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
+          />
+        </div>
+      </div>
+
+      {/* Recent Activity Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="group relative">
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+          <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 dark:border-gray-700/40 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 p-6 border-b border-white/20 dark:border-gray-700/30">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-xl blur opacity-50 animate-pulse"></div>
+                  <div className="relative p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                    <span className="text-2xl filter drop-shadow-sm">⚡</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                    Today's Summary
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Your performance overview</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Tasks Completed</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{taskStats.completedTasks || 2}</p>
+                </div>
+                <span className="text-4xl">✅</span>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Pending Tasks</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{taskStats.pendingTasks || 8}</p>
+                </div>
+                <span className="text-4xl">⏳</span>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Urgent Items</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{taskStats.urgentTasks || 3}</p>
+                </div>
+                <span className="text-4xl">🚨</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative">
+          <div className="absolute -inset-1 bg-gradient-to-r from-cyan-600 via-teal-600 to-green-600 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+          <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 dark:border-gray-700/40 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-green-500/10 p-6 border-b border-white/20 dark:border-gray-700/30">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-xl blur opacity-50 animate-pulse"></div>
+                  <div className="relative p-3 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl shadow-lg">
+                    <span className="text-2xl filter drop-shadow-sm">📈</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                    Recent Activity
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Latest updates</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              {activitiesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
+                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading recent activity...</span>
+                </div>
+              ) : recentActivities.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">📊</div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No recent activity</h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Activity will appear here as tasks are completed and requests are processed.</p>
+                </div>
+              ) : (
+                recentActivities.map((activity, index) => (
+                  <div
+                    key={activity.id}
+                    className={`group flex items-center space-x-4 p-4 rounded-2xl hover:bg-gradient-to-r transition-all duration-300 ${
+                      activity.color === 'green' ? 'hover:from-green-50/50 hover:to-emerald-50/50 dark:hover:from-green-900/20 dark:hover:to-emerald-900/20' :
+                      activity.color === 'blue' ? 'hover:from-blue-50/50 hover:to-indigo-50/50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20' :
+                      activity.color === 'purple' ? 'hover:from-purple-50/50 hover:to-pink-50/50 dark:hover:from-purple-900/20 dark:hover:to-pink-900/20' :
+                      'hover:from-yellow-50/50 hover:to-amber-50/50 dark:hover:from-yellow-900/20 dark:hover:to-amber-900/20'
+                    }`}
+                    style={{ animationDelay: `${index * 150}ms` }}
+                  >
+                    <div className="relative">
+                      <div className={`w-3 h-3 rounded-full animate-pulse shadow-lg ${
+                        activity.color === 'green' ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                        activity.color === 'blue' ? 'bg-gradient-to-r from-blue-400 to-indigo-500' :
+                        activity.color === 'purple' ? 'bg-gradient-to-r from-purple-400 to-pink-500' :
+                        'bg-gradient-to-r from-yellow-400 to-amber-500'
+                      }`}></div>
+                      <div className={`absolute inset-0 rounded-full animate-ping opacity-30 ${
+                        activity.color === 'green' ? 'bg-green-400' :
+                        activity.color === 'blue' ? 'bg-blue-400' :
+                        activity.color === 'purple' ? 'bg-purple-400' :
+                        'bg-yellow-400'
+                      }`}></div>
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{activity.title}</span>
+                      <span className="block text-xs text-gray-400 font-medium">{formatRelativeTime(activity.timestamp)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tasks Tab Component
+function TasksTab({ user, department }) {
+  const [activeTaskView, setActiveTaskView] = useState("total");
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTasksFromApi();
+  }, [department, user]);
+
+  const fetchTasksFromApi = async () => {
+    try {
+      setLoading(true);
+      // Load tasks for the current department; backend route: GET /api/v1/staff/tasks
+      const normalized = normalizeDepartment(department);
+      // Prefer fetching tasks assigned to the current user. Backend route: GET /api/v1/staff/tasks/my
+      // Include department as a filter if your backend supports it; otherwise it will be ignored safely.
+      const data = await staffService.getMyTasks({ department: normalized });
+      let received = data?.data?.tasks || data?.tasks || (Array.isArray(data) ? data : []);
+      // Ensure minimum fields exist for rendering (createdAt used in TaskCard)
+      if (Array.isArray(received)) {
+        received = received.map((t) => ({
+          ...t,
+          createdAt: t?.createdAt || t?.dueDate || new Date().toISOString(),
+        }));
+      }
+      console.debug("[TasksTab] API tasks received:", Array.isArray(received) ? received.length : typeof received);
+      if (!received || received.length === 0) {
+        // Attempt department-wide tasks as a fallback in case assignments don't match the current user
+        try {
+          const deptData = await staffService.getTasks({ department: normalized });
+          let deptTasks = deptData?.data?.tasks || deptData?.tasks || (Array.isArray(deptData) ? deptData : []);
+          if (Array.isArray(deptTasks)) {
+            deptTasks = deptTasks.map((t) => ({
+              ...t,
+              createdAt: t?.createdAt || t?.dueDate || new Date().toISOString(),
+            }));
+          }
+          if (deptTasks && deptTasks.length > 0) {
+            console.debug("[TasksTab] using department tasks fallback");
+            setTasks(deptTasks);
+            return;
+          }
+        } catch (innerErr) {
+          console.warn("[TasksTab] department tasks fallback failed:", innerErr);
+        }
+        // Fallback to department-specific sample tasks
+        const samples = generateSampleTasks(normalized, user);
+        console.debug("[TasksTab] using fallback sample tasks:", samples.length);
+        setTasks(samples);
+      } else {
+        console.debug("[TasksTab] using API tasks");
+        setTasks(received);
+      }
+    } catch (err) {
+      console.error("Failed to load tasks:", err);
+      // Fallback to department-specific sample tasks on error
+      const dept = normalizeDepartment(department);
+      const samples = generateSampleTasks(dept, user);
+      console.debug("[TasksTab] error fallback sample tasks:", samples.length);
+      setTasks(samples);
+    } finally {
+      console.debug("[TasksTab] loading complete");
+      setLoading(false);
+    }
+  };
+
+  const getFilteredTasks = () => {
+    switch (activeTaskView) {
+      case "pending":
+        return tasks.filter(task => task.status === "pending" || task.status === "process");
+      case "urgent":
+        return tasks.filter(task => task.priority === "urgent" || task.isUrgent);
+      case "total":
+      default:
+        return tasks;
+    }
+  };
+
+  const filteredTasks = getFilteredTasks();
+  const pendingTasks = tasks.filter(task => task.status === "pending" || task.status === "process");
+  const urgentTasks = tasks.filter(task => task.priority === "urgent" || task.isUrgent);
+
+  const taskViews = [
+    { id: "total", label: "Total Tasks", count: tasks.length, icon: "📋", color: "blue" },
+    { id: "pending", label: "Pending Tasks", count: pendingTasks.length, icon: "⏳", color: "yellow" },
+    { id: "urgent", label: "Urgent Tasks", count: urgentTasks.length, icon: "🚨", color: "red" }
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 relative">
+      {/* Clean Header */}
+      <div className="relative">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              My Tasks
+            </h2>
+            <div>📋</div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">View and manage your assigned tasks</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Task Summary Cards - clean style */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {taskViews.map((view, index) => (
+          <div
+            key={view.id}
+            onClick={() => setActiveTaskView(view.id)}
+            className="relative cursor-pointer"
+            style={{ animationDelay: `${index * 150}ms`  }}
+          >
+            <div className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-200 ${
+              activeTaskView === view.id ? 'ring-2 ring-indigo-500' : ''
+            }`}>
+              <div className="relative p-6 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 rounded-md bg-gray-100 dark:bg-gray-700">
+                      <span className="text-xs">{view.icon}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">{view.label}</p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                        {view.count}
+                      </p>
+                    </div>
+                  </div>
+                  {activeTaskView === view.id && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">ACTIVE</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Task List - clean style */}
+      <div className="relative">
+        <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden min-h-[400px]">
+          <div className="relative p-6 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                  <span className="text-2xl">📋</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    {taskViews.find(v => v.id === activeTaskView)?.label}
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      {filteredTasks.length} tasks
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
+            {filteredTasks.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="text-gray-400 text-6xl mb-4">📋</div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No tasks found</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  No {activeTaskView} tasks available at the moment.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filteredTasks.map((task, index) => (
+                  <TaskCard
+                    key={task._id}
+                    task={task}
+                    index={index}
+                    onStatusChange={(taskId, newStatus) => {
+                      setTasks(prevTasks =>
+                        prevTasks.map(t =>
+                          t._id === taskId ? { ...t, status: newStatus } : t
+                        )
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Contact Manager Tab Component - Now using WhatsApp-style chat
+function ContactManagerTab({ user, department }) {
+  return (
+    <div className="h-[calc(100vh-200px)]">
+      <StaffContactChat />
+    </div>
+  );
+}
+
+function TaskCard({ task, onStatusChange, index = 0 }) {
+  const [isRequestingService, setIsRequestingService] = useState(false);
+  
+  const handleServiceRequest = async (taskId, requestType) => {
+    try {
+      setIsRequestingService(true);
+      // Call your API to create a service request
+      const response = await axios.post('/api/guest-services/request', {
+        title: `Service Request for ${task.title || 'Task'}`,
+        description: `Service requested for task: ${task.description || 'No description'}`,
+        requestType: requestType || 'service',
+        guestLocation: task.location || 'Not specified',
+        isAnonymous: false,
+        // Add any other required fields
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // Show success message
+      alert('Service request submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting service request:', error);
+      alert('Failed to submit service request. Please try again.');
+    } finally {
+      setIsRequestingService(false);
+    }
+  };
+
+  // Initialize state with task status or default to 'pending'
+  const [selectedStatus, setSelectedStatus] = useState(task?.status || 'pending');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(task?.timeRemaining || 0);
+
+  // Update selectedStatus when task prop changes
+  useEffect(() => {
+    if (task?.status) {
+      setSelectedStatus(task.status);
+    }
+  }, [task?.status]);
+
+  // Update time remaining for completed tasks
+  useEffect(() => {
+    let interval;
+    if (selectedStatus === 'completed' && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            clearInterval(interval);
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [selectedStatus, timeRemaining]);
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "pending":
+        return "⏳";
+      case "process":
+        return "🔄";
+      case "completed":
+        return "✅";
+      default:
+        return "⏳";
+    }
+  };
+
+  const getStatusGradient = (status) => {
+    switch (status) {
+      case "pending":
+        return "from-amber-400 to-yellow-500";
+      case "process":
+        return "from-blue-400 to-indigo-500";
+      case "completed":
+        return "from-emerald-400 to-green-500";
+      default:
+        return "from-gray-400 to-gray-500";
+    }
+  };
+
+  const getStatusTextColor = (status) => {
+    switch (status) {
+      case "pending":
+        return "text-amber-600 dark:text-amber-400";
+      case "process":
+        return "text-blue-600 dark:text-blue-400";
+      case "completed":
+        return "text-emerald-600 dark:text-emerald-400";
+      default:
+        return "text-gray-600 dark:text-gray-400";
+    }
+  };
+
+  const getPriorityGradient = (priority) => {
+    switch (priority) {
+      case "urgent":
+        return "from-red-500 via-red-600 to-rose-600";
+      case "high":
+        return "from-orange-500 via-amber-600 to-yellow-600";
+      case "medium":
+        return "from-blue-500 via-indigo-600 to-purple-600";
+      case "low":
+        return "from-emerald-500 via-green-600 to-teal-600";
+      default:
+        return "from-gray-500 via-slate-600 to-zinc-600";
+    }
+  };
+
+  const getLocationIcon = (location) => {
+    switch (location) {
+      case "room":
+        return "🏠";
+      case "lobby":
+        return "🏛️";
+      case "kitchen":
+        return "👨‍🍳";
+      case "pool":
+        return "🏊‍♂️";
+      case "gym":
+        return "💪";
+      default:
+        return "📍";
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    console.log('handleStatusChange called with status:', newStatus);
+
+    if (!task?._id) {
+      const errorMsg = 'Task ID is missing';
+      console.error(errorMsg, { task });
+      alert(errorMsg);
+      return false;
+    }
+
+    // Don't do anything if status hasn't changed or if already updating
+    if (newStatus === task.status || isUpdating) {
+      console.log('Status unchanged or already updating, skipping update');
+      return true;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      // Optimistically update the UI
+      setSelectedStatus(newStatus);
+      if (onStatusChange) {
+        onStatusChange(task._id, newStatus);
+      }
+
+      // If marking as completed, start the grace period timer
+      if (newStatus === 'completed') {
+        setTimeRemaining(900); // 15 minutes in seconds
+      }
+
+      // Check if this is a mock task (timestamp-based ID) - skip backend call for demo
+      const isMockTask = /^\d{13}$/.test(task._id); // 13-digit timestamp ID
+      if (isMockTask) {
+        console.log('Mock task detected, skipping backend call for demo purposes');
+        // Simulate successful response for mock tasks
+        setTimeout(() => {
+          console.log('Mock task status updated successfully');
+        }, 500);
+        return true;
+      }
+
+      // Send to backend for real tasks using proper workflow
+      console.log('Sending status update to backend', {
+        taskId: task._id,
+        newStatus,
+        previousStatus: task.status
+      });
+
+      let response;
+      
+      // Use specific endpoints based on status transition
+      if (newStatus === 'in_progress' && task.status === 'pending') {
+        // Staff is accepting a pending task assigned by manager
+        console.log('Accepting pending task via /accept endpoint');
+        response = await staffService.acceptTask(task._id);
+      } else if (newStatus === 'completed') {
+        // Staff is completing a task
+        console.log('Completing task via /complete endpoint');
+        response = await staffService.completeTask(task._id);
+      } else {
+        // General status update
+        console.log('Updating status via general endpoint');
+        response = await staffService.updateTaskStatus(task._id, { status: newStatus });
+      }
+      
+      console.log('Backend response:', response);
+
+      if (!response?.success) {
+        const errorMsg = response?.message || 'Failed to update task status';
+        console.error('Backend error:', errorMsg, { response });
+        throw new Error(errorMsg);
+      }
+
+      console.log('Task status updated successfully');
+
+      return true;
+    } catch (error) {
+      console.error('Error updating task status:', error);
+
+      // Revert optimistic update on error
+      setSelectedStatus(task.status);
+      if (onStatusChange) {
+        onStatusChange(task._id, task.status);
+      }
+
+      // Show error to user
+      alert(`Failed to update status: ${error.message || 'Please try again'}`);
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div
+      className="group relative p-6 hover:bg-gradient-to-r hover:from-white/60 hover:to-gray-50/60 dark:hover:from-gray-700/60 dark:hover:to-gray-800/60 transition-all duration-500 transform hover:scale-[1.02] hover:shadow-xl"
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      {/* Animated border gradient */}
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-400 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-r-full"></div>
+
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="relative">
+              <div className={`absolute inset-0 rounded-xl blur opacity-30 animate-pulse bg-gradient-to-r ${getStatusGradient(selectedStatus)}` }></div>
+              <div className={`relative p-2 rounded-xl shadow-lg bg-gradient-to-r ${getStatusGradient(selectedStatus)} group-hover:rotate-6 transition-transform duration-300` }>
+                <span className="text-lg filter drop-shadow-sm">{getStatusIcon(selectedStatus)}</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
+                {task.title}
+              </h4>
+              <div className="flex items-center space-x-3 flex-wrap gap-2">
+                <span className={`px-4 py-2 text-xs font-bold rounded-full text-white shadow-lg bg-gradient-to-r ${getPriorityGradient(task.priority)} transform group-hover:scale-110 transition-all duration-300 animate-pulse` }>
+                  {task.priority.toUpperCase()}
+                </span>
+                <span className={`px-4 py-2 text-xs font-bold rounded-full text-white shadow-lg bg-gradient-to-r ${getStatusGradient(selectedStatus)} transform group-hover:scale-110 transition-all duration-300` }>
+                  {selectedStatus.toUpperCase()}
+                </span>
+                {task.isUrgent && (
+                  <span className="px-4 py-2 text-xs font-bold bg-gradient-to-r from-red-500 via-red-600 to-rose-600 text-white rounded-full shadow-xl animate-bounce border-2 border-red-300 transform group-hover:scale-110 transition-all duration-300">
+                    🚨 URGENT
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mb-4">
+            <div className="absolute -inset-1 bg-gradient-to-r from-gray-200/50 to-gray-300/50 dark:from-gray-700/50 dark:to-gray-800/50 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative bg-gradient-to-br from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-900/80 backdrop-blur-sm p-4 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-inner">
+              <p className="text-gray-700 dark:text-gray-300 font-medium leading-relaxed">{task.description}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
+            <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-200/50 dark:border-blue-700/50 group-hover:shadow-lg transition-all duration-300">
+              <span className="text-lg">{getLocationIcon(task.location)}</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{task.location}</span>
+            </div>
+            {task.roomNumber && (
+              <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-purple-50/80 to-pink-50/80 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl border border-purple-200/50 dark:border-purple-700/50 group-hover:shadow-lg transition-all duration-300">
+                <span className="text-lg">🏠</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">Room {task.roomNumber}</span>
+              </div>
+            )}
+            <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-green-50/80 to-emerald-50/80 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl border border-green-200/50 dark:border-green-700/50 group-hover:shadow-lg transition-all duration-300">
+              <span className="text-lg">📂</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{task.category}</span>
+            </div>
+            <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-orange-50/80 to-amber-50/80 dark:from-orange-900/30 dark:to-amber-900/30 rounded-xl border border-orange-200/50 dark:border-orange-700/50 group-hover:shadow-lg transition-all duration-300">
+              <span className="text-lg">⏱️</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{task.estimatedDuration} min</span>
+            </div>
+            <div className="flex items-center space-x-2 p-3 bg-gradient-to-r from-cyan-50/80 to-teal-50/80 dark:from-cyan-900/30 dark:to-teal-900/30 rounded-xl border border-cyan-200/50 dark:border-cyan-700/50 group-hover:shadow-lg transition-all duration-300">
+              <span className="text-lg">📅</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{new Date(task.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end space-y-2">
+          <div className="flex items-start space-x-4">
+            <div className="relative group/select">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-2xl blur opacity-0 group-hover/select:opacity-30 transition-opacity duration-300"></div>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="relative appearance-none px-5 py-3 pr-10 text-sm font-bold border-2 border-transparent bg-gradient-to-r from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm rounded-2xl text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-indigo-400/20 focus:border-indigo-400 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-105"
+              >
+               <option value="pending" style={{color: 'black'}}>⏳ Pending</option>
+              <option value="in_progress" style={{color: 'black'}}>🔄 In Progress</option>
+              <option value="completed" style={{color: 'black'}}>✅ Completed</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                <div className="w-6 h-6 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs">▼</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleStatusChange(selectedStatus)}
+              disabled={selectedStatus === task.status || isUpdating}
+              className={`group relative px-4 py-2 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300 font-semibold ${
+                selectedStatus === task.status || isUpdating
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl'
+              }`}
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></span>
+              <span className="relative flex items-center space-x-2">
+                {isUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    <span>Save</span>
+                  </>
+                )}
+              </span>
+            </button>
+          </div>
+
+          {/* Timer display below status button */}
+          {selectedStatus === 'completed' && timeRemaining > 0 && (
+            <div className="flex items-center space-x-1 text-xs text-orange-600 dark:text-orange-400 font-semibold">
+              <span className="text-lg">⏰</span>
+              <span>Time remaining: {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+function generateSampleTasks(department, user) {
+  const baseId = Date.now();
+
+  const taskTemplates = {
+    maintenance: [
+      {
+        title: "Fix AC in Room 205",
+        description: "Guest reported AC not working properly. Need to check and repair the cooling system.",
+        category: "hvac",
+        priority: "high",
+        status: "pending",
+        location: "room",
+        roomNumber: "205",
+        estimatedDuration: 45,
+        isUrgent: false
+      },
+      {
+        title: "Replace light bulbs in lobby",
+        description: "Several light bulbs in the main lobby area need replacement.",
+        category: "electrical",
+        priority: "medium",
+        status: "in_progress",
+        location: "lobby",
+        estimatedDuration: 30,
+        isUrgent: false
+      },
+      {
+        title: "Fix leaking faucet in Room 312",
+        description: "Guest reported a leaking bathroom faucet that needs immediate attention.",
+        category: "plumbing",
+        priority: "urgent",
+        status: "pending",
+        location: "room",
+        roomNumber: "312",
+        estimatedDuration: 60,
+        isUrgent: true
+      },
+      {
+        title: "Elevator maintenance check",
+        description: "Monthly elevator safety and maintenance inspection.",
+        category: "general",
+        priority: "medium",
+        status: "completed",
+        location: "other",
+        estimatedDuration: 90,
+        isUrgent: false
+      },
+      {
+        title: "Pool filtration system repair",
+        description: "Pool filtration system showing error codes, needs diagnostic and repair.",
+        category: "general",
+        priority: "high",
+        status: "pending",
+        location: "pool",
+        estimatedDuration: 120,
+        isUrgent: false
+      }
+    ],
+    kitchen: [
+      {
+        title: "Prepare breakfast buffet",
+        description: "Set up and prepare breakfast buffet for hotel guests.",
+        category: "food_preparation",
+        priority: "high",
+        status: "completed",
+        location: "kitchen",
+        estimatedDuration: 60,
+        isUrgent: false
+      },
+      {
+        title: "Clean and sanitize prep area",
+        description: "Deep clean and sanitize all food preparation surfaces and equipment.",
+        category: "cleaning",
+        priority: "medium",
+        status: "in_progress",
+        location: "kitchen",
+        estimatedDuration: 45,
+        isUrgent: false
+      },
+      {
+        title: "Inventory check - dairy products",
+        description: "Check expiration dates and stock levels for all dairy products.",
+        category: "inventory",
+        priority: "medium",
+        status: "pending",
+        location: "kitchen",
+        estimatedDuration: 30,
+        isUrgent: false
+      },
+      {
+        title: "Fix commercial oven temperature",
+        description: "Oven not reaching proper temperature, affecting cooking times.",
+        category: "equipment",
+        priority: "urgent",
+        status: "pending",
+        location: "kitchen",
+        estimatedDuration: 90,
+        isUrgent: true
+      },
+      {
+        title: "Prepare special dietary meals",
+        description: "Prepare gluten-free and vegan options for guests with dietary restrictions.",
+        category: "cooking",
+        priority: "high",
+        status: "in_progress",
+        location: "kitchen",
+        estimatedDuration: 75,
+        isUrgent: false
+      }
+    ],
+    service: [
+      {
+        title: "Guest transportation request",
+        description: "Guest in Room 301 needs transportation to airport at 2 PM.",
+        category: "transportation",
+        priority: "medium",
+        status: "pending",
+        location: "lobby",
+        roomNumber: "301",
+        estimatedDuration: 20,
+        isUrgent: false
+      },
+      {
+        title: "VIP guest welcome setup",
+        description: "Prepare welcome amenities and room setup for VIP guest arrival.",
+        category: "guest_request",
+        priority: "high",
+        status: "in_progress",
+        location: "room",
+        roomNumber: "501",
+        estimatedDuration: 40,
+        isUrgent: false
+      },
+      {
+        title: "Handle guest complaint",
+        description: "Guest complaint about noise levels, needs immediate attention and resolution.",
+        category: "guest_request",
+        priority: "urgent",
+        status: "pending",
+        location: "room",
+        roomNumber: "203",
+        estimatedDuration: 30,
+        isUrgent: true
+      },
+      {
+        title: "Concierge tour booking",
+        description: "Arrange city tour bookings for group of 8 guests.",
+        category: "concierge",
+        priority: "medium",
+        status: "completed",
+        location: "lobby",
+        estimatedDuration: 25,
+        isUrgent: false
+      },
+      {
+        title: "Room service delivery",
+        description: "Deliver dinner order to Room 408 - special dietary requirements.",
+        category: "room_service",
+        priority: "high",
+        status: "pending",
+        location: "room",
+        roomNumber: "408",
+        estimatedDuration: 15,
+        isUrgent: false
+      }
+    ],
+    cleaning: [
+      {
+        title: "Deep clean Room 102",
+        description: "Guest checked out. Room needs deep cleaning and sanitization.",
+        category: "deep_cleaning",
+        priority: "high",
+        status: "pending",
+        location: "room",
+        roomNumber: "102",
+        estimatedDuration: 90,
+        isUrgent: false
+      },
+      {
+        title: "Laundry - bed linens",
+        description: "Process and clean bed linens from checkout rooms.",
+        category: "laundry",
+        priority: "medium",
+        status: "in_progress",
+        location: "other",
+        estimatedDuration: 120,
+        isUrgent: false
+      },
+      {
+        title: "Restock housekeeping supplies",
+        description: "Restock cleaning supplies and amenities on floors 2 and 3.",
+        category: "restocking",
+        priority: "medium",
+        status: "completed",
+        location: "other",
+        estimatedDuration: 45,
+        isUrgent: false
+      },
+      {
+        title: "Emergency spill cleanup",
+        description: "Large spill in main corridor needs immediate cleanup and safety measures.",
+        category: "cleaning",
+        priority: "urgent",
+        status: "pending",
+        location: "other",
+        estimatedDuration: 20,
+        isUrgent: true
+      },
+      {
+        title: "Gym equipment sanitization",
+        description: "Daily sanitization of all gym equipment and surfaces.",
+        category: "cleaning",
+        priority: "high",
+        status: "in_progress",
+        location: "gym",
+        estimatedDuration: 60,
+        isUrgent: false
+      }
+    ]
+  };
+
+  const templates = taskTemplates[department] || taskTemplates.service;
+
+  return templates.map((template, index) => ({
+    ...template,
+    _id: `${baseId + index}`,
+    assignedTo: {
+      id: user?.id || 'user1',
+      name: user?.name || 'Current User'
+    },
+    createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() // Random date within last week
+  }));
+}
+
+// Notifications Tab Component
+function NotificationsTab({ user }) {
+  const { markAsRead, deleteNotification, markAllAsRead } = useNotifications();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [type, setType] = useState('all');
+  const [channel, setChannel] = useState('all');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+
+  const pages = Math.max(1, Math.ceil(total / limit));
+
+  const loadPage = async (opts = {}) => {
+    try {
+      setLoading(true);
+      setError('');
+      const params = {
+        page: opts.page ?? page,
+        limit: opts.limit ?? limit,
+      };
+      if (showUnreadOnly) params.read = 'false';
+      if (type !== 'all') params.type = type;
+      if (channel !== 'all') params.channel = channel;
+      const res = await notificationService.getMyNotifications(params);
+      const data = res?.data || res || {};
+      const notifications = data.notifications || data.items || [];
+      const pagination = data.pagination || { total: notifications.length, page: params.page, limit: params.limit };
+      setItems(Array.isArray(notifications) ? notifications : []);
+      setTotal(pagination.total ?? notifications.length);
+      setPage(pagination.page ?? params.page);
+      setLimit(pagination.limit ?? params.limit);
+    } catch (err) {
+      setError(err?.message || 'Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPage({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUnreadOnly, type, channel]);
+
+  const typeOptions = useMemo(() => {
+    const set = new Set();
+    items.forEach(n => n.type && set.add(n.type));
+    return ['all', ...Array.from(set)];
+  }, [items]);
+
+  const channelOptions = useMemo(() => {
+    const set = new Set();
+    items.forEach(n => n.channel && set.add(n.channel));
+    const opts = Array.from(set);
+    return ['all', ...opts];
+  }, [items]);
+
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await markAsRead(notificationId);
+      // Update local state immediately
+      setItems(prevItems =>
+        prevItems.map(item =>
+          (item._id === notificationId || item.id === notificationId)
+            ? { ...item, isRead: true, readAt: new Date().toISOString() }
+            : item
+        )
+      );
+    } catch (error) {
+      // Error is handled in context
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await deleteNotification(notificationId);
+      // Update local state immediately
+      setItems(prevItems =>
+        prevItems.filter(item =>
+          (item._id !== notificationId && item.id !== notificationId)
+        )
+      );
+    } catch (error) {
+      // Error is handled in context
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      // Update local state immediately
+      setItems(prevItems =>
+        prevItems.map(item => ({
+          ...item,
+          isRead: true,
+          readAt: new Date().toISOString()
+        }))
+      );
+    } catch (error) {
+      // Error is handled in context
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    const iconMap = {
+      admin_message: '📢',
+      system_alert: '⚠️',
+      emergency_alert: '🚨',
+      financial_alert: '💰',
+      security_alert: '🔒',
+      task_assigned: '📋',
+      shift_scheduled: '📅',
+      manager_message: '💬',
+      booking_confirmation: '✅',
+      payment_receipt: '💳',
+      checkin_reminder: '🏨',
+      default: '🔔'
+    };
+    return iconMap[type] || iconMap.default;
+  };
+
+  return (
+    <div className="space-y-8 relative">
+      {/* Header */}
+      <div className="relative">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-30 animate-pulse"></div>
+              <h2 className="relative text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Notifications
+              </h2>
+            </div>
+            <div className="animate-bounce">🔔</div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+              <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">
+                {items.filter(n => !n.isRead).length} unread notifications
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center space-x-4">
+          <label className="flex items-center space-x-2 text-sm">
+            <input
+              type="checkbox"
+              checked={showUnreadOnly}
+              onChange={(e) => setShowUnreadOnly(e.target.checked)}
+              className="rounded"
+            />
+            <span>Unread only</span>
+          </label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+          >
+            {typeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          <select
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+          >
+            {channelOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
+          {items.filter(n => !n.isRead).length > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            >
+              Mark All Read
+            </button>
+          )}
+          <button
+            onClick={() => loadPage({ page: 1 })}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{error}</div>
+      )}
+
+      {/* Notifications List */}
+      <div className="relative">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden min-h-[400px]">
+          {loading ? (
+            <div className="p-12 text-center">
+              <div className="text-gray-400 text-6xl mb-4">🔔</div>
+              <p className="text-gray-600 dark:text-gray-300">Loading notifications...</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="text-gray-400 text-6xl mb-4">🔔</div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                {showUnreadOnly ? 'No unread notifications' : 'No notifications found'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                {showUnreadOnly ? 'All caught up!' : 'You\'re all set for now.'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {items.map((notification) => (
+                <div
+                  key={notification._id || notification.id}
+                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors ${
+                    !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <div className="text-2xl">
+                        {getTypeIcon(notification.type)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className={`font-medium ${
+                          !notification.isRead
+                            ? 'text-gray-900 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {notification.title}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs text-gray-500">
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </span>
+                          {notification.channel && (
+                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-xs">
+                              {notification.channel}
+                            </span>
+                          )}
+                          {notification.actionUrl && (
+                            <a href={notification.actionUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">Open</a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {!notification.isRead && (
+                        <button
+                          onClick={() => handleMarkAsRead(notification._id || notification.id)}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition-colors"
+                        >
+                          Mark Read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteNotification(notification._id || notification.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {pages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Page {page} of {pages} • {total} total notifications
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1 || loading}
+              onClick={() => loadPage({ page: page - 1 })}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Prev
+            </button>
+            <button
+              disabled={page >= pages || loading}
+              onClick={() => loadPage({ page: page + 1 })}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KitchenOrdersTab({ user, department }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-3xl">🍳</span>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Kitchen Orders</h2>
+      </div>
+      <KitchenQueueView />
     </div>
   );
 }
