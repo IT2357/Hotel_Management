@@ -87,11 +87,36 @@ hotel-management-system/
 │
 ├── docs/                   # General documentation and screenshots
 ├── scripts/                # Seed, migrate, and backup scripts
-├── docker-compose.yml
 └── README.md
 ```
 
 ---
+
+## 📸 Screenshots
+
+### Landig Page
+![Landig Page](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-13-20.png)
+
+### Quick Accesses
+![Quick Accesses](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-13-27.png)
+
+### Description Section
+![Description Section](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-13-36.png)
+
+### Rooms Overview
+![Rooms Overview](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-13-55.png)
+
+### Login Page
+![Login Page](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-14-11.png)
+
+### Admin Dashboard
+![Admin Dashboard](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-14-36.png)
+
+### Food Mangement Actions
+![Food Actions](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-15-14.png)
+
+### Settings Pannel
+![Settings Pannel](/frontend/public/images/screenshots/Screenshot%20from%202025-12-05%2008-15-29.png)
 
 ## 🧩 Key Features of This Structure
 
@@ -125,7 +150,6 @@ Make sure these are installed:
 - [Node.js](https://nodejs.org/) (v16+ recommended)
 - [npm](https://www.npmjs.com/) (v8+)
 - [Git](https://git-scm.com/)
-- [Docker](https://www.docker.com/) *(optional)*
 
 ---
 
